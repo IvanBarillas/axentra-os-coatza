@@ -21,6 +21,9 @@ urlpatterns = [
 
     # 2. Instancia Global de Django Ninja (Para endpoints JSON cuando se requieran)
     #path('api/v1/', api.urls),
+    
+    # 3. CONEXIÓN DEL CHASIS UNIFICADO DE CIBERSEGURIDAD e IDENTIDAD (Shared Bus)
+    path('', include('apps.security.urls')),
 
     # 3. Launcher Principal de Aplicaciones (Raíz del Sistema Operativo)
     path('', launcher_home_view, name='launcher_home'),
