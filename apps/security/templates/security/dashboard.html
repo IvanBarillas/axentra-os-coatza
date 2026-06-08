@@ -1,0 +1,82 @@
+{% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
+
+{% block title %}Dashboard Personal | {{ tenant.app_name }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-8 select-none">
+    
+    {% dashboard_header badge_text="SISTEMA CENTRAL DE PERSONAL" title="Módulo Capital Humano" description="Consola integrada para el control operativo de expedientes de funcionarios, asignación de puestos y adscripción matricial." status_text="Staff Registry Active" accent_color="blue-600" modulo_actual="accounts" %}
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% stats_card label="Total Registros" value=total_funcionarios icon="clipboard-list" bg_icon="bg-gray-100/60" subtext="Funcionarios en base de datos" %}
+        {% stats_card label="Cuentas Activas" value=funcionarios_activos icon="user-check" bg_icon="bg-emerald-50 text-emerald-600" hover_color="emerald-600" subtext="● Con pasaporte operativo" subtext_highlight=True %}
+        {% stats_card label="Inhabilitados" value=funcionarios_baja icon="user-minus" bg_icon="bg-red-50 text-red-600" hover_color="red-600" subtext="Bajas institucionales archivadas" %}
+        {% stats_card label="Staff Directivo" value=total_managers icon="shield-check" bg_icon="bg-blue-50 text-blue-600" hover_color="blue-600" subtext="Managers Globales con Bypass" subtext_highlight=True %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-xs lg:col-span-2 flex flex-col justify-between">
+            <div>
+                <h4 class="text-xs font-bold text-gray-900 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="trending-up" class="w-4 h-4 text-blue-600"></i> Ritmo de Incorporación Digital
+                </h4>
+                <p class="text-xs text-gray-400 font-medium mt-1">Conteo cronológico de cuentas institucionales creadas en los ciclos fiscales recientes.</p>
+            </div>
+            
+            <div class="mt-6 space-y-4 flex-1 flex flex-col justify-center">
+                {% for alta in cronologia_altas %}
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs font-bold font-mono">
+                        <span class="text-gray-500">{{ alta.mes }}</span>
+                        <span class="text-gray-950">{{ alta.amount|default:alta.cantidad }} Altas</span>
+                    </div>
+                    <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden border border-gray-200/40">
+                        <div class="bg-blue-600 h-full rounded-full transition-all duration-1000 group-hover:bg-blue-700" 
+                             style="width: {{ alta.porcentaje }}%"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-xs font-mono text-gray-400 py-6 italic">// No hay registros de altas en este periodo fiscal.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-xs lg:col-span-1 flex flex-col justify-between min-h-[260px]">
+            <div>
+                <h4 class="text-xs font-bold text-gray-900 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600"></i> Control Estricto de Bajas
+                </h4>
+                <p class="text-xs text-gray-400 font-medium mt-1">Recuerde que inhabilitar la cuenta de un funcionario congela de inmediato sus llaves de acceso perimetral.</p>
+            </div>
+            <div class="p-4 bg-amber-50/60 border border-amber-200 rounded-xl mt-4">
+                <p class="text-xs text-amber-900 font-medium leading-relaxed">
+                    <strong>Protocolo Forense:</strong> Las cuentas institucionales removidas no se eliminan físicamente de la base de datos para preservar la inmutabilidad de las auditorías históricas del Ayuntamiento.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="space-y-4">
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono px-2 flex items-center gap-2">
+            <i data-lucide="sliders" class="w-4 h-4 text-gray-400"></i> Acciones Tácticas sobre el Capital Humano
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {% url 'accounts:funcionario_list_table' as url_lista %}
+            {% url 'accounts:funcionario_create' as url_crear %}
+            
+            {% action_card title="Plantilla Completa" description="Visor centralizado en grilla transaccional con buscadores avanzados y filtros dinámicos de adscripción." url_destination=url_lista icon="users" target_count=total_funcionarios target_label="En Padrón" button_text="Abrir Listado" %}
+            
+            {% action_card title="Alta de Funcionario" description="Incorpore un nuevo servidor público capturando su correo institucional, puesto y celda matricial de organigrama." url_destination=url_crear icon="user-plus" hover_color="blue-600" target_count="LIVE" target_label="Alta Inmediata" count_color="emerald-600" bg_icon="bg-blue-50 text-blue-600" button_text="Nuevo Registro" %}
+            
+            {% action_card title="Sesiones Activas" description="Monitoreo centinela de navegadores web autenticados en tiempo real y vigencia de tokens de sesión." url_destination="#" icon="activity" hover_color="emerald-600" target_count=funcionarios_activos target_label="Tokens Activos" bg_icon="bg-emerald-50 text-emerald-600" button_text="Auditar Sesiones" %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}

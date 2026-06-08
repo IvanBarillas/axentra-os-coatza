@@ -11,7 +11,7 @@ def security_dashboard_view(request):
     """Consola Central de Ciberseguridad (Heimdall logs y balanceo de llaves)."""
     context = SecurityDashboardSelectors.obtener_metricas_firewall()
     context['recents_audits'] = SecurityDashboardSelectors.obtener_buffer_auditoria(limite=50)
-    return render(request, 'security/dashboard/dashboard_security.html', context)
+    return render(request, 'security/dashboard.html', context)
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="has_access_module")
