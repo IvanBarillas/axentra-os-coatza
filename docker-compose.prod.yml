@@ -1,0 +1,44 @@
+services:
+  db_prod:
+    image: postgres:15-alpine
+    container_name: axentra_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: admin_axentra
+      POSTGRES_PASSWORD: PassSeguroaxentra2026
+      POSTGRES_DB: axentra_core_prod
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data/
+    # NO se exponen puertos al host por máxima seguridad. El exterior está cerrado.
+    networks:
+      - axentra-prod-network
+
+  core_web_prod:
+    build: .
+    container_name: axentra_core_app_prod
+    restart: always
+    ports:
+      - "8888:8000" # Cacheado directo por tu Nginx Proxy Manager en el puerto 8888
+    environment:
+      - DJANGO_ENV=prod
+      - DJANGO_SETTINGS_MODULE=core.settings.production
+    env_file:
+      - .env.prod
+    depends_on:
+      - db_prod
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - logs_volume:/app/logs
+    networks:
+      - axentra-prod-network
+
+volumes:
+  postgres_prod_data:
+  static_volume:
+  media_volume:
+  logs_volume:
+
+networks:
+  axentra-prod-network:
+    driver: bridge
