@@ -1,0 +1,91 @@
+{% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
+
+{% block app_context_badge %}Inteligencia Estructural{% endblock %}
+{% block title %}Dashboard Organigrama | {{ tenant.app_name }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-10 pb-12 w-full animate-fade-in select-none">
+    
+    {% dashboard_header badge_text="NÚCLEO DE MODELADO ORGÁNICO" title="Estructura & Territorio" description="Consola analítica para el control geométrico de sedes municipales, descentralización de oficinas e integridad de la plantilla matricial." status_text="Core Topology" accent_color="slate-900" modulo_actual="organigrama" %}
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% stats_card label="Sedes e Inmuebles" value=total_sedes icon="map-pin" subtext="Palacios y anexos activos" %}
+        {% stats_card label="Dependencias Cores" value=total_dependencias icon="building-2" hover_color="slate-400" value_color="slate-800" subtext="Secretarías / Direcciones" bg_icon="gray-50" %}
+        {% stats_card label="Áreas y Oficinas" value=total_areas icon="git-commit" hover_color="slate-400" value_color="slate-500" subtext="Celdas operativas activas" bg_icon="gray-50" %}
+        
+        {% if funcionarios_sin_area > 0 %}
+            {% stats_card label="Excepciones de Cuentas" value=funcionarios_sin_area icon="shield-alert" hover_color="red-500" value_color="red-600" subtext="⚠️ Servidores sin adscripción" subtext_highlight=True bg_icon="red-50" %}
+        {% else %}
+            {% stats_card label="Excepciones de Cuentas" value="0" icon="shield-check" hover_color="slate-400" value_color="slate-900" subtext="✓ Conciliación perfecta" subtext_highlight=True bg_icon="gray-50" %}
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs lg:col-span-2 flex flex-col justify-between">
+            <div>
+                <h4 class="text-xs font-bold text-gray-950 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4 text-gray-400"></i>
+                    <span>Historial de Mutaciones de Topología</span>
+                </h4>
+                <p class="text-[11px] text-gray-400 font-medium font-mono mt-1 uppercase">Registro forense de los últimos movimientos de ingeniería orgánica en el Ayuntamiento.</p>
+            </div>
+            
+            <div class="mt-6 flex-1 divide-y divide-gray-100 font-mono text-[11px]">
+                {% for log in cronologia_mutaciones %}
+                <div class="py-3.5 flex items-center justify-between gap-4 uppercase">
+                    <div class="flex items-center gap-3">
+                        <span class="text-gray-400 text-[10px] whitespace-nowrap">{{ log.created_at|date:"d/M H:i" }}</span>
+                        <span class="text-gray-900 font-bold border-l pl-3 border-gray-200">{{ log.action_description }}</span>
+                    </div>
+                    <span class="text-gray-500 text-[10px] bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded font-sans lowercase">{{ log.user.email }}</span>
+                </div>
+                {% empty %}
+                <div class="text-[10px] font-mono text-gray-400 uppercase tracking-widest py-12 text-center border border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2 h-full">
+                    <i data-lucide="database-backup" class="w-5 h-5 text-gray-300 stroke-1"></i>
+                    <span>// No se registran mutaciones estructurales en la bitácora activa</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs lg:col-span-1 flex flex-col justify-between min-h-[280px]">
+            <div>
+                <h4 class="text-xs font-bold text-gray-950 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="git-fork" class="w-4 h-4 text-gray-950"></i>
+                    <span>Heredabilidad Estricta</span>
+                </h4>
+                <p class="text-[11px] text-gray-400 font-medium font-mono mt-1 uppercase">La arquitectura del Ayuntamiento opera en cascada relacional inmutable.</p>
+            </div>
+            <div class="p-5 bg-gray-50 border border-gray-200 rounded-2xl mt-6">
+                <p class="text-[10px] text-gray-600 font-mono uppercase tracking-wide leading-relaxed">
+                    <strong class="text-gray-950">Integridad de Nodos:</strong> Si desactiva o da de baja una Sede física, el sistema operativo congelará temporalmente la visibilidad de todas las oficinas adscritas a dicho inmueble para evitar fugas de conciliación en el Padrón de Personal.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="space-y-4">
+        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] font-mono px-2 flex items-center gap-2 select-none">
+            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-gray-400"></i>
+            <span>Acciones Tácticas sobre el Organigrama</span>
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {% url 'organigrama:estructura_list' as url_estructura %}
+            {% url 'organigrama:sede_list' as url_sedes %}
+            
+            {% action_card title="Árbol de Dependencias" description="Visor jerárquico interactivo en acordeones dinámicos para el control de Secretarías y Direcciones Generales." url_destination=url_estructura icon="git-fork" target_count=total_dependencias target_label="Ramos Cores" button_text="Modelar Árbol" %}
+            
+            {% action_card title="Sedes e Inmuebles" description="Gestión geográfica de palacios municipales, anexos físicos y activación/congelamiento de nodos de atención." url_destination=url_sedes icon="map-pin" hover_color="slate-900" target_count=total_sedes target_label="Sedes Activas" count_color="gray-950" bg_icon="gray-50" button_text="Abrir Territorio" %}
+            
+            {% action_card title="Auditoría Matricial" description="Reporte analítico de consistencia para la detección oportuna de cuentas huérfanas sin adscripción orgánica." url_destination="#" icon="bar-chart-3" hover_color="slate-900" target_count=funcionarios_sin_area target_label="Alertas Cuentas" bg_icon="gray-50" button_text="Auditar Densidad" %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}

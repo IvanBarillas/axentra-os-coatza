@@ -1,0 +1,38 @@
+<!-- templates/organigrama/htmx/estructura_areas_table.html -->
+<div class="overflow-x-auto rounded-2xl border border-gray-200/60 bg-white mt-4 animate-fade-in">
+    <table class="w-full text-left border-collapse font-mono text-[11px]">
+        <thead>
+            <tr class="border-b border-gray-100 bg-gray-50/60 text-[9px] font-bold uppercase text-gray-400 tracking-wider select-none">
+                <th class="py-3 px-5">Oficina / Área Operativa</th>
+                <th class="py-3 px-5">Sede Geográfica Asignada</th>
+                <th class="py-3 px-5 text-right">Estatus Físico</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50 text-gray-700">
+            {% for area in areas %}
+            <tr class="hover:bg-gray-50/30 transition duration-150">
+                <td class="py-3 px-5 font-bold text-gray-900 uppercase">↳ {{ area.nombre }}</td>
+                <td class="py-3 px-5 text-gray-400 uppercase">[ {{ area.sede_nombre|default:"SEDE CENTRAL" }} ]</td>
+                <td class="py-3 px-5 text-right whitespace-nowrap">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wide">
+                        VINCULADO
+                    </span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" class="text-center py-8 text-gray-400 uppercase text-[9px] tracking-widest select-none">
+                    // No existen sub-oficinas o celdas adscritas a esta rama del organigrama.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Re-hidratador imperativo de vectores Lucide tras el swap asincrónico -->
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>

@@ -1,0 +1,7 @@
+<!-- templates/organigrama/htmx/area_options.html -->
+<option value="all" class="font-mono uppercase">// Todas las Áreas Disponibles</option>
+{% for area in areas %}
+    <option value="{{ area.id }}" class="font-mono uppercase" {% if current_area_id == area.id %}selected{% endif %}>
+        {{ area.nombre|upper }} [{{ area.sede_nombre|default:"SEDE CENTRAL" }}]
+    </option>
+{% endfor %}

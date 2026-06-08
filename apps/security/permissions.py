@@ -88,7 +88,7 @@ class OrganigramaPermissions:
         'badge_text': 'Estructura',
         'hover_color': 'hover:border-blue-600',
         'text_hover_color': 'group-hover:text-blue-600',
-        'url_name': 'organigrama:dashboard',
+        'url_name': 'organigrama:dashboard', 
         'is_core': True,
     }
 

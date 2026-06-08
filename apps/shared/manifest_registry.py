@@ -20,8 +20,6 @@ class AxentraOSRegistry:
         🛰️ ESCÁNER AUTO-ROTATIVO DE MANIFIESTOS:
         Itera sobre el catálogo maestro de 'AppIdentifier.get_choices()' y mapea 
         en caliente las clases de permisos declaradas en el ecosistema.
-        
-        Sustituye por completo los diccionarios fijos con rutas hardcodeadas.
         """
         manifests = {}
         
@@ -29,25 +27,15 @@ class AxentraOSRegistry:
         modulos_declarados = [choice[0] for choice in AppIdentifier.get_choices()]
         
         for app_code in modulos_declarados:
-            # Construcción predictiva de rutas bajo Clean Architecture:
-            # Ejemplo: 'accounts' -> 'apps.security.permissions.AccountsPermissions' (Si todo está en security)
-            # O si se desacopla: 'apps.accounts.permissions.AccountsPermissions'
-            # Mantenemos la convención actual: Todo vive dentro del paquete 'apps.security' o relativo
-            # Evaluamos dinámicamente si tus archivos viven en la app unificada de seguridad:
-            
             # Formateamos el nombre de la clase esperado de fábrica (Ej: 'SecurityPermissions', 'AccountsPermissions')
             class_name = f"{app_code.capitalize()}Permissions"
             module_path = f"apps.security.permissions" # Chasis unificado actual
             
             try:
-                # Intentamos importar el módulo de gobernanza en la RAM
                 mod = importlib.import_module(module_path)
                 manifest_class = getattr(mod, class_name)
-                
-                # Registramos el nodo descriptor acoplándolo a su slug
                 manifests[app_code] = manifest_class
             except (ImportError, AttributeError) as e:
-                # Si un sub-módulo no cuenta con archivo o clase descriptor, el Core lo ignora sin colapsar
                 logger.debug(f"ℹ️ [Registry Discovery] Nodo satélite [{app_code}] omitido o sin manifiesto estructurado: {e}")
                 continue
                 
@@ -62,22 +50,32 @@ class AxentraOSRegistry:
         return cls.get_all_manifests().get(app_code)
 
     @classmethod
-    def get_launcher_cards(cls, allowed_app_identifiers: list, is_root: bool = False) -> list:
+    def get_launcher_cards(cls, allowed_app_identifiers: list, is_root: bool = False) -> dict:
         """
-        🚀 ESCRITORIO OPERATIVO (LAUNCHER HUB):
-        Construye y empaqueta el lote total de tarjetas analíticas para alimentar 
-        el escritorio principal del operador, aplicando un filtrado estricto por privilegios.
+        🚀 ESCRITORIO OPERATIVO SECTORIZADO (LAUNCHER HUB):
+        Construye y empaqueta el lote total de tarjetas organizándolas en dos 
+        bloques estructurales independientes basados en la directiva 'is_core'
+        para alimentar las secciones del frontend de forma limpia.
         """
-        cards = []
+        # 🟢 CALIBRACIÓN: Retornamos un dict estructurado en lugar de una lista plana
+        cards_bucket = {
+            'core_apps': [],       # 🏛️ Bloque Superior (Gobernanza Core)
+            'satellite_apps': []   # 🛰️ Bloque Inferior (Módulos de Gestión)
+        }
+        
         all_manifests = cls.get_all_manifests()
         
         for app_code, manifest in all_manifests.items():
-            # El Operador Supremo (is_root) ve todo el chasis; los funcionarios comunes pasan por aduana
             if is_root or app_code in allowed_app_identifiers:
-                # Validamos que el manifiesto cuente con los metadatos visuales exigidos por el DOM
                 if hasattr(manifest, 'LAUNCHER_CARD'):
                     card_data = manifest.LAUNCHER_CARD.copy()
                     card_data['app_code'] = app_code
-                    cards.append(card_data)
                     
-        return cards
+                    # 🪐 DISTRIBUCIÓN RECTILÍNEA:
+                    # Evaluamos si la metadata de la clase declara 'is_core': True
+                    if card_data.get('is_core', False):
+                        cards_bucket['core_apps'].append(card_data)
+                    else:
+                        cards_bucket['satellite_apps'].append(card_data)
+                    
+        return cards_bucket
