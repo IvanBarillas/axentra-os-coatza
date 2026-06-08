@@ -1,0 +1,35 @@
+/* ==========================================================================
+   Axentra OS - Hoja de Estilos Base (Tailwind v4)
+   ========================================================================== */
+
+/* 1. Importación del núcleo de Tailwind CSS */
+@import "tailwindcss";
+
+/* 2. Importación de Source Sans 3 (Pesos: Regular 400, Semibold 600, Bold 700) */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+/* 3. Extensión y personalización del Tema en Tailwind v4 */
+@theme {
+  /* Sobrescribe la fuente sans por defecto de todo el sistema por Source Sans 3 */
+  --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  
+  /* Puedes agregar aquí tus colores corporativos base si los necesitas en el futuro, ej:
+  --color-brand-primary: #0f172a;
+  --color-brand-accent: #0284c7;
+  */
+}
+
+/* ==========================================================================
+   Estilos de Utilidad y Ajustes Globales (Opcionales)
+   ========================================================================== */
+
+/* Prevenir parpadeos o saltos de carga con AlpineJS (Clase útil para x-cloak) */
+[x-cloak] { 
+  display: none !important; 
+}
+
+/* Ajuste fino opcional para suavizado de fuentes en navegadores WebKit */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

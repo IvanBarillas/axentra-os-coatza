@@ -1,0 +1,55 @@
+<div class="flex grow flex-col gap-y-5 overflow-y-auto bg-slate-900 px-6 pb-4 ring-1 ring-white/10">
+    <div class="flex h-16 shrink-0 items-center gap-2">
+        <div class="rounded-lg bg-indigo-600 p-1.5 text-white">
+            <i data-lucide="layers" class="h-6 w-6"></i>
+        </div>
+        <span class="text-lg font-bold text-white tracking-wider">AXENTRA<span class="text-indigo-400">OS</span></span>
+    </div>
+
+    <nav class="flex flex-1 flex-col">
+        <ul role="list" class="flex flex-1 flex-col gap-y-7">
+            <li>
+                <div class="text-xs font-semibold leading-6 text-slate-400 uppercase tracking-wider">Núcleo Central</div>
+                <ul role="list" class="-mx-2 mt-2 space-y-1">
+                    <li>
+                        <a href="/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-white bg-slate-800">
+                            <i data-lucide="layout-dashboard" class="h-6 w-6 shrink-0 text-white"></i>
+                            Launcher de Apps
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li>
+                <div class="text-xs font-semibold leading-6 text-slate-400 uppercase tracking-wider">Aplicaciones Satélites</div>
+                <ul role="list" class="-mx-2 mt-2 space-y-1" id="satellite-apps-list">
+                    <li>
+                        <a href="/app/organigrama/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-slate-300 hover:text-white hover:bg-slate-800">
+                            <i data-lucide="network" class="h-6 w-6 shrink-0 text-slate-400 group-hover:text-white"></i>
+                            Organigrama
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/app/transparencia/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-slate-300 hover:text-white hover:bg-slate-800">
+                            <i data-lucide="eye" class="h-6 w-6 shrink-0 text-slate-400 group-hover:text-white"></i>
+                            Transparencia
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/app/auditoria/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-slate-300 hover:text-white hover:bg-slate-800">
+                            <i data-lucide="shield-check" class="h-6 w-6 shrink-0 text-slate-400 group-hover:text-white"></i>
+                            Auditoría interna
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="mt-auto">
+                <a href="/admin/logout/" class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-rose-400 hover:bg-slate-800 hover:text-rose-300">
+                    <i data-lucide="log-out" class="h-6 w-6 shrink-0 text-rose-400 group-hover:text-rose-300"></i>
+                    Cerrar Sesión
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>

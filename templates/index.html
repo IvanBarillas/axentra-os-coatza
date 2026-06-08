@@ -1,0 +1,89 @@
+{% extends "layouts/dashboard_layout.html" %}
+
+{% block title %}Launcher Principal · Axentra OS{% endblock %}
+
+{% block dashboard_content %}
+<div class="md:flex md:items-center md:justify-between mb-8">
+    <div class="min-w-0 flex-1">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl tracking-tight">
+            Consola General de Aplicaciones
+        </h2>
+        <p class="mt-1 text-sm leading-6 text-gray-500">
+            Selecciona un entorno modular seguro para inicializar tu sesión de trabajo.
+        </p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    
+    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md flex flex-col justify-between">
+        <div class="p-6">
+            <div class="flex items-center gap-x-4">
+                <div class="rounded-lg bg-indigo-50 p-3 text-indigo-600">
+                    <i data-lucide="network" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold leading-6 text-gray-900">Estructura y Organigrama</h3>
+                    <p class="text-xs text-gray-400">Modulo de Gestión de Personal</p>
+                </div>
+            </div>
+            <p class="mt-4 text-sm leading-6 text-gray-600">
+                Administración jerárquica de dependencias, puestos, roles y distribución institucional del cliente único.
+            </p>
+        </div>
+        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
+            <a href="/app/organigrama/" class="inline-flex items-center gap-x-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+                Inicializar Módulo
+                <i data-lucide="arrow-right" class="h-4 w-4"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md flex flex-col justify-between">
+        <div class="p-6">
+            <div class="flex items-center gap-x-4">
+                <div class="rounded-lg bg-amber-50 p-3 text-amber-600">
+                    <i data-lucide="eye" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold leading-6 text-gray-900">Transparencia Pública</h3>
+                    <p class="text-xs text-gray-400">Obligaciones de Ley</p>
+                </div>
+            </div>
+            <p class="mt-4 text-sm leading-6 text-gray-600">
+                Carga, validación y consulta de las fracciones obligatorias de información pública gubernamental.
+            </p>
+        </div>
+        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
+            <a href="/app/transparencia/" class="inline-flex items-center gap-x-1.5 text-sm font-semibold text-amber-600 hover:text-amber-500">
+                Inicializar Módulo
+                <i data-lucide="arrow-right" class="h-4 w-4"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md flex flex-col justify-between">
+        <div class="p-6">
+            <div class="flex items-center gap-x-4">
+                <div class="rounded-lg bg-emerald-50 p-3 text-emerald-600">
+                    <i data-lucide="shield-check" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold leading-6 text-gray-900">Auditoría e Historial</h3>
+                    <p class="text-xs text-gray-400">Seguridad Inmutable</p>
+                </div>
+            </div>
+            <p class="mt-4 text-sm leading-6 text-gray-600">
+                Seguimiento de logs, acciones internas del cliente único, firmas digitales y control estricto de accesos.
+            </p>
+        </div>
+        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
+            <a href="/app/auditoria/" class="inline-flex items-center gap-x-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-500">
+                Inicializar Módulo
+                <i data-lucide="arrow-right" class="h-4 w-4"></i>
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

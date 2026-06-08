@@ -1,0 +1,52 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Axentra OS{% endblock %}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+
+    <style type="text/css">
+        @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+        
+        @theme {
+            --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        }
+
+        /* Prevenir parpadeos con AlpineJS */
+        [x-cloak] { 
+            display: none !important; 
+        }
+    </style>
+</head>
+<body class="h-full font-sans antialiased text-gray-900" 
+      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+    <div id="app-container" class="flex min-h-screen w-full">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <script src="{% static 'js/htmx.min.js' %}" defer></script>
+    <script src="{% static 'js/alpine.min.js' %}" defer></script>
+    <script src="{% static 'js/lucide.min.js' %}" defer></script>
+    <script src="{% static 'js/chart.umd.js' %}" defer></script>
+
+    <script>
+        // Inicialización automática de Iconos Lucide
+        document.addEventListener("DOMContentLoaded", function() {
+            if (window.lucide) lucide.createIcons();
+        });
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (window.lucide) lucide.createIcons();
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
