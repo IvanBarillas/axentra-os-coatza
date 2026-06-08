@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load axentra_ui %}
+
+{% block title %}Acceso Interceptado | {{ tenant.app_name }} Enforcer{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center p-4 bg-gray-950 animate-fade-in select-none relative overflow-hidden">
+    
+    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-md w-full bg-gray-900 border border-red-900/50 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 relative overflow-hidden z-10">
+        
+        <div class="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
+        
+        <div class="flex justify-center">
+            <div class="w-14 h-14 bg-red-950/60 border border-red-500/30 rounded-xl text-red-500 flex items-center justify-center shadow-lg animate-pulse">
+                <i data-lucide="shield-x" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <div class="text-center space-y-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/80 text-red-400 text-[9px] font-bold uppercase tracking-widest font-mono border border-red-900/40">
+                <i data-lucide="activity" class="w-3 h-3 text-red-500"></i> AXENTRA SECURITY SHIELD ACTIVE
+            </span>
+            <h3 class="text-xl font-bold text-white tracking-tight uppercase pt-1">Ruta No Localizada o Interceptada</h3>
+            <p class="text-xs text-gray-400 font-medium leading-relaxed">
+                El sistema perimetral ha congelado esta petición debido a un intento de navegación fuera del catálogo autorizado o manipulación de parámetros de la URL.
+            </p>
+        </div>
+
+        <div class="p-4 bg-gray-950 border border-gray-800 rounded-xl space-y-3 font-mono text-[10px]">
+            <div class="text-[9px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span>
+                <span>// REGISTRO DE INCIDENCIA EN BITÁCORA CORE</span>
+            </div>
+            <div class="space-y-1.5 leading-normal text-gray-300">
+                <p>• <span class="text-gray-500 font-bold">EVENTO:</span> Intento de alteración de entorno / URL Tampering.</p>
+                <p>• <span class="text-gray-500 font-bold">ORIGEN:</span> Operador autenticado en sesión activa.</p>
+                <p>• <span class="text-gray-500 font-bold">ESTATUS:</span> Identidad digital y parámetros de red transmitidos al stream de auditoría forense.</p>
+                <p class="text-red-400/90 font-bold pt-2 border-t border-gray-900 mt-2">
+                    ⚠️ ESTA ACCIÓN HA SIDO NOTIFICADA AUTOMÁTICA AL ADMINISTRADOR CENTRAL DE LA PLATAFORMA.
+                </p>
+            </div>
+        </div>
+
+        <div class="pt-1">
+            <a href="{% url 'launcher_home' %}" class="w-full inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] uppercase tracking-wider py-3.5 rounded-xl transition transform active:scale-95 shadow-md shadow-red-900/20 cursor-pointer">
+                <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                <span>Abortar Operación y Salir Seguro</span>
+            </a>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

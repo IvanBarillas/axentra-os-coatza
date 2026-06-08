@@ -50,3 +50,12 @@ def launcher_home_view(request):
     print("═"*80 + "\n")
 
     return render(request, "index.html", {"launcher_cards": launcher_cards})
+
+
+def intro_portal_view(request):
+    """
+    Renderiza la compuerta externa de bienvenida (Landing Portal) de Axentra OS,
+    desplegando los marcos normativos de control interno y los disparadores de sesión.
+    """
+    # El singleton del tenant lo inyecta de forma automática tu context processor
+    return render(request, "intro.html")

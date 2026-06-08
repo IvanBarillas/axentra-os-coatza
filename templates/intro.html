@@ -1,0 +1,138 @@
+<!-- templates/intro.html -->
+{% extends "base.html" %}
+{% load axentra_ui %}
+
+{% block title %}Portal Digital de Administración y Estructura Orgánica | {{ tenant.app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex flex-col justify-between select-none animate-fade-in relative overflow-hidden">
+    
+    <!-- ✨ Capas de decorados de fondo tecnológicos sutiles (Glow Rings) -->
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 right-0 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- =========================================================================
+         🏛️ ENCABEZADO SUPERIOR (MINIMALIST BRANDING BAR)
+         ========================================================================= -->
+    <header class="w-full px-6 py-5 max-w-7xl mx-auto flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            {% if tenant.logo_light %}
+                <img src="{{ tenant.logo_light }}" alt="Escudo Oficial" class="w-8 h-8 object-contain">
+            {% else %}
+                <div class="bg-gray-950 text-white p-1.5 rounded-xl shadow-xs flex items-center justify-center w-8 h-8 font-mono font-bold text-xs">
+                    🏛️
+                </div>
+            {% endif %}
+            <div class="leading-none">
+                <span class="text-base font-bold text-gray-950 tracking-tight">{{ tenant.app_name|default:"Axentra" }}</span><span class="text-blue-600 font-light font-mono text-sm">OS</span>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4 text-xs font-bold font-mono uppercase tracking-wider text-gray-400">
+            <span>RFC: {{ tenant.rfc|default:"MUNICIPAL" }}</span>
+            <span class="text-gray-300">•</span>
+            <span class="text-emerald-600 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Sistema Operando
+            </span>
+        </div>
+    </header>
+
+    <!-- =========================================================================
+         🚀 NÚCLEO CENTRAL (HERO COMPONENT & HUB DE CONTROL)
+         ========================================================================= -->
+    <main class="flex-1 flex items-center justify-center px-4 z-10 my-8">
+        <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-5 gap-8 items-center">
+            
+            <!-- Bloque Izquierdo: Identidad Institucional y Control de Accesos (Colspan 3) -->
+            <div class="md:col-span-3 space-y-6 text-center md:text-left">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest font-mono bg-blue-50 text-blue-700 border border-blue-200">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Sistema Oficial de Control Interno Municipal
+                </span>
+                
+                <div class="space-y-3">
+                    <h1 class="text-4xl font-extrabold text-gray-950 tracking-tight sm:text-5xl leading-tight">
+                        Portal Digital de <span class="text-blue-600">Administración y Estructura</span> Orgánica
+                    </h1>
+                    <p class="text-lg font-bold text-gray-700 tracking-tight">
+                        {{ tenant.entidad_nombre|default:"H. Ayuntamiento Constitucional" }}
+                    </p>
+                </div>
+
+                <p class="text-sm text-gray-500 font-medium leading-relaxed max-w-lg">
+                    Esta plataforma es la herramienta oficial para la gestión del padrón de servidores públicos, la actualización del organigrama institucional y la asignación de permisos de trabajo. El ingreso al sistema está restringido exclusivamente a personal autorizado y todas las operaciones quedan registradas para fines de auditoría interna.
+                </p>
+
+                <!-- Fichas Técnicas con Vocabulario de Contraloría / Transparencia -->
+                <div class="grid grid-cols-3 gap-4 pt-2 max-w-md mx-auto md:mx-0 text-left font-mono">
+                    <div class="border-l-2 border-gray-200 pl-3">
+                        <span class="block text-xs font-bold text-gray-400 uppercase tracking-wider">Módulos</span>
+                        <span class="text-lg font-extrabold text-gray-900 tracking-tight">3 Áreas</span>
+                    </div>
+                    <div class="border-l-2 border-gray-200 pl-3">
+                        <span class="block text-xs font-bold text-gray-400 uppercase tracking-wider">Bitácora</span>
+                        <span class="text-lg font-extrabold text-gray-900 tracking-tight">Activa</span>
+                    </div>
+                    <div class="border-l-2 border-gray-200 pl-3">
+                        <span class="block text-xs font-bold text-gray-400 uppercase tracking-wider">Seguridad</span>
+                        <span class="text-lg font-extrabold text-gray-900 tracking-tight">Matriz JSON</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloque Derecho: Caja de Autenticación / Acceso Dinámico (Colspan 2) -->
+            <div class="md:col-span-2 bg-white p-6 rounded-2xl border border-gray-200/80 shadow-xl space-y-6">
+                <div class="text-center space-y-1">
+                    <div class="w-12 h-12 rounded-2xl bg-gray-950 text-white flex items-center justify-center mx-auto shadow-md">
+                        <i data-lucide="key-round" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-gray-950 tracking-tight pt-2">Compuerta de Acceso</h3>
+                    <p class="text-[11px] text-gray-400 font-medium">Filtro perimetral de identidad laboral</p>
+                </div>
+
+                <div class="border-t border-gray-100 pt-4 space-y-3">
+                    {% if request.user.is_authenticated %}
+                        <!-- 🔓 CASO A: USUARIO YA TIENE SESIÓN INICIADA -->
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl text-center space-y-2">
+                            <span class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono">Sesión Activa</span>
+                            <span class="block text-xs font-bold text-gray-800 truncate max-w-[200px] mx-auto">{{ request.user.email }}</span>
+                        </div>
+                        
+                        <a href="{% url 'launcher_home' %}" class="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition transform active:scale-95 shadow-xs cursor-pointer">
+                            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                            <span>Entrar al Selector</span>
+                        </a>
+
+                        <form action="{% url 'accounts:logout' %}" method="post" class="w-full">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition border border-gray-200 cursor-pointer">
+                                <i data-lucide="log-out" class="w-4 h-4 text-gray-400"></i>
+                                <span>Cerrar Sesión</span>
+                            </button>
+                        </form>
+                    {% else %}
+                        <!-- 🔒 CASO B: USUARIO ANONIMO (SISTEMA BLOQUEADO) -->
+                        <div class="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium leading-relaxed flex gap-2">
+                            <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                            <span>Consola restringida. Todo intento de intrusión será registrado en las bitácoras forenses de la contraloría interna.</span>
+                        </div>
+
+                        <a href="{% url 'accounts:login' %}" class="w-full inline-flex items-center justify-center gap-2 bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition transform active:scale-95 shadow-md cursor-pointer">
+                            <i data-lucide="log-in" class="w-4 h-4 text-blue-400"></i>
+                            <span>Iniciar Sesión Segura</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- =========================================================================
+         📥 PIE DE PÁGINA COMPACTO DE MARCA
+         ========================================================================= -->
+    <footer class="w-full py-4 border-t border-gray-200/60 text-center text-[10px] font-bold font-mono text-gray-400 uppercase tracking-widest bg-white">
+        &copy; 2026 AXENTRA SECURITY • LICENCIA ENFORCED PARA EL MUNICIPIO DE {{ tenant.siglas|default:"COATZA" }}
+    </footer>
+
+</div>
+{% endblock %}
