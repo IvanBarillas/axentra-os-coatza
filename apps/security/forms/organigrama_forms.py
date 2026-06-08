@@ -76,9 +76,16 @@ class AreaOperativaForm(AxentraFormStylerMixin, forms.ModelForm):
         sede_fisica = cleaned_data.get('sede_fisica')
         nombre = cleaned_data.get('nombre')
 
-        if self.instance._state.adding and argumento_completo := (dependencia and sede_fisica and nombre):
+        argumento_completo = dependencia and sede_fisica and nombre
+
+        if self.instance._state.adding and argumento_completo:
             generated_slug = slugify(nombre)
-            if AreaOperativa.objects.filter(dependencia=dependencia, sede_fisica=sede_fisica, slug=generated_slug, is_deleted=False).exists():
+            if AreaOperativa.objects.filter(
+                dependencia=dependencia, 
+                sede_fisica=sede_fisica, 
+                slug=generated_slug, 
+                is_deleted=False
+            ).exists():
                 raise ValidationError(
                     "🚨 Operación Cancelada: Esta oficina ya se encuentra registrada y operando para esa Dependencia dentro del Edificio seleccionado."
                 )

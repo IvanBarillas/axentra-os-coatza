@@ -69,6 +69,11 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                
+                # 🪐 LOS INYECTORES DE GOBERNANZA GLOBAL DE AXENTRA OS
+                'apps.shared.context_processors.global_tenant_settings',    # Activos de marca e identidad ({{ tenant }})
+                'apps.shared.context_processors.user_module_permissions',  # Lista de apps asignadas ({{ allowed_modules }})
+                'apps.shared.context_processors.menu_dinamico_processor',
             ],
         },
     },
