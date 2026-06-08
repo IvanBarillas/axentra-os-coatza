@@ -31,8 +31,8 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    'apps.shared',
-    'apps.security',
+    'apps.shared.apps.SharedConfig',
+    'apps.security.apps.SecurityConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -93,6 +93,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
+
+# Redirección de la identidad digital del funcionario público al módulo unificado
+AUTH_USER_MODEL = 'security.User'
 
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = 1
