@@ -1,8 +1,10 @@
+<!-- templates/layouts/dashboard_layout.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div x-data="{ sidebarOpen: false }" class="w-full">
+<div x-data="{ sidebarOpen: false }" class="min-h-screen bg-gray-50 flex w-full">
     
+    <!-- 📱 MENÚ LATERAL RESPONSIVO (EXCLUSIVO PARA MÓVILES) -->
     <div x-show="sidebarOpen" class="relative z-50 lg:hidden" role="dialog" aria-modal="true" x-cloak>
         <div x-show="sidebarOpen" 
              x-transition:enter="transition-opacity ease-linear duration-300"
@@ -25,7 +27,7 @@
                  class="relative mr-16 flex w-full max-w-xs flex-1">
                 
                 <div class="absolute top-0 left-full flex w-16 justify-center pt-5">
-                    <button type="button" class="-m-2.5 p-2.5 text-white" @click="sidebarOpen = false">
+                    <button type="button" class="-m-2.5 p-2.5 text-white cursor-pointer" @click="sidebarOpen = false">
                         <i data-lucide="x" class="h-6 w-6"></i>
                     </button>
                 </div>
@@ -34,19 +36,25 @@
         </div>
     </div>
 
-    <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+    <!-- 🖥️ SIDEBAR FIJO PARA PANTALLAS GRANDES -->
+    <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col h-full">
         {% include "partials/_sidebar.html" %}
     </div>
 
-    <div class="lg:pl-72 flex flex-col min-h-screen bg-gray-50">
+    <!-- 🎰 CHASSIS CENTRAL DE TRABAJO (ALINEADO FLUIDO) -->
+    <div class="lg:pl-72 flex flex-col flex-1 min-w-0">
+        
+        <!-- Navbar Superior Acoplada -->
         {% include "partials/_navbar.html" %}
 
-        <main class="py-10 flex-grow">
-            <div class="px-4 sm:px-6 lg:px-8" id="main-content-target">
+        <!-- Espacio soberano para el renderizado del negocio -->
+        <main class="flex-1 py-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-fade-in" id="main-content-target">
                 {% block dashboard_content %}{% endblock %}
             </div>
         </main>
 
+        <!-- Pie de Página Centrado en la Retícula -->
         {% include "partials/_footer.html" %}
     </div>
 </div>

@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
+from apps.security.forms import CustomUserCreationForm, CustomUserChangeForm
 
 # Importamos todos nuestros modelos unificados de forma limpia
 from apps.security.models import (
@@ -14,40 +15,47 @@ from apps.security.models import (
 # 👤 BLOQUE 1: IDENTIDAD DIGITAL Y CUENTAS (EXTENSIÓN DE USER)
 # =========================================================================
 class UserProfileInline(admin.StackedInline):
-    """Permite editar el expediente laboral del funcionario dentro de la misma vista del Usuario."""
     model = UserProfile
+    extra = 1
     can_delete = False
-    verbose_name_plural = 'Expediente Laboral de Adscripción'
-    fk_name = 'user'
-    extra = 0
-
 
 @admin.register(User)
 class AxentraUserAdmin(BaseUserAdmin):
-    """Rediseño estricto del administrador de usuarios adaptado a la autenticación por Email."""
+    """Administrador blindado adaptado al esquema funcional por Email."""
+    
+    # 🟢 1. INYECCIÓN DE FORMULARIOS LIMPIOS (Anula los rígidos de Django con username)
+    add_form = CustomUserCreationForm
+    form = CustomUserChangeForm
     
     list_display = ('email', 'first_name', 'last_name', 'is_manager', 'is_staff', 'is_active', 'created_at')
     list_filter = ('is_manager', 'is_staff', 'is_active')
     ordering = ('-created_at',)
     inlines = (UserProfileInline,)
-    
-    # Redefinimos los buscadores y filtros del formulario para evitar que herede 'username'
     search_fields = ('email', 'first_name', 'last_name')
     filter_horizontal = ()
-    list_filter = ('is_manager', 'is_staff', 'is_active')
     
+    # 🟢 2. RECALIBRADO DE VISTAS DE EDICIÓN
     fieldsets = (
         ('Credenciales de Identidad', {'fields': ('email', 'password')}),
         ('Información Personal', {'fields': ('first_name', 'last_name', 'phone')}),
-        ('Gobernanza y Privilegios Core', {'fields': ('is_manager', 'is_staff', 'is_active', 'must_change_password', 'is_email_verified')}),
+        ('Gobernanza y Privilegios', {'fields': ('is_manager', 'is_staff', 'is_active', 'must_change_password', 'is_email_verified')}),
     )
 
+    # 🟢 3. RECALIBRADO DE VISTA DE CREACIÓN (/add/)
+    # Forzamos los campos exactos que tienes en tu interfaz web
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
             'fields': ('email', 'password', 'first_name', 'last_name'),
         }),
     )
+
+    # 🟢 4. EL INTERCEPTOR MAESTRO: Desmantela la validación doble nativa de contraseñas en el Admin
+    def get_form(self, request, obj=None, **kwargs):
+        """Si es alta, usa el add_form limpio; si es edición, delega al padre sin verificar usernames."""
+        if obj is None:
+            return self.add_form
+        return super(BaseUserAdmin, self).get_form(request, obj, **kwargs)
 
 
 # =========================================================================

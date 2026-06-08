@@ -1,52 +1,117 @@
+<!-- templates/base.html -->
 {% load static %}
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-gray-50">
+<html lang="es" class="h-full bg-gray-50 scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Axentra OS{% endblock %}</title>
+    <title>{% block title %}{{ tenant.app_name|default:"Axentra OS" }}{% endblock %}</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
+    <!-- Tailwind CSS v4 Browser Compiler -->
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
 
     <style type="text/css">
         @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap');
         
         @theme {
+            /* 🌌 PALETA AZULADA TECNOLÓGICA DE ALTO CONTRASTE (AXENTRA DESIGN TOKENS) */
+            --ax-primary: #0a192f;      /* Azul Cobalto Profundo (Estructuras y Sidebars) */
+            --ax-secondary: #1e3a8a;    /* Azul Marino Eléctrico (Focos de Acción) */
+            --ax-accent: #2563eb;       /* Azul Tech Radiante (Botones e Interacciones) */
+            
+            /* 🟢 RECALIBRACIÓN DE ALERTAS DE VISIBILIDAD EN PANTALLAS CON ALTO BRILLO */
+            --ax-success: #059669;      /* Verde Esmeralda (Activos / Habilitados) */
+            --ax-warning: #d97706;      /* Ámbar Industrial (Alertas / Congelados) */
+            --ax-danger: #e11d48;       /* Carmesí Intenso (Bajas / Restricciones) */
+
+            /* Tipografía corporativa inmutable */
             --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, sans-serif;
         }
 
-        /* Prevenir parpadeos con AlpineJS */
+        /* Prevenir parpadeos molestos en directivas AlpineJS antes de cargar el script */
         [x-cloak] { 
             display: none !important; 
         }
+
+        /* Utilidad de transición de opacidad fluida para el renderizado del DOM */
+        .animate-fade-in { 
+            animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; 
+        }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(2px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
-<body class="h-full font-sans antialiased text-gray-900" 
-      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body class="h-full font-sans antialiased text-gray-900 bg-gray-50/50" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
-    <div id="app-container" class="flex min-h-screen w-full">
-        {% block content %}
-        {% endblock %}
+    <!-- Contenedor único de inserción para los Layouts Intermedios y el Launcher -->
+    {% block content %}
+    {% endblock %}
+
+    <!-- =========================================================================
+         🚨 CONTENEDOR GLOBAL DE NOTIFICACIONES FORENSES (POSTGRES ENGINE FLASHES)
+         ========================================================================= -->
+    {% if messages %}
+    <div class="fixed top-20 right-6 z-[9999] flex flex-col gap-3 max-w-md w-full select-none animate-fade-in">
+        {% for message in messages %}
+        <div x-data="{ show: true }" x-show="show" x-transition.duration.300ms
+             class="p-4 rounded-2xl shadow-xl border flex items-start gap-3 bg-white/95 backdrop-blur-md transition-all
+             {% if message.tags == 'error' %}border-red-200 text-red-950{% elif message.tags == 'success' %}border-emerald-200 text-emerald-950{% else %}border-blue-200 text-blue-950{% endif %}">
+            
+            <div class="mt-0.5 shrink-0">
+                {% if message.tags == 'error' %}
+                    <i data-lucide="circle-x" class="w-5 h-5 text-red-600"></i>
+                {% elif message.tags == 'success' %}
+                    <i data-lucide="circle-check" class="w-5 h-5 text-emerald-600"></i>
+                {% else %}
+                    <i data-lucide="info" class="w-5 h-5 text-blue-600"></i>
+                {% endif %}
+            </div>
+            
+            <div class="flex-grow min-w-0">
+                <p class="text-sm font-bold tracking-tight leading-snug">{{ message }}</p>
+            </div>
+            
+            <button @click="show = false" type="button" class="text-gray-400 hover:text-gray-900 transition ml-auto cursor-pointer p-0.5 rounded-lg hover:bg-gray-100">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        {% endfor %}
     </div>
+    {% endif %}
 
+    <!-- =========================================================================
+         📦 PIEZAS DEL MOTOR ESTÁTICO LOCAL (UV COMPILATION ENFORCED)
+         ========================================================================= -->
     <script src="{% static 'js/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/alpine.min.js' %}" defer></script>
     <script src="{% static 'js/lucide.min.js' %}" defer></script>
     <script src="{% static 'js/chart.umd.js' %}" defer></script>
-
+    
     <script>
-        // Inicialización automática de Iconos Lucide
-        document.addEventListener("DOMContentLoaded", function() {
-            if (window.lucide) lucide.createIcons();
-        });
-        document.body.addEventListener('htmx:afterSwap', function(evt) {
-            if (window.lucide) lucide.createIcons();
-        });
-    </script>
+        // Hidratación y re-inyección indestructible de Iconos Lucide (Soporte HTMX activo)
+        function refrescarIconosLucide() { 
+            if (window.lucide && typeof lucide.createIcons === 'function') { 
+                lucide.createIcons(); 
+            } 
+        }
+        document.addEventListener("DOMContentLoaded", refrescarIconosLucide);
+        document.body.addEventListener('htmx:afterSwap', refrescarIconosLucide);
 
+        // Auto-remoción sutil de alertas flash a los 5 segundos (Garbage Collector Visual)
+        setTimeout(() => {
+            const alerts = document.querySelectorAll(".fixed .shadow-xl");
+            alerts.forEach((alert) => {
+                alert.style.opacity = '0';
+                alert.style.transform = 'translateY(-4px)';
+                alert.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => alert.remove(), 400);
+            });
+        }, 5000);
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>

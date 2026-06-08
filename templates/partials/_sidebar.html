@@ -1,55 +1,68 @@
-<div class="flex grow flex-col gap-y-5 overflow-y-auto bg-slate-900 px-6 pb-4 ring-1 ring-white/10">
-    <div class="flex h-16 shrink-0 items-center gap-2">
-        <div class="rounded-lg bg-indigo-600 p-1.5 text-white">
-            <i data-lucide="layers" class="h-6 w-6"></i>
+<aside class="hidden md:flex md:w-64 md:flex-col bg-white border-r border-gray-200/80 h-full overflow-y-auto shrink-0 p-4 justify-between animate-fade-in select-none">
+    <div class="space-y-6">
+        
+        {% if modulo_actual %}
+            <div class="px-3 py-2.5 rounded-xl border transition-colors duration-300 bg-gray-50 border-gray-200 text-gray-900">
+                <span class="text-[9px] font-bold tracking-widest text-gray-400 block font-mono">MÓDULO ACTIVO</span>
+                <span class="text-sm font-bold uppercase tracking-tight block mt-0.5 truncate flex items-center gap-2">
+                    <i data-lucide="cpu" class="w-4 h-4 text-blue-600"></i> {{ modulo_actual }}
+                </span>
+            </div>
+
+            <nav class="space-y-1">
+                {% for boton in menu_actual %}
+                    {% if request.resolver_match.view_name == boton.url %}
+                        <a href="{% url boton.url %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-blue-600 bg-blue-50/60 transition-all duration-200 group">
+                            <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110"></i>
+                            <span class="truncate">{{ boton.name }}</span>
+                        </a>
+                    {% else %}
+                        <a href="{% url boton.url %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 group">
+                            <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-4 h-4 shrink-0 text-gray-400 transition-transform duration-200 group-hover:scale-110 group-hover:text-gray-600"></i>
+                            <span class="truncate">{{ boton.name }}</span>
+                        </a>
+                    {% endif %}
+                {% empty %}
+                    <div class="text-xs text-gray-400 italic px-3 py-4 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
+                        🔒 Sin opciones autorizadas en la matriz JSON de este módulo.
+                    </div>
+                {% endfor %}
+            </nav>
+
+        {% else %}
+            <div class="px-3 py-2.5 bg-gray-900 text-white rounded-xl shadow-sm">
+                <span class="text-xs font-bold uppercase tracking-wider font-mono text-gray-400 block text-[9px]">SISTEMA OPERATIVO</span>
+                <span class="text-xs font-bold block mt-0.5 flex items-center gap-1.5"><i data-lucide="compass" class="w-4 h-4"></i> Menú Principal</span>
+            </div>
+            <nav class="space-y-1">
+                <a href="{% url 'launcher_home' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-800 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all">
+                    <i data-lucide="layout-grid" class="w-4 h-4 text-gray-500"></i> Selector de Apps
+                </a>
+            </nav>
+        {% endif %}
+        
+        {% if modulo_actual %}
+        <div class="pt-2 border-t border-gray-100">
+            <a href="{% url 'launcher_home' %}" class="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-50 hover:bg-gray-900 hover:text-white rounded-xl text-xs font-bold text-gray-600 border border-gray-200 transition-all duration-300 transform active:scale-95 cursor-pointer">
+                <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> Cambiar de Aplicación
+            </a>
         </div>
-        <span class="text-lg font-bold text-white tracking-wider">AXENTRA<span class="text-indigo-400">OS</span></span>
+        {% endif %}
     </div>
 
-    <nav class="flex flex-1 flex-col">
-        <ul role="list" class="flex flex-1 flex-col gap-y-7">
-            <li>
-                <div class="text-xs font-semibold leading-6 text-slate-400 uppercase tracking-wider">Núcleo Central</div>
-                <ul role="list" class="-mx-2 mt-2 space-y-1">
-                    <li>
-                        <a href="/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-white bg-slate-800">
-                            <i data-lucide="layout-dashboard" class="h-6 w-6 shrink-0 text-white"></i>
-                            Launcher de Apps
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <li>
-                <div class="text-xs font-semibold leading-6 text-slate-400 uppercase tracking-wider">Aplicaciones Satélites</div>
-                <ul role="list" class="-mx-2 mt-2 space-y-1" id="satellite-apps-list">
-                    <li>
-                        <a href="/app/organigrama/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-slate-300 hover:text-white hover:bg-slate-800">
-                            <i data-lucide="network" class="h-6 w-6 shrink-0 text-slate-400 group-hover:text-white"></i>
-                            Organigrama
-                        </a>
-                    </li>
-                    <li>
-                        <a href="/app/transparencia/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-slate-300 hover:text-white hover:bg-slate-800">
-                            <i data-lucide="eye" class="h-6 w-6 shrink-0 text-slate-400 group-hover:text-white"></i>
-                            Transparencia
-                        </a>
-                    </li>
-                    <li>
-                        <a href="/app/auditoria/" class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-slate-300 hover:text-white hover:bg-slate-800">
-                            <i data-lucide="shield-check" class="h-6 w-6 shrink-0 text-slate-400 group-hover:text-white"></i>
-                            Auditoría interna
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-            <li class="mt-auto">
-                <a href="/admin/logout/" class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-rose-400 hover:bg-slate-800 hover:text-rose-300">
-                    <i data-lucide="log-out" class="h-6 w-6 shrink-0 text-rose-400 group-hover:text-rose-300"></i>
-                    Cerrar Sesión
-                </a>
-            </li>
-        </ul>
-    </nav>
-</div>
+    <div class="pt-4 border-t border-gray-100 flex items-center gap-2.5 min-w-0">
+        {% if request.user.is_authenticated %}
+            <div class="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center font-bold text-sm uppercase shrink-0 shadow-inner">
+                {{ request.user.first_name|slice:":1"|default:"U"|upper }}
+            </div>
+            <div class="min-w-0 flex-1 truncate">
+                <div class="text-xs font-bold text-gray-800 truncate leading-tight">
+                    {{ request.user.full_name|default:request.user.email }}
+                </div>
+                <div class="text-[10px] text-gray-400 font-mono truncate mt-0.5 lowercase">
+                    {{ request.user.email }}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</aside>

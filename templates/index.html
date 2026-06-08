@@ -1,89 +1,98 @@
+<!-- templates/index.html -->
 {% extends "layouts/dashboard_layout.html" %}
 
-{% block title %}Launcher Principal · Axentra OS{% endblock %}
+{% block title %}Launcher Principal · {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="md:flex md:items-center md:justify-between mb-8">
+<!-- =========================================================================
+     🏛️ ENCABEZADO INSTITUCIONAL DEL PORTAL (HIGH CONTRAST HUB)
+     ========================================================================= -->
+<div class="md:flex md:items-center md:justify-between mb-8 select-none">
     <div class="min-w-0 flex-1">
-        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl tracking-tight">
+        <h2 class="text-2xl font-bold leading-7 text-gray-950 sm:truncate sm:text-3xl tracking-tight">
             Consola General de Aplicaciones
         </h2>
-        <p class="mt-1 text-sm leading-6 text-gray-500">
-            Selecciona un entorno modular seguro para inicializar tu sesión de trabajo.
+        <p class="mt-2 text-sm leading-6 text-gray-500">
+            Bienvenido al sistema operativo unificado de <span class="font-semibold text-gray-800">{{ tenant.entidad_nombre }}</span>. Selecciona un entorno modular seguro para trabajar.
         </p>
     </div>
 </div>
 
+<!-- =========================================================================
+     🎰 REJILLA DINÁMICA DE TARJETAS REACTIVAS (BLUE TECH EDITION)
+     ========================================================================= -->
 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
     
-    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md flex flex-col justify-between">
-        <div class="p-6">
-            <div class="flex items-center gap-x-4">
-                <div class="rounded-lg bg-indigo-50 p-3 text-indigo-600">
-                    <i data-lucide="network" class="h-6 w-6"></i>
+    {% for card in launcher_cards %}
+        <!-- Tarjetas optimizadas con bordes limpios, fondo blanco radiante y un hover azulado sutil -->
+        <div class="overflow-hidden rounded-2xl border border-gray-250 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_32px_rgba(37,99,235,0.06)] hover:border-blue-300 hover:ring-1 hover:ring-blue-200 flex flex-col justify-between group">
+            
+            <div class="p-6">
+                <div class="flex items-center gap-x-4">
+                    <!-- Contenedor del Icono adaptado a la nueva gama azulada interactiva -->
+                    <div class="rounded-xl p-3 transition-colors duration-300
+                        {% if card.app_code == 'security' %}bg-gray-100 text-gray-900 group-hover:bg-gray-900 group-hover:text-white
+                        {% elif card.app_code == 'accounts' %}bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white
+                        {% elif card.app_code == 'organigrama' %}bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white
+                        {% elif card.app_code == 'transparencia' %}bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white
+                        {% else %}bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white{% endif %}">
+                        <i data-lucide="{{ card.icon|default:'box' }}" class="h-6 w-6 transition-transform duration-300 group-hover:scale-110"></i>
+                    </div>
+                    <div>
+                        <!-- Título de la App que reacciona con tu azul de acción de Axentra -->
+                        <h3 class="text-sm font-bold leading-6 text-gray-950 tracking-tight group-hover:text-blue-600 transition-colors">
+                            {{ card.title }}
+                        </h3>
+                        <p class="text-[10px] font-bold font-mono uppercase tracking-wider text-gray-400 mt-0.5">
+                            {{ card.badge_text|default:"Satélite App" }}
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="text-sm font-semibold leading-6 text-gray-900">Estructura y Organigrama</h3>
-                    <p class="text-xs text-gray-400">Modulo de Gestión de Personal</p>
-                </div>
+                <!-- Cuerpo con contraste reforzado (gray-600) para evitar fatiga en monitores brillantes -->
+                <p class="mt-4 text-sm leading-6 text-gray-600 font-medium">
+                    {{ card.description }}
+                </p>
             </div>
-            <p class="mt-4 text-sm leading-6 text-gray-600">
-                Administración jerárquica de dependencias, puestos, roles y distribución institucional del cliente único.
-            </p>
-        </div>
-        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
-            <a href="/app/organigrama/" class="inline-flex items-center gap-x-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-500">
-                Inicializar Módulo
-                <i data-lucide="arrow-right" class="h-4 w-4"></i>
-            </a>
-        </div>
-    </div>
-
-    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md flex flex-col justify-between">
-        <div class="p-6">
-            <div class="flex items-center gap-x-4">
-                <div class="rounded-lg bg-amber-50 p-3 text-amber-600">
-                    <i data-lucide="eye" class="h-6 w-6"></i>
-                </div>
-                <div>
-                    <h3 class="text-sm font-semibold leading-6 text-gray-900">Transparencia Pública</h3>
-                    <p class="text-xs text-gray-400">Obligaciones de Ley</p>
-                </div>
+            
+            <!-- Pie de la tarjeta unificado con botones estables -->
+            <div class="bg-gray-50/70 px-6 py-3.5 border-t border-gray-100 flex justify-end items-center">
+                
+                {% if card.app_code == 'security' %}
+                    <a href="{% url 'security:dashboard' %}" class="inline-flex items-center gap-x-1.5 text-xs font-bold uppercase tracking-wider text-gray-950 hover:text-black transform active:scale-95 transition-all">
+                        Consola Central
+                        <i data-lucide="arrow-right" class="h-4 w-4"></i>
+                    </a>
+                {% elif card.app_code == 'accounts' %}
+                    <a href="{% url 'accounts:dashboard' %}" class="inline-flex items-center gap-x-1.5 text-xs font-bold uppercase tracking-wider text-blue-600 hover:text-blue-700 transform active:scale-95 transition-all">
+                        Inicializar Módulo
+                        <i data-lucide="arrow-right" class="h-4 w-4"></i>
+                    </a>
+                {% else %}
+                    <a href="{{ card.url|default:'#' }}" class="inline-flex items-center gap-x-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-500 transform active:scale-95 transition-all">
+                        Inicializar Módulo
+                        <i data-lucide="arrow-right" class="h-4 w-4"></i>
+                    </a>
+                {% endif %}
+                
             </div>
-            <p class="mt-4 text-sm leading-6 text-gray-600">
-                Carga, validación y consulta de las fracciones obligatorias de información pública gubernamental.
-            </p>
         </div>
-        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
-            <a href="/app/transparencia/" class="inline-flex items-center gap-x-1.5 text-sm font-semibold text-amber-600 hover:text-amber-500">
-                Inicializar Módulo
-                <i data-lucide="arrow-right" class="h-4 w-4"></i>
-            </a>
-        </div>
-    </div>
-
-    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md flex flex-col justify-between">
-        <div class="p-6">
-            <div class="flex items-center gap-x-4">
-                <div class="rounded-lg bg-emerald-50 p-3 text-emerald-600">
-                    <i data-lucide="shield-check" class="h-6 w-6"></i>
-                </div>
-                <div>
-                    <h3 class="text-sm font-semibold leading-6 text-gray-900">Auditoría e Historial</h3>
-                    <p class="text-xs text-gray-400">Seguridad Inmutable</p>
-                </div>
+    {% empty %}
+        <!-- =========================================================================
+             🔒 ESCUDO DE CONTINGENCIA PERIMETRAL (CÉLULA SIN ROLES EN BASE DE DATOS)
+             ========================================================================= -->
+        <div class="col-span-1 sm:col-span-2 lg:col-span-3 text-center py-16 bg-white rounded-2xl border border-dashed border-gray-300 p-8 w-full max-w-xl mx-auto shadow-xs select-none animate-fade-in">
+            <div class="w-14 h-14 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-inner">
+                <i data-lucide="lock" class="w-6 h-6"></i>
             </div>
-            <p class="mt-4 text-sm leading-6 text-gray-600">
-                Seguimiento de logs, acciones internas del cliente único, firmas digitales y control estricto de accesos.
+            <h3 class="text-lg font-bold text-gray-900 tracking-tight">Consola de Seguridad Perimetral</h3>
+            <p class="text-gray-400 text-xs font-medium mt-2 leading-relaxed px-4">
+                Tu cuenta institucional <span class="font-mono text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200 text-[11px] font-bold">{{ request.user.email }}</span> se encuentra autenticada, pero no tiene aplicativos asignados en su matriz de privilegios en este momento.
             </p>
+            <div class="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-xl text-[10px] text-gray-500 font-bold font-mono uppercase tracking-widest">
+                Consulte al Administrador Core para la asignación de roles.
+            </div>
         </div>
-        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
-            <a href="/app/auditoria/" class="inline-flex items-center gap-x-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-500">
-                Inicializar Módulo
-                <i data-lucide="arrow-right" class="h-4 w-4"></i>
-            </a>
-        </div>
-    </div>
+    {% endfor %}
 
 </div>
 {% endblock %}

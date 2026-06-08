@@ -1,6 +1,33 @@
-<footer class="bg-white border-t border-gray-200 py-4 px-4 sm:px-6 lg:px-8">
-    <div class="mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
-        <p>&copy; 2026 Axentra OS. Todos los derechos reservados. Sistema Monolítico Multiapp.</p>
-        <p class="font-medium text-slate-400">Cliente Único Corporativo</p>
+<!-- templates/partials/_footer.html -->
+<footer class="bg-white border-t border-gray-200/80 py-3.5 px-4 sm:px-6 lg:px-8 select-none w-full">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-medium text-gray-500">
+        
+        <!-- Izquierda: Identidad y Licencia del Cliente -->
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-gray-900 tracking-tight flex items-center gap-1">
+                <i data-lucide="shield" class="w-3.5 h-3.5 text-blue-600"></i> {{ tenant.app_name|default:"Axentra OS" }}
+            </span>
+            <span class="text-gray-300">|</span>
+            <span class="text-gray-400">Entorno Licenciado para:</span>
+            <span class="font-semibold text-gray-700 truncate max-w-[220px]">
+                {{ tenant.siglas|default:"COATZA" }}
+            </span>
+        </div>
+
+        <!-- Centro: Copyright y RFC Legal -->
+        <div class="flex items-center gap-4 font-mono text-[10px] tracking-tight text-gray-400">
+            <span>&copy; 2026 AXENTRA SECURITY</span>
+            <span class="text-gray-200">•</span>
+            <span>RFC: {{ tenant.rfc|default:"MUNICIPAL" }}</span>
+        </div>
+
+        <!-- Derecha: SLA Activo -->
+        <div class="flex items-center gap-4 shrink-0">
+            <div class="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200 text-[10px] font-bold tracking-wide uppercase text-gray-500">
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span>SLA ENFORCED</span>
+            </div>
+        </div>
+
     </div>
 </footer>
