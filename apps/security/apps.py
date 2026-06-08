@@ -7,14 +7,12 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
     Motor de Aprovisionamiento e Integridad de Axentra OS.
     Se ejecuta automáticamente al finalizar 'python manage.py migrate'.
     Siembra los módulos lógicos, el usuario raíz y las membresías JSON independientes
-    para garantizar el desacoplamiento total de cada aplicación satélite.
+    descubiertas dinámicamente mediante el Registry de Gobernanza.
     """
     try:
         from django.contrib.auth import get_user_model
         from apps.security.models import AppModule, UserAppRole
-        
-        # Importación del Manifiesto Maestro de Gobernanza unificado
-        from apps.security.permissions import SecurityPermissions
+        from apps.shared.manifest_registry import AxentraOSRegistry
         
         User = get_user_model()
         
@@ -23,18 +21,14 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
         print("="*80)
 
         # =========================================================================
-        # 👤 PASO 1: SEMBRADO DEL OPERADOR SUPREMO (SUPER-USER & MANAGER)
+        # 👤 PASO 1: SEMBRADO DEL OPERADOR SUPREMO
         # =========================================================================
         print("👥 1. Validando existencia del Operador Supremo...")
         email_root = "owner@g.com"
         
         user_root, user_creado = User.objects.get_or_create(
             email=email_root,
-            defaults={
-                'is_staff': True,
-                'is_superuser': True,
-                'is_active': True
-            }
+            defaults={'is_staff': True, 'is_superuser': True, 'is_active': True}
         )
         
         if user_creado:
@@ -56,24 +50,19 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
             print(f"   ↳ ✓ Operador Supremo verificado: [{email_root}] (Flags de bypass asegurados)")
 
         # =========================================================================
-        # 🔑 PASO 2: CONTROL DESACOPLADO DE LLAVES JSON POR APLICACIÓN
+        # 🔑 PASO 2: CONTROL DESACOPLADO BASADO EN REFLEXIÓN DINÁMICA
         # =========================================================================
         print("🔒 2. Re-calculando matrices de privilegios independientes por App...")
         
-        # Leemos el catálogo completo definido físicamente para el 'owner'
-        llaves_maestras_owner = SecurityPermissions.ROLE_MAPPING.get('owner', [])
-        
-        # Identificamos los prefijos/módulos únicos presentes en las llaves usando un set dinámico
-        # Esto extraerá automáticamente de los strings: ['security', 'accounts', 'organigrama']
-        modulos_detectados = list(set([permiso.split('__')[0] for permiso in llaves_maestras_owner if '__' in permiso]))
+        # 🟢 Descubrimiento ciego de manifiestos a través de la topología del disco duro
+        manifiestos_detectados = AxentraOSRegistry.get_all_manifests()
         
         roles_modificados = 0
         total_llaves_sembradas = 0
         
         print("-" * 80)
-        for slug in modulos_detectados:
-            # 1. Aseguramos de manera independiente la existencia física de la App en la tabla AppModule
-            # Esto desacopla las apps y les da su propio id e historial autonómo en la BD
+        for slug, clase_manifiesto in manifiestos_detectados.items():
+            # 1. Aseguramos la existencia física del aplicativo en la tabla AppModule
             nombre_legible = slug.replace('_', ' ').capitalize()
             app_obj, creado_app = AppModule.objects.get_or_create(
                 slug=slug,
@@ -84,20 +73,16 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
                 }
             )
             
-            # 2. Filtramos de forma estricta las llaves que le pertenecen únicamente a este módulo
-            llaves_filtradas_por_app = [
-                permiso for permiso in llaves_maestras_owner 
-                if permiso.startswith(f"{slug}__")
-            ]
-            
+            # 2. Extraemos el mapeo del rol 'owner' declarado en SU PROPIO archivo/clase independiente
+            llaves_filtradas_por_app = clase_manifiesto.ROLE_MAPPING.get('owner', [])
             total_llaves_sembradas += len(llaves_filtradas_por_app)
 
-            # 3. Intentamos buscar o crear la membresía relacional en la base de datos
+            # 3. Insertamos o actualizamos en Postgres de manera atómica
             role_obj, creado_rol = UserAppRole.objects.get_or_create(
                 user=user_root,
                 app=app_obj,
                 defaults={
-                    'role': 'owner', # Cumple con el max_length=20 de tu Postgres
+                    'role': 'owner',
                     'permissions_list': llaves_filtradas_por_app,
                     'is_active': True
                 }
@@ -107,7 +92,7 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
                 print(f"   🟢 Membresía Sembrada -> App: [{slug:<12}] | Inyectadas: {len(llaves_filtradas_por_app)} llaves JSON.")
                 roles_modificados += 1
             else:
-                # RE-INJECTOR LAYER DESACOPLADO: Si ya existía la membresía, forzamos la actualización si cambiaste el manifiesto
+                # RE-INJECTOR LAYER: Si hubo cambios en su clase permissions.py, actualiza Postgres en caliente
                 if set(role_obj.permissions_list) != set(llaves_filtradas_por_app):
                     role_obj.permissions_list = llaves_filtradas_por_app
                     role_obj.role = 'owner'
@@ -119,9 +104,9 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
 
         print("-" * 80)
         if roles_modificados > 0:
-            print(f"   🚀 Aprovisionamiento exitoso: {total_llaves_sembradas} llaves mapeadas en {len(modulos_detectados)} registros desacoplados.")
+            print(f"   🚀 Aprovisionamiento exitoso: {total_llaves_sembradas} llaves mapeadas en registros desacoplados.")
         else:
-            print(f"   ✓ Integridad Perfecta: Las {total_llaves_sembradas} llaves JSON de la BD coinciden con tu Manifiesto Maestro.")
+            print(f"   ✓ Integridad Perfecta: Las {total_llaves_sembradas} llaves JSON de la BD coinciden con tus Manifiestos Maestros.")
 
         print("="*80 + "\n")
             
@@ -135,5 +120,4 @@ class SecurityConfig(AppConfig):
     verbose_name = 'Seguridad y Permisos del Sistema'
 
     def ready(self):
-        """Conectamos la señal en la carga del módulo de la aplicación."""
         post_migrate.connect(sincronizar_entorno_so_axentra, sender=self)

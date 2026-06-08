@@ -105,37 +105,32 @@ def menu_dinamico_processor(request):
     """
     🧠 PROCESADOR DE ENTORNO CONTEXTUAL (HYPER-REACTIVE SIDEBAR)
     Determina de forma automática el sub-módulo en el que navega el operador,
-    extrae el sub-menú del Manifiesto de Gobernanza y filtra las opciones
+    extrae el sub-menú del Manifiesto de Gobernanza Desacoplado y filtra las opciones
     en caliente comparándolas contra las llaves JSON de la base de datos.
     """
     context = {'menu_actual': [], 'modulo_actual': 'launcher'}
     ahora = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Si no hay sesión o no se puede resolver la URL actual, se aborta silenciosamente
     if not request.user.is_authenticated or not request.resolver_match:
         return context
 
-    # El namespace virtual del paquete de URLs nos dice la app activa (security, accounts, organigrama)
     modulo_activo = request.resolver_match.namespace
     
     if not modulo_activo:
         return context
 
-    # 1. Extraemos la barra lateral cruda desde nuestro Manifiesto Maestro
-    menu_maestro_crudo = SecurityPermissions.obtener_menu_por_modulo(modulo_activo)
+    # 🟢 CORRECCIÓN MÁXIMA: Invocamos al Registry para traer el manifiesto desacoplado del módulo activo
+    from apps.shared.manifest_registry import AxentraOSRegistry
+    manifiesto_modulo = AxentraOSRegistry.get_manifest_by_slug(modulo_activo)
     
-    # Si la ruta impactada no pertenece a las 3 sub-apps del sistema operativo, salimos
-    if not menu_maestro_crudo:
+    if not manifiesto_modulo or not hasattr(manifiesto_modulo, 'SIDEBAR_MENU'):
         return context
 
-    # 2. Control de bypass automático (Superusuario o Manager no necesitan validación JSON)
+    menu_maestro_crudo = manifiesto_modulo.SIDEBAR_MENU
     es_root = request.user.is_superuser or getattr(request.user, 'is_manager', False)
-    
-    # 3. Flujo de filtrado por privilegios atómicos
     menu_filtrado = []
     
     if es_root:
-        # El Dueño/Admin Supremo ve todos los enlaces ordenados de fábrica
         for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
             menu_filtrado.append({
                 'icon': icono,
@@ -144,7 +139,6 @@ def menu_dinamico_processor(request):
                 'order': orden
             })
     else:
-        # Recuperamos la lista de strings (permisos_list) guardada en Postgres para este módulo específico
         try:
             rol_modulo = UserAppRole.objects.get(
                 user=request.user,
@@ -156,7 +150,6 @@ def menu_dinamico_processor(request):
         except UserAppRole.DoesNotExist:
             llaves_usuario = []
 
-        # El funcionario ordinario solo ve los botones si tiene la llave exacta en el JSONField
         for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
             if permiso_req in llaves_usuario:
                 menu_filtrado.append({
@@ -166,22 +159,14 @@ def menu_dinamico_processor(request):
                     'order': orden
                 })
 
-    # Ordenamos el menú de forma ascendente según su declaración de fábrica
     menu_filtrado.sort(key=lambda x: x['order'])
 
-    # ============================================================================
-    # 🛰️ AUDITORÍA DE CONSOLA - RADAR TRANSACCIONAL DEL SIDEBAR
-    # ============================================================================
     print("\n🖥️  " + "═"*76)
-    print(f"🛸  [FUNC: menu_dinamico_processor] -> MAESTRO DE NAVEGACIÓN ACTIVO")
+    print(f"🛸  [FUNC: menu_dinamico_processor] -> MAESTRO DE NAVEGACIÓN DESACOPLADO")
     print(f"⏰ Telemetría:       {ahora}")
     print(f"📍 Módulo Namespace: {modulo_activo.upper()}")
     print(f"🎬 Enlaces Visibles: {len(menu_filtrado)} de {len(menu_maestro_crudo)} configurados.")
-    print(f"🚀 Botones Despachados al DOM:")
-    for b in menu_filtrado:
-        print(f"   ↳ [Icon: {b['icon']:<12}] -> Name: {b['name']:<20} -> Route: {b['url']}")
     print("═"*80 + "\n")
-    # ============================================================================
 
     return {
         'menu_actual': menu_filtrado,
