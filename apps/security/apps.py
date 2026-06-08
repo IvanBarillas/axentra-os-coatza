@@ -6,13 +6,15 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
     """
     Motor de Aprovisionamiento e Integridad de Axentra OS.
     Se ejecuta automáticamente al finalizar 'python manage.py migrate'.
-    Siembra aplicativos maestros, usuario raíz y matrices JSON de privilegios.
+    Siembra los módulos lógicos, el usuario raíz y las membresías JSON independientes
+    para garantizar el desacoplamiento total de cada aplicación satélite.
     """
     try:
         from django.contrib.auth import get_user_model
         from apps.security.models import AppModule, UserAppRole
-        from apps.shared.apps_config import AppIdentifier
-        from apps.shared.manifest_registry import AxentraOSRegistry
+        
+        # Importación del Manifiesto Maestro de Gobernanza unificado
+        from apps.security.permissions import SecurityPermissions
         
         User = get_user_model()
         
@@ -21,28 +23,11 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
         print("="*80)
 
         # =========================================================================
-        # 📦 PASO 1: SEMBRADO DE MÓDULOS EN LA BASE DE DATOS
+        # 👤 PASO 1: SEMBRADO DEL OPERADOR SUPREMO (SUPER-USER & MANAGER)
         # =========================================================================
-        print("📋 1. Sincronizando catálogo de aplicativos...")
-        modulos_maestros = AppIdentifier.get_choices()
-        modulos_db = {}
-        
-        for slug, nombre in modulos_maestros:
-            obj, creado = AppModule.objects.get_or_create(
-                slug=slug,
-                defaults={'name': nombre, 'is_active': True, 'description': f"Entorno operativo para {nombre}."}
-            )
-            modulos_db[slug] = obj
-            if creado:
-                print(f"   ↳ 🟢 Módulo faltante detectado y sembrado: '{slug}'")
-
-        # =========================================================================
-        # 👤 PASO 2: SEMBRADO DEL OPERADOR SUPREMO (SUPER-USER & MANAGER)
-        # =========================================================================
-        print("👥 2. Validando existencia del Operador Supremo...")
+        print("👥 1. Validando existencia del Operador Supremo...")
         email_root = "owner@g.com"
         
-        # Buscamos o creamos al usuario de control utilizando el modelo unificado por Email
         user_root, user_creado = User.objects.get_or_create(
             email=email_root,
             defaults={
@@ -53,15 +38,12 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
         )
         
         if user_creado:
-            # Seteamos el password por defecto de forma segura encriptándolo en el backend
             user_root.set_password("owner123")
-            # Forzamos que tenga el flag de manager para tus cortocircuitos de permisos
             if hasattr(user_root, 'is_manager'):
                 setattr(user_root, 'is_manager', True)
             user_root.save()
             print(f"   ↳ 👑 Operador Supremo creado con éxito: [{email_root}] (Pass default: owner123)")
         else:
-            # Si ya existía, nos aseguramos de que mantenga sus privilegios de bypass intactos
             modificado = False
             if not user_root.is_superuser:
                 user_root.is_superuser = True
@@ -74,48 +56,77 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
             print(f"   ↳ ✓ Operador Supremo verificado: [{email_root}] (Flags de bypass asegurados)")
 
         # =========================================================================
-        # 🔑 PASO 3: CONTROL DE LLAVES JSON (USER_APP_ROLE MATRICES)
+        # 🔑 PASO 2: CONTROL DESACOPLADO DE LLAVES JSON POR APLICACIÓN
         # =========================================================================
-        print("🔒 3. Re-calculando matriz de privilegios JSON para el Dueño...")
-        roles_asignados = 0
+        print("🔒 2. Re-calculando matrices de privilegios independientes por App...")
         
-        for slug, app_obj in modulos_db.items():
-            llaves_manifiesto = ["has_access_module", "can_view_dashboard"]
+        # Leemos el catálogo completo definido físicamente para el 'owner'
+        llaves_maestras_owner = SecurityPermissions.ROLE_MAPPING.get('owner', [])
+        
+        # Identificamos los prefijos/módulos únicos presentes en las llaves usando un set dinámico
+        # Esto extraerá automáticamente de los strings: ['security', 'accounts', 'organigrama']
+        modulos_detectados = list(set([permiso.split('__')[0] for permiso in llaves_maestras_owner if '__' in permiso]))
+        
+        roles_modificados = 0
+        total_llaves_sembradas = 0
+        
+        print("-" * 80)
+        for slug in modulos_detectados:
+            # 1. Aseguramos de manera independiente la existencia física de la App en la tabla AppModule
+            # Esto desacopla las apps y les da su propio id e historial autonómo en la BD
+            nombre_legible = slug.replace('_', ' ').capitalize()
+            app_obj, creado_app = AppModule.objects.get_or_create(
+                slug=slug,
+                defaults={
+                    'name': f"Satélite {nombre_legible}", 
+                    'is_active': True, 
+                    'description': f"Módulo desacoplado para la gestión de {nombre_legible}."
+                }
+            )
             
-            if slug == 'security':
-                llaves_manifiesto.extend(["can_edit_matrix", "can_view_logs", "can_configure_tenant"])
-            elif slug == 'accounts':
-                llaves_manifiesto.extend(["can_view_all_users", "can_create_user", "can_edit_user", "can_delete_user"])
-            elif slug == 'organigrama':
-                llaves_manifiesto.extend(["can_model_structure", "can_edit_sedes", "can_toggle_nodos"])
+            # 2. Filtramos de forma estricta las llaves que le pertenecen únicamente a este módulo
+            llaves_filtradas_por_app = [
+                permiso for permiso in llaves_maestras_owner 
+                if permiso.startswith(f"{slug}__")
+            ]
+            
+            total_llaves_sembradas += len(llaves_filtradas_por_app)
 
-            # 🟢 CORRECCIÓN: Ajustamos el string a 'owner' para no superar el max_length=20
-            role_obj, role_creado = UserAppRole.objects.get_or_create(
+            # 3. Intentamos buscar o crear la membresía relacional en la base de datos
+            role_obj, creado_rol = UserAppRole.objects.get_or_create(
                 user=user_root,
                 app=app_obj,
                 defaults={
-                    'role': 'owner',  # ◄── Cambiado de texto largo a clave limpia (5 caracteres)
-                    'permissions_list': llaves_manifiesto,
+                    'role': 'owner', # Cumple con el max_length=20 de tu Postgres
+                    'permissions_list': llaves_filtradas_por_app,
                     'is_active': True
                 }
             )
             
-            if role_creado:
-                roles_asignados += 1
+            if creado_rol:
+                print(f"   🟢 Membresía Sembrada -> App: [{slug:<12}] | Inyectadas: {len(llaves_filtradas_por_app)} llaves JSON.")
+                roles_modificados += 1
             else:
-                # Si la relación ya existía, unificamos las llaves sin duplicar strings
-                role_obj.permissions_list = list(set(role_obj.permissions_list + llaves_manifiesto))
-                role_obj.save()
+                # RE-INJECTOR LAYER DESACOPLADO: Si ya existía la membresía, forzamos la actualización si cambiaste el manifiesto
+                if set(role_obj.permissions_list) != set(llaves_filtradas_por_app):
+                    role_obj.permissions_list = llaves_filtradas_por_app
+                    role_obj.role = 'owner'
+                    role_obj.save()
+                    print(f"   🛠️  Membresía Sincronizada -> App: [{slug:<12}] | Re-inyectadas: {len(llaves_filtradas_por_app)} llaves JSON.")
+                    roles_modificados += 1
+                else:
+                    print(f"   🛡️  Membresía Verificada -> App: [{slug:<12}] | Contiene: {len(role_obj.permissions_list)} llaves inmutables.")
 
-        if roles_asignados > 0:
-            print(f"   ↳ 🛠️  Aprovisionamiento exitoso: Se enlazaron {roles_asignados} celdas de rol al mapa JSON.")
+        print("-" * 80)
+        if roles_modificados > 0:
+            print(f"   🚀 Aprovisionamiento exitoso: {total_llaves_sembradas} llaves mapeadas en {len(modulos_detectados)} registros desacoplados.")
         else:
-            print("   ↳ 🛡️  Matriz inmutable: El operador ostenta todas las llaves JSON actualizadas.")
+            print(f"   ✓ Integridad Perfecta: Las {total_llaves_sembradas} llaves JSON de la BD coinciden con tu Manifiesto Maestro.")
 
         print("="*80 + "\n")
             
     except Exception as e:
-        print(f"   ↳ ⚠️  Protocolo pospuesto (Tablas del chasis o ORM ausentes en el hilo): {e}\n")
+        print(f"   ↳ ⚠️  Protocolo pospuesto (Excepción en el hilo transaccional): {e}\n")
 
 
 class SecurityConfig(AppConfig):

@@ -3,8 +3,9 @@ import logging
 import traceback
 from django.utils import timezone
 
-# Conectamos con el Singleton y los perfiles dinámicos de security
+# Conectamos con el Singleton, la matriz en BD y el Manifiesto Maestro de Gobernanza
 from apps.security.models import TenantConfig, UserAppRole
+from apps.security.permissions import SecurityPermissions
 from apps.shared.apps_config import AppIdentifier
 
 logger = logging.getLogger(__name__)
@@ -14,15 +15,19 @@ def global_tenant_settings(request):
     Inyecta los activos de marca e identidad legal del Ayuntamiento 
     a absolutamente todos los HTML del ecosistema web.
     """
-    config = TenantConfig.objects.first()
-    if not config:
-        # Inicializador seguro de contingencia (Pattern Singleton Blinder)
-        config = TenantConfig.objects.create(
-            app_name='Axentra OS',
-            entidad_nombre='H. Ayuntamiento de Coatzacoalcos',
-            siglas='COATZA'
-        )
-    return {'tenant': config}
+    try:
+        config = TenantConfig.objects.first()
+        if not config:
+            # Inicializador seguro de contingencia (Pattern Singleton Blinder)
+            config = TenantConfig.objects.create(
+                app_name='Axentra OS',
+                entidad_nombre='H. Ayuntamiento de Coatzacoalcos',
+                siglas='COATZA'
+            )
+        return {'tenant': config}
+    except Exception as e:
+        logger.error(f"Error en global_tenant_settings: {e}")
+        return {'tenant': None}
 
 
 def user_module_permissions(request):
@@ -40,12 +45,12 @@ def user_module_permissions(request):
     profile = getattr(request.user, 'axentra_profile', None)
     is_root = getattr(profile, 'is_root_admin', False) if profile else False
     
-    # 🪐 CAPA ADMINISTRADORA DE CONTINGENCIA (BYPASS)
+    # 👑 CAPA ADMINISTRADORA DE CONTINGENCIA (BYPASS SUPREMO)
     if is_manager or is_root or request.user.is_superuser:
         slugs_totales = [choice[0] for choice in AppIdentifier.get_choices()]
         
         print("\n👑 " + "="*76)
-        print(f"🛰️  [FUNC: user_module_permissions] -> BYPASS DE NIVEL MAESTRO DETECTADO")
+        print(f"🛰️   [FUNC: user_module_permissions] -> BYPASS DE NIVEL MAESTRO DETECTADO")
         print(f"⏰ Telemetría:  {ahora}")
         print(f"📧 Funcionario: {request.user.email}")
         print(f"🔑 Privilegios: SUPERUSER={request.user.is_superuser} | MANAGER={is_manager} | ROOT_ADMIN={is_root}")
@@ -70,7 +75,7 @@ def user_module_permissions(request):
     # 📊 AUDITORÍA DE TRANSMISIÓN DE CONTEXTO (EL HACK DEL RADAR)
     # ============================================================================
     print("\n🔍 " + "═"*76)
-    print(f"🛰️  [FUNC: user_module_permissions] -> RADAR PERIMETRAL DE LAUNCHER")
+    print(f"🛰️   [FUNC: user_module_permissions] -> RADAR PERIMETRAL DE LAUNCHER")
     print(f"⏰ Telemetría:       {ahora}")
     print(f"👤 Operador Activo:  {request.user.email}")
     print(f"📍 URL Impactada:    {request.path}")
@@ -81,7 +86,6 @@ def user_module_permissions(request):
         print("📋 ANÁLISIS DE EXTRACCIÓN DE LLAVES DE MEMORIA (JSONFIELD):")
         for idx, r in enumerate(roles_activos, start=1):
             print(f"   {idx}. [App Slug: '{r.app.slug}']")
-            # 🟢 CORRECCIÓN: Usamos '.role' que es el campo real del modelo unificado
             print(f"      🔹 Rol Asignado: '{r.role}'")
             print(f"      🔹 Llaves JSON:  {r.permissions_list}")
     else:
@@ -99,39 +103,87 @@ def user_module_permissions(request):
 
 def menu_dinamico_processor(request):
     """
-    Consume el menú lateral dinámico precalculado por el decorador en RAM.
-    Actúa como fallback inteligente si la vista actual no cuenta con compuerta perimetral.
+    🧠 PROCESADOR DE ENTORNO CONTEXTUAL (HYPER-REACTIVE SIDEBAR)
+    Determina de forma automática el sub-módulo en el que navega el operador,
+    extrae el sub-menú del Manifiesto de Gobernanza y filtra las opciones
+    en caliente comparándolas contra las llaves JSON de la base de datos.
     """
-    if hasattr(request, 'axentra_sidebar_menu'):
-        return {'menu_actual': request.axentra_sidebar_menu}
-
-    context = {'menu_actual': []}
+    context = {'menu_actual': [], 'modulo_actual': 'launcher'}
     ahora = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
 
+    # Si no hay sesión o no se puede resolver la URL actual, se aborta silenciosamente
     if not request.user.is_authenticated or not request.resolver_match:
         return context
 
-    url_app_name = request.resolver_match.app_name
-    view_name = request.resolver_match.view_name
-
-    if not url_app_name or url_app_name == 'security':
+    # El namespace virtual del paquete de URLs nos dice la app activa (security, accounts, organigrama)
+    modulo_activo = request.resolver_match.namespace
+    
+    if not modulo_activo:
         return context
 
+    # 1. Extraemos la barra lateral cruda desde nuestro Manifiesto Maestro
+    menu_maestro_crudo = SecurityPermissions.obtener_menu_por_modulo(modulo_activo)
+    
+    # Si la ruta impactada no pertenece a las 3 sub-apps del sistema operativo, salimos
+    if not menu_maestro_crudo:
+        return context
+
+    # 2. Control de bypass automático (Superusuario o Manager no necesitan validación JSON)
+    es_root = request.user.is_superuser or getattr(request.user, 'is_manager', False)
+    
+    # 3. Flujo de filtrado por privilegios atómicos
+    menu_filtrado = []
+    
+    if es_root:
+        # El Dueño/Admin Supremo ve todos los enlaces ordenados de fábrica
+        for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
+            menu_filtrado.append({
+                'icon': icono,
+                'name': nombre,
+                'url': url_name,
+                'order': orden
+            })
+    else:
+        # Recuperamos la lista de strings (permisos_list) guardada en Postgres para este módulo específico
+        try:
+            rol_modulo = UserAppRole.objects.get(
+                user=request.user,
+                app__slug=modulo_activo,
+                is_active=True,
+                app__is_active=True
+            )
+            llaves_usuario = rol_modulo.permissions_list
+        except UserAppRole.DoesNotExist:
+            llaves_usuario = []
+
+        # El funcionario ordinario solo ve los botones si tiene la llave exacta en el JSONField
+        for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
+            if permiso_req in llaves_usuario:
+                menu_filtrado.append({
+                    'icon': icono,
+                    'name': nombre,
+                    'url': url_name,
+                    'order': orden
+                })
+
+    # Ordenamos el menú de forma ascendente según su declaración de fábrica
+    menu_filtrado.sort(key=lambda x: x['order'])
+
     # ============================================================================
-    # 🛰️ CONSOLA DE AUDITORÍA DE FRONTEND - FALLBACK LAYER
+    # 🛰️ AUDITORÍA DE CONSOLA - RADAR TRANSACCIONAL DEL SIDEBAR
     # ============================================================================
-    print("\n🔮 " + "="*76)
-    print(f"🖥️  [FUNC: menu_dinamico_processor] -> SIDEBAR FALLBACK LAYER EN ACCIÓN")
-    print(f"⏰ Telemetría:        {ahora}")
-    print(f"📍 URL Solicitada:    {request.path}")
-    print(f"🎬 Vista Destino:     {view_name}")
-    print(f"📦 Módulo URL (Slug): {url_app_name}")
-    print(f"ℹ️  Detalle Técnico:   Bypass activo. Consumido fuera de compuerta perimetral dura.")
-    print("-" * 80)
-    print("📋 RASTREO SIMPLIFICADO DE PILA DE RENDERIZADO (BACKTRACE):")
-    for line in traceback.format_stack()[-4:-1]:
-        print(f"   {line.strip()}")
-    print("="*80 + "\n")
+    print("\n🖥️  " + "═"*76)
+    print(f"🛸  [FUNC: menu_dinamico_processor] -> MAESTRO DE NAVEGACIÓN ACTIVO")
+    print(f"⏰ Telemetría:       {ahora}")
+    print(f"📍 Módulo Namespace: {modulo_activo.upper()}")
+    print(f"🎬 Enlaces Visibles: {len(menu_filtrado)} de {len(menu_maestro_crudo)} configurados.")
+    print(f"🚀 Botones Despachados al DOM:")
+    for b in menu_filtrado:
+        print(f"   ↳ [Icon: {b['icon']:<12}] -> Name: {b['name']:<20} -> Route: {b['url']}")
+    print("═"*80 + "\n")
     # ============================================================================
 
-    return context
+    return {
+        'menu_actual': menu_filtrado,
+        'modulo_actual': modulo_activo
+    }
