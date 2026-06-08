@@ -6,7 +6,7 @@ from apps.security.decorators import axentra_gate_enforcer
 from apps.security.selectors import AccountsDashboardSelectors, SecurityDashboardSelectors
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="has_access_module")
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def security_dashboard_view(request):
     """Consola Central de Ciberseguridad (Heimdall logs y balanceo de llaves)."""
     context = SecurityDashboardSelectors.obtener_metricas_firewall()
@@ -14,7 +14,8 @@ def security_dashboard_view(request):
     return render(request, 'security/dashboard.html', context)
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="has_access_module")
+# 🟢 CORRECCIÓN DE COM PUERTA: Apuntamos legítimamente a ACCOUNTS y validamos su has_access
+@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="has_access")
 def accounts_dashboard_view(request):
     """Cabina de Mando de Capital Humano: Pipeline demográfico e histórico de altas."""
     context = AccountsDashboardSelectors.obtener_metricas_plantilla()

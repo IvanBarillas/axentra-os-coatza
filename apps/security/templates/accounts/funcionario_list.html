@@ -1,0 +1,43 @@
+{% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
+
+{% block app_context_badge %}Estructura & Personal{% endblock %}
+{% block title %}Plantilla de Personal | {{ tenant.app_name }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-6 pb-12 w-full animate-fade-in select-none">
+
+    <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                <span>Catálogo General de la App // Core</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-950 tracking-tight uppercase font-mono">Plantilla de Personal</h2>
+            <p class="text-[11px] text-gray-400 font-medium font-mono mt-0.5 uppercase">Listado centralizado de servidores públicos adscritos a la estructura orgánica matricial.</p>
+        </div>
+        
+        <div class="flex items-center gap-3 w-full sm:w-auto shrink-0">
+            {% if request.axentra_is_root or "security__can_view_matrix" in request.axentra_permissions_list %}
+            <a href="{% url 'security:dynamic_matrix' %}" class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-3xs flex items-center gap-2 transform active:scale-95 whitespace-nowrap">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-gray-400"></i>
+                <span>Ver Matriz de Accesos</span>
+            </a>
+            {% endif %}
+
+            {% if request.axentra_is_root or "accounts__can_create_user" in request.axentra_permissions_list %}
+            <a href="{% url 'accounts:funcionario_create' %}" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-5 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-sm flex items-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer">
+                <i data-lucide="user-plus" class="w-4 h-4 text-gray-400"></i>
+                <span>Registrar Funcionario</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% organizational_filters clear_url="/app/accounts/funcionarios/lista/" placeholder_text="Buscar por funcionario, RFC o correo..." %}
+
+    <div id="funcionario-table-container" class="bg-white rounded-[32px] border border-gray-200/80 shadow-2xs overflow-hidden">
+        {% include 'accounts/htmx/funcionario_table_partial.html' %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,104 @@
+<div class="overflow-x-auto overflow-y-auto max-h-[550px] custom-scrollbar">
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="border-b border-gray-200/60 bg-gray-50/70 text-[9px] font-bold uppercase text-gray-400 tracking-wider font-mono sticky top-0 z-20 shadow-2xs">
+                <th class="py-4 px-6">Servidor Público</th>
+                <th class="py-4 px-6">Adscripción Estructural Resuelta</th>
+                <th class="py-4 px-6 text-center">Estado Cuenta</th>
+                <th class="py-4 px-6 text-center">Verificación</th>
+                <th class="py-4 px-6 text-center">Rol Sistema</th>
+                <th class="py-4 px-6 text-right">Acciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-xs font-medium text-gray-700">
+            {% for funcionario in funcionarios %}
+                <tr class="hover:bg-gray-50/40 transition duration-150 group">
+                    <td class="py-4 px-6 whitespace-nowrap">
+                        <div class="font-bold text-gray-900 text-sm tracking-tight">{{ funcionario.full_name|upper }}</div>
+                        <div class="text-gray-400 font-bold font-mono text-[11px] mt-0.5 lowercase">{{ funcionario.email }}</div>
+                        <div class="text-[10px] font-mono text-gray-400 mt-1 uppercase flex items-center gap-1.5">
+                            <i data-lucide="briefcase" class="w-3.5 h-3.5 text-gray-400"></i>
+                            <span>{{ funcionario.puesto|default:"Servidor Público" }}</span>
+                        </div>
+                    </td>
+                    <td class="py-4 px-6">
+                        {% if not funcionario.area_nombre %}
+                            <span class="inline-flex items-center gap-1 font-mono text-[9px] font-bold px-2.5 py-0.5 rounded-md bg-gray-900 text-white uppercase tracking-wider animate-pulse">
+                                ⚠️ Excepción::Sin Adscripción
+                            </span>
+                        {% else %}
+                            <div class="font-bold text-gray-800 tracking-tight text-[11px] line-clamp-1 uppercase font-mono">
+                                [{{ funcionario.dependencia_nombre }}]
+                            </div>
+                            <div class="text-[10px] text-gray-400 font-mono uppercase mt-1 flex items-center gap-1.5">
+                                <span class="text-gray-900 font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 text-[9px]">
+                                    {{ funcionario.sede_nombre|default:"SEDE CENTRAL" }}
+                                </span>
+                                <span class="text-gray-300">/</span>
+                                <span class="text-gray-500">↳ {{ funcionario.area_nombre }}</span>
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-center">
+                        {% if funcionario.is_active %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono bg-gray-50 text-gray-800 border border-gray-200 tracking-wider">● ACTIVO</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono bg-gray-950 text-gray-400 border border-transparent tracking-wider animate-pulse">○ INACTIVO</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-center">
+                        {% if funcionario.is_email_verified %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-gray-50 border border-gray-200 text-gray-600 font-mono">VERIFIED</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-gray-950 text-gray-400 font-mono">PENDING</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-6 whitespace-nowrap text-center">
+                        {% if funcionario.is_manager %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-gray-900 text-white font-mono">CORE::OWNER</span>
+                        {% elif funcionario.is_staff %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-gray-100 border border-gray-200 text-gray-800 font-mono">SYS::ADMIN</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-medium bg-gray-50 text-gray-400 border border-gray-200/60 font-mono">SAT::OPERATOR</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-6 text-right whitespace-nowrap">
+                        <div class="inline-flex items-center gap-1.5">
+                            <a href="{% url 'accounts:funcionario_update' funcionario.id %}" 
+                               class="px-2.5 py-1.5 bg-gray-50 hover:bg-gray-950 hover:text-white rounded-lg text-[10px] font-bold font-mono uppercase text-gray-600 border border-gray-200 shadow-3xs transition-all duration-200 cursor-pointer">
+                               {% if request.axentra_is_root or "accounts__can_edit_user" in request.axentra_permissions_list %}EDITAR{% else %}FICHA{% endif %}
+                            </a>
+
+                            {% if request.axentra_is_root or "accounts__can_edit_user" in request.axentra_permissions_list %}
+                                <a href="{% url 'accounts:funcionario_password' funcionario.id %}" title="Forzar rotación de credenciales"
+                                   class="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-150">
+                                    <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
+                                </a>
+                            {% endif %}
+
+                            {% if funcionario.id != request.user.id and not funcionario.is_manager %}
+                                {% if request.axentra_is_root or "accounts__can_delete_user" in request.axentra_permissions_list %}
+                                <form action="{% url 'accounts:funcionario_delete' funcionario.id %}" method="POST" class="inline"
+                                      onclick="return confirm('¿Desea suspender de forma definitiva este expediente?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="p-2 text-gray-300 hover:text-gray-950 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-20 bg-gray-50/30">
+                        <i data-lucide="users" class="w-8 h-8 text-gray-300 mx-auto stroke-1"></i>
+                        <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest font-mono mt-3">Sin Coincidencias en Padrón</p>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>

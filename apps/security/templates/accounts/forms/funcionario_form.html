@@ -1,0 +1,102 @@
+<!-- templates/accounts/forms/funcionario_form.html -->
+{% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
+
+{% block app_context_badge %}Alta de Expediente{% endblock %}
+{% block title %}Alta de Funcionario | {{ tenant.app_name }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="max-w-4xl mx-auto space-y-6 pb-12 animate-fade-in select-none">
+    
+    <!-- =========================================================================
+         🛰️ CABECERA DE LA ADUANA OPERATIVA
+         ========================================================================= -->
+    <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                <span>Aduana de Personal // Core OS</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-950 tracking-tight font-mono uppercase">Nuevo Registro de Funcionario</h2>
+        </div>
+        <a href="{% url 'accounts:funcionario_list_table' %}" class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold py-2.5 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-3xs flex items-center gap-2 transform active:scale-95 whitespace-nowrap">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Retornar al Padrón
+        </a>
+    </div>
+
+    <!-- =========================================================================
+         🎰 FORMULARIO DE CAPTURA DE ALTA DENSIDAD
+         ========================================================================= -->
+    <form method="POST" class="bg-white p-8 md:p-10 rounded-[32px] border border-gray-200/80 shadow-2xs space-y-8 font-mono text-xs uppercase tracking-wide">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="p-4 bg-gray-950 text-gray-400 border border-transparent rounded-xl font-mono text-[10px]">
+            {{ form.non_field_errors.0 }}
+        </div>
+        {% endif %}
+
+        <!-- Sección 1: Cuenta del Sistema -->
+        <div class="space-y-6">
+            <h3 class="text-[10px] font-bold text-gray-400 tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                <i data-lucide="user" class="w-4 h-4 text-gray-400"></i> 
+                <span>1. Datos del Usuario Central</span>
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Correo Electrónico Institucional</label>
+                    {{ form.email }}
+                    <span class="text-[9px] text-gray-400 block lowercase font-sans">{{ form.email.errors.0 }}</span>
+                </div>
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Contraseña de Fábrica</label>
+                    {{ form.password }}
+                    <span class="text-[9px] text-gray-400 block font-sans">{{ form.password.errors.0 }}</span>
+                </div>
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Nombre(s)</label>
+                    {{ form.first_name }}
+                </div>
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Apellidos</label>
+                    {{ form.last_name }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 2: Adscripción Orgánica -->
+        <div class="space-y-6">
+            <h3 class="text-[10px] font-bold text-gray-400 tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                <i data-lucide="git-branch" class="w-4 h-4 text-gray-400"></i> 
+                <span>2. Adscripción Estructural</span>
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Puesto Nominal / Cargo</label>
+                    {{ profile_form.puesto }}
+                </div>
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Celda de Adscripción Orgánica</label>
+                    {{ profile_form.area }}
+                </div>
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Teléfono Celular</label>
+                    {{ form.phone }}
+                </div>
+                <div class="space-y-2">
+                    <label class="font-bold text-gray-700">Extensión de Oficina</label>
+                    {{ profile_form.telefono_oficina }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Acciones Finales -->
+        <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
+            <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3.5 px-6 rounded-xl font-mono uppercase tracking-widest transition-all duration-200 shadow-sm flex items-center gap-2 cursor-pointer transform active:scale-95">
+                <i data-lucide="save" class="w-4 h-4 text-gray-400"></i>
+                <span>Compilar Expediente</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
