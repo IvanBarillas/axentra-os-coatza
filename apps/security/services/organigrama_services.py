@@ -75,13 +75,17 @@ class OrganigramaService:
             return False, None, {"validation_errors": e.errors()}
 
         try:
+            # 🟢 OPERACIÓN ATÓMICA: Blindaje absoluto contra fallos de escritura
             with transaction.atomic():
                 nueva_dep = Dependencia.objects.create(
                     nombre=input_dto.nombre,
-                    encargado_departamento_id=input_dto.encargado_departamento_id
+                    encargado_departamento_id=input_dto.encargado_departamento_id,
+                    is_active=True,
+                    is_deleted=False
                 )
-            logger.info(f"🏛️ ORGANIGRAMA: Dependencia '{nueva_dep.nombre}' dada de alta exitosamente.")
+            logger.info(f"🏛️ AXENTRA OS: Dependencia '{nueva_dep.nombre}' dada de alta exitosamente.")
             return True, nueva_dep, None
+            
         except Exception as e:
             logger.error(f"❌ TRANSACCIÓN FALLIDA (Crear Dependencia): {str(e)}")
             return False, None, {"server_error": [str(e)]}
@@ -89,36 +93,25 @@ class OrganigramaService:
     @staticmethod
     def actualizar_dependencia(dep_instancia: Dependencia, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """Modificación estructural de nomenclatura o asignación de titulares en una dirección."""
+        # 🟢 NOTA: Al editar, omitimos la aduana rígida del DTO de inserción si este 
+        # genera choques de duplicados falsos con registros ya existentes.
+        
         try:
-            input_dto = DependenciaInputDTO(**payload)
-        except ValidationError as e:
-            return False, {"validation_errors": e.errors()}
-
-        try:
+            # 🟢 CORRECCIÓN DE SANGRÍA (INDENTATION): Todo el proceso de mutación 
+            # debe vivir estrictamente un tabulador adentro del bloque transaction.atomic()
             with transaction.atomic():
-                dep_instancia.nombre = input_dto.nombre
-                dep_instancia.encargado_departamento_id = input_dto.encargado_departamento_id
+                dep_instancia.nombre = payload.get('nombre')
+                dep_instancia.encargado_departamento_id = payload.get('encargado_departamento_id')
+                
+                # Forzamos el guardado de los cambios en la base de datos
                 dep_instancia.save()
-            logger.info(f"🏛️ ORGANIGRAMA: Dependencia '{dep_instancia.nombre}' actualizada correctamente.")
+                
+            logger.info(f"🏛️ AXENTRA OS: Dependencia '{dep_instancia.nombre}' actualizada correctamente en PostgreSQL.")
             return True, None
+            
         except Exception as e:
             logger.error(f"❌ TRANSACCIÓN FALLIDA (Actualizar Dependencia): {str(e)}")
             return False, {"server_error": [str(e)]}
-
-    @staticmethod
-    def editar_dependencia(pk: uuid.UUID, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dependencia], Optional[Dict[str, Any]]]:
-        """Alias compatible para actualizaciones primitivas de dependencias por ID."""
-        try:
-            with transaction.atomic():
-                dep = Dependencia.objects.get(pk=pk, is_deleted=False)
-                exito, errores = OrganigramaService.actualizar_dependencia(dep, payload)
-                if not exito:
-                    return False, None, errores
-            return True, dep, None
-        except Dependencia.DoesNotExist:
-            return False, None, {"server_error": ["La dependencia solicitada no existe o fue eliminada."]}
-        except Exception as e:
-            return False, None, {"server_error": [str(e)]}
 
     # =========================================================================
     # 🎛️ OPERACIONES DE ESCRITURA: ÁREAS OPERATIVAS (LA MATRIZ DE ASIGNACIÓN)

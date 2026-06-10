@@ -1,6 +1,7 @@
 # apps/security/urls/organigrama_urls.py
 from django.urls import path
 from apps.security.views.organigrama_views import (
+    dependencia_toggle_status_view,
     organigrama_control_view,
     organigrama_dashboard_view,
     estructura_list_view, 
@@ -41,12 +42,13 @@ urls_organigrama = [
     path('sedes/nueva/', sede_create_view, name='sede_create'),
     path('sedes/editar/<uuid:pk>/', sede_update_view, name='sede_update'),
     path('sedes/eliminar/<uuid:pk>/', sede_soft_delete_view, name='sede_delete'), 
-    path('sedes/<uuid:pk>/toggle/', sede_toggle_status_view, name='sede_toggle'),
+    path('sedes/estado/<uuid:pk>/', sede_toggle_status_view, name='sede_toggle_status'),
     
     # 📁 Operaciones Transaccionales de Dependencias (Direcciones Generales)
     path('dependencia/nueva/', dependencia_create_view, name='dependencia_create'),
     path('dependencia/editar/<uuid:pk>/', dependencia_update_view, name='dependencia_update'),
     path('dependencia/eliminar/<uuid:pk>/', dependencia_soft_delete_view, name='dependencia_delete'),
+    path('dependencia/estado/<uuid:pk>/', dependencia_toggle_status_view, name='dependencia_toggle_status'),
 
     # 📍 Operaciones Transaccionales de Áreas (Sub-Oficinas Internas)
     path('area/nueva/', area_create_view, name='area_create'),

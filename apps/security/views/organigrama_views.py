@@ -7,6 +7,7 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.template import Template, Context
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.db import transaction
 
 from apps.shared.apps_config import AppIdentifier
 from apps.security.decorators import axentra_gate_enforcer
@@ -137,7 +138,7 @@ def sede_soft_delete_view(request, pk: uuid.UUID):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_create_view(request):
-    """Modelado e inyección de Secretarías o Direcciones Generales."""
+    """Modelado e inyección tradicional en pantalla completa."""
     if request.method == 'POST':
         form = DependenciaForm(request.POST)
         if form.is_valid():
@@ -146,38 +147,85 @@ def dependencia_create_view(request):
                 'encargado_departamento_id': form.cleaned_data['encargado_departamento'].id if form.cleaned_data.get('encargado_departamento') else None
             }
             exito, dep, errores = OrganigramaService.crear_dependencia(payload)
-            if exito: return redirect('organigrama:estructura_list')
+            if exito: 
+                return redirect('organigrama:estructura_list')
             form.add_error(None, errores.get('server_error', ['Fallo del Servidor'])[0])
     else:
         form = DependenciaForm()
-    return render(request, 'organigrama/forms/dependencia_form.html', {'form': form, 'action': 'create'})
+        
+    return render(request, 'organigrama/forms/dependencia_form.html', {
+        'form': form, 
+        'action': 'create'
+    })
+
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_update_view(request, pk: uuid.UUID):
-    """Edición de nomenclatura o titulares de una dependencia core."""
+    """Modificación de nomenclatura en pantalla completa sin choques de unicidad."""
+    # Obtenemos el registro que se pretende modificar
     dep_instancia = get_object_or_404(Dependencia, pk=pk, is_deleted=False)
+    
     if request.method == 'POST':
+        # 🟢 CORRECCIÓN DE UNICIDAD: Le pasamos la instance=dep_instancia en el POST.
+        # Esto le permite a Django ignorar el error de "ya existe este nombre" para sí mismo.
         form = DependenciaForm(request.POST, instance=dep_instancia)
+        
         if form.is_valid():
             payload = {
                 'nombre': form.cleaned_data['nombre'],
                 'encargado_departamento_id': form.cleaned_data['encargado_departamento'].id if form.cleaned_data.get('encargado_departamento') else None
             }
+            
+            # Forzamos que la actualización corra estrictamente a través de tu Service Layer
             exito, errores = OrganigramaService.actualizar_dependencia(dep_instancia, payload)
-            if exito: return redirect('organigrama:estructura_list')
+            if exito: 
+                return redirect('organigrama:estructura_list')
+                
             form.add_error(None, errores.get('server_error', ['Fallo de actualización'])[0])
     else:
+        # Carga inicial (GET) idéntica
         form = DependenciaForm(instance=dep_instancia)
-    return render(request, 'organigrama/forms/dependencia_form.html', {'form': form, 'action': 'update', 'dependencia': dep_instancia})
+        
+    return render(request, 'organigrama/forms/dependencia_form.html', {
+        'form': form, 
+        'action': 'update', 
+        'dependencia': dep_instancia
+    })
+    
 
+@require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_soft_delete_view(request, pk: uuid.UUID):
-    """Baja del chasis estructural de una Dirección General."""
-    dep_instancia = get_object_or_404(Dependencia, pk=pk)
+    """Baja lógica asíncrona de una dependencia mitigando redirecciones de página."""
+    dep_instancia = get_object_or_404(Dependencia, pk=pk, is_deleted=False)
+    
+    # Ejecutamos la baja en cascada
     OrganigramaService.eliminar_dependencia(dep_instancia)
+    
+    # 🚀 RESPUESTA REACTIVA: HTMX remueve la tarjeta del DOM instantáneamente
+    if request.headers.get('HX-Request') or request.headers.get('hx-request'):
+        return HttpResponse(status=200, content="")
+        
     return redirect('organigrama:estructura_list')
+
+
+@require_POST
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+def dependencia_toggle_status_view(request, pk):
+    """Invierte el estado operativo e inyecta de vuelta el mismo badge toggle."""
+    dep_instancia = get_object_or_404(Dependencia, pk=pk, is_deleted=False)
+    
+    with transaction.atomic():
+        dep_instancia.is_active = not dep_instancia.is_active
+        dep_instancia.save()
+        
+    return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
+        'is_active': dep_instancia.is_active,
+        'toggle_url': reverse('organigrama:dependencia_toggle_status', args=[dep_instancia.id])
+    })
 
 # =========================================================================
 # 📍 TRANSMUTACIONES DE ÁREAS OPERATIVAS (DEPARTAMENTOS / OFICINAS)
@@ -250,7 +298,7 @@ def sede_toggle_status_view(request, pk: uuid.UUID):
     # Renderizamos el componente usando el nuevo inclusion_tag limpio
     return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
         'is_active': sede.is_active,
-        'toggle_url': reverse('organigrama:sede_toggle', args=[sede.id])
+        'toggle_url': reverse('organigrama:sede_toggle_status', args=[sede.id])
     })
 
 @login_required

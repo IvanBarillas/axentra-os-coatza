@@ -41,7 +41,7 @@
                 </div>
                 
                 <div id="status-node-{{ sede.id }}" class="shrink-0">
-                    {% url 'organigrama:sede_toggle' sede.id as url_toggle %}
+                    {% url 'organigrama:sede_toggle_status' sede.id as url_toggle %}
                     {% badge_toggle sede.is_active url_toggle %}
                 </div>
             </div>

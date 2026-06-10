@@ -69,7 +69,11 @@ class User(AbstractUser):
         verbose_name = 'Usuario'
         verbose_name_plural = 'Usuarios'
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Representación oficial en selectores y formularios de Axentra OS."""
+        if self.first_name or self.last_name:
+            nombre_completo = f"{self.first_name} {self.last_name}".strip()
+            return f"{nombre_completo} ({self.email})"
         return self.email
 
 
