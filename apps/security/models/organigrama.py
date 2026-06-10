@@ -38,10 +38,11 @@ class Dependencia(models.Model):
     nombre = models.CharField("Nombre de la Dependencia", max_length=150, unique=True)
     slug = models.SlugField(max_length=150, unique=True, editable=False)
 
+    # 🟢 REFRACTORIZADO: Accesor inverso limpio desde la perspectiva de la Sede
     sedes_ocupadas = models.ManyToManyField(
         Sede,
         through='security.AreaOperativa',
-        related_name='dependencias_alojadas',
+        related_name='dependencias',
         verbose_name="Sedes Físicas Operativas"
     )
 
@@ -77,16 +78,18 @@ class AreaOperativa(models.Model):
     """Matriz de asignación multidimensional Muchos a Muchos con candado de unicidad."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    # 🟢 REFRACTORIZADO PREVIO: Accesor limpio para dependencia.areas
     dependencia = models.ForeignKey(
         Dependencia, 
         on_delete=models.CASCADE, 
-        related_name="areas_operativas_instaladas",
+        related_name="areas",
         verbose_name="Dependencia Superior"
     )
+    # 🟢 REFRACTORIZADO: Accesor limpio para sede.areas
     sede_fisica = models.ForeignKey(
         Sede, 
         on_delete=models.PROTECT, 
-        related_name="oficinas_maestras_instaladas",
+        related_name="areas",
         verbose_name="Sede Física de Operación"
     )
     
@@ -120,10 +123,12 @@ class AppDependencyCapability(models.Model):
         on_delete=models.CASCADE, 
         related_name="dependencias_vinculadas"
     )
+    # 🟢 REFRACTORIZADO: Accesor limpio para dependencia.capacidades
     dependencia = models.ForeignKey(
         Dependencia, 
         on_delete=models.CASCADE, 
-        related_name="capacidades_apps"
+        related_name="capacidades",
+        verbose_name="Dependencia"
     )
     
     flag_alfa = models.BooleanField("Capacidad Primaria (Alfa)", default=False)

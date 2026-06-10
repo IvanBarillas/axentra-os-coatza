@@ -81,14 +81,14 @@ class UserProfile(models.Model):
     """Expediente laboral de adscripción geográfica y administrativa del funcionario."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    # 🟢 CORRECCIÓN: Alineado con la telemetría del decorador (request.user.axentra_profile)
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
-        related_name="profile",
+        related_name="axentra_profile",
         verbose_name="Usuario"
     )
     
-    # Conectamos con un string pilar dinámico apuntando a la clase interna del mismo módulo
     area = models.ForeignKey(
         'security.AreaOperativa', 
         on_delete=models.PROTECT, 
@@ -99,6 +99,12 @@ class UserProfile(models.Model):
     puesto = models.CharField("Puesto del Funcionario", max_length=100, blank=True, help_text="Ej: Jefa de Departamento, Auditor Interno")
     telefono_oficina = models.CharField("Teléfono de Oficina / Extensión", max_length=20, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # 🟢 NUEVA PROPIEDAD: Resuelve el puente roto con el decorador de seguridad
+    @property
+    def is_root_admin(self) -> bool:
+        """Determina si el usuario amparado en este perfil cuenta con bypass de administración superior."""
+        return self.user.is_superuser or self.user.is_manager
 
     @property
     def dependencia(self):

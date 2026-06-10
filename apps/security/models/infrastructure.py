@@ -31,17 +31,19 @@ class UserAppRole(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    # 🟢 OPTIMIZADO: Accesor directo desde el objeto Usuario (ej: usuario.roles.all())
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
-        related_name='app_roles',
+        related_name='roles',
         verbose_name="Funcionario Público"
     )
+    # 🟢 OPTIMIZADO: Accesor limpio desde el objeto Módulo (ej: modulo.roles.all())
     app = models.ForeignKey(
         AppModule, 
         on_delete=models.CASCADE, 
-        related_name='user_roles',
-        verbose_name="Módulo Authorized"
+        related_name='roles',
+        verbose_name="Módulo Autorizado"
     )
     role = models.CharField(
         "Rol Asignado en el Módulo", 

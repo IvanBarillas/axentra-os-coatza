@@ -52,7 +52,6 @@ class OrganigramaService:
             with transaction.atomic():
                 sede_instancia.nombre = nombre
                 sede_instancia.direccion = direccion
-                # Persistimos el estatus de activación si viene explícito en el payload del formulario
                 if 'is_active' in payload:
                     sede_instancia.is_active = payload['is_active']
                 sede_instancia.save()
@@ -75,7 +74,6 @@ class OrganigramaService:
             return False, None, {"validation_errors": e.errors()}
 
         try:
-            # 🟢 OPERACIÓN ATÓMICA: Blindaje absoluto contra fallos de escritura
             with transaction.atomic():
                 nueva_dep = Dependencia.objects.create(
                     nombre=input_dto.nombre,
@@ -93,17 +91,10 @@ class OrganigramaService:
     @staticmethod
     def actualizar_dependencia(dep_instancia: Dependencia, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """Modificación estructural de nomenclatura o asignación de titulares en una dirección."""
-        # 🟢 NOTA: Al editar, omitimos la aduana rígida del DTO de inserción si este 
-        # genera choques de duplicados falsos con registros ya existentes.
-        
         try:
-            # 🟢 CORRECCIÓN DE SANGRÍA (INDENTATION): Todo el proceso de mutación 
-            # debe vivir estrictamente un tabulador adentro del bloque transaction.atomic()
             with transaction.atomic():
                 dep_instancia.nombre = payload.get('nombre')
                 dep_instancia.encargado_departamento_id = payload.get('encargado_departamento_id')
-                
-                # Forzamos el guardado de los cambios en la base de datos
                 dep_instancia.save()
                 
             logger.info(f"🏛️ AXENTRA OS: Dependencia '{dep_instancia.nombre}' actualizada correctamente en PostgreSQL.")
@@ -154,7 +145,6 @@ class OrganigramaService:
 
         try:
             with transaction.atomic():
-                # Validamos de forma síncrona que las entidades a vincular existan en Postgres
                 dep = Dependencia.objects.get(id=input_dto.dependencia_id, is_deleted=False)
                 sede_fisica = Sede.objects.get(id=input_dto.sede_fisica_id, is_active=True)
 
@@ -198,8 +188,9 @@ class OrganigramaService:
             sede_instancia.is_deleted = True
             sede_instancia.is_active = False
             sede_instancia.save()
+            # 🟢 SINCRO ORM: Apunta de forma directa al related_name optimizado "areas"
             AreaOperativa.objects.filter(sede_fisica=sede_instancia).update(is_active=False)
-        logger.warning(f"⚠️ AUDITORÍA: Soft-Delete instantáneo aplicado sobre Sede Física ID=[{sede_instancia.id}].")
+        logger.warning(f"⚠️ AUDITORÍA: Soft-Delete aplicado sobre Sede Física ID=[{sede_instancia.id}].")
 
     @staticmethod
     def dar_baja_logica_sede(pk: uuid.UUID) -> Tuple[bool, str]:
@@ -216,17 +207,16 @@ class OrganigramaService:
 
     @staticmethod
     def eliminar_dependencia(dep_instancia: Dependencia) -> None:
-        """Baja lógica de instancia: Marca is_deleted y arrastra sub-oficinas en cascada."""
+        """Baja lógica de instancia: Marca is_deleted y arrastra sub-oficinas en cascada atómica."""
         with transaction.atomic():
             dep_instancia.is_active = False
             dep_instancia.is_deleted = True
             dep_instancia.save()
-            # Django usa el related_name correspondiente o el fallback del modelo
-            if hasattr(dep_instancia, 'areas_operativas_instaladas'):
-                dep_instancia.areas_operativas_instaladas.update(is_active=False, is_deleted=True)
-            else:
-                AreaOperativa.objects.filter(dependencia=dep_instancia).update(is_active=False, is_deleted=True)
-        logger.warning(f"⚠️ AUDITORÍA: Soft-Delete instantáneo aplicado en Dependencia ID=[{dep_instancia.id}].")
+            
+            # 🟢 BUG ARREGLADO: Ejecuta la mutación de borrado masivo invocando el accesor inverso premium '.areas'
+            dep_instancia.areas.update(is_active=False, is_deleted=True)
+            
+        logger.warning(f"⚠️ AUDITORÍA: Soft-Delete con barrido en cascada aplicado en Dependencia ID=[{dep_instancia.id}].")
 
     @staticmethod
     def dar_baja_logica_dependencia(pk: uuid.UUID) -> Tuple[bool, str]:

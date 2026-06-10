@@ -25,15 +25,17 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
             profile = getattr(request.user, 'axentra_profile', None)
             is_root = getattr(profile, 'is_root_admin', False) or getattr(request.user, 'is_manager', False) or request.user.is_superuser
 
-            # 2. RADAR EN CALIENTE: Invoca tu mapeador booleano dinámico de la base de datos
+            # 2. RADAR EN CALIENTE: Forzamos la carga sin importar el ROL para auditoría profunda en el DOM y Consola
             permisos = get_user_permissions_for_app(request.user, module_identifier)
             lista_llaves_reales = permisos.get('permissions_list', [])
 
-            # 3. COMPUERTA 1: Control de Acceso Perimetral (Ingreso General al Módulo)
-            has_access_flat = permisos.get('has_access', False) or permisos.get('has_access_module', False)
-            has_access_composed = f"{module_identifier}__has_access" in lista_llaves_reales
+            # =========================================================================
+            # 🛡️ SANEADO EXCLUSIVO: COMPUERTA 1 - CONTROL DE ACCESO PERIMETRAL UNIFICADO
+            # =========================================================================
+            # BUG SOLUCIONADO: Se eliminó 'has_access' genérico y el string compuesto obsoletos.
+            tiene_acceso_modulo = permisos.get('has_access_module', False)
             
-            if not has_access_flat and not has_access_composed and not is_root:
+            if not tiene_acceso_modulo and not is_root:
                 if request.headers.get('HX-Request'):
                     return HttpResponseForbidden("Acceso Denegado: Módulo satélite no autorizado en matriz JSON.")
                 messages.error(request, f"⚠️ Acceso Denegado al módulo [{module_identifier.upper()}].")
@@ -48,9 +50,9 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
                     messages.error(request, f"⚠️ Restricción perimetral: Requiere el token [{required_fine_permission}].")
                     return redirect('launcher_home')
 
-            # Sembrado atómico en el Request para consumo de controladores y vistas secundarias
+            # Sembrado atómico en el Request para consumo de controladores y vistas de plantillas secundarias
             request.axentra_permissions = permisos
-            request.axentra_permissions_list = lista_llaves_reales
+            request.axentra_permissions_list = lista_llaves_reales  # 🟢 Pool inyectado con éxito al contexto del DOM
             request.axentra_is_root = is_root
             request.axentra_active_module = module_identifier
 
@@ -73,7 +75,7 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
                 computed_sidebar.sort(key=lambda x: x['order'])
 
             # =========================================================================
-            # 🔮 DEBUGGER AVANZADO: IMPRESIÓN EXCLUSIVA DE LLAVES ACTIVAS EN CONSOLA
+            # 🔮 RADAR DETECTOR MODIFICADO: AUDITORÍA TRANSPARENTE EN CONSOLA
             # =========================================================================
             try:
                 llamado_desde = f"{view_func.__module__} -> {view_func.__name__}()"
@@ -90,15 +92,24 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
             print(f"🔑 Token Fino Exigido: {required_fine_permission or 'NINGUNO (ACCESO LIBRE)'}")
             print(f"📊 Enlaces Inyectados al Sidebar: {len(computed_sidebar)}")
             print("-" * 80)
-            # 🟢 LA NUEVA TELEMETRÍA ATÓMICA:
-            print(f"🔑 POOL DE PERMISOS DETECTADOS EN RAM EN ESTE IMPACTO:")
+            
+            # Muestra el estado administrativo del usuario en curso
             if is_root:
-                print("   👑 Rango MASTER BYPASS Detectado: Todas las llaves del chasis operan en True de forma implícita.")
-            elif llaves_vivas:
+                print("👑 RANGO ADMINISTRATIVO DETECTADO: MASTER BYPASS (Acceso implícito total)")
+            
+            # Despliega de forma estricta los permisos de la base de datos sin importar el rol
+            print(f"🔑 POOL DE PERMISOS REALES ASIGNADOS EN LA BASE DE DATOS:")
+            if lista_llaves_reales or llaves_vivas:
+                # 1. Extracción de las llaves booleanas de la matriz JSON
                 for idx, llave in enumerate(llaves_vivas, start=1):
-                    print(f"   {idx}. ✓ {llave}")
+                    print(f"   {idx}. ✓ [Matriz JSON] -> {llave}")
+                
+                # 2. Extracción de tokens directos de la lista cruda
+                start_idx = len(llaves_vivas) + 1
+                for idx, token in enumerate(lista_llaves_reales, start=start_idx):
+                    print(f"   {idx}. ✓ [Token String] -> {token}")
             else:
-                print("   ⚠️ ADVERTENCIA: El pool de llaves JSON para esta aplicación se encuentra vacío.")
+                print("   ⚠️ ADVERTENCIA: Este usuario no tiene ninguna llave física registrada en BD para este módulo.")
             print("═"*80 + "\n")
             # =========================================================================
 

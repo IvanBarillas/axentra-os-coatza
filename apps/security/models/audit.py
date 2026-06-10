@@ -12,10 +12,11 @@ class SecurityAuditLog(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    # 🟢 OPTIMIZADO: Accesor directo, limpio y elegante desde el objeto Usuario (ej: usuario.logs.all())
     operator_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='security_logs',
+        related_name='logs',
         verbose_name="Operador del Sistema"
     )
     level_status = models.CharField(

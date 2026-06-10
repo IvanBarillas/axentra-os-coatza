@@ -1,4 +1,3 @@
-<!-- templates/organigrama/estructura_list.html -->
 {% extends "layouts/dashboard_layout.html" %}
 {% load axentra_ui %}
 
@@ -24,12 +23,8 @@
 {% endblock %}
 
 {% block dashboard_content %}
-<!-- 🟢 ESTADO ATÓMICO: AlpineJS gobierna la selección y el query del buscador -->
 <div class="space-y-8 pb-12 w-full animate-fade-in select-none" x-data="{ dependenciaSeleccionada: null, buscarQuery: '' }">
     
-    <!-- =========================================================================
-         🏛️ ENCABEZADO DE CONTROL OPERATIVO (RUTAS A PANTALLA COMPLETA)
-         ========================================================================= -->
     <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <div class="text-[10px] font-black text-gray-400 font-mono uppercase tracking-[0.2em] mb-1">
@@ -54,19 +49,14 @@
         {% endif %}
     </div>
 
-    <!-- =========================================================================
-         🎰 MESA DE ANÁLISIS DIVIDIDA (GRID DE 12 COLUMNAS DE ALTA DENSIDAD)
-         ========================================================================= -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
         
-        <!-- PANEL IZQUIERDO: Directorio con Scroll y Buscador Integrado (Colspan 5) -->
         <div class="lg:col-span-5 bg-white rounded-[32px] border border-gray-200/80 shadow-[0_12px_40px_rgba(0,0,0,0.01)] p-6 space-y-4">
             <div class="flex justify-between items-center border-b border-gray-100 pb-3">
                 <h3 class="text-xs font-black text-gray-400 uppercase tracking-[0.15em] font-mono px-1">Direcciones Generales</h3>
                 <span class="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono">{{ dependencias|length }} Nodos</span>
             </div>
 
-            <!-- 🟢 EL BUSCADOR INTEGRADO CON AUTOCOMPLETADO EN MEMORIA -->
             <div class="relative w-full font-mono text-[11px]">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
                     <i data-lucide="search" class="w-3.5 h-3.5"></i>
@@ -82,10 +72,8 @@
                 </span>
             </div>
             
-            <!-- Directorio con Scroll vertical encapsulado -->
             <div class="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                 {% for dep in dependencias %}
-                    <!-- 🟢 REACTIVIDAD PURA: x-show evalúa la búsqueda e impide la multiselección pegada de color negro -->
                     <div class="nodo-dependencia w-full p-4 rounded-2xl transition-all duration-300 flex items-center justify-between border"
                          x-show="buscarQuery === '' || '{{ dep.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase()) || '{{ dep.slug }}'.toUpperCase().includes(buscarQuery.toUpperCase())"
                          :class="dependenciaSeleccionada === '{{ dep.id }}' ? 'bg-gray-950 border-gray-900 shadow-xs' : 'bg-white border-gray-100 hover:bg-gray-50/50'"
@@ -93,7 +81,6 @@
                          x-transition:enter-start="opacity-0 scale-95"
                          x-transition:enter-end="opacity-100 scale-100">
                         
-                        <!-- Región Interactiva (Carga remota de datos vía HTMX) -->
                         <div hx-get="{% url 'organigrama:estructura_areas_ajax' dep.id %}"
                              hx-target="#contenedor-areas"
                              hx-indicator="#loading-indicator"
@@ -116,9 +103,7 @@
                             </div>
                         </div>
                         
-                        <!-- Panel de Controles Permanentes (Sin dependencias de Hover) -->
                         <div class="flex items-center gap-3 shrink-0" @click.stop>
-                            <!-- 🟢 RESOLUCIÓN DE URL: Inyecta el endpoint exacto para evitar el colapso visual -->
                             {% url 'organigrama:dependencia_toggle_status' dep.id as toggle_url %}
                             {% badge_toggle dep.is_active toggle_url %}
 
@@ -157,7 +142,6 @@
             </div>
         </div>
 
-        <!-- PANEL DERECHO: Visor de Oficinas Adscritas (Colspan 7) -->
         <div class="lg:col-span-7 bg-white rounded-[32px] border border-gray-200/80 shadow-[0_12px_40px_rgba(0,0,0,0.01)] p-8 min-h-[460px] max-h-[688px] overflow-y-auto custom-scrollbar relative flex flex-col">
             
             <div id="loading-indicator" class="htmx-indicator htmx-request:flex hidden absolute inset-0 bg-white/80 backdrop-blur-xs z-50 flex-col items-center justify-center rounded-[32px] transition-all duration-300">

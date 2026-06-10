@@ -1,10 +1,10 @@
 # apps/security/views/organigrama_views.py
+import logging
 import uuid
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from django.http import HttpResponse, HttpResponseForbidden
-from django.template import Template, Context
+from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.db import transaction
@@ -14,7 +14,7 @@ from apps.security.decorators import axentra_gate_enforcer
 
 # Modelos Reales del Ecosistema
 from apps.security.models.organigrama import Sede, Dependencia, AreaOperativa
-from apps.security.models.audit import SecurityAuditLog  # 🟢 Tu modelo real de auditoría
+from apps.security.models.audit import SecurityAuditLog
 
 # Selectores, Services y Formularios Reales
 from apps.security.selectors.organigrama_selectors import SedeSelectors, DependenciaSelectors, AreaOperativaSelectors
@@ -22,21 +22,21 @@ from apps.security.services.organigrama_services import OrganigramaService
 from apps.security.forms import SedeForm, DependenciaForm, AreaOperativaForm
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
 
 # =========================================================================
-# 📊 CONTROLADORES DE CUADRO DE MANDO Y REJILLAS PRINCIPALES
+# 📊 PILAR 1: CUADROS DE MANDO Y REJILLAS PRINCIPALES (ANALYTICS & CONTROL)
 # =========================================================================
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def organigrama_control_view(request):
     """Cuarto de Control General: Enrutador táctico de alta velocidad sin carga analítica."""
-    # 🟢 CERO QUERIES PESADAS: Solo renderiza el chasis de navegación segura
     return render(request, 'organigrama/control_panel.html')
 
 
 @login_required
-# 🟢 BLINDAJE: Ahora requiere permisos de auditoría o administración para ver la analítica
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def organigrama_dashboard_view(request):
     """Cabina de mando analítica: Reservada para alta gerencia y auditoría forense."""
@@ -61,13 +61,25 @@ def organigrama_dashboard_view(request):
     }
     return render(request, 'organigrama/dashboard/organigrama_dashboard.html', context)
 
-@login_required
+
+@login_related if False else login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def estructura_list_view(request):
-    """Mesa interactiva de dependencias gubernamentales."""
+    """Mesa interactiva principal de la estructura orgánica gubernamental."""
+    # 🟢 CONTROL DE DAÑOS CORES: Evaluamos si el selector requiere usar el nuevo related_name 'areas'
+    try:
+        dependencias_lista = Dependencia.objects.filter(is_deleted=False).prefetch_related('areas__sede_fisica')
+    except Exception:
+        dependencias_lista = DependenciaSelectors.listar_activas()
+
     return render(request, 'organigrama/estructura_list.html', {
-        'dependencias': DependenciaSelectors.listar_activas()
+        'dependencias': dependencias_lista
     })
+
+
+# =========================================================================
+# 🏛️ PILAR 2: GESTIÓN GEOGRÁFICA (SEDES E INMUEBLES MUNICIPALES)
+# =========================================================================
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
@@ -77,9 +89,6 @@ def sede_list_view(request):
         'sedes': SedeSelectors.listar_todas()
     })
 
-# =========================================================================
-# 🏗️ TRANSMUTACIONES DE SEDES (INMUEBLES MUNICIPALES)
-# =========================================================================
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
@@ -94,6 +103,7 @@ def sede_create_view(request):
     else:
         form = SedeForm()
     return render(request, 'organigrama/forms/sede_form.html', {'form': form, 'action': 'create'})
+
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
@@ -110,35 +120,43 @@ def sede_update_view(request, pk: uuid.UUID):
         form = SedeForm(instance=sede_instancia)
     return render(request, 'organigrama/forms/sede_form.html', {'form': form, 'action': 'update', 'sede': sede_instancia})
 
-@require_POST  # 🟢 BLINDAJE: Rechaza peticiones GET de bots o URLs manuales en el navegador
+
+@require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_soft_delete_view(request, pk: uuid.UUID):
     """Baja lógica asíncrona de una sede física mitigando redirecciones de página."""
     sede_instancia = get_object_or_404(Sede, pk=pk)
-    
-    # Ejecutamos la desactivación en cascada en la base de datos
     OrganigramaService.eliminar_sede(sede_instancia)
     
-    # 🚀 RESPUESTA REACTIVA: Si la petición viene de HTMX, devolvemos un string vacío
-    # con estatus 200. HTMX se encargará de borrar la tarjeta del DOM de inmediato.
     if request.headers.get('HX-Request'):
-        return HttpResponse(
-            status=200, 
-            content=""
-        )
-        
-    # Fallback por si se dispara desde un formulario tradicional
+        return HttpResponse(status=200, content="")
     return redirect('organigrama:sede_list')
 
+
+@require_POST
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def sede_toggle_status_view(request, pk: uuid.UUID):
+    """Alternador AJAX de estatus operativo de Sedes físicas."""
+    sede = get_object_or_404(Sede, pk=pk)
+    sede.is_active = not sede.is_active
+    sede.save()
+    
+    return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
+        'is_active': sede.is_active,
+        'toggle_url': reverse('organigrama:sede_toggle_status', args=[sede.id])
+    })
+
+
 # =========================================================================
-# 📁 TRANSMUTACIONES DE DEPENDENCIAS (SECRETARÍAS Y DIRECCIONES)
+# 📁 PILAR 3: RAMOS ESTRUCTURALES (DEPENDENCIAS / DIRECCIONES GENERALES)
 # =========================================================================
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_create_view(request):
-    """Modelado e inyección tradicional en pantalla completa."""
+    """Modelado e inyección tradicional de dependencias."""
     if request.method == 'POST':
         form = DependenciaForm(request.POST)
         if form.is_valid():
@@ -147,44 +165,31 @@ def dependencia_create_view(request):
                 'encargado_departamento_id': form.cleaned_data['encargado_departamento'].id if form.cleaned_data.get('encargado_departamento') else None
             }
             exito, dep, errores = OrganigramaService.crear_dependencia(payload)
-            if exito: 
-                return redirect('organigrama:estructura_list')
+            if exito: return redirect('organigrama:estructura_list')
             form.add_error(None, errores.get('server_error', ['Fallo del Servidor'])[0])
     else:
         form = DependenciaForm()
         
-    return render(request, 'organigrama/forms/dependencia_form.html', {
-        'form': form, 
-        'action': 'create'
-    })
+    return render(request, 'organigrama/forms/dependencia_form.html', {'form': form, 'action': 'create'})
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_update_view(request, pk: uuid.UUID):
-    """Modificación de nomenclatura en pantalla completa sin choques de unicidad."""
-    # Obtenemos el registro que se pretende modificar
+    """Modificación de nomenclatura de Direcciones sin choques de unicidad."""
     dep_instancia = get_object_or_404(Dependencia, pk=pk, is_deleted=False)
     
     if request.method == 'POST':
-        # 🟢 CORRECCIÓN DE UNICIDAD: Le pasamos la instance=dep_instancia en el POST.
-        # Esto le permite a Django ignorar el error de "ya existe este nombre" para sí mismo.
         form = DependenciaForm(request.POST, instance=dep_instancia)
-        
         if form.is_valid():
             payload = {
                 'nombre': form.cleaned_data['nombre'],
                 'encargado_departamento_id': form.cleaned_data['encargado_departamento'].id if form.cleaned_data.get('encargado_departamento') else None
             }
-            
-            # Forzamos que la actualización corra estrictamente a través de tu Service Layer
             exito, errores = OrganigramaService.actualizar_dependencia(dep_instancia, payload)
-            if exito: 
-                return redirect('organigrama:estructura_list')
-                
+            if exito: return redirect('organigrama:estructura_list')
             form.add_error(None, errores.get('server_error', ['Fallo de actualización'])[0])
     else:
-        # Carga inicial (GET) idéntica
         form = DependenciaForm(instance=dep_instancia)
         
     return render(request, 'organigrama/forms/dependencia_form.html', {
@@ -192,22 +197,18 @@ def dependencia_update_view(request, pk: uuid.UUID):
         'action': 'update', 
         'dependencia': dep_instancia
     })
-    
+
 
 @require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_soft_delete_view(request, pk: uuid.UUID):
-    """Baja lógica asíncrona de una dependencia mitigando redirecciones de página."""
+    """Baja lógica asíncrona de una dependencia superior."""
     dep_instancia = get_object_or_404(Dependencia, pk=pk, is_deleted=False)
-    
-    # Ejecutamos la baja en cascada
     OrganigramaService.eliminar_dependencia(dep_instancia)
     
-    # 🚀 RESPUESTA REACTIVA: HTMX remueve la tarjeta del DOM instantáneamente
     if request.headers.get('HX-Request') or request.headers.get('hx-request'):
         return HttpResponse(status=200, content="")
-        
     return redirect('organigrama:estructura_list')
 
 
@@ -215,7 +216,7 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_toggle_status_view(request, pk):
-    """Invierte el estado operativo e inyecta de vuelta el mismo badge toggle."""
+    """Alternador de estado operativo para dependencias."""
     dep_instancia = get_object_or_404(Dependencia, pk=pk, is_deleted=False)
     
     with transaction.atomic():
@@ -227,14 +228,15 @@ def dependencia_toggle_status_view(request, pk):
         'toggle_url': reverse('organigrama:dependencia_toggle_status', args=[dep_instancia.id])
     })
 
+
 # =========================================================================
-# 📍 TRANSMUTACIONES DE ÁREAS OPERATIVAS (DEPARTAMENTOS / OFICINAS)
+# 📍 PILAR 4: SUB-FRAGMENTACIÓN (ÁREAS OPERATIVAS Y OFICINAS INTERNAS)
 # =========================================================================
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_create_view(request):
-    """Sub-fragmentación operativa de oficinas internas."""
+    """Aprovisionamiento de oficinas internas en pantalla completa dedicada."""
     if request.method == 'POST':
         form = AreaOperativaForm(request.POST)
         if form.is_valid():
@@ -248,12 +250,14 @@ def area_create_view(request):
             form.add_error(None, errores.get('server_error', ['Fallo en adscripción'])[0])
     else:
         form = AreaOperativaForm()
+        
     return render(request, 'organigrama/forms/area_form.html', {'form': form, 'action': 'create'})
+
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_update_view(request, pk: uuid.UUID):
-    """Re-adscripción de palacio físico o cambio de nombre de una sub-oficina."""
+    """Re-adscripción de palacio físico o cambio nominativo de una sub-oficina."""
     area_instancia = get_object_or_404(AreaOperativa, pk=pk, is_deleted=False)
     if request.method == 'POST':
         form = AreaOperativaForm(request.POST, instance=area_instancia)
@@ -270,56 +274,61 @@ def area_update_view(request, pk: uuid.UUID):
         form = AreaOperativaForm(instance=area_instancia)
     return render(request, 'organigrama/forms/area_form.html', {'form': form, 'action': 'update', 'area': area_instancia})
 
-@login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
-def area_soft_delete_view(request, pk: uuid.UUID):
-    """Desvinculación lógica de una oficina interna del Ayuntamiento."""
-    area_instancia = get_object_or_404(AreaOperativa, pk=pk)
-    OrganigramaService.eliminar_area(area_instancia)
-    return redirect('organigrama:estructura_list')
-
-# =========================================================================
-# ⚡ SECCIÓN: COMPONENTES REACTIVOS DE ALTA VELOCIDAD (HTMX TUBERÍAS)
-# =========================================================================
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
-def sede_toggle_status_view(request, pk: uuid.UUID):
-    """Alternador AJAX de estatus operativo unificado con seguridad perimetral."""
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+def area_soft_delete_view(request, pk: uuid.UUID):
+    """Desvinculación lógica asíncrona de una oficina interna."""
+    area_instancia = get_object_or_404(AreaOperativa, pk=pk)
+    OrganigramaService.eliminar_area(area_instancia)
+    return HttpResponse(status=200, content="")
+
+
+@require_POST
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+def area_toggle_status_view(request, pk: uuid.UUID):
+    """Invierte el estado operativo (is_active) de una oficina o departamento."""
+    area_instancia = get_object_or_404(AreaOperativa, pk=pk, is_deleted=False)
     
-    # 🟢 REMOCIÓN CRÍTICA: Eliminamos el 'if' manual que causaba el AttributeError.
-    # El decorador '@axentra_gate_enforcer' ya validó si el mánager tiene 'can_manage_infrastructure'.
+    with transaction.atomic():
+        area_instancia.is_active = not area_instancia.is_active
+        area_instancia.save()
+        
+    logger.info(f"⚡ AXENTRA OS: Área '{area_instancia.nombre}' mutó a is_active={area_instancia.is_active}")
     
-    sede = get_object_or_404(Sede, pk=pk)
-    sede.is_active = not sede.is_active
-    sede.save()
-    
-    # Renderizamos el componente usando el nuevo inclusion_tag limpio
     return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
-        'is_active': sede.is_active,
-        'toggle_url': reverse('organigrama:sede_toggle_status', args=[sede.id])
+        'is_active': area_instancia.is_active,
+        'toggle_url': reverse('organigrama:area_toggle_status', args=[area_instancia.id])
     })
+
+
+# =========================================================================
+# ⚡ PILAR 5: TUBERÍAS REACTIVAS ASÍNCRONAS (HTMX PIPELINES)
+# =========================================================================
 
 @login_required
 def cargar_areas_htmx_view(request):
     """Hidratación en cascada de selectores secundarios dependientes."""
     dependencia_id = request.GET.get('dependencia')
     try:
-        areas = AreaOperativaSelectors.listar_por_dependencia(uuid.UUID(dependencia_id)) if dependencia_id and dependencia_id != 'all' else []
+        areas = AreaOperativa.objects.filter(dependencia_id=uuid.UUID(dependencia_id), is_deleted=False) if ... else []
     except (ValueError, TypeError):
         areas = []
     return render(request, 'organigrama/htmx/area_options.html', {'areas': areas})
 
+
 @login_required
-def vincular_areas_ajax_view(request, dep_id: uuid.UUID):
-    """Inyección reactiva de la rejilla de oficinas en la mesa unificada."""
-    dependencia_dto = DependenciaSelectors.obtener_por_id(dep_id)
-    areas_dtos = list(AreaOperativaSelectors.listar_por_dependencia(dep_id))
+def vincular_areas_ajax_view(request, dep_id):
+    """Despacha la matriz de sub-oficinas de una dependencia usando el accesor premium inverso."""
+    dependencia = get_object_or_404(Dependencia, id=dep_id, is_deleted=False)
     
-    context = {
-        'dependencia': dependencia_dto,
-        'areas': areas_dtos,
-        'total_areas': len(areas_dtos),
-    }
-    return render(request, 'organigrama/htmx/estructura_areas_table.html', context)
+    # 🟢 CORRECCIÓN ATÓMICA: Mutamos 'areas_operativas_instaladas' por el nuevo 'areas' unificado
+    areas = dependencia.areas.filter(is_deleted=False).select_related('sede_fisica')
+    
+    return render(request, 'organigrama/htmx/estructura_areas_table.html', {
+        'dependencia': dependencia,
+        'areas': areas,
+        'request': request
+    })

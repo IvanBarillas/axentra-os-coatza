@@ -1,6 +1,7 @@
 # apps/security/services/accounts_services.py
 import logging
 import sys
+import os
 import traceback
 import uuid
 from typing import Optional, Tuple, Dict, Any
@@ -61,8 +62,9 @@ class FuncionarioService:
 
         try:
             with transaction.atomic():
-                usuario = User.objects.get(pk=pk)
-                perfil = UserProfile.objects.get(user=usuario)
+                # 🟢 OPTIMIZACIÓN: Traemos el usuario y su perfil en un solo impacto SQL mitigando el N+1
+                usuario = User.objects.select_related('axentra_profile').get(pk=pk)
+                perfil = usuario.axentra_profile
                 area = AreaOperativa.objects.get(id=input_dto.area_id)
 
                 usuario.email = input_dto.email
@@ -118,7 +120,8 @@ class FuncionarioService:
     def _imprimir_auditoria_mutacion(operacion: str, email: str, estatus: str, detalle: str = ""):
         try:
             frame = sys._getframe(2)
-            invocado_desde = f"{frame.f_code.co_filename.split('/')[-1]} -> {frame.f_code.co_name}()"
+            # 🟢 SANEADO COMPATIBILIDAD: os.path.basename extrae el archivo de forma limpia sin importar el OS
+            invocado_desde = f"{os.path.basename(frame.f_code.co_filename)} -> {frame.f_code.co_name}()"
         except Exception:
             invocado_desde = "Origen Desconocido"
 

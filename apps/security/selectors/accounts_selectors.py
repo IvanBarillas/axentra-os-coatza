@@ -49,6 +49,7 @@ class AccountsDashboardSelectors:
             
             cronologia_altas.append({
                 'mes': nombre_mes,
+                'amount': conteo_altas,  # Estandarizado
                 'cantidad': conteo_altas,
                 'porcentaje': porcentaje_barra
             })
@@ -61,7 +62,8 @@ class FuncionarioSelectors:
 
     @classmethod
     def _mapear_a_dto(cls, user, mapa_accesos: dict = None, mapa_owners: dict = None) -> FuncionarioReadOnlyDTO:
-        profile = getattr(user, 'profile', None)
+        # 🟢 CORRECCIÓN ATÓMICA: Evaluamos usando el nuevo related_name unificado 'axentra_profile'
+        profile = getattr(user, 'axentra_profile', None)
         accesos = mapa_accesos or {}
         owners = mapa_owners or {}
         
@@ -106,10 +108,11 @@ class FuncionarioSelectors:
 
     @classmethod
     def listar_plantilla_activa(cls, search_query: str = "") -> List[FuncionarioReadOnlyDTO]:
-        """Extrae la nómina procesando los roles perimetrales en RAM para aniquilar el N+1."""
+        """Extrae la nómina del Ayuntamiento mitigando el N+1 mediante caché en RAM."""
+        # 🟢 CORRECCIÓN ATÓMICA: El select_related migra al related_name premium 'axentra_profile'
         usuarios_queryset = (
             User.objects.filter(is_superuser=False)
-            .select_related('profile', 'profile__area', 'profile__area__dependencia', 'profile__area__sede_fisica')
+            .select_related('axentra_profile', 'axentra_profile__area', 'axentra_profile__area__dependencia', 'axentra_profile__area__sede_fisica')
             .order_by('-created_at')
         )
         
@@ -120,7 +123,7 @@ class FuncionarioSelectors:
                 db_models.Q(last_name__icontains=search_query)
             )
         
-        # RAM Caching del Firewall intermedio
+        # 🟢 CORRECCIÓN ATÓMICA: select_related('app') ahora utiliza la relación optimizada del modelo
         todos_los_roles = UserAppRole.objects.filter(is_active=True).select_related('app')
         matriz_seguridad_ram = {}
         for rol in todos_los_roles:
@@ -140,7 +143,7 @@ class FuncionarioSelectors:
             for slug, _ in AppIdentifier.get_choices():
                 if user.is_manager:
                     mapa_accesos_modulo[slug] = True
-                    mapa_owners_modulo[slug] = False
+                    mapa_owners_modulo[slug] = True  # 🟢 Sincronizado: Los managers heredan el ownership implícito
                 else:
                     datos_rol = roles_usuario.get(slug, {})
                     permisos_list = datos_rol.get('permisos', [])

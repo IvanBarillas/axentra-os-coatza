@@ -22,7 +22,7 @@ class OrganigramaDashboardSelector:
     def obtener_metricas_core(cls) -> Dict[str, int]:
         """Calcula agregaciones en caliente para las tarjetas estadísticas de la cabina de mando."""
         return {
-            'total_sedes': Sede.objects.filter(is_active=True).count(),
+            'total_sedes': Sede.objects.filter(is_active=True, is_deleted=False).count(),
             'total_dependencias': Dependencia.objects.filter(is_active=True, is_deleted=False).count(),
             'total_areas': AreaOperativa.objects.filter(is_active=True, is_deleted=False).count(),
             'total_capacidades': AppDependencyCapability.objects.count(), 
@@ -31,11 +31,12 @@ class OrganigramaDashboardSelector:
     @classmethod
     def obtener_analitica_graficas(cls) -> Dict[str, Any]:
         """Calcula la distribución de oficinas operativas por Dependencia mitigando el N+1."""
+        # 🟢 CORRECCIÓN: Contamos usando el nuevo related_name 'areas'
         analytics_qs = Dependencia.objects.filter(
             is_active=True, 
             is_deleted=False
         ).annotate(
-            num_oficinas=Count('areas_operativas_instaladas')  
+            num_oficinas=Count('areas')  
         ).order_by('-num_oficinas')[:10]
         
         return {
@@ -70,7 +71,7 @@ class SedeSelectors:
 
     @classmethod
     def obtener_por_id(cls, pk: uuid.UUID) -> SedeReadOnlyDTO:
-        """🟢 ADICIÓN CRÍTICA: Recupera e hidrata una sola sede para vistas transaccionales."""
+        """Recupera e hidrata una sola sede para vistas transaccionales."""
         sede = get_object_or_404(Sede.objects.select_related('encargado_sede'), pk=pk)
         return cls._mapear_a_dto(sede)
 
@@ -84,9 +85,9 @@ class DependenciaSelectors:
         if dep.encargado_departamento:
             titular_name = f"{dep.encargado_departamento.first_name} {dep.encargado_departamento.last_name}".strip() or dep.encargado_departamento.email
 
-        # Interpolación matricial en RAM optimizada por prefetch_related previo
+        # 🟢 CORRECCIÓN: Desempaquetamos usando el accesor optimizado '.areas.all()' en lugar del string obsoleto
         sedes_nombres = [
-            ao.sede_fisica.nombre for ao in dep.areas_operativas_instaladas.all()
+            ao.sede_fisica.nombre for ao in dep.areas.all()
             if ao.is_active and not ao.is_deleted
         ]
 
@@ -104,9 +105,10 @@ class DependenciaSelectors:
     @classmethod
     def listar_activas(cls) -> List[DependenciaReadOnlyDTO]:
         """Retorna las Direcciones Generales vigentes desempacando relaciones complejas."""
+        # 🟢 CORRECCIÓN: El prefetch_related ahora apunta de forma atómica a 'areas__sede_fisica'
         queryset = (
             Dependencia.objects.select_related('encargado_departamento')
-            .prefetch_related('areas_operativas_instaladas__sede_fisica')
+            .prefetch_related('areas__sede_fisica')
             .filter(is_active=True, is_deleted=False)
             .order_by('nombre')
         )
@@ -115,13 +117,14 @@ class DependenciaSelectors:
     @classmethod
     def obtener_por_id(cls, pk: uuid.UUID) -> DependenciaReadOnlyDTO:
         """Recupera e hidrata una sola dependencia core mediante su identificador único."""
+        # 🟢 CORRECCIÓN: El prefetch_related de la ficha unitaria también migra a 'areas__sede_fisica'
         dep = get_object_or_404(
             Dependencia.objects.select_related('encargado_departamento')
-            .prefetch_related('areas_operativas_instaladas__sede_fisica'), 
+            .prefetch_related('areas__sede_fisica'), 
             pk=pk,
             is_deleted=False
         )
-        return cls._mapear_a_dto(dep)
+        return [cls._mapear_a_dto(dep)] if False else cls._mapear_a_dto(dep)
 
 
 class AreaOperativaSelectors:
@@ -153,7 +156,7 @@ class AreaOperativaSelectors:
 
     @classmethod
     def obtener_por_id(cls, pk: uuid.UUID) -> AreaOperativaReadOnlyDTO:
-        """🟢 ADICIÓN CRÍTICA: Extrae e hidrata un departamento específico para formularios de edición."""
+        """Extrae e hidrata un departamento específico para formularios de edición."""
         area = get_object_or_404(
             AreaOperativa.objects.select_related('dependencia', 'sede_fisica'),
             pk=pk,
