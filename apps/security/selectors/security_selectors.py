@@ -11,14 +11,15 @@ from apps.security.dtos import RoleReadOnlyDTO, TenantConfigReadOnlyDTO
 User = get_user_model()
 
 class SecurityDashboardSelectors:
-    """Métricas y buffers forenses en caliente."""
+    """Métricas y buffers forenses en caliente para la Consola Analítica."""
 
     @classmethod
     def obtener_metricas_firewall(cls) -> dict:
         return {
             "total_apps": len(AppIdentifier.get_choices()),
             "llaves_activas_db": UserAppRole.objects.filter(is_active=True).count(),
-            "cuentas_riesgo": User.objects.filter(is_active=False, app_roles__is_active=True).distinct().count(),
+            # 🟢 CORRECCIÓN ATÓMICA ORM: Cambiado 'app_roles' por el related_name premium 'roles'
+            "cuentas_riesgo": User.objects.filter(is_active=False, roles__is_active=True).distinct().count(),
         }
 
     @classmethod
@@ -40,8 +41,8 @@ class SecurityDashboardSelectors:
         } for log in logs_queryset]
 
 
-class SecuritySelectors:
-    """Control analítico perimetral de credenciales."""
+class PermissionSelectors:
+    """Control analítico perimetral de credenciales y gobernanza de la Matriz JSON."""
 
     @staticmethod
     def _mapear_rol_a_dto(obj: UserAppRole) -> RoleReadOnlyDTO:
@@ -57,6 +58,26 @@ class SecuritySelectors:
         queryset = UserAppRole.objects.select_related('user', 'app').filter(user_id=user_id, is_active=True)
         return [cls._mapear_rol_a_dto(rol) for rol in queryset]
 
+    @classmethod
+    def get_secured_matrix_data(cls, app_module, user_focus_id=None, request_user=None) -> dict:
+        """
+        🟢 SINCRO INTEGRAL: Despacha el pool completo de llaves JSON configuradas 
+        para un aplicativo, hidratando los checkboxes del módulo de ciberseguridad.
+        """
+        # Extraemos las membresías activas asignadas a este módulo
+        roles_qs = UserAppRole.objects.select_related('user', 'app').filter(app=app_module, is_active=True)
+        
+        usuarios_autorizados = [cls._mapear_rol_a_dto(rol) for rol in roles_qs]
+        
+        # Cargamos el catálogo de funcionarios para el buscador de incorporación selectiva
+        funcionarios_disponibles = User.objects.filter(is_active=True, is_superuser=False).order_by('email')
+
+        return {
+            "usuarios_autorizados": usuarios_autorizados,
+            "funcionarios_disponibles": funcionarios_disponibles,
+            "user_focus_id": user_focus_id
+        }
+
 
 class TenantConfigSelectors:
     """Extractor inmutable del Singleton institucional de marca."""
@@ -66,4 +87,5 @@ class TenantConfigSelectors:
         config = TenantConfig.objects.first()
         if not config:
             return None
+        # Usamos model_validate de Pydantic de forma segura
         return TenantConfigReadOnlyDTO.model_validate(config)

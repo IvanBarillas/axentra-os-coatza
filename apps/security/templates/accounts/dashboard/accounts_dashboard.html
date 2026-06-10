@@ -1,23 +1,18 @@
 {% extends "layouts/dashboard_layout.html" %}
 {% load axentra_ui %}
 
-{% block app_context_badge %}Control de Personal{% endblock %}
-{% block title %}Dashboard Personal | {{ tenant.app_name }}{% endblock %}
+{% block app_context_badge %}Consola Analítica{% endblock %}
+{% block title %}Analítica de Personal | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
 <div class="space-y-10 pb-12 w-full animate-fade-in select-none">
     
-    {% dashboard_header badge_text="SISTEMA CENTRAL DE PERSONAL" title="Módulo Capital Humano" description="Consola integrada para el control operativo de expedientes de funcionarios, asignación de puestos y adscripción matricial." status_text="Staff Registry" accent_color="slate-900" modulo_actual="accounts" %}
+    {% dashboard_header badge_text="CONSOLA ANALÍTICA SUPERIOR" title="Consola Analítica" description="Evaluación estadística, históricos de contratación digital y auditoría perimetral de comportamiento del personal." status_text="Data Analytics" accent_color="slate-950" modulo_actual="accounts" %}
     
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {% stats_card label="Total Registros" value=total_funcionarios icon="users" subtext="Funcionarios totales" %}
-        {% stats_card label="Cuentas Activas" value=funcionarios_activos icon="user-check" hover_color="slate-400" value_color="slate-800" subtext="● Con acceso activo" subtext_highlight=True bg_icon="gray-50" %}
-        {% stats_card label="Inhabilitados" value=funcionarios_baja icon="user-x" hover_color="slate-400" value_color="slate-500" subtext="Bajas institucionales" bg_icon="gray-50" %}
-        {% stats_card label="Staff Directivo" value=total_managers icon="shield" hover_color="slate-400" value_color="slate-900" subtext="Managers Globales" subtext_highlight=True bg_icon="gray-50" %}
-    </div>
-
+    <!-- 🟢 PURA ANALÍTICA: Módulos de Gráficas y Métricas Complejas -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
+        <!-- Gráfico del Ritmo de Incorporación -->
         <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs lg:col-span-2 flex flex-col justify-between">
             <div>
                 <h4 class="text-xs font-bold text-gray-950 uppercase tracking-widest font-mono flex items-center gap-2">
@@ -47,42 +42,22 @@
             </div>
         </div>
 
+        <!-- Panel de Control Estricto de Bajas -->
         <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs lg:col-span-1 flex flex-col justify-between min-h-[280px]">
             <div>
                 <h4 class="text-xs font-bold text-gray-950 uppercase tracking-widest font-mono flex items-center gap-2">
                     <i data-lucide="alert-octagon" class="w-4 h-4 text-gray-950 animate-pulse"></i>
-                    <span>Control Estricto</span>
+                    <span>Métricas de Retención</span>
                 </h4>
-                <p class="text-[11px] text-gray-400 font-medium font-mono mt-1 uppercase">Inhabilitar la cuenta de un funcionario congela de inmediato sus llaves y accesos.</p>
+                <p class="text-[11px] text-gray-400 font-medium font-mono mt-1 uppercase">Auditoría perimetral sobre congelamiento de credenciales y resguardo forense.</p>
             </div>
             <div class="p-5 bg-gray-50 border border-gray-200 rounded-2xl mt-6">
                 <p class="text-[10px] text-gray-600 font-mono uppercase tracking-wide leading-relaxed">
-                    <strong class="text-gray-950">Protocolo de Baja:</strong> Las cuentas institucionales removidas no se borran físicamente de la Base de Datos (Soft-Delete) para preservar la integridad de las auditorías e historial de ciberseguridad corporativa.
+                    <strong class="text-gray-950">Protocolo de Integridad:</strong> Las cuentas institucionales removidas no se borran físicamente de la Base de Datos (Soft-Delete) para preservar la integridad de las auditorías de ciberseguridad corporativa.
                 </p>
             </div>
         </div>
 
     </div>
-
-    <div class="space-y-4">
-        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] font-mono px-2 flex items-center gap-2 select-none">
-            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-gray-400"></i>
-            <span>Acciones Tácticas sobre el Capital Humano</span>
-        </h3>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            {% url 'accounts:funcionario_list_table' as url_lista %}
-            {% url 'accounts:funcionario_create' as url_crear %}
-            
-            {% action_card title="Plantilla Completa" description="Visor centralizado en grilla transaccional con buscadores avanzados y filtros de personal institucional." url_destination=url_lista icon="contact" target_count=total_funcionarios target_label="En Padrón" button_text="Abrir Listado" %}
-            
-            {% action_card title="Alta de Funcionario" description="Incorpore un nuevo servidor público capturando su correo institucional, puesto y celda matricial de adscripción." url_destination=url_crear icon="user-plus" hover_color="slate-900" target_count="LIVE" target_label="Alta Inmediata" count_color="gray-950" bg_icon="gray-50" button_text="Nuevo Registro" %}
-            
-            {% action_card title="Sesiones Activas" description="Monitoreo centinela de navegadores web autenticados en tiempo real y vigencia de tokens de seguridad." url_destination="#" icon="activity" hover_color="slate-900" target_count=funcionarios_activos target_label="Tokens Activos" bg_icon="gray-50" button_text="Auditar Sesiones" %}
-
-        </div>
-    </div>
-
 </div>
 {% endblock %}

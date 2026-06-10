@@ -19,9 +19,9 @@
             {% url 'organigrama:sede_list' as url_sedes %}
             {% url 'organigrama:dashboard' as url_analitica %}
 
-            {% action_card title="Árbol Estructural" description="Modelado en pantalla dividida para la creación y fragmentación de Secretarías, Direcciones Generales y Jefaturas." url_destination=url_estructura icon="git-fork" hover_color="blue-600" bg_icon="blue-50" button_text="Abrir Estructura" %}
-
             {% action_card title="Catálogo de Sedes" description="Administración, control de estatus operativo y alta geográfica de Palacios Municipales y módulos anexos." url_destination=url_sedes icon="map-pin" hover_color="amber-500" bg_icon="amber-50" button_text="Gestionar Inmuebles" %}
+
+            {% action_card title="Árbol Estructural" description="Modelado en pantalla dividida para la creación y fragmentación de Secretarías, Direcciones Generales y Jefaturas." url_destination=url_estructura icon="git-fork" hover_color="blue-600" bg_icon="blue-50" button_text="Abrir Estructura" %}
 
             {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list %}
             <div class="bg-white p-6 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col justify-between min-h-[220px] group hover:border-emerald-300 hover:shadow-2xl transition duration-300">

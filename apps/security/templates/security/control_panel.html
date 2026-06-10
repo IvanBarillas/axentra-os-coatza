@@ -1,0 +1,41 @@
+{% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
+
+{% block app_context_badge %}Estación Central{% endblock %}
+{% block title %}Cuarto de Control Seguridad | {{ tenant.app_name }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-10 pb-12 w-full animate-fade-in select-none">
+    
+    {% dashboard_header badge_text="🛡️ CORE ENFORCEMENT ENGINE / AXENTRA" title="Cuarto de Control" description="Estación de control perimetral para el aprovisionamiento de accesos, re-grabado de llaves JSONField e identidad visual corporativa." status_text="FIREWALL ACTIVE" status_color="red-500" accent_color="red-600" modulo_actual="security" %}
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% stats_card label="Aplicaciones Auditadas" value=total_apps icon="🛰️" subtext="Módulos federados en vivo" value_color="slate-900" hover_color="red-600" bg_icon="slate-50" %}
+        {% stats_card label="Bolsas de Asignación" value=llaves_activas_db icon="🔑" subtext="● Registros JSONField activos" subtext_highlight=True value_color="emerald-600" hover_color="emerald-500" bg_icon="emerald-50" %}
+        
+        {% if cuentas_riesgo > 0 %}
+            {% stats_card label="Alertas de Traslape" value=cuentas_riesgo icon="⚡" subtext="⚠️ Cuentas muertas con llaves vivas" subtext_highlight=True value_color="red-600" hover_color="red-600" bg_icon="red-100" %}
+        {% else %}
+            {% stats_card label="Alertas de Traslape" value="0" icon="⚡" subtext="✓ Cero brechas de consistencia" value_color="slate-900" hover_color="slate-200" bg_icon="slate-50" %}
+        {% endif %}
+    </div>
+
+    <div class="space-y-4">
+        <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] font-mono px-2 flex items-center gap-2">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-slate-400"></i>
+            <span>Gobierno Transaccional de Privilegios</span>
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% url 'security:dynamic_matrix' as url_matriz %}
+            {% url 'security:tenant_config' as url_tenant %}
+            
+            {% action_card title="Matriz de Permisos" description="Regrabado atómico de privilegios finos por aplicativo. Inyecte o muta overrides JSON en caliente por funcionario." url_destination=url_matriz|add:"?app_slug=security" icon="🔐" hover_color="red-600" button_text="Abrir Matriz" %}
+            
+            {% action_card title="Identidad del Tenant" description="Personalización legal y de marca del Ayuntamiento. Modifique siglas, cargue escudos institucionales y actualice el RFC." url_destination=url_tenant icon="⚙️" hover_color="slate-900" button_text="Ajustes Visuales" %}
+            
+            {% action_card title="Capacidades por Nodo" description="Federación modular de dependencias. Autorice qué direcciones fungen como proveedoras o consumidoras de servicios." url_destination="#" icon="🎛️" hover_color="blue-600" bg_icon="blue-50" button_text="Mapear Nodos" %}
+        </div>
+    </div>
+</div>
+{% endblock %}
