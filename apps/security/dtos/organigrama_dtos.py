@@ -16,9 +16,12 @@ class SedeReadOnlyDTO(BaseModel):
     is_active: bool
 
 class SedeInputDTO(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True) # 🟢 Permite objetos nativos de Django
     nombre: str = Field(..., min_length=3, max_length=150)
     direccion: Optional[str] = Field("", max_length=255)
-    encargado_sede_id: Optional[uuid.UUID] = Field(None)
+    # 🟢 Polimorfismo de entrada para tolerar UUIDs o instancias de User de Django Forms
+    encargado_sede_id: Optional[Any] = Field(None)
+    is_active: Optional[bool] = Field(True)
 
 # =========================================================================
 # 🏛️ DOMINIO: DEPENDENCIAS (DIRECCIONES CORE)
@@ -35,8 +38,9 @@ class DependenciaReadOnlyDTO(BaseModel):
     sedes_asignadas_nombres: List[str] = Field(default_factory=list)
 
 class DependenciaInputDTO(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True) # 🟢 Permite objetos nativos de Django
     nombre: str = Field(..., min_length=3, max_length=150)
-    encargado_departamento_id: Optional[uuid.UUID] = Field(None)
+    encargado_departamento_id: Optional[Any] = Field(None) # 🟢 Polimorfismo de entrada para Formularios
 
 # =========================================================================
 # 🎛️ DOMINIO: AREAS OPERATIVAS (LA MATRIZ TRIPLE)
@@ -54,8 +58,9 @@ class AreaOperativaReadOnlyDTO(BaseModel):
     is_deleted: bool
 
 class AreaOperativaInputDTO(BaseModel):
-    dependencia_id: uuid.UUID
-    sede_fisica_id: uuid.UUID
+    model_config = ConfigDict(arbitrary_types_allowed=True) # 🟢 Permite objetos nativos de Django
+    dependencia_id: Optional[Any] = Field(...) # 🟢 Polimorfismo de entrada para Formularios
+    sede_fisica_id: Optional[Any] = Field(...)  # 🟢 Polimorfismo de entrada para Formularios
     nombre: str = Field(..., min_length=2, max_length=150)
 
 # =========================================================================
@@ -74,8 +79,9 @@ class CapabilityReadOnlyDTO(BaseModel):
     custom_settings: Dict[str, Any] = Field(default_factory=dict)
 
 class CapabilityInputDTO(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     app_id: int
-    dependencia_id: uuid.UUID
+    dependencia_id: Optional[Any] = Field(...)
     flag_alfa: bool = False
     flag_beta: bool = False
     custom_settings: Dict[str, Any] = Field(default_factory=dict)

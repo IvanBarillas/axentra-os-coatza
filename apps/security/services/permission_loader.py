@@ -11,14 +11,24 @@ logger = logging.getLogger(__name__)
 
 def get_app_permissions(app_slug):
     """
-    Busca en caliente el archivo permissions.py de la app solicitada de forma nativa
-    e intenta extraer por reflexión polimórfica sus catálogos atómicos.
+    Busca en caliente el archivo permissions.py de forma inteligente:
+    - Si pertenece al Core unificado, lee 'apps.security.permissions'.
+    - Si es una App satélite independiente, lee su ruta nativa desacoplada.
     """
     app_slug = str(app_slug).strip().lower()
     fallback_config = {'permissions': {}, 'roles': {}}
     
+    # 🏛️ CATÁLOGO DE SUBMÓDULOS DEL NÚCLEO CORE (UNIFICADOS EN DISCO)
+    CORE_SUBMODULES = ['security', 'accounts', 'organigrama']
+    
     try:
-        module = import_module(f'apps.{app_slug}.permissions')
+        # 🟢 CONMUTADOR COMPUESTO DE INFRAESTRUCTURA:
+        if app_slug in CORE_SUBMODULES:
+            module_path = "apps.security.permissions"
+        else:
+            module_path = f"apps.{app_slug}.permissions"
+            
+        module = import_module(module_path)
         
         # Formateador CamelCase dinámico robusto (Ej: dynamic_forms -> DynamicForms)
         slug_procesado = "".join([word.capitalize() for word in app_slug.split("_")])
@@ -38,10 +48,10 @@ def get_app_permissions(app_slug):
             'roles': getattr(module, 'ROLE_MAPPING', {})
         }
     except ModuleNotFoundError:
-        logger.warning(f"⚠️ El módulo [{app_slug.upper()}] no cuenta con un manifiesto permissions.py activo.")
+        logger.warning(f"⚠️ El módulo [{app_slug.upper()}] no cuenta con un manifiesto permissions.py activo en '{module_path}'.")
         return fallback_config
     except Exception as e:
-        logger.error(f"❌ Error de introspección en el manifiesto de '{app_slug}': {str(e)}")
+        logger.error(f"❌ Error de introspección en el manifiesto de '{app_slug}' bajo la ruta '{module_path}': {str(e)}")
         return fallback_config
 
 
@@ -96,14 +106,12 @@ def get_user_permissions_for_app(user, app_slug):
             all_perms.update(perms_list)
             
         lista_maestra = list(all_perms)
-        # Sembramos el acceso perimetral base por si no está explícito en el rol
         if 'has_access_module' not in lista_maestra:
             lista_maestra.append('has_access_module')
             
         permisos['llaves'] = lista_maestra
         permisos['permissions_list'] = lista_maestra
         
-        # Encendemos dinámicamente todas las llaves en True para el bypass
         for permiso in lista_maestra:
             permisos[permiso] = True
             

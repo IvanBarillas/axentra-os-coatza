@@ -1,28 +1,50 @@
-<!-- templates/organigrama/htmx/estructura_areas_table.html -->
-<div class="overflow-x-auto rounded-2xl border border-gray-200/60 bg-white mt-4 animate-fade-in">
-    <table class="w-full text-left border-collapse font-mono text-[11px]">
+<div class="bg-slate-50/70 p-4 border-b border-slate-200 flex justify-between items-center animate-fade-in">
+    <div class="min-w-0">
+        <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest font-mono">Nodos de Oficinas Adscritos a:</span>
+        <h3 class="text-sm font-black text-slate-900 truncate mt-0.5">{{ dependencia.nombre }}</h3>
+    </div>
+    <span class="bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-0.5 rounded-full font-mono">{{ total_areas }} Áreas</span>
+</div>
+
+<div class="overflow-x-auto w-full flex-1 animate-fade-in">
+    <table class="w-full text-left border-collapse">
         <thead>
-            <tr class="border-b border-gray-100 bg-gray-50/60 text-[9px] font-bold uppercase text-gray-400 tracking-wider select-none">
-                <th class="py-3 px-5">Oficina / Área Operativa</th>
-                <th class="py-3 px-5">Sede Geográfica Asignada</th>
-                <th class="py-3 px-5 text-right">Estatus Físico</th>
+            <tr class="bg-white border-b border-slate-200 text-xs font-bold text-slate-400 tracking-wider uppercase">
+                <th class="p-4 pl-6">Nombre de la Oficina o Celda</th>
+                <th class="p-4">Inmueble / Ubicación Sede</th>
+                <th class="p-4">Jerarquía Nivel</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50 text-gray-700">
+        <tbody class="divide-y divide-slate-100 text-sm text-slate-700 font-medium">
             {% for area in areas %}
-            <tr class="hover:bg-gray-50/30 transition duration-150">
-                <td class="py-3 px-5 font-bold text-gray-900 uppercase">↳ {{ area.nombre }}</td>
-                <td class="py-3 px-5 text-gray-400 uppercase">[ {{ area.sede_nombre|default:"SEDE CENTRAL" }} ]</td>
-                <td class="py-3 px-5 text-right whitespace-nowrap">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wide">
-                        VINCULADO
-                    </span>
+            <tr class="hover:bg-slate-50/40 transition-colors">
+                <td class="p-4 pl-6 font-bold text-slate-900">
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                        {{ area.nombre }}
+                    </div>
+                </td>
+                <td class="p-4 text-slate-500">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
+                        {{ area.sede_fisica_nombre|default:area.dependencia_nombre }}
+                    </div>
+                </td>
+                <td class="p-4">
+                    {% if area.padre_id %}
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200/50">Sub-Área</span>
+                    {% else %}
+                    <span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">Área Primaria</span>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="3" class="text-center py-8 text-gray-400 uppercase text-[9px] tracking-widest select-none">
-                    // No existen sub-oficinas o celdas adscritas a esta rama del organigrama.
+                <td colspan="3" class="p-12 text-center text-slate-400 font-medium">
+                    <div class="flex flex-col items-center justify-center gap-2 py-6">
+                        <i data-lucide="git-commit" class="w-6 h-6 text-slate-300 stroke-1"></i>
+                        <span class="text-xs uppercase font-mono tracking-wider">// Esta dependencia no tiene áreas fragmentadas aún</span>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -30,9 +52,7 @@
     </table>
 </div>
 
-<!-- Re-hidratador imperativo de vectores Lucide tras el swap asincrónico -->
 <script>
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    // Hidratar íconos Lucide devueltos por la tubería asíncrona de HTMX
+    if (window.lucide && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
 </script>

@@ -20,6 +20,7 @@ class OrganigramaDashboardSelector:
     
     @classmethod
     def obtener_metricas_core(cls) -> Dict[str, int]:
+        """Calcula agregaciones en caliente para las tarjetas estadísticas de la cabina de mando."""
         return {
             'total_sedes': Sede.objects.filter(is_active=True).count(),
             'total_dependencias': Dependencia.objects.filter(is_active=True, is_deleted=False).count(),
@@ -44,7 +45,7 @@ class OrganigramaDashboardSelector:
 
 
 class SedeSelectors:
-    """Consultas optimizadas para el dominio de Sedes / Inmuebles."""
+    """Consultas optimizadas para el dominio de Sedes / Inmuebles Municipales."""
     
     @staticmethod
     def _mapear_a_dto(sede: Sede) -> SedeReadOnlyDTO:
@@ -63,12 +64,19 @@ class SedeSelectors:
 
     @classmethod
     def listar_todas(cls) -> List[SedeReadOnlyDTO]:
+        """Retorna el inventario total geográfico ordenado por nomenclatura."""
         queryset = Sede.objects.select_related('encargado_sede').filter(is_active=True).order_by('nombre')
         return [cls._mapear_a_dto(sede) for sede in queryset]
 
+    @classmethod
+    def obtener_por_id(cls, pk: uuid.UUID) -> SedeReadOnlyDTO:
+        """🟢 ADICIÓN CRÍTICA: Recupera e hidrata una sola sede para vistas transaccionales."""
+        sede = get_object_or_404(Sede.objects.select_related('encargado_sede'), pk=pk)
+        return cls._mapear_a_dto(sede)
+
 
 class DependenciaSelectors:
-    """Consultas optimizadas para Direcciones Generales reduciendo la fricción en RAM."""
+    """Consultas optimizadas para Direcciones Generales reduciendo la fricción en la memoria RAM."""
 
     @staticmethod
     def _mapear_a_dto(dep: Dependencia) -> DependenciaReadOnlyDTO:
@@ -76,7 +84,7 @@ class DependenciaSelectors:
         if dep.encargado_departamento:
             titular_name = f"{dep.encargado_departamento.first_name} {dep.encargado_departamento.last_name}".strip() or dep.encargado_departamento.email
 
-        # Interpolación matricial en RAM por prefetch_related
+        # Interpolación matricial en RAM optimizada por prefetch_related previo
         sedes_nombres = [
             ao.sede_fisica.nombre for ao in dep.areas_operativas_instaladas.all()
             if ao.is_active and not ao.is_deleted
@@ -95,6 +103,7 @@ class DependenciaSelectors:
 
     @classmethod
     def listar_activas(cls) -> List[DependenciaReadOnlyDTO]:
+        """Retorna las Direcciones Generales vigentes desempacando relaciones complejas."""
         queryset = (
             Dependencia.objects.select_related('encargado_departamento')
             .prefetch_related('areas_operativas_instaladas__sede_fisica')
@@ -105,10 +114,12 @@ class DependenciaSelectors:
 
     @classmethod
     def obtener_por_id(cls, pk: uuid.UUID) -> DependenciaReadOnlyDTO:
+        """Recupera e hidrata una sola dependencia core mediante su identificador único."""
         dep = get_object_or_404(
             Dependencia.objects.select_related('encargado_departamento')
             .prefetch_related('areas_operativas_instaladas__sede_fisica'), 
-            pk=pk
+            pk=pk,
+            is_deleted=False
         )
         return cls._mapear_a_dto(dep)
 
@@ -132,10 +143,20 @@ class AreaOperativaSelectors:
 
     @classmethod
     def listar_por_dependencia(cls, dependencia_id: uuid.UUID) -> List[AreaOperativaReadOnlyDTO]:
-        """🎯 PIPELINE HTMX: Filtra las oficinas adscritas a un nodo directivo."""
+        """🎯 PIPELINE HTMX: Filtra las oficinas adscritas vigentes a un nodo directivo."""
         queryset = (
             AreaOperativa.objects.select_related('dependencia', 'sede_fisica')
             .filter(dependencia_id=dependencia_id, is_active=True, is_deleted=False)
             .order_by('nombre')
         )
         return [cls._mapear_a_dto(area) for area in queryset]
+
+    @classmethod
+    def obtener_por_id(cls, pk: uuid.UUID) -> AreaOperativaReadOnlyDTO:
+        """🟢 ADICIÓN CRÍTICA: Extrae e hidrata un departamento específico para formularios de edición."""
+        area = get_object_or_404(
+            AreaOperativa.objects.select_related('dependencia', 'sede_fisica'),
+            pk=pk,
+            is_deleted=False
+        )
+        return cls._mapear_a_dto(area)

@@ -7,6 +7,8 @@ from django.utils import timezone
 from apps.security.models import TenantConfig, UserAppRole
 from apps.security.permissions import SecurityPermissions
 from apps.shared.apps_config import AppIdentifier
+from apps.shared.manifest_registry import AxentraOSRegistry
+from apps.security.services.permission_loader import get_user_permissions_for_app
 
 logger = logging.getLogger(__name__)
 
@@ -104,71 +106,79 @@ def user_module_permissions(request):
 def menu_dinamico_processor(request):
     """
     🧠 PROCESADOR DE ENTORNO CONTEXTUAL (HYPER-REACTIVE SIDEBAR)
-    Determina de forma automática el sub-módulo en el que navega el operador,
-    extrae el sub-menú del Manifiesto de Gobernanza Desacoplado y filtra las opciones
-    en caliente comparándolas contra las llaves JSON de la base de datos.
+    Sincroniza y expone las variables calculadas por el decorador hacia el motor del DOM.
+    Conserva la mesa de telemetría e inspección en consola activa.
     """
-    context = {'menu_actual': [], 'modulo_actual': 'launcher'}
+    context = {'menu_actual': [], 'modulo_actual': 'launcher', 'sidebar_menu': []}
     ahora = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
 
     if not request.user.is_authenticated or not request.resolver_match:
         return context
 
     modulo_activo = request.resolver_match.namespace
-    
     if not modulo_activo:
         return context
 
-    # 🟢 CORRECCIÓN MÁXIMA: Invocamos al Registry para traer el manifiesto desacoplado del módulo activo
-    from apps.shared.manifest_registry import AxentraOSRegistry
-    manifiesto_modulo = AxentraOSRegistry.get_manifest_by_slug(modulo_activo)
-    
-    if not manifiesto_modulo or not hasattr(manifiesto_modulo, 'SIDEBAR_MENU'):
+    # 🟢 OPTIMIZACIÓN CON TELEMETRÍA (BYPASS DE MEMORIA DE ALTO RENDIMIENTO):
+    if hasattr(request, 'axentra_sidebar_menu'):
+        context['menu_actual'] = request.axentra_sidebar_menu
+        context['sidebar_menu'] = request.axentra_sidebar_menu
+        context['modulo_actual'] = modulo_activo
+
+        # =========================================================================
+        # 🔮 DEBUGGER: LOGS DE VELOCIDAD CERO DE LA RAM
+        # =========================================================================
+        print("\n🖥️  " + "═"*76)
+        print(f"🛸  [PROCESSOR BYPASS] -> MAESTRO DE NAVEGACIÓN DESACOPLADO (RAM LAYER)")
+        print(f"⏰ Telemetría:       {ahora}")
+        print(f"📍 Módulo Namespace: {modulo_activo.upper()}")
+        print(f"🎬 Enlaces Extraídos de la RAM: {len(context['menu_actual'])} enlaces resueltos.")
+        print("⚡ Rendimiento: Consulta duplicada mitigada a velocidad cero (0 ms).")
+        print("═"*80 + "\n")
+        # =========================================================================
         return context
 
-    menu_maestro_crudo = manifiesto_modulo.SIDEBAR_MENU
-    es_root = request.user.is_superuser or getattr(request.user, 'is_manager', False)
+    # 🛰️ FALLBACK DE SEGURIDAD (Si ingresan a una ruta que no lleva decorador)
+    manifesto_modulo = AxentraOSRegistry.get_manifest_by_slug(modulo_activo)
+    if not manifesto_modulo or not hasattr(manifesto_modulo, 'SIDEBAR_MENU'):
+        context['modulo_actual'] = modulo_activo
+        return context
+
+    menu_maestro_crudo = manifesto_modulo.SIDEBAR_MENU
+    es_root = request.user.is_superuser or getattr(request.user, 'is_manager', False) or getattr(getattr(request.user, 'axentra_profile', None), 'is_root_admin', False)
     menu_filtrado = []
     
     if es_root:
         for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
             menu_filtrado.append({
-                'icon': icono,
-                'name': nombre,
-                'url': url_name,
-                'order': orden
+                'icon': icono, 'name': nombre, 'url': url_name, 'order': orden
             })
     else:
-        try:
-            rol_modulo = UserAppRole.objects.get(
-                user=request.user,
-                app__slug=modulo_activo,
-                is_active=True,
-                app__is_active=True
-            )
-            llaves_usuario = rol_modulo.permissions_list
-        except UserAppRole.DoesNotExist:
-            llaves_usuario = []
+        # Invocamos el Radar en Caliente
+        permisos = get_user_permissions_for_app(request.user, modulo_activo)
+        lista_llaves_reales = permisos.get('permissions_list', [])
 
         for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
-            if permiso_req in llaves_usuario:
+            llave_compuesta = f"{modulo_activo}__{permiso_req}"
+            if permisos.get(permiso_req, False) or permisos.get(llave_compuesta, False) or permiso_req in lista_llaves_reales or llave_compuesta in lista_llaves_reales:
                 menu_filtrado.append({
-                    'icon': icono,
-                    'name': nombre,
-                    'url': url_name,
-                    'order': orden
+                    'icon': icono, 'name': nombre, 'url': url_name, 'order': orden
                 })
 
     menu_filtrado.sort(key=lambda x: x['order'])
-
+    
+    # =========================================================================
+    # 🔮 DEBUGGER: LOGS DE INSERCIÓN DIRECTA DESDE EL ENGINE FALLBACK
+    # =========================================================================
     print("\n🖥️  " + "═"*76)
-    print(f"🛸  [FUNC: menu_dinamico_processor] -> MAESTRO DE NAVEGACIÓN DESACOPLADO")
+    print(f"🛸  [PROCESSOR FALLBACK] -> MAESTRO DE NAVEGACIÓN DESACOPLADO (ORM LAYER)")
     print(f"⏰ Telemetría:       {ahora}")
     print(f"📍 Módulo Namespace: {modulo_activo.upper()}")
-    print(f"🎬 Enlaces Visibles: {len(menu_filtrado)} de {len(menu_maestro_crudo)} configurados.")
+    print(f"🎬 Enlaces Visibles: {len(menu_filtrado)} de {len(menu_maestro_crudo)} evaluados.")
     print("═"*80 + "\n")
+    # =========================================================================
 
-    return {
-        'menu_actual': menu_filtrado,
-        'modulo_actual': modulo_activo
-    }
+    context['menu_actual'] = menu_filtrado
+    context['sidebar_menu'] = menu_filtrado
+    context['modulo_actual'] = modulo_activo
+    return context

@@ -1,0 +1,17 @@
+{% if is_active %}
+    <button type="button" 
+            hx-post="{{ toggle_url }}" 
+            hx-target="this" 
+            hx-swap="outerHTML" 
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono bg-gray-50 text-gray-800 border border-gray-200 cursor-pointer uppercase tracking-wider select-none hover:bg-gray-100 transition">
+        ● OPERATIVO
+    </button>
+{% else %}
+    <button type="button" 
+            hx-post="{{ toggle_url }}" 
+            hx-target="this" 
+            hx-swap="outerHTML" 
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono bg-gray-950 text-gray-400 border border-transparent cursor-pointer uppercase tracking-wider select-none animate-pulse">
+        ○ INACTIVO
+    </button>
+{% endif %}

@@ -76,3 +76,25 @@ def check_app_owner(owners_dict, app_slug):
     if not owners_dict or not isinstance(owners_dict, dict):
         return False
     return owners_dict.get(app_slug, False)
+
+# Boton para confirmar eliminar registros
+@register.inclusion_tag('common/tags/confirm_modal_delete.html')
+def confirm_modal(icon="shield-alert", bg_icon="bg-red-50", icon_color="text-red-600", cancel_text="Cancelar", action_text="Confirmar Baja", btn_class="bg-red-600 hover:bg-red-700 text-white"):
+    """Inyecta el Confirmador Táctico perimetral en la raíz del Layout."""
+    return {
+        'icon': icon,
+        'bg_icon': bg_icon,
+        'icon_color': icon_color,
+        'cancel_text': cancel_text,
+        'action_text': action_text,
+        'btn_class': btn_class,
+    }
+    
+# badge para activar o desactivar 
+@register.inclusion_tag('common/tags/badge_toggle_activo_inactivo.html')
+def badge_toggle(is_active, toggle_url):
+    """Renderiza el botón alternador de estatus operativo conectado a HTMX pipelines."""
+    return {
+        'is_active': is_active,
+        'toggle_url': toggle_url,
+    }

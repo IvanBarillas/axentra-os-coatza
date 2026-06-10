@@ -1,53 +1,60 @@
 # apps/security/decorators.py
+import sys
 from functools import wraps
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.utils import timezone
+
 from apps.shared.manifest_registry import AxentraOSRegistry
 from apps.security.services.permission_loader import get_user_permissions_for_app
 
 def axentra_module_gate(module_identifier: str, required_fine_permission: str = None):
     """
-    El Guardián Funcional Autónomo de Axentra OS.
-    Reemplaza por completo a los antiguos mixins para Vistas Basadas en Funciones.
-    1. Ejecuta control perimetral (Bypass para is_manager / root).
-    2. Realiza hidración dinámica de llaves finas mediante el Radar en Caliente.
-    3. Construye el SIDEBAR_MENU en RAM leyendo el manifiesto declarativo de la app.
+    🚧 EL GUARDIÁN FUNCIONAL AUTÓNOMO DE AXENTRA OS:
+    Intercepta las peticiones inyectando la telemetría del Radar en Caliente.
+    Calcula, filtra e inyecta el SIDEBAR_MENU imprimiendo el pool de llaves activas.
     """
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
-            # 1. Recuperar el perfil del usuario autenticado o rebotar
+            # 1. Compuerta de Autenticación Base
             if not request.user.is_authenticated:
-                return redirect('admin:login')
+                return redirect('accounts:login')
 
             profile = getattr(request.user, 'axentra_profile', None)
-            is_root = getattr(profile, 'is_root_admin', False) or getattr(request.user, 'is_manager', False)
+            is_root = getattr(profile, 'is_root_admin', False) or getattr(request.user, 'is_manager', False) or request.user.is_superuser
 
-            # 2. RADAR EN CALIENTE: Carga y mapea las banderas booleanas de la base de datos
-            # Invocamos tu servicio nativo que arroja la telemetría exacta en consola
+            # 2. RADAR EN CALIENTE: Invoca tu mapeador booleano dinámico de la base de datos
             permisos = get_user_permissions_for_app(request.user, module_identifier)
+            lista_llaves_reales = permisos.get('permissions_list', [])
 
-            # 3. COMPUERTA 1: Control de Acceso Perimetral (¿Tiene permitido el módulo?)
-            if not permisos.get('has_access_module') and not is_root:
+            # 3. COMPUERTA 1: Control de Acceso Perimetral (Ingreso General al Módulo)
+            has_access_flat = permisos.get('has_access', False) or permisos.get('has_access_module', False)
+            has_access_composed = f"{module_identifier}__has_access" in lista_llaves_reales
+            
+            if not has_access_flat and not has_access_composed and not is_root:
                 if request.headers.get('HX-Request'):
-                    return HttpResponseForbidden("Acceso Denegado: Aplicación satélite no autorizada.")
+                    return HttpResponseForbidden("Acceso Denegado: Módulo satélite no autorizado en matriz JSON.")
                 messages.error(request, f"⚠️ Acceso Denegado al módulo [{module_identifier.upper()}].")
                 return redirect('launcher_home')
 
-            # 4. COMPUERTA 2: Validación de Llave Fina Crítica (Si la vista lo exige)
-            if required_fine_permission and required_fine_permission not in permisos.get('permissions_list', []) and not is_root:
-                if request.headers.get('HX-Request'):
-                    return HttpResponseForbidden(f"Acceso Denegado: Requiere la llave [{required_fine_permission}].")
-                messages.error(request, f"⚠️ Restricción de Seguridad: Requiere la credencial [{required_fine_permission}].")
-                return redirect('launcher_home')
+            # 4. COMPUERTA 2: Validación de Credencial Fina (Si la vista exige un token específico)
+            if required_fine_permission and not is_root:
+                llave_compuesta_req = f"{module_identifier}__{required_fine_permission}"
+                if required_fine_permission not in lista_llaves_reales and llave_compuesta_req not in lista_llaves_reales and not permisos.get(required_fine_permission, False) and not permisos.get(llave_compuesta_req, False):
+                    if request.headers.get('HX-Request'):
+                        return HttpResponseForbidden(f"Acceso Denegado: Requiere la credencial [{required_fine_permission}].")
+                    messages.error(request, f"⚠️ Restricción perimetral: Requiere el token [{required_fine_permission}].")
+                    return redirect('launcher_home')
 
-            # Sembramos las llaves calculadas en la request para consumo ciego de los Selectors y Vistas
+            # Sembrado atómico en el Request para consumo de controladores y vistas secundarias
             request.axentra_permissions = permisos
+            request.axentra_permissions_list = lista_llaves_reales
             request.axentra_is_root = is_root
             request.axentra_active_module = module_identifier
 
-            # 5. COMPOSICIÓN DEL SIDEBAR DINÁMICO BASADO EN MANIFIESTO
+            # 5. COMPOSICIÓN REFLECTIVA DEL SIDEBAR_MENU
             all_manifests = AxentraOSRegistry.get_all_manifests()
             active_manifest = all_manifests.get(module_identifier)
             
@@ -56,27 +63,50 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
                 for item in active_manifest.SIDEBAR_MENU:
                     icon, name_visual, url_name, order, required_perm = item
                     
-                    # El enlace pasa a renderizarse si el funcionario tiene la llave o es Root
-                    if is_root or permisos.get(required_perm, False):
+                    llave_item_compuesta = f"{module_identifier}__{required_perm}"
+                    tiene_llave_permiso = permisos.get(required_perm, False) or permisos.get(llave_item_compuesta, False) or required_perm in lista_llaves_reales or llave_item_compuesta in lista_llaves_reales
+                    
+                    if is_root or tiene_llave_permiso:
                         computed_sidebar.append({
-                            "icon": icon,
-                            "name": name_visual,
-                            "url": url_name,
-                            "order": order
+                            "icon": icon, "name": name_visual, "url": url_name, "order": order
                         })
                 computed_sidebar.sort(key=lambda x: x['order'])
 
-            # Inyectamos el menú calculado para el partial templates/partials/_sidebar.html
+            # =========================================================================
+            # 🔮 DEBUGGER AVANZADO: IMPRESIÓN EXCLUSIVA DE LLAVES ACTIVAS EN CONSOLA
+            # =========================================================================
+            try:
+                llamado_desde = f"{view_func.__module__} -> {view_func.__name__}()"
+            except Exception:
+                llamado_desde = "Vista FBV Anónima"
+
+            # Filtramos el diccionario de permisos para extraer únicamente las llaves booleanas vivas
+            llaves_vivas = [k for k, v in permisos.items() if v is True and k not in ['has_access', 'has_access_module', 'llaves', 'permissions_list']]
+
+            print("\n🛡️  " + "═"*76)
+            print(f"🛰️  [DECORATOR GATE]: INSPECTOR DE ADUANA DE RUTA")
+            print(f"📍 Módulo Target:     {module_identifier.upper()}")
+            print(f"🎬 Despachando Vista:  {llamado_desde}")
+            print(f"🔑 Token Fino Exigido: {required_fine_permission or 'NINGUNO (ACCESO LIBRE)'}")
+            print(f"📊 Enlaces Inyectados al Sidebar: {len(computed_sidebar)}")
+            print("-" * 80)
+            # 🟢 LA NUEVA TELEMETRÍA ATÓMICA:
+            print(f"🔑 POOL DE PERMISOS DETECTADOS EN RAM EN ESTE IMPACTO:")
+            if is_root:
+                print("   👑 Rango MASTER BYPASS Detectado: Todas las llaves del chasis operan en True de forma implícita.")
+            elif llaves_vivas:
+                for idx, llave in enumerate(llaves_vivas, start=1):
+                    print(f"   {idx}. ✓ {llave}")
+            else:
+                print("   ⚠️ ADVERTENCIA: El pool de llaves JSON para esta aplicación se encuentra vacío.")
+            print("═"*80 + "\n")
+            # =========================================================================
+
+            # Sembramos el menú en la RAM del hilo actual para el context processor
             request.axentra_sidebar_menu = computed_sidebar
 
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
 
-
-# =========================================================================
-# 🛡️ ALIAS DE COMPATIBILIDAD GLOBAL (Mapeo de Símbolo Desconocido)
-# =========================================================================
-# Esto garantiza que si en algún controlador importas u ocupas 'axentra_gate_enforcer',
-# Python resolverá el llamado apuntando de forma transparente al mismo motor de arriba.
 axentra_gate_enforcer = axentra_module_gate

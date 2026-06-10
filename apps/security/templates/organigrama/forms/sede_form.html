@@ -1,0 +1,105 @@
+{% extends "layouts/dashboard_layout.html" %}
+
+{% block app_context_badge %}Territorio Municipal{% endblock %}
+{% block title %}
+    {% if action == 'update' %}Modificar Sede: {{ sede.nombre }}{% else %}Aprovisionar Sede Física{% endif %} | {{ tenant.app_name }}
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="max-w-3xl mx-auto pb-16 animate-fade-in select-none">
+
+    <div class="border-b border-gray-200/60 pb-6 mb-8 flex items-center justify-between">
+        <div class="min-w-0 flex-1">
+            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 {% if action == 'update' %}bg-blue-500{% else %}bg-emerald-500{% endif %} rounded-full"></span>
+                <span>Infraestructura Inmobiliaria // Gestión Criptográfica</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-950 tracking-tight uppercase font-mono">
+                {% if action == 'update' %}Editar Parámetros de Sede{% else %}Registrar Sede Territorial{% endif %}
+            </h2>
+            <p class="text-[11px] text-gray-400 font-medium font-mono mt-0.5 uppercase">
+                {% if action == 'update' %}Mutación de metadatos de ubicación e identidad física del inmueble activo.{% else %}Alta de palacios municipales, anexos, comandancias o módulos de atención ciudadana.{% endif %}
+            </p>
+        </div>
+        
+        <div class="p-3 bg-gray-50 border border-gray-150 rounded-2xl text-gray-950 shrink-0">
+            <i data-lucide="{% if action == 'update' %}edit-3{% else %}map-pin{% endif %}" class="w-5 h-5 {% if action == 'update' %}text-blue-600{% else %}text-emerald-600{% endif %}"></i>
+        </div>
+    </div>
+
+    <form method="POST" class="space-y-6" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="p-4 bg-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 text-red-950 font-mono text-[11px] uppercase tracking-wide animate-pulse">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-red-600 mt-0.5 shrink-0"></i>
+            <div class="space-y-1">
+                <span class="font-bold block">Fallo Crítico de Consistencia en Servidor:</span>
+                {% for error in form.non_field_errors %}
+                    <p class="text-red-800 lowercase font-sans font-medium text-xs">{{ error }}</p>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs space-y-6">
+            
+            <div class="space-y-2">
+                <label for="{{ form.nombre.id_for_label }}" class="text-[10px] font-bold text-gray-400 font-mono uppercase tracking-wider block px-1">
+                    Nomenclatura Oficial del Inmueble
+                </label>
+                <div class="relative">
+                    {{ form.nombre }}
+                </div>
+                {% if form.nombre.errors %}
+                    {% for error in form.nombre.errors %}
+                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1">
+                            <i data-lucide="alert-circle" class="w-3 h-3"></i> <span>{{ error }}</span>
+                        </p>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-[9px] text-gray-400 font-mono uppercase tracking-wide px-1 mt-1">// Nombre identificable único para mamparas, oficios e inyección de personal.</p>
+                {% endif %}
+            </div>
+
+            <div class="space-y-2">
+                <label for="{{ form.direccion.id_for_label }}" class="text-[10px] font-bold text-gray-400 font-mono uppercase tracking-wider block px-1">
+                    Ubicación Geográfica Legal
+                </label>
+                <div class="relative">
+                    {{ form.direccion }}
+                </div>
+                {% if form.direccion.errors %}
+                    {% for error in form.direccion.errors %}
+                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1">
+                            <i data-lucide="alert-circle" class="w-3 h-3"></i> <span>{{ error }}</span>
+                        </p>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-[9px] text-gray-400 font-mono uppercase tracking-wide px-1 mt-1">// Calle, número, colonia y especificaciones de referencia territorial municipal.</p>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <div class="p-5 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3.5 items-start">
+            <i data-lucide="shield-check" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"></i>
+            <p class="text-[10px] text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
+                <strong class="text-gray-950">Gobernanza Atómica:</strong> Al persistir este registro, los datos se empacarán bajo un esquema criptográfico `SedeInputDTO` y se auditarán automáticamente en el historial forense de `Heimdall Logs` vinculando tu usuario activo.
+            </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 font-mono text-[10px]">
+            <a href="{% url 'organigrama:sede_list' %}" class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-3 px-6 rounded-xl uppercase tracking-wider transition transform active:scale-95 cursor-pointer shadow-3xs">
+                Cancelar Operación
+            </a>
+            
+            <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-xl uppercase tracking-wider transition transform active:scale-95 cursor-pointer shadow-xs flex items-center gap-2">
+                <i data-lucide="database" class="w-3.5 h-3.5 text-gray-400"></i>
+                <span>{% if action == 'update' %}Re-grabar Parámetros{% else %}Grabar en Matriz{% endif %}</span>
+            </button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

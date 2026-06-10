@@ -1,79 +1,125 @@
 {% extends "layouts/dashboard_layout.html" %}
-{% load axentra_ui %}
 
-{% block app_context_badge %}Estructura Orgánica{% endblock %}
-{% block title %}Estructura | {{ tenant.app_name }}{% endblock %}
+{% block title %}Mesa de Control Estructural | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="space-y-6 pb-12 w-full animate-fade-in select-none">
-
-    <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div class="space-y-8 animate-fade-in w-full select-none" x-data="{ openModal: false, modalTitle: '', formUrl: '' }">
+    
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-200/60 pb-6">
         <div>
-            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                <span>Gobernanza Institucional // Core OS</span>
-            </div>
-            <h2 class="text-2xl font-bold text-gray-950 tracking-tight uppercase font-mono">Estructura Orgánica</h2>
-            <p class="text-[11px] text-gray-400 font-medium font-mono mt-0.5 uppercase">Modelado interactivo de Secretarías, Direcciones Generales y Oficinas Internas del Ayuntamiento.</p>
+            <h1 class="text-3xl font-black text-slate-900 tracking-tight font-mono uppercase">Estructura Organizacional</h1>
+            <p class="text-xs text-slate-500 mt-1 uppercase font-mono tracking-wide">// Mesa interactiva de modelado orgánico del Ayuntamiento. Configura ramos cores y celdas operativas.</p>
         </div>
         
-        <div class="flex items-center gap-3 w-full sm:w-auto shrink-0">
-            {% if request.axentra_is_root or "organigrama__can_mutate_structure" in request.axentra_permissions_list %}
-            <a href="{% url 'organigrama:dependencia_create' %}" class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-3xs flex items-center gap-2 transform active:scale-95 whitespace-nowrap">
-                <i data-lucide="folder-plus" class="w-4 h-4 text-gray-500"></i>
-                <span>Nueva Dependencia</span>
-            </a>
-            <a href="{% url 'organigrama:area_create' %}" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-5 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-sm flex items-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer">
-                <i data-lucide="git-commit" class="w-4 h-4 text-gray-400"></i>
-                <span>Crear Área / Oficina</span>
-            </a>
-            {% endif %}
+        {% if request.axentra_is_root or "can_mutate_structure" in request.axentra_permissions_list %}
+        <div class="flex flex-wrap gap-3 font-mono text-[11px]">
+            <button 
+                @click="openModal = true; modalTitle = 'Declarar Dependencia Core'; formUrl = '{% url 'organigrama:dependencia_create' %}'"
+                hx-get="{% url 'organigrama:dependencia_create' %}"
+                hx-target="#form-container-target"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4.5 py-2.5 rounded-xl transition-all duration-150 flex items-center gap-2 cursor-pointer shadow-xs uppercase tracking-wider">
+                <i data-lucide="plus" class="w-4 h-4"></i> Alta Dependencia
+            </button>
+            <button 
+                @click="openModal = true; modalTitle = 'Inyectar Área Operativa'; formUrl = '{% url 'organigrama:area_create' %}'"
+                hx-get="{% url 'organigrama:area_create' %}"
+                hx-target="#form-container-target"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4.5 py-2.5 rounded-xl transition-all duration-150 flex items-center gap-2 cursor-pointer shadow-xs uppercase tracking-wider">
+                <i data-lucide="git-branch" class="w-4 h-4"></i> Fragmentar Área
+            </button>
         </div>
+        {% endif %}
     </div>
 
-    <div class="space-y-4">
-        {% for dep in dependencias %}
-        <div x-data="{ open: false, loaded: false }" class="bg-white rounded-3xl border border-gray-200/80 shadow-2xs overflow-hidden transition-all duration-200">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
+        
+        <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            <div class="bg-slate-50/70 p-4 border-b border-slate-200 flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Ramos y Dependencias Cores</span>
+                <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-2.5 py-0.5 rounded-full font-mono">{{ dependencias|length }} Nodos</span>
+            </div>
             
-            <div @click="open = !open; if(!loaded) { htmx.trigger('#panel-dep-{{ dep.id }}', 'fetch-data'); loaded = true; }" 
-                 class="p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 select-none">
-                <div class="flex items-center gap-4">
-                    <div class="p-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-950">
-                        <i data-lucide="building-2" class="w-5 h-5"></i>
+            <div class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto pr-1">
+                {% for dep in dependencias %}
+                <div 
+                    hx-get="{% url 'organigrama:estructura_areas_ajax' dep.id %}"
+                    hx-target="#panel-areas-target"
+                    hx-trigger="click"
+                    class="p-4 flex items-center justify-between hover:bg-slate-50/80 cursor-pointer transition-all duration-150 group">
+                    <div class="flex items-center gap-3.5 min-w-0">
+                        <div class="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-indigo-50 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0">
+                            <i data-lucide="building-2" class="w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="text-sm font-bold text-slate-900 truncate group-hover:text-indigo-900 transition-colors font-mono uppercase tracking-tight">{{ dep.nombre }}</h4>
+                            <p class="text-[10px] text-slate-400 truncate mt-0.5 uppercase font-mono tracking-tight">
+                                <span class="text-slate-500 font-bold bg-slate-50 border border-slate-200 px-1 py-0.5 rounded">{{ dep.slug }}</span>
+                                <span class="mx-1">•</span> {{ dep.encargado_departamento_name }}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-950 uppercase font-mono tracking-tight">{{ dep.nombre }}</h3>
-                        <p class="text-[10px] text-gray-400 font-mono mt-0.5 uppercase">// Titular Titulado: {{ dep.encargado_nombre|default:"SIN ASIGNAR" }}</p>
+                    
+                    <div class="flex items-center gap-2" @click.stop>
+                        {% if request.axentra_is_root or "can_mutate_structure" in request.axentra_permissions_list %}
+                        <a href="{% url 'organigrama:dependencia_update' dep.id %}" class="p-1.5 opacity-0 group-hover:opacity-100 bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-950 rounded-lg transition shadow-3xs cursor-pointer" title="Editar Dirección">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        </a>
+                        <a href="{% url 'organigrama:dependencia_delete' dep.id %}" 
+                           onclick="return confirm('🚨 ADVERTENCIA CORE: Al eliminar esta Dependencia se borrarán lógicamente todas sus oficinas adscritas. ¿Continuar?')"
+                           class="p-1.5 opacity-0 group-hover:opacity-100 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-400 hover:text-red-600 rounded-lg transition shadow-3xs cursor-pointer" title="Eliminar Dirección">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </a>
+                        {% endif %}
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transform group-hover:translate-x-0.5 transition-all shrink-0"></i>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <span class="text-[9px] font-bold font-mono bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 uppercase">
-                        {{ dep.total_areas|default:"0" }} Oficinas Vinculadas
-                    </span>
-                    <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
+                {% empty %}
+                <div class="p-12 text-center text-slate-400">
+                    <i data-lucide="shield-alert" class="w-8 h-8 text-slate-300 stroke-1 mx-auto mb-2"></i>
+                    <p class="text-xs font-mono uppercase tracking-wider">// No se registran dependencias operativas</p>
                 </div>
+                {% endfor %}
             </div>
+        </div>
 
-            <div id="panel-dep-{{ dep.id }}"
-                 x-show="open" x-collapse x-cloak 
-                 hx-get="{% url 'organigrama:estructura_areas_ajax' dep.id %}" 
-                 hx-trigger="fetch-data" 
-                 class="border-t border-gray-100 bg-gray-50/20 p-6">
-                
-                <div class="flex items-center justify-center pdf-ignore py-6 gap-2 text-gray-400 font-mono text-[10px] uppercase tracking-widest">
-                    <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin text-gray-950"></i>
-                    <span>Sincronizando Retícula Estructural...</span>
+        <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden min-h-[450px] flex flex-col" id="panel-areas-target">
+            <div class="flex flex-col items-center justify-center p-16 text-center text-slate-400 my-auto select-none font-mono">
+                <i data-lucide="git-fork" class="w-10 h-10 text-slate-200 stroke-1 mb-3 animate-pulse"></i>
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Mesa de Análisis Vacía</h3>
+                <p class="text-[11px] text-slate-400 mt-1 max-w-sm uppercase leading-relaxed">// Selecciona una dependencia del panel de la izquierda para desplegar, auditar o mutar sus áreas operativas adscritas.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div x-show="openModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs animate-fade-in">
+        <div @click.away="openModal = false" class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 font-mono uppercase tracking-tight" x-text="modalTitle"></h3>
+                    <p class="text-[10px] text-slate-400 mt-0.5 uppercase font-mono tracking-wider">Motor de Ingeniería de Topologías</p>
+                </div>
+                <button @click="openModal = false" type="button" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div id="form-container-target">
+                <div class="p-8 text-center text-slate-400 text-xs font-mono uppercase tracking-widest">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin mx-auto mb-2 text-indigo-600"></i>
+                    // Preparando componente transaccional...
                 </div>
             </div>
         </div>
-        {% empty %}
-        <div class="text-center py-20 bg-white border border-gray-200 rounded-[32px]">
-            <i data-lucide="git-fork" class="w-8 h-8 text-gray-300 mx-auto stroke-1 animate-pulse"></i>
-            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest font-mono mt-3">Estructura Vacía</p>
-            <p class="text-gray-400 text-xs font-light font-mono mt-1 uppercase">// No se localizan dependencias activas registradas en el chasis legal.</p>
-        </div>
-        {% endfor %}
     </div>
 
 </div>
+
+<script>
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script>
 {% endblock %}
