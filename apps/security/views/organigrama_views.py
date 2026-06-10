@@ -28,9 +28,18 @@ User = get_user_model()
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
+def organigrama_control_view(request):
+    """Cuarto de Control General: Enrutador táctico de alta velocidad sin carga analítica."""
+    # 🟢 CERO QUERIES PESADAS: Solo renderiza el chasis de navegación segura
+    return render(request, 'organigrama/control_panel.html')
+
+
+@login_required
+# 🟢 BLINDAJE: Ahora requiere permisos de auditoría o administración para ver la analítica
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def organigrama_dashboard_view(request):
-    """Cabina de mando analítica de infraestructura y densidad burocrática."""
-    total_sedes = Sede.objects.filter(is_active=True).count()
+    """Cabina de mando analítica: Reservada para alta gerencia y auditoría forense."""
+    total_sedes = Sede.objects.filter(is_active=True, is_deleted=False).count()
     total_dependencias = Dependencia.objects.filter(is_active=True, is_deleted=False).count()
     total_areas = AreaOperativa.objects.filter(is_active=True, is_deleted=False).count()
     
@@ -38,14 +47,9 @@ def organigrama_dashboard_view(request):
         is_active=True, axentra_profile__area__isnull=True
     ).count() if hasattr(User, 'axentra_profile') else 0
 
-    # 🟢 CORRECCIÓN: Usamos SecurityAuditLog y filtramos sobre tu campo real 'target_scope'
     logs_reales = SecurityAuditLog.objects.filter(
         target_scope__icontains='organigrama'
     ).order_by('-created_at')[:5]
-    
-    # Fallback seguro: Si no hay logs del módulo, traemos las últimas actividades del sistema
-    if not logs_reales.exists():
-        logs_reales = SecurityAuditLog.objects.all().order_by('-created_at')[:5]
 
     context = {
         'total_sedes': total_sedes,

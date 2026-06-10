@@ -1,9 +1,10 @@
 # apps/security/urls/organigrama_urls.py
 from django.urls import path
 from apps.security.views.organigrama_views import (
+    organigrama_control_view,
     organigrama_dashboard_view,
     estructura_list_view, 
-    
+     
     # Sedes
     sede_list_view, 
     sede_create_view, 
@@ -28,7 +29,11 @@ from apps.security.views.organigrama_views import (
 
 urls_organigrama = [
     # 📊 Inteligencia Estructural y Dashboard Central
-    path('dashboard/', organigrama_dashboard_view, name='dashboard'), 
+    # 🏢 La Nueva Entrada General de Alta Velocidad (Cuarto de Control)
+    path('control/', organigrama_control_view, name='control_panel'), 
+    
+    # 📊 La Cabina de Mando Analítica (Ahora es una sub-vista restringida)
+    path('analytics/', organigrama_dashboard_view, name='dashboard'),
     path('estructura/', estructura_list_view, name='estructura_list'),
     
     # 🗺️ Inmuebles y Territorio Municipal (Sedes)

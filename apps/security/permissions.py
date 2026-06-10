@@ -11,6 +11,7 @@ class SecurityPermissions:
         'title': 'Ciberseguridad & Control Global',
         'description': 'Consola táctica de gobernanza. Gestión atómica de llaves JSON, monitoreo forense de bitácoras e identidad legal de la entidad.',
         'icon': 'shield-check',
+        'button_text': 'Permisos y Auditoria',       
         'badge_text': 'Core Security',
         'hover_color': 'hover:border-blue-600',
         'text_hover_color': 'group-hover:text-blue-600',
@@ -48,6 +49,7 @@ class AccountsPermissions:
         'title': 'Plantilla de Personal',
         'description': 'CRUD de alta densidad para la gestión de expedientes, captura de datos duros y movimientos de los funcionarios públicos.',
         'icon': 'users',
+        "button_text": "Usuarios y Perfiles",
         'badge_text': 'Cuentas',
         'hover_color': 'hover:border-slate-400',
         'text_hover_color': 'group-hover:text-slate-700',
@@ -87,29 +89,32 @@ class OrganigramaPermissions:
         'title': 'Estructura Orgánica',
         'description': 'Modelado de Direcciones Generales, Oficinas Internas, Departamentos y control geográfico de Sedes físicas del Ayuntamiento.',
         'icon': 'git-fork',
+        "button_text": "Estructura Organica",
         'badge_text': 'Estructura',
         'hover_color': 'hover:border-blue-600',
         'text_hover_color': 'group-hover:text-blue-600',
-        'url_name': 'organigrama:dashboard', 
+        'url_name': 'organigrama:control_panel', 
         'is_core': True,
     }
 
-    # 🟢 LLAVES ATÓMICAS RESTAURADAS Y ASOCIADAS AL TOTAL DE VISTAS
     PERMISSIONS = {
-        'has_access_module': 'Permite el ingreso general al Dashboard y visualizar el mapa estructural e interactivo del Ayuntamiento.',
-        'can_view_analytics': 'Permite auditar reportes de densidad laboral y KPIs institucionales en la mesa unificada.',
+        'has_access_module': 'Permite el ingreso general a la Estación de Control y consultar el catálogo básico.',
+        'can_view_analytics': 'Permite auditar reportes de densidad laboral, gráficas de personal y KPIs institucionales en el Dashboard.',
         'can_manage_infrastructure': 'Acción Crítica Inmueble: Permite listar, crear, editar, alternar estatus y aplicar bajas lógicas a Sedes y Palacios.',
         'can_mutate_structure': 'Acción Crítica Orgánica: Permite administrar, crear, editar y eliminar de forma lógica Secretarías, Direcciones Generales y Áreas Operativas.',
     }
 
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_manage_infrastructure', 'can_mutate_structure'],
+        'manager': ['has_access_module', 'can_view_analytics'], # Ejemplo de mánager con permisos de lectura analítica
     }
 
-    # 🟢 SIDEBAR HOMOLOGADO CON LAS CREDENCIALES EXACTAS DE LAS VISTAS
     SIDEBAR_MENU = [
-        # Corregido: dashboard pide 'has_access_module' al igual que su decorador @axentra_gate_enforcer
-        ["bar-chart-3", "Dashboard del Core", "organigrama:dashboard", 1, "has_access_module"],
-        ["git-fork", "Estructura Orgánica", "organigrama:estructura_list", 2, "has_access_module"],
-        ["map-pin", "Sedes e Inmuebles", "organigrama:sede_list", 3, "can_manage_infrastructure"],
+        ["layout-dashboard", "Cuarto de Control", "organigrama:control_panel", 1, "has_access_module"],
+        
+        ["map-pin", "Sedes e Inmuebles", "organigrama:sede_list", 2, "can_manage_infrastructure"],
+        ["git-fork", "Dependencias y areas", "organigrama:estructura_list", 3, "has_access_module"],
+        
+        
+        ["bar-chart-3", "Consola Analítica", "organigrama:dashboard", 4, "can_view_analytics"],
     ]

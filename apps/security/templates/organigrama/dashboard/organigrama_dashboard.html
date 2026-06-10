@@ -2,114 +2,124 @@
 {% load axentra_ui %}
 
 {% block app_context_badge %}Inteligencia Estructural{% endblock %}
-{% block title %}Dashboard Organigrama | {{ tenant.app_name }}{% endblock %}
+{% block title %}Consola Analítica | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="space-y-12 pb-16 w-full animate-fade-in">
+<div class="space-y-10 pb-16 w-full animate-fade-in select-none">
     
-    {% dashboard_header badge_text="NÚCLEO DE MODELADO ORGÁNICO" title="Estructura & Territorio" description="Consola analítica para el control geométrico de sedes municipales, descentralización de oficinas e integridad de la plantilla matricial." status_text="Core Topology" accent_color="slate-900" modulo_actual="organigrama" %}
+    <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="text-[9px] font-bold text-blue-600 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>
+                <span>Restringido // Core Analytics & Logs</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-950 tracking-tight uppercase font-mono">Consola de Inteligencia Orgánica</h2>
+            <p class="text-[11px] text-gray-400 font-medium font-mono mt-0.5 uppercase">Auditoría forense de mutaciones de topología, gráficas de densidad burocrática y bitácora forense.</p>
+        </div>
+        
+        <a href="{% url 'organigrama:control_panel' %}" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-5 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-sm flex items-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 text-gray-400"></i>
+            <span>Volver a Estación de Control</span>
+        </a>
+    </div>
     
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {% stats_card label="Sedes e Inmuebles" value=total_sedes icon="map-pin" subtext="Palacios y anexos activos" %}
-        {% stats_card label="Dependencias Cores" value=total_dependencias icon="building-2" hover_color="slate-400" value_color="slate-800" subtext="Secretarías / Direcciones" bg_icon="gray-50" %}
-        {% stats_card label="Áreas y Oficinas" value=total_areas icon="git-commit" hover_color="slate-400" value_color="slate-500" subtext="Celdas operativas activas" bg_icon="gray-50" %}
+        {% stats_card label="Sedes Físicas" value=total_sedes icon="map-pin" subtext="Complejos mapeados" value_color="slate-900" hover_color="amber-500" bg_icon="amber-50" %}
+        {% stats_card label="Dependencias" value=total_dependencias icon="building-2" subtext="Direcciones Generales" value_color="slate-900" hover_color="blue-600" bg_icon="blue-50" %}
+        {% stats_card label="Áreas / Oficinas" value=total_areas icon="git-commit" subtext="↳ Departamentos internos" subtext_highlight=True value_color="slate-900" hover_color="purple-600" bg_icon="purple-50" %}
         
         {% if funcionarios_sin_area > 0 %}
             {% stats_card label="Excepciones de Cuentas" value=funcionarios_sin_area icon="shield-alert" hover_color="red-500" value_color="red-600" subtext="⚠️ Servidores sin adscripción" subtext_highlight=True bg_icon="red-50" %}
         {% else %}
-            {% stats_card label="Excepciones de Cuentas" value="0" icon="shield-check" hover_color="slate-400" value_color="slate-900" subtext="✓ Conciliación perfecta" subtext_highlight=True bg_icon="gray-50" %}
+            {% stats_card label="Excepciones de Cuentas" value="0" icon="shield-check" hover_color="emerald-600" value_color="slate-900" subtext="✓ Conciliación perfecta" subtext_highlight=True bg_icon="emerald-50/60" %}
         {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs min-h-[280px] flex flex-col justify-between">
+            <div>
+                <h4 class="text-xs font-bold text-gray-950 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="pie-chart" class="w-4 h-4 text-blue-600"></i>
+                    <span>Carga de Personal por Dirección</span>
+                </h4>
+                <p class="text-xs text-gray-400 font-medium mt-1 uppercase font-mono tracking-wide">// Distribución analítica porcentual de los servidores públicos dentro del organigrama.</p>
+            </div>
+            
+            <div class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-150 rounded-[24px] mt-6 bg-gray-50/40 p-8 text-center" 
+                 data-labels="{{ grafica_dependencias_labels|join:',' }}" 
+                 data-valores="{{ grafica_dependencias_valores|join:',' }}">
+                <span class="text-3xl grayscale mb-2 select-none">🍩</span>
+                <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest font-mono">Pipeline de datos INTEC listo</p>
+                <div class="text-[9px] text-gray-300 font-mono mt-1">// Muestreando top direcciones de alta densidad estructural</div>
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs min-h-[280px] flex flex-col justify-between">
+            <div>
+                <h4 class="text-xs font-bold text-gray-950 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-600"></i>
+                    <span>Distribución Geográfica por Inmueble</span>
+                </h4>
+                <p class="text-xs text-gray-400 font-medium mt-1 uppercase font-mono tracking-wide">// Auditoría física y conteo de Áreas Operativas y Oficinas instaladas por cada palacio.</p>
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-150 rounded-[24px] mt-6 bg-gray-50/40 p-8 text-center">
+                <span class="text-3xl grayscale mb-2 select-none">📈</span>
+                <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest font-mono">Mapa densitométrico preparado</p>
+                <div class="text-[9px] text-gray-300 font-mono mt-1">// Relación física indexada en PostgreSQL via AreaOperativa</div>
+            </div>
+        </div>
+        
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <div class="bg-white p-8 rounded-2xl border border-slate-200/70 shadow-sm lg:col-span-2 flex flex-col justify-between">
+        <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs lg:col-span-2 flex flex-col justify-between">
             <div>
-                <h4 class="text-xs font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="activity" class="w-4 h-4 text-slate-400"></i>
+                <h4 class="text-xs font-bold text-gray-950 uppercase tracking-wider font-mono flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4 text-red-500"></i>
                     <span>Historial de Mutaciones de Topología</span>
                 </h4>
-                <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">Registro forense de los últimos movimientos de ingeniería orgánica en el Ayuntamiento.</p>
+                <p class="text-xs text-gray-400 font-mono uppercase mt-1">// Registro forense de los últimos movimientos de ingeniería orgánica en el Ayuntamiento.</p>
             </div>
             
-            <div class="mt-6 flex-1 divide-y divide-slate-100 text-sm">
+            <div class="mt-6 flex-1 divide-y divide-gray-100 text-sm font-mono text-[11px]">
                 {% for log in cronologia_mutaciones %}
-                <div class="py-4 flex items-center justify-between gap-4">
+                <div class="py-3.5 flex items-center justify-between gap-4">
                     <div class="flex items-center gap-4 min-w-0">
-                        <span class="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-md shrink-0">{{ log.created_at|date:"d M, H:i" }}</span>
-                        <span class="text-slate-700 font-medium truncate border-l pl-4 border-slate-150">
-                            {{ log.action_name }} <span class="text-slate-400 font-normal">[{{ log.target_scope }}]</span>
+                        <span class="text-[10px] text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md shrink-0">{{ log.created_at|date:"d M, H:i" }}</span>
+                        <span class="text-gray-700 font-medium truncate border-l pl-4 border-gray-150 uppercase tracking-tight">
+                            {{ log.action_name }} <span class="text-gray-400 font-normal">[{{ log.target_scope }}]</span>
                         </span>
                     </div>
-                    <span class="text-xs font-mono text-slate-500 bg-slate-100/70 border border-slate-200 px-2 py-0.5 rounded-md shrink-0">{{ log.operator_user.email }}</span>
+                    <span class="text-[10px] text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md shrink-0">{{ log.operator_user.email }}</span>
                 </div>
                 {% empty %}
-                <div class="text-xs font-mono text-slate-400 uppercase tracking-widest py-14 text-center border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-3 h-full">
-                    <i data-lucide="database-backup" class="w-6 h-6 text-slate-300 stroke-1"></i>
+                <div class="text-[10px] text-gray-400 uppercase tracking-widest py-10 text-center border border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 h-full">
+                    <i data-lucide="database-backup" class="w-5 h-5 text-gray-300 stroke-1"></i>
                     <span>// No se registran mutaciones estructurales en la bitácora activa</span>
                 </div>
                 {% endfor %}
             </div>
         </div>
 
-        <div class="bg-white p-8 rounded-2xl border border-slate-200/70 shadow-sm lg:col-span-1 flex flex-col justify-between min-h-[300px]">
+        <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs lg:col-span-1 flex flex-col justify-between min-h-[260px]">
             <div>
-                <h4 class="text-xs font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="git-fork" class="w-4 h-4 text-slate-900"></i>
+                <h4 class="text-xs font-semibold text-gray-950 uppercase tracking-wider font-mono flex items-center gap-2">
+                    <i data-lucide="git-fork" class="w-4 h-4 text-gray-900"></i>
                     <span>Heredabilidad Estricta</span>
                 </h4>
-                <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">La arquitectura del Ayuntamiento opera en cascada relacional inmutable.</p>
+                <p class="text-xs text-gray-400 mt-1 uppercase font-mono tracking-wide">// La arquitectura del Ayuntamiento opera en cascada relacional inmutable.</p>
             </div>
             
-            <div class="p-6 bg-slate-50 border border-slate-200/60 rounded-xl mt-6">
-                <p class="text-xs text-slate-600 leading-relaxed">
-                    <strong class="text-slate-900 font-semibold block mb-1">Integridad de Nodos:</strong> 
-                    If desactiva o da de baja una Sede física, el sistema operativo congelará temporalmente la visibilidad de todas las oficinas adscritas a dicho inmueble para evitar fugas de conciliación en el Padrón de Personal.
+            <div class="p-6 bg-gray-50 border border-gray-200/60 rounded-2xl mt-6">
+                <p class="text-[11px] text-gray-600 leading-relaxed font-mono uppercase tracking-wide">
+                    <strong class="text-gray-950 font-bold block mb-1">Integridad de Nodos:</strong> 
+                    Si desactiva o da de baja una Sede física, el sistema operativo congelará temporalmente la visibilidad de todas las oficinas adscritas a dicho inmueble para evitar fugas de conciliación en el Padrón de Personal.
                 </p>
             </div>
         </div>
 
     </div>
-
-    <div class="space-y-6">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-[0.15em] px-1 flex items-center gap-2 select-none">
-            <i data-lucide="layout-grid" class="w-4 h-4 text-slate-400"></i>
-            <span>Acciones Tácticas sobre el Organigrama</span>
-        </h3>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            {% url 'organigrama:estructura_list' as url_estructura %}
-            {% url 'organigrama:sede_list' as url_sedes %}
-            
-            {% action_card title="Árbol de Dependencias" description="Visor jerárquico interactivo en acordeones dinámicos para el control de Secretarías y Direcciones Generales." url_destination=url_estructura icon="git-fork" target_count=total_dependencias target_label="Ramos Cores" button_text="Modelar Árbol" %}
-            
-            {% action_card title="Sedes e Inmuebles" description="Gestión geográfica de palacios municipales, anexos físicos y activación/congelamiento de nodos de atención." url_destination=url_sedes icon="map-pin" hover_color="slate-900" target_count=total_sedes target_label="Sedes Activas" count_color="gray-950" bg_icon="gray-50" button_text="Abrir Territorio" %}
-            
-            <div class="group bg-white p-6 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between min-h-[220px]">
-                <div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold font-mono bg-slate-50 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-md uppercase tracking-wider">Acceso Directo</span>
-                        <div class="p-2 bg-slate-50 border border-slate-100 rounded-lg text-slate-900 group-hover:bg-slate-950 group-hover:text-white transition duration-300">
-                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                        </div>
-                    </div>
-                    <h4 class="text-sm font-bold text-slate-900 font-mono uppercase mt-4">Inyección Transaccional</h4>
-                    <p class="text-xs text-slate-500 mt-1">// Acceso express para dar de alta componentes sin navegar el árbol completo.</p>
-                </div>
-                
-                <div class="pt-4 border-t border-slate-100 mt-4 grid grid-cols-2 gap-2 font-mono text-[10px]">
-                    <a href="{% url 'organigrama:dependencia_create' %}" class="inline-flex items-center justify-center bg-slate-50 hover:bg-slate-950 border border-slate-200 hover:text-white text-slate-800 font-bold py-2 px-3 rounded-lg transition text-center uppercase tracking-wider">
-                        + Dirección
-                    </a>
-                    <a href="{% url 'organigrama:area_create' %}" class="inline-flex items-center justify-center bg-slate-50 hover:bg-slate-950 border border-slate-200 hover:text-white text-slate-800 font-bold py-2 px-3 rounded-lg transition text-center uppercase tracking-wider">
-                        + Oficina
-                    </a>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
 </div>
 {% endblock %}
