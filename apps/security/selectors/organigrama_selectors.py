@@ -65,7 +65,7 @@ class SedeSelectors:
     @classmethod
     def listar_todas(cls) -> List[SedeReadOnlyDTO]:
         """Retorna el inventario total geográfico ordenado por nomenclatura."""
-        queryset = Sede.objects.select_related('encargado_sede').filter(is_active=True).order_by('nombre')
+        queryset = Sede.objects.select_related('encargado_sede').filter(is_deleted=False).order_by('nombre')
         return [cls._mapear_a_dto(sede) for sede in queryset]
 
     @classmethod

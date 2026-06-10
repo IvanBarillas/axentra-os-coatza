@@ -20,6 +20,7 @@ class Sede(models.Model):
         help_text="Líder técnico responsable del soporte en este edificio."
     )
     is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'axentra_org_sedes'

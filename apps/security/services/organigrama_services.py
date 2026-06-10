@@ -202,6 +202,7 @@ class OrganigramaService:
     def eliminar_sede(sede_instancia: Sede) -> None:
         """Baja lógica de instancia: Desactiva el inmueble congelando dependientes."""
         with transaction.atomic():
+            sede_instancia.is_deleted = True
             sede_instancia.is_active = False
             sede_instancia.save()
             AreaOperativa.objects.filter(sede_fisica=sede_instancia).update(is_active=False)
