@@ -1,6 +1,7 @@
 # apps/security/urls/organigrama_urls.py
 from django.urls import path
 from apps.security.views.organigrama_views import (
+    area_toggle_status_view,
     dependencia_toggle_status_view,
     organigrama_control_view,
     organigrama_dashboard_view,
@@ -54,6 +55,7 @@ urls_organigrama = [
     path('area/nueva/', area_create_view, name='area_create'),
     path('area/editar/<uuid:pk>/', area_update_view, name='area_update'),
     path('area/eliminar/<uuid:pk>/', area_soft_delete_view, name='area_delete'),
+    path('area/estado/<uuid:pk>/', area_toggle_status_view, name='area_toggle_status'),
     
     # ⚡ Tuberías Reactivas Asíncronas (HTMX / AJAX Pipelines)
     path('ajax/cargar-areas/', cargar_areas_htmx_view, name='cargar_areas_htmx'),

@@ -309,25 +309,29 @@ def area_toggle_status_view(request, pk: uuid.UUID):
 # =========================================================================
 
 @login_required
+# 🟢 BLINDAJE: Asegura la telemetría e inyección en cascada de selectores HTML
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def cargar_areas_htmx_view(request):
     """Hidratación en cascada de selectores secundarios dependientes."""
     dependencia_id = request.GET.get('dependencia')
     try:
-        areas = AreaOperativa.objects.filter(dependencia_id=uuid.UUID(dependencia_id), is_deleted=False) if ... else []
+        areas = AreaOperativa.objects.filter(dependencia_id=uuid.UUID(dependencia_id), is_deleted=False)
     except (ValueError, TypeError):
         areas = []
     return render(request, 'organigrama/htmx/area_options.html', {'areas': areas})
 
 
 @login_required
+# 🟢 EL REMEDIO DEFINITIVO: Colocamos el guardián para que inyecte las llaves JSON reales en la RAM del fragmento HTMX
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def vincular_areas_ajax_view(request, dep_id):
     """Despacha la matriz de sub-oficinas de una dependencia usando el accesor premium inverso."""
     dependencia = get_object_or_404(Dependencia, id=dep_id, is_deleted=False)
     
-    # 🟢 CORRECCIÓN ATÓMICA: Mutamos 'areas_operativas_instaladas' por el nuevo 'areas' unificado
+    # Usamos el accesor premium inverso alineado con tus selectores
     areas = dependencia.areas.filter(is_deleted=False).select_related('sede_fisica')
     
-    return render(request, 'organigrama/htmx/estructura_areas_table.html', {
+    return render(request, 'organigrama/estructura_areas_table.html', {
         'dependencia': dependencia,
         'areas': areas,
         'request': request
