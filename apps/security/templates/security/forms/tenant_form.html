@@ -1,0 +1,125 @@
+{% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
+
+{% block app_context_badge %}Configuración Global{% endblock %}
+{% block title %}Identidad Institucional | {{ tenant.app_name }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="max-w-2xl mx-auto space-y-6 pb-12 w-full animate-fade-in select-none">
+    
+    <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-200/80 shadow-2xs">
+        <div class="text-[10px] font-black text-gray-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+            <a href="{% url 'security:control_panel' %}" class="hover:text-gray-900 transition flex items-center gap-1">
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+                <span>Estación Central</span>
+            </a> 
+            <span class="text-gray-300 font-sans">&gt;</span> 
+            <span class="text-gray-800 font-bold">Identidad del Ayuntamiento</span>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs space-y-6">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-950 tracking-tight font-mono uppercase">Personalización y Datos Oficiales</h2>
+            <p class="text-[11px] text-gray-400 font-medium font-mono mt-0.5 uppercase">Defina los activos de marca, logotipos y la información legal que se inyectará en toda la plataforma municipal.</p>
+        </div>
+
+        {% if form.errors %}
+        <div class="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 font-medium space-y-1 font-mono">
+            <p class="font-black uppercase tracking-wider text-[10px] text-red-900 flex items-center gap-1">
+                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                <span>⚠️ Error en Parámetros Globales:</span>
+            </p>
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                    <p class="text-[10px] uppercase">• <span class="font-bold text-red-950">{{ field }}:</span> {{ error }}</p>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="." enctype="multipart/form-data" class="space-y-5 font-mono text-[11px] text-gray-700 uppercase tracking-wide">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="sm:col-span-2 space-y-1.5">
+                    <label class="block font-bold text-gray-600">Nombre Comercial de la Plataforma</label>
+                    <div class="[&>input]:w-full [&>input]:bg-gray-50 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-3 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all">
+                        {{ form.app_name }}
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-gray-600">Siglas Internas</label>
+                    <div class="[&>input]:w-full [&>input]:bg-gray-50 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-3 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all [&>input]:text-center">
+                        {{ form.siglas }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block font-bold text-gray-600">Nombre Oficial del Ayuntamiento / Institución</label>
+                <div class="[&>input]:w-full [&>input]:bg-gray-50 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-3 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all">
+                    {{ form.entidad_nombre }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-gray-600">Registro Federal de Contribuyentes (RFC)</label>
+                    <div class="[&>input]:w-full [&>input]:bg-gray-50 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-3 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all">
+                        {{ form.rfc }}
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-gray-600">Color Temático de Acento (Tailwind Class)</label>
+                    <div class="[&>input]:w-full [&>input]:bg-gray-50 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-3 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all">
+                        {{ form.primary_color_class }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block font-bold text-gray-600">Dirección Legal de la Sede Central</label>
+                <div class="[&>input]:w-full [&>input]:bg-gray-50 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-3 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all">
+                    {{ form.direccion_oficial }}
+                </div>
+            </div>
+
+            <div class="border border-dashed border-gray-200 rounded-2xl p-5 bg-gray-50/50 space-y-3">
+                <label class="block font-bold text-gray-600">Escudo / Logotipo Oficial (Fondo Claro)</label>
+                
+                <div class="flex items-center gap-4">
+                    {% if config.logo_light %}
+                        <div class="w-16 h-16 bg-white border border-gray-200 rounded-xl p-2 flex items-center justify-center shadow-3xs shrink-0 select-none">
+                            <img src="{{ config.logo_light.url }}" alt="Escudo Actual" class="max-h-full object-contain">
+                        </div>
+                    {% else %}
+                        <div class="w-16 h-16 border-2 border-dashed border-gray-200 bg-white rounded-xl flex items-center justify-center text-xl text-gray-300 shrink-0 select-none">
+                            🏛️
+                        </div>
+                    {% endif %}
+                    
+                    <div class="flex-1 text-xs normal-case font-sans text-gray-500">
+                        <div class="font-mono text-[11px] text-gray-700 uppercase tracking-wide [&>input]:cursor-pointer">
+                            {{ form.logo_light }}
+                        </div>
+                        <p class="text-[10px] text-gray-400 font-medium mt-2 leading-normal">Se sugiere un formato PNG transparente con dimensiones cuadradas de alta fidelidad.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2 font-mono text-[10px] uppercase tracking-wider">
+                <a href="{% url 'security:control_panel' %}" class="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-4 px-4 rounded-xl text-center transition-all duration-200 shadow-3xs">
+                    Volver
+                </a>
+                <button type="submit" class="w-2/3 bg-gray-950 hover:bg-gray-900 text-white font-bold py-4 px-4 rounded-xl shadow-sm transition-all transform active:scale-95 cursor-pointer duration-200 flex items-center justify-center gap-1.5">
+                    <i data-lucide="save" class="w-4 h-4 text-gray-400"></i>
+                    <span>Guardar Configuración Global</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
+{% endblock %}
