@@ -39,7 +39,9 @@ from .security_views import (
     security_control_panel_view,
     security_dashboard_view,
     dynamic_permission_matrix_view,
-    tenant_config_view
+    tenant_config_view,
+    guardar_llaves_json_view,
+    inyectar_funcionario_view,
 )
 
 # Exposición oficial para los enrutadores de URLs de Axentra OS
@@ -77,5 +79,7 @@ __all__ = [
     'security_control_panel_view',
     'security_dashboard_view',
     'dynamic_permission_matrix_view',
+    'guardar_llaves_json_view',
+    'inyectar_funcionario_view',
     'tenant_config_view'
 ]

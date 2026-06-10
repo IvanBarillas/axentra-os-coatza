@@ -18,8 +18,12 @@ from apps.security.decorators import axentra_gate_enforcer
 from apps.security.models import AppModule, UserAppRole, TenantConfig
 from apps.security.forms import TenantConfigForm
 
-# Selectores y Servicios Remotes
-from apps.security.selectors.security_selectors import SecurityDashboardSelectors
+# Selectores y Servicios Remotos Orientados a Dominio
+from apps.security.selectors.security_selectors import (
+    CapabilitySelectors,
+    SecurityDashboardSelectors,
+    PermissionSelectors
+)
 from apps.security.services.security_services import PermissionService
 
 User = get_user_model()
@@ -84,11 +88,15 @@ def tenant_config_view(request):
 # =========================================================================
 # 🪐 PILAR 4: CONSOLE MASTER DE PRIVILEGIOS FINOS (UNIVERSAL MATRIX)
 # =========================================================================
+
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def dynamic_permission_matrix_view(request):
-    """Consola Maestra de Privilegios Finos Universal con blindaje Anti-URL Tampering."""
-    app_slug = request.GET.get('app_slug') or request.POST.get('app_slug')
+    """
+    🔍 CONTROLADOR DE LECTURA PURO (GET): Despacha el estado de la matriz.
+    Mantiene cero responsabilidades mutacionales.
+    """
+    app_slug = request.GET.get('app_slug')
     
     # 🛡️ Cortafuegos de URLs Desnudas: Intercepta peticiones sin contexto de app
     if not app_slug:
@@ -100,270 +108,195 @@ def dynamic_permission_matrix_view(request):
     app_slug = app_slug.strip().lower()
     app_module = get_object_or_404(AppModule, slug=app_slug, is_active=True)
     user_focus_id = request.GET.get('user_id')
-    is_manager_global = getattr(request.user, 'is_manager', False) or request.user.axentra_profile.is_root_admin
+    is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
 
-    # ---------------------------------------------------------------------
-    # INTERCEPTOR DE PETICIONES MUTACIONALES (POST METHOD)
-    # ---------------------------------------------------------------------
-    if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        action = request.POST.get('action')
-
-        # Acción A: Modificación de Checkboxes de la Grilla JSON
-        if action == "update_permissions":
-            nuevo_rol_base = request.POST.get(f'role_{user_id}') or request.POST.get('role') or request.POST.get('nuevo_rol')
-            llaves_encendidas = request.POST.getlist(f'user_{user_id}') or request.POST.getlist('permisos_checks') or []
-            nuevo_rol_base = nuevo_rol_base.lower().strip()
-
-            target_user = get_object_or_404(User, id=user_id)
-            rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module).first()
-            rol_actual_str = rol_actual_obj.role if rol_actual_obj else 'viewer'
-
-            # Guardián Jerárquico de Pesos locales
-            if not is_manager_global:
-                rol_operador_obj = UserAppRole.objects.filter(user=request.user, app=app_module, is_active=True).first()
-                rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
-                
-                peso_operador = ROLE_WEIGHTS.get(rol_operador_str, 0)
-                peso_actual_destino = ROLE_WEIGHTS.get(rol_actual_str, 0)
-                peso_nuevo_destino = ROLE_WEIGHTS.get(nuevo_rol_base, 0)
-
-                if peso_actual_destino >= peso_operador or peso_nuevo_destino >= peso_operador:
-                    messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico para alterar o declarar este rango.")
-                    return redirect(f"{request.path}?app_slug={app_slug}&user_id={user_id}")
-
-            config_app = get_app_permissions(app_slug)
-            if nuevo_rol_base == "owner":
-                llaves_encendidas = list(config_app.get('permissions', {}).keys())
-
-            if 'has_access_module' not in llaves_encendidas:
-                llaves_encendidas.append('has_access_module')
-
-            if PermissionService.save_matrix_permissions(target_user, app_module, nuevo_rol_base, llaves_encendidas):
-                messages.success(request, f"🔒 Matriz de configuración actualizada para {target_user.full_name}.")
-            else:
-                messages.error(request, "❌ Error de consistencia al procesar la mutación en PostgreSQL.")
-                
-            return redirect(f"{request.path}?app_slug={app_slug}&user_id={user_id}")
-
-        # Acción B: Incorporación de Funcionario Nuevo al aplicativo satélite
-        elif action == "authorize_entry":
-            if not is_manager_global:
-                messages.error(request, "🚫 Acceso Denegado: La inyección perimetral de personal es exclusiva del Master central.")
-                return redirect(f"{request.path}?app_slug={app_slug}")
-
-            nuevo_usuario_id = request.POST.get('new_user_id')
-            rol_a_inyectar = request.POST.get('initial_role', 'viewer').lower().strip()
-            target_user = get_object_or_404(User, id=nuevo_usuario_id)
-
-            if PermissionService.authorize_new_user_entry(app_module, str(target_user.id), rol_a_inyectar):
-                messages.success(request, f"🟢 Funcionario {target_user.email} inyectado con éxito como [{rol_a_inyectar.upper()}].")
-            else:
-                messages.warning(request, "⚠️ Operación cancelada: El funcionario ya cuenta con membresía activa o el proceso falló.")
-                
-            return redirect(f"{request.path}?app_slug={app_slug}&user_id={target_user.id}")
-
-    # ---------------------------------------------------------------------
-    # RESOLUCIÓN DE INTERFAZ Y RENDERIZADO (GET METHOD)
-    # ---------------------------------------------------------------------
-    roles_activos = UserAppRole.objects.filter(app=app_module).select_related('user').exclude(user__is_manager=True).order_by('user__first_name')
+    # Resolución delegada limpiamente a la capa de Selectores de dominio
+    context = PermissionSelectors.get_secured_matrix_data(
+        app_module=app_module,
+        user_focus_id=user_focus_id,
+        request_user=request.user,
+        is_manager_global=is_manager_global
+    )
     
-    config_app = get_app_permissions(app_slug)
-    catalogo_permisos = config_app.get('permissions', {})
-    role_mapping = config_app.get('roles', {})
-    
-    personal_list = []
-    usuario_enfocado_data = None
-    
-    for r in roles_activos:
-        es_el_seleccionado = str(r.user.id) == str(user_focus_id)
-        personal_list.append({
-            'usuario': r.user,
-            'rol_actual': r.role.upper(),
-            'es_el_seleccionado': es_el_seleccionado,
-            'is_suspended': not r.is_active
-        })
-        
-        if es_el_seleccionado:
-            permisos_raw = r.permissions_list or []
-            permisos_usuario_lista = [p for p in permisos_raw if p in catalogo_permisos]
-            
-            permisos_permitidos_por_rol = role_mapping.get(r.role, [])
-            payload_llaves = []
-            for code, desc in catalogo_permisos.items():
-                if code not in permisos_permitidos_por_rol:
-                    continue
-                obligatorio_by_role = (code == 'has_access_module') or (r.role == 'owner')
-                payload_llaves.append({
-                    'llave': code,
-                    'descripcion': desc,
-                    'concedido_total': (code in permisos_usuario_lista) or obligatorio_by_role,
-                    'obligatorio_by_role': obligatorio_by_role
-                })
-            
-            # Cálculo semántico de bloqueos visuales
-            bloqueo_visual = False
-            motivo_bloqueo = "none"
-
-            if not is_manager_global:
-                rol_operador_obj = UserAppRole.objects.filter(user=request.user, app=app_module, is_active=True).first()
-                rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
-                
-                peso_operador = ROLE_WEIGHTS.get(rol_operador_str, 0)
-                peso_destino = ROLE_WEIGHTS.get(r.role, 0)
-
-                if str(r.user.id) == str(request.user.id):
-                    bloqueo_visual = True
-                    motivo_bloqueo = "auto_lock"
-                elif r.role == 'owner':
-                    bloqueo_visual = True
-                    motivo_bloqueo = "owner_lock"
-                elif peso_destino >= peso_operador:
-                    bloqueo_visual = True
-                    motivo_bloqueo = "weight_lock"
-
-            usuario_enfocado_data = {
-                'usuario': r.user,
-                'rol_actual': r.role,
-                'permisos': payload_llaves,
-                'bloqueo_visual': bloqueo_visual or (not r.is_active),
-                'motivo_bloqueo': "suspended_lock" if not r.is_active else motivo_bloqueo
-            }
-
-    if is_manager_global:
-        usuarios_ya_asignados = UserAppRole.objects.filter(app=app_module).values_list('user_id', flat=True)
-        usuarios_potenciales = User.objects.filter(is_active=True, is_superuser=False, is_manager=False).exclude(id__in=usuarios_ya_asignados).order_by('first_name')
-        mostrar_buscador = True
-    else:
-        usuarios_potenciales = None
-        mostrar_buscador = False
-
-    roles_grilla = [(val, etiqueta) for val, etiqueta in UserAppRole.Roles.choices if val != 'owner' or is_manager_global]
-
-    return render(request, 'security/matrix_dynamic.html', {
+    context.update({
         'app': app_module,
         'app_slug_actual': app_module.slug,
         'modulo_actual': app_slug,
-        'personal_list': personal_list,
-        'usuario_enfocado': usuario_enfocado_data,
-        'roles_choices': roles_grilla,
         'roles_buscador': list(UserAppRole.Roles.choices),
-        'role_mapping': role_mapping,
-        'mostrar_buscador': mostrar_buscador,
-        'usuarios_potenciales': usuarios_potenciales
-    })
-    
-    
-# =========================================================================
-# 🎛️ PILAR 5: CONSOLA DE CAPACIDADES REGIONALES POR DEPENDENCIAS (HTMX)
-# =========================================================================
-@login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
-def matrix_capabilities_view(request):
-    """Master de Capacidades Regionales: Muestra qué dependencias consumen qué apps."""
-    app_slug = request.GET.get('app_slug', 'accounts')
-    app_activa = get_object_or_404(AppModule, slug=app_slug)
-    
-    labels_config = {
-        'flag_alfa': {'label': "Capacidad Primaria (Alfa)", 'help_text': "Activar rol primario institucional."},
-        'flag_beta': {'label': "Capacidad Secundaria (Beta)", 'help_text': "Activar rol secundario de soporte."}
-    }
-    
-    try:
-        modulo_permissions = importlib.import_module(f"apps.security.permissions")
-        for attr_name in dir(modulo_permissions):
-            if attr_name.endswith("Permissions") and attr_name.lower().startswith(app_slug):
-                clase_permisos = getattr(modulo_permissions, attr_name)
-                if hasattr(clase_permisos, 'CAPABILITIES'):
-                    labels_config = clase_permisos.CAPABILITIES
-                break
-    except Exception:
-        pass
-
-    capacidades_reales = AppDependencyCapability.objects.filter(app=app_activa).select_related('dependencia')
-    deps_ya_vinculadas = capacidades_reales.values_list('dependencia_id', flat=True)
-    dependencias_disponibles = Dependencia.objects.filter(is_active=True, is_deleted=False).exclude(id__in=deps_ya_vinculadas).order_by('nombre')
-
-    return render(request, 'security/matrix_capabilities.html', {
-        'apps': AppModule.objects.filter(is_active=True),
-        'app_activa': app_activa,
-        'matriz': capacidades_reales,
-        'dependencias_disponibles': dependencias_disponibles,
-        'labels': labels_config,
-        'modulo_actual': 'security'
     })
 
-
-@login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
-def add_capability_node_view(request, app_id):
-    """Vincula una nueva dependencia al mapa relacional de capacidades de la App."""
-    if request.method == 'POST':
-        app_obj = get_object_or_404(AppModule, id=app_id)
-        dependencia_id = request.POST.get('dependencia_id')
-        
-        if not dependencia_id:
-            return HttpResponse('⚠️ Seleccione una dependencia válida.', status=400)
-            
-        dep_obj = get_object_or_404(Dependencia, id=dependencia_id)
-        AppDependencyCapability.objects.get_or_create(
-            app=app_obj, dependencia=dep_obj, defaults={'flag_alfa': False, 'flag_beta': False}
-        )
-
-        response = HttpResponse()
-        response['HX-Refresh'] = 'true'
-        return response
-    return HttpResponseBadRequest("Método no permitido.")
-
-
-@login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
-def toggle_capability_ajax_view(request, dep_id, app_id):
-    """Interruptor AJAX ultrarrápido para prender/apagar capacidades organizacionales."""
-    if request.method != 'POST':
-        return HttpResponseBadRequest("Método inválido.")
-        
-    app_obj = get_object_or_404(AppModule, id=app_id)
-    dep_obj = get_object_or_404(Dependencia, id=dep_id)
-    field = request.POST.get('field')
-    
-    if field not in ['flag_alfa', 'flag_beta']:
-        return HttpResponse('❌ Campo inválido', status=400)
-
-    capacidad, _ = AppDependencyCapability.objects.get_or_create(app=app_obj, dependencia=dep_obj)
-    nuevo_estado = not getattr(capacidad, field)
-    setattr(capacidad, field, nuevo_estado)
-    capacidad.save()
-
-    bg_active_class = "bg-blue-600 justify-end" if field == "flag_alfa" else "bg-indigo-600 justify-end"
-    bg_class = bg_active_class if nuevo_estado else "bg-slate-200 justify-start"
-    next_url = f"/app/security/platform/capabilities/toggle/{dep_obj.id}/{app_obj.id}/"
-    
-    return HttpResponse(f"""
-        <div hx-post="{next_url}"
-             hx-trigger="click"
-             hx-target="this"
-             hx-swap="outerHTML"
-             hx-include="closest form"
-             class="w-11 h-6 flex items-center {bg_class} rounded-full p-1 cursor-pointer transition-all duration-300">
-            <div class="w-4 h-4 bg-white rounded-full shadow"></div>
-        </div>
-    """)
+    return render(request, 'security/matrix_dynamic.html', context)
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
+def guardar_llaves_json_view(request, app_id, user_id):
+    """
+    💾 MUTADOR ATÓMICO A: Compila la grilla de checkboxes y actualiza el JSONField en Postgres.
+    """
+    app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
+    target_user = get_object_or_404(User, id=user_id)
+    is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
+
+    nuevo_rol_base = request.POST.get(f'role_{user_id}') or request.POST.get('role') or request.POST.get('nuevo_rol')
+    llaves_encendidas = request.POST.getlist(f'user_{user_id}') or request.POST.getlist('permisos_checks') or []
+    nuevo_rol_base = nuevo_rol_base.lower().strip()
+
+    rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module).first()
+    rol_actual_str = rol_actual_obj.role if rol_actual_obj else 'viewer'
+
+    # Guardián Jerárquico de Pesos locales (Aduana de Seguridad de Bloqueo)
+    if not is_manager_global:
+        rol_operador_obj = UserAppRole.objects.filter(user=request.user, app=app_module, is_active=True).first()
+        rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
+        
+        peso_operador = ROLE_WEIGHTS.get(rol_operador_str, 0)
+        peso_actual_destino = ROLE_WEIGHTS.get(rol_actual_str, 0)
+        peso_nuevo_destino = ROLE_WEIGHTS.get(nuevo_rol_base, 0)
+
+        if peso_actual_destino >= peso_operador or peso_nuevo_destino >= peso_operador:
+            messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico para alterar o declarar este rango.")
+            return redirect(f"security:dynamic_matrix")
+
+    config_app = get_app_permissions(app_module.slug)
+    if nuevo_rol_base == "owner":
+        llaves_encendidas = list(config_app.get('permissions', {}).keys())
+
+    if 'has_access_module' not in llaves_encendidas:
+        llaves_encendidas.append('has_access_module')
+
+    if PermissionService.save_matrix_permissions(target_user, app_module, nuevo_rol_base, llaves_encendidas):
+        messages.success(request, f"🔒 Matriz de configuración actualizada para {target_user.full_name}.")
+    else:
+        messages.error(request, "❌ Error de consistencia al procesar la mutación en PostgreSQL.")
+        
+    return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
+@require_POST
+def inyectar_funcionario_view(request, app_id):
+    """
+    🟢 MUTADOR ATÓMICO B: Incorpora un nuevo servidor público al módulo satélite federado.
+    """
+    app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
+    is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
+
+    if not is_manager_global:
+        messages.error(request, "🚫 Acceso Denegado: La inyección perimetral de personal es exclusiva del Master central.")
+        return redirect(f"/app/security/matriz/?app_slug={app_module.slug}")
+
+    nuevo_usuario_id = request.POST.get('new_user_id')
+    rol_a_inyectar = request.POST.get('initial_role', 'viewer').lower().strip()
+    target_user = get_object_or_404(User, id=nuevo_usuario_id)
+
+    if PermissionService.authorize_new_user_entry(app_module, str(target_user.id), rol_a_inyectar):
+        messages.success(request, f"🟢 Funcionario {target_user.email} inyectado con éxito como [{rol_a_inyectar.upper()}].")
+    else:
+        messages.warning(request, "⚠️ Operación cancelada: El funcionario ya cuenta con membresía activa o el proceso falló.")
+        
+    return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
+    
+# =========================================================================
+# 🎛️ PILAR 5: CONSOLA DE CAPACIDADES REGIONALES POR DEPENDENCIAS (HTMX)
+# =========================================================================
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+def matrix_capabilities_view(request):
+    """Master de Capacidades Regionales: Muestra qué dependencias consumen qué apps."""
+    app_slug = request.GET.get('app_slug', 'accounts').strip().lower()
+    app_activa = get_object_or_404(AppModule, slug=app_slug)
+    
+    # Delegación total de lógica de negocio y reflexión al Selector corporativo
+    context = CapabilitySelectors.obtener_matriz_capacidades_contexto(app_activa)
+    
+    context.update({
+        'apps': AppModule.objects.filter(is_active=True),
+        'app_activa': app_activa,
+        'modulo_actual': 'security'
+    })
+
+    return render(request, 'security/matrix_capabilities.html', context)
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@require_POST
+def add_capability_node_view(request, app_id):
+    """Vincula una nueva dependencia al mapa relacional de capacidades de la App."""
+    app_obj = get_object_or_404(AppModule, id=app_id)
+    dependencia_id = request.POST.get('dependencia_id')
+    
+    if not dependencia_id:
+        return HttpResponse('⚠️ Seleccione una dependencia válida.', status=400)
+        
+    dep_obj = get_object_or_404(Dependencia, id=dependencia_id)
+    AppDependencyCapability.objects.get_or_create(
+        app=app_obj, dependencia=dep_obj, defaults={'flag_alfa': False, 'flag_beta': False}
+    )
+
+    # Disparamos refresh nativo a HTMX para recalibrar los listados de la pantalla
+    response = HttpResponse(status=200)
+    response['HX-Refresh'] = 'true'
+    return response
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@require_POST
+def toggle_capability_ajax_view(request, dep_id, app_id):
+    """Interruptor AJAX universal para prender/apagar capacidades organizacionales por módulo."""
+    app_obj = get_object_or_404(AppModule, id=app_id)
+    dep_obj = get_object_or_404(Dependencia, id=dep_id)
+    field = request.POST.get('field')
+    
+    if field not in ['flag_alfa', 'flag_beta']:
+        return HttpResponse('❌ Campo operativo inválido', status=400)
+
+    # Persistencia atómica de la bandera en la base de datos
+    capacidad, _ = AppDependencyCapability.objects.get_or_create(app=app_obj, dependencia=dep_obj)
+    nuevo_estado = not getattr(capacidad, field)
+    setattr(capacidad, field, nuevo_estado)
+    capacidad.save()
+
+    # 🛰️ RECOLECCIÓN EN CALIENTE: Extrae las etiquetas reales del manifiesto de la App activa
+    labels_manifiesto = CapabilitySelectors.obtener_labels_manifiesto(app_obj.slug)
+    config_campo = labels_manifiesto.get(field, {})
+    help_text_dinamico = config_campo.get('help_text', 'Configuración de capacidad guardada con éxito.')
+
+    # Calibración de color según la bandera que se esté mutando
+    bg_active_class = "bg-blue-600 justify-end" if field == "flag_alfa" else "bg-indigo-600 justify-end"
+    bg_class = bg_active_class if nuevo_estado else "bg-gray-200 justify-start"
+    
+    next_url = f"/app/security/platform/capabilities/toggle/{dep_obj.id}/{app_obj.id}/"
+    
+    # 🚀 RESPUESTA PREMIUM DE DOMINIO: Renderiza manteniendo la semántica del manifiesto local
+    return render(request, 'security/htmx/capability_switch_partial.html', {
+        'next_url': next_url,
+        'bg_class': bg_class,
+        'help_text': help_text_dinamico
+    })
+
+# =========================================================================
+# 🎛️ 
+# =========================================================================
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
+@require_POST
 def toggle_user_modulo_active_ajax_view(request, user_id, app_id):
     """
-    🔄 SWITCH PERIMETRAL CORE (HTMX RESPUESTA): Invierte el estatus 'is_active' del usuario.
-    🟢 EXTRIPACIÓN COMPLETA DE RECURSIÓN: Retorna texto HTML directo, inmune a dependencias en cadena.
+    🔄 SWITCH PERIMETRAL CORE: Conmuta el estado activo/suspendido de un funcionario.
+    Consume el parcial existente mapeando las variables idénticas del ecosistema.
     """
     app_module = get_object_or_404(AppModule, id=app_id)
     target_user = get_object_or_404(User, id=user_id)
     
+    # Cortafuegos para prevenir auto-suspensión o alteración de rangos protegidos
     if target_user.is_manager or str(target_user.id) == str(request.user.id):
-        return HttpResponse(status=403, content="Operación denegada.")
+        return HttpResponse(status=403, content="Operación denegada sobre rangos protegidos.")
         
     rol_instancia = get_object_or_404(UserAppRole, user=target_user, app=app_module)
     rol_instancia.is_active = not rol_instancia.is_active
@@ -371,39 +304,14 @@ def toggle_user_modulo_active_ajax_view(request, user_id, app_id):
     
     logger.warning(f"🚨 CIBERSEGURIDAD: Estado de {target_user.email} conmutado a [Activo={rol_instancia.is_active}] en App [{app_module.slug.upper()}].")
     
-    # Determinamos el color dinámico del botón de encendido/congelado según Postgres
-    btn_color_class = "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white" if rol_instancia.is_active else "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-600 hover:text-white"
-    
-    # 🚀 RENDERIZADO INLINE SEGURO: Rompe el bucle infinito al no usar plantillas hijas recursivas
-    html_response = f"""
-    <div class="absolute right-3 opacity-0 group-hover/tarjeta:opacity-100 flex items-center gap-1.5 transition-all duration-150 z-10 p-1" id="actions-wrapper-{target_user.id}">
-        <button type="button"
-                hx-post="/app/security/matriz/toggle-status/{target_user.id}/{app_module.id}/"
-                hx-target="#actions-wrapper-{target_user.id}"
-                hx-swap="outerHTML"
-                class="p-1.5 rounded-lg border transition duration-150 cursor-pointer shadow-3xs {btn_color_class}">
-            <i data-lucide="power" class="w-3.5 h-3.5"></i>
-        </button>
-    """
-    
-    # Inyectamos quirúrgicamente el botón de purga solo si el operador es un mánager supremo
-    if getattr(request.user, 'is_manager', False) or getattr(request.user, 'is_superuser', False):
-        html_response += f"""
-        <button type="button"
-                hx-post="/app/security/matriz/purga-total/{target_user.id}/{app_module.id}/"
-                hx-target="#user-row-container-{target_user.id}"
-                hx-swap="delete"
-                hx-confirm="🚨 ¿EJECUTAR PURGA TOTAL? Esta acción eliminará permanentemente la membresía y todo el árbol de llaves guardado para {target_user.full_name.upper()}."
-                class="p-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition duration-150 cursor-pointer shadow-3xs">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-        </button>
-        """
-        
-    html_response += """
-    </div>
-    <script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
-    """
-    return HttpResponse(status=200, content=html_response)
+    # 🚀 ALINEACIÓN DE CONTEXTO: Emparejado al milímetro con las variables de tu plantilla
+    return render(request, 'security/htmx/matrix_user_actions_partial.html', {
+        'app': app_module,
+        'item': {
+            'usuario': target_user,
+        },
+        'rol_active': rol_instancia.is_active,  # Evalúa el booleano para los colores de Tailwind
+    })
 
 
 @login_required
@@ -422,8 +330,11 @@ def expulsar_usuario_modulo_total_ajax_view(request, user_id, app_id):
     if target_user.is_manager or str(target_user.id) == str(request.user.id):
         return HttpResponse(status=403, content="Operación denegada sobre rangos protegidos.")
         
-    # Purga total en PostgreSQL
     UserAppRole.objects.filter(user=target_user, app=app_module).delete()
     
     logger.warning(f"🚨 EXPULSIÓN SUPREMA: {request.user.email} ELIMINÓ a {target_user.email} de la App [{app_module.slug.upper()}].")
     return HttpResponse(status=200, content="")
+
+# =========================================================================
+# 🎛️ 
+# =========================================================================

@@ -39,8 +39,10 @@
     </div>
 
     <div class="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-2xl p-5 flex items-start gap-4 shadow-3xs">
-        <div class="text-xl shrink-0 select-none">🛰️</div>
-        <div class="font-mono text-[11px]">
+        <div class="p-2 bg-blue-50 border border-blue-100 rounded-xl shrink-0 flex items-center justify-center">
+            <i data-lucide="satellite" class="w-4 h-4 text-blue-600"></i>
+        </div>
+        <div class="font-mono text-[11px] pt-1">
             <h3 class="font-black text-gray-800 uppercase tracking-widest">
                 Semántica Activa: <span class="text-blue-600 font-bold">{{ app_activa.name|upper }}</span>
             </h3>
@@ -55,7 +57,7 @@
             <table class="min-w-full divide-y divide-gray-100 text-left font-mono text-[11px]">
                 <thead class="bg-gray-50/80 font-bold uppercase tracking-wider text-[10px] text-gray-400">
                     <tr>
-                        <th class="py-4 px-6 w-1/3">🏢 Dependencia Registrada</th>
+                        <th class="py-4 px-6 w-1/3">Dirección Registrada</th>
                         <th class="py-4 px-6 text-blue-600">{{ labels.flag_alfa.label|upper }}</th>
                         <th class="py-4 px-6 text-indigo-600">{{ labels.flag_beta.label|upper }}</th>
                     </tr>

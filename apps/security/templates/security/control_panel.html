@@ -29,12 +29,13 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% url 'security:dynamic_matrix' as url_matriz %}
             {% url 'security:tenant_config' as url_tenant %}
+            {% url 'security:matrix_capabilities' as url_capabilities %}
             
             {% action_card title="Matriz de Permisos" description="Regrabado atómico de privilegios finos por aplicativo. Inyecte o muta overrides JSON en caliente por funcionario." url_destination=url_matriz|add:"?app_slug=security" icon="🔐" hover_color="red-600" button_text="Abrir Matriz" %}
             
             {% action_card title="Identidad del Tenant" description="Personalización legal y de marca del Ayuntamiento. Modifique siglas, cargue escudos institucionales y actualice el RFC." url_destination=url_tenant icon="⚙️" hover_color="slate-900" button_text="Ajustes Visuales" %}
             
-            {% action_card title="Capacidades por Nodo" description="Federación modular de dependencias. Autorice qué direcciones fungen como proveedoras o consumidoras de servicios." url_destination="#" icon="🎛️" hover_color="blue-600" bg_icon="blue-50" button_text="Mapear Nodos" %}
+            {% action_card title="Capacidades por Nodo" description="Federación modular de dependencias. Autorice qué direcciones fungen como proveedoras o consumidoras de servicios." url_destination=url_capabilities icon="🎛️" hover_color="blue-600" bg_icon="blue-50" button_text="Mapear Nodos" %}
         </div>
     </div>
 </div>

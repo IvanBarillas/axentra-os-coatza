@@ -15,10 +15,9 @@ from .accounts_selectors import (
 )
 
 # 🛡️ PILAR 3: CIBERSEGURIDAD CENTRAL Y MATRIZ (SECURITY)
-# 🟢 CORRECCIÓN: Eliminada la clase inexistente 'SecuritySelectors' y unificado el pool
 from .security_selectors import (
     SecurityDashboardSelectors, 
-    PermissionSelectors,  # ◄── Tu clase premium vive aquí adentro ahora
+    PermissionSelectors,  
     TenantConfigSelectors
 )
 

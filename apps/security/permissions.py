@@ -42,6 +42,26 @@ class SecurityPermissions:
         ["settings", "Identidad Global", "security:tenant_config", 3, "can_configure_tenant"],
         ["bar-chart-3", "Consola Analítica", "security:dashboard", 4, "can_view_analytics"],
     ]
+    
+    # 🛰️ CONFIGURACIÓN LOGÍSTICA DE CAPACIDADES (Semántica de Negocio Local Organigrama)
+    CAPABILITIES = {
+        'flag_alfa': {
+            'label': "🛠️ [Security] ¿Es Dependencia Proveedora de Seguridad?",
+            'help_text': (
+                "EFECTO EN SISTEMA: Al activar esta casilla, el personal adscrito a esta dirección "
+                "será elegible para aparecer en el combo box de 'Alta de Perfil Técnico' (Comisionar Ingeniero). "
+                "Úselo exclusivamente para la Dirección de Tecnologías, Innovación o Soporte de Sistemas."
+            )
+        },
+        'flag_beta': {
+            'label': "📋 [Security] ¿Es Dependencia Consumidora Estricta (Solo Reportes)?",
+            'help_text': (
+                "EFECTO EN SISTEMA: Indica que esta área solo puede levantar reportes y visualizar sus propios folios. "
+                "El sistema aislará sus combo boxes para que al crear un ticket, solo puedan seleccionar "
+                "las Sedes y Áreas Físicas que pertenezcan formalmente a su propia dirección."
+            )
+        }
+    }
 
 
 # =========================================================================
