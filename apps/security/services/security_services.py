@@ -47,8 +47,8 @@ class PermissionService:
     @staticmethod
     def authorize_new_user_entry(app_module: AppModule, user_id: str, rol_a_inyectar: str = 'viewer') -> bool:
         """
-        Siembra o incorpora de forma limpia a un nuevo funcionario público dentro de la aduana 
-        de un aplicativo satélite, otorgándole su rol base y sincronizando sus llaves iniciales.
+        Incorpora de forma limpia a un nuevo funcionario dentro de la aduana de un aplicativo,
+        otorgándole su rol base bajo la filosofía Zero Trust (en ceros, sin permisos fantasma).
         """
         try:
             target_user = User.objects.get(id=user_id)
@@ -58,16 +58,18 @@ class PermissionService:
             rol_limpio = str(rol_a_inyectar).lower().strip()
 
             with transaction.atomic():
-                # Verificamos si el registro ya cuenta con una membresía activa en el nodo
                 rol_existente = UserAppRole.objects.filter(user=target_user, app=app_module).first()
                 if rol_existente and rol_existente.is_active:
                     return False
 
-                # Cargamos el catálogo de llaves por defecto asignadas a este rol en específico
-                config_app = get_app_permissions(app_module.slug)
-                llaves_finales = list(config_app.get('permissions', {}).keys()) if rol_limpio == "owner" else ['has_access_module']
+                # 🟢 ENFOQUE SEGURIDAD MÁXIMA (ZERO TRUST): Si es 'owner' se lleva el catálogo total.
+                # Si es cualquier otro rango, nace exclusivamente con la llave de acceso perimetral base.
+                if rol_limpio == "owner":
+                    config_app = get_app_permissions(app_module.slug)
+                    llaves_finales = list(config_app.get('permissions', {}).keys())
+                else:
+                    llaves_finales = ['has_access_module']
 
-                # Mutación física o reactivación en caliente
                 UserAppRole.objects.update_or_create(
                     user=target_user,
                     app=app_module,
@@ -77,8 +79,7 @@ class PermissionService:
                         'is_active': True
                     }
                 )
-
-            logger.info(f"🟢 CIBERSEGURIDAD: Funcionario {target_user.email} incorporado a App [{app_module.slug}] como [{rol_limpio.upper()}].")
+            logger.info(f"🟢 CIBERSEGURIDAD: Funcionario {target_user.email} sembrado en Módulo [{app_module.slug.upper()}] bajo política Zero Trust.")
             return True
         except Exception as e:
             logger.error(f"❌ FALLO TRANSACCIONAL (authorize_new_user_entry): {str(e)}")

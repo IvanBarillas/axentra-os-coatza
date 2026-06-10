@@ -1,0 +1,26 @@
+<div class="absolute right-3 opacity-0 group-hover/tarjeta:opacity-100 flex items-center gap-1.5 transition-all duration-150 z-10 p-1" 
+     id="actions-wrapper-{{ item.usuario.id }}">
+    
+    <button type="button"
+            hx-post="{% url 'security:toggle_user_modulo_active' item.usuario.id app.id %}"
+            hx-target="#actions-wrapper-{{ item.usuario.id }}"
+            hx-swap="outerHTML"
+            class="p-1.5 rounded-lg border transition duration-150 cursor-pointer shadow-3xs {% if rol_active %} bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white {% else %} bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-600 hover:text-white {% endif %}"
+            title="{% if rol_active %}Suspender Acceso Temporalmente{% else %}Activar Membresía{% endif %}">
+        <i data-lucide="power" class="w-3.5 h-3.5"></i>
+    </button>
+
+    {% if request.user.is_manager or request.user.is_superuser %}
+    <button type="button"
+            hx-post="{% url 'security:expulsar_usuario_modulo_total' item.usuario.id app.id %}"
+            hx-target="#user-row-container-{{ item.usuario.id }}"
+            hx-swap="delete"
+            hx-confirm="🚨 ¿EJECUTAR PURGA TOTAL? Esta acción eliminará permanentemente la membresía y todo el árbol de llaves guardado para {{ item.usuario.full_name|upper }}."
+            class="p-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition duration-150 cursor-pointer shadow-3xs"
+            title="Eliminar del Módulo Permanentemente">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+    </button>
+    {% endif %}
+</div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>

@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.contrib import messages
+from django.views.decorators.http import require_POST
 
 from apps.security.models.organigrama import AppDependencyCapability, Dependencia
 from apps.security.services.permission_loader import get_app_permissions
@@ -17,7 +18,7 @@ from apps.security.decorators import axentra_gate_enforcer
 from apps.security.models import AppModule, UserAppRole, TenantConfig
 from apps.security.forms import TenantConfigForm
 
-# Selectores y Servicios Remotos
+# Selectores y Servicios Remotes
 from apps.security.selectors.security_selectors import SecurityDashboardSelectors
 from apps.security.services.security_services import PermissionService
 
@@ -115,8 +116,7 @@ def dynamic_permission_matrix_view(request):
             nuevo_rol_base = nuevo_rol_base.lower().strip()
 
             target_user = get_object_or_404(User, id=user_id)
-            # 🟢 SINCRO ORM: Relación premium invertida 'roles'
-            rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module, is_active=True).first()
+            rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module).first()
             rol_actual_str = rol_actual_obj.role if rol_actual_obj else 'viewer'
 
             # Guardián Jerárquico de Pesos locales
@@ -166,8 +166,7 @@ def dynamic_permission_matrix_view(request):
     # ---------------------------------------------------------------------
     # RESOLUCIÓN DE INTERFAZ Y RENDERIZADO (GET METHOD)
     # ---------------------------------------------------------------------
-    # 🟢 SINCRO ORM: Excluimos raíces y consumimos a través del related_name 'roles'
-    roles_activos = UserAppRole.objects.filter(app=app_module, is_active=True).select_related('user').exclude(user__is_manager=True)
+    roles_activos = UserAppRole.objects.filter(app=app_module).select_related('user').exclude(user__is_manager=True).order_by('user__first_name')
     
     config_app = get_app_permissions(app_slug)
     catalogo_permisos = config_app.get('permissions', {})
@@ -181,14 +180,14 @@ def dynamic_permission_matrix_view(request):
         personal_list.append({
             'usuario': r.user,
             'rol_actual': r.role.upper(),
-            'es_el_seleccionado': es_el_seleccionado
+            'es_el_seleccionado': es_el_seleccionado,
+            'is_suspended': not r.is_active
         })
         
         if es_el_seleccionado:
             permisos_raw = r.permissions_list or []
             permisos_usuario_lista = [p for p in permisos_raw if p in catalogo_permisos]
             
-            # Filtro de Llaves permitidas según mapeo del Rol
             permisos_permitidos_por_rol = role_mapping.get(r.role, [])
             payload_llaves = []
             for code, desc in catalogo_permisos.items():
@@ -227,13 +226,12 @@ def dynamic_permission_matrix_view(request):
                 'usuario': r.user,
                 'rol_actual': r.role,
                 'permisos': payload_llaves,
-                'bloqueo_visual': bloqueo_visual,
-                'motivo_bloqueo': motivo_bloqueo
+                'bloqueo_visual': bloqueo_visual or (not r.is_active),
+                'motivo_bloqueo': "suspended_lock" if not r.is_active else motivo_bloqueo
             }
 
-    # Despliegue del selector dinámico de adición para el Máster
     if is_manager_global:
-        usuarios_ya_asignados = UserAppRole.objects.filter(app=app_module, is_active=True).values_list('user_id', flat=True)
+        usuarios_ya_asignados = UserAppRole.objects.filter(app=app_module).values_list('user_id', flat=True)
         usuarios_potenciales = User.objects.filter(is_active=True, is_superuser=False, is_manager=False).exclude(id__in=usuarios_ya_asignados).order_by('first_name')
         mostrar_buscador = True
     else:
@@ -254,8 +252,8 @@ def dynamic_permission_matrix_view(request):
         'mostrar_buscador': mostrar_buscador,
         'usuarios_potenciales': usuarios_potenciales
     })
-
-
+    
+    
 # =========================================================================
 # 🎛️ PILAR 5: CONSOLA DE CAPACIDADES REGIONALES POR DEPENDENCIAS (HTMX)
 # =========================================================================
@@ -351,3 +349,81 @@ def toggle_capability_ajax_view(request, dep_id, app_id):
             <div class="w-4 h-4 bg-white rounded-full shadow"></div>
         </div>
     """)
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
+@require_POST
+def toggle_user_modulo_active_ajax_view(request, user_id, app_id):
+    """
+    🔄 SWITCH PERIMETRAL CORE (HTMX RESPUESTA): Invierte el estatus 'is_active' del usuario.
+    🟢 EXTRIPACIÓN COMPLETA DE RECURSIÓN: Retorna texto HTML directo, inmune a dependencias en cadena.
+    """
+    app_module = get_object_or_404(AppModule, id=app_id)
+    target_user = get_object_or_404(User, id=user_id)
+    
+    if target_user.is_manager or str(target_user.id) == str(request.user.id):
+        return HttpResponse(status=403, content="Operación denegada.")
+        
+    rol_instancia = get_object_or_404(UserAppRole, user=target_user, app=app_module)
+    rol_instancia.is_active = not rol_instancia.is_active
+    rol_instancia.save()
+    
+    logger.warning(f"🚨 CIBERSEGURIDAD: Estado de {target_user.email} conmutado a [Activo={rol_instancia.is_active}] en App [{app_module.slug.upper()}].")
+    
+    # Determinamos el color dinámico del botón de encendido/congelado según Postgres
+    btn_color_class = "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white" if rol_instancia.is_active else "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-600 hover:text-white"
+    
+    # 🚀 RENDERIZADO INLINE SEGURO: Rompe el bucle infinito al no usar plantillas hijas recursivas
+    html_response = f"""
+    <div class="absolute right-3 opacity-0 group-hover/tarjeta:opacity-100 flex items-center gap-1.5 transition-all duration-150 z-10 p-1" id="actions-wrapper-{target_user.id}">
+        <button type="button"
+                hx-post="/app/security/matriz/toggle-status/{target_user.id}/{app_module.id}/"
+                hx-target="#actions-wrapper-{target_user.id}"
+                hx-swap="outerHTML"
+                class="p-1.5 rounded-lg border transition duration-150 cursor-pointer shadow-3xs {btn_color_class}">
+            <i data-lucide="power" class="w-3.5 h-3.5"></i>
+        </button>
+    """
+    
+    # Inyectamos quirúrgicamente el botón de purga solo si el operador es un mánager supremo
+    if getattr(request.user, 'is_manager', False) or getattr(request.user, 'is_superuser', False):
+        html_response += f"""
+        <button type="button"
+                hx-post="/app/security/matriz/purga-total/{target_user.id}/{app_module.id}/"
+                hx-target="#user-row-container-{target_user.id}"
+                hx-swap="delete"
+                hx-confirm="🚨 ¿EJECUTAR PURGA TOTAL? Esta acción eliminará permanentemente la membresía y todo el árbol de llaves guardado para {target_user.full_name.upper()}."
+                class="p-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition duration-150 cursor-pointer shadow-3xs">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+        """
+        
+    html_response += """
+    </div>
+    <script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
+    """
+    return HttpResponse(status=200, content=html_response)
+
+
+@login_required
+@require_POST
+def expulsar_usuario_modulo_total_ajax_view(request, user_id, app_id):
+    """
+    💥 KILL-SWITCH ABSOLUTO: Destrucción total de la membresía en la base de datos.
+    🛡️ ADUANA CRÍTICA: Solo el mánager raíz o superuser global pasa esta línea.
+    """
+    if not (getattr(request.user, 'is_manager', False) or getattr(request.user, 'is_superuser', False)):
+        return HttpResponse(status=403, content="Acceso denegado: Requiere nivel Mánager Supremo.")
+        
+    app_module = get_object_or_404(AppModule, id=app_id)
+    target_user = get_object_or_404(User, id=user_id)
+    
+    if target_user.is_manager or str(target_user.id) == str(request.user.id):
+        return HttpResponse(status=403, content="Operación denegada sobre rangos protegidos.")
+        
+    # Purga total en PostgreSQL
+    UserAppRole.objects.filter(user=target_user, app=app_module).delete()
+    
+    logger.warning(f"🚨 EXPULSIÓN SUPREMA: {request.user.email} ELIMINÓ a {target_user.email} de la App [{app_module.slug.upper()}].")
+    return HttpResponse(status=200, content="")

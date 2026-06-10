@@ -1,13 +1,15 @@
 # apps/security/urls/security_urls.py
 from django.urls import path
 from apps.security.views.security_views import (
+    expulsar_usuario_modulo_total_ajax_view,
     security_control_panel_view,     
     security_dashboard_view,         
     dynamic_permission_matrix_view,  
     matrix_capabilities_view,        
     add_capability_node_view,        
     toggle_capability_ajax_view,     
-    tenant_config_view               
+    tenant_config_view,
+    toggle_user_modulo_active_ajax_view               
 )
 
 # El namespace 'security' se amarra en el archivo raíz principal del proyecto
@@ -20,6 +22,9 @@ urls_security = [
     
     # 🪐 PILAR 3: CÁPSULA DINÁMICA UNIVERSAL (Matriz de Checkboxes JSONField)
     path('matriz/', dynamic_permission_matrix_view, name='dynamic_matrix'),
+    # Las dos vías de contención: Toggle de suspensión y Purga total
+    path('matriz/toggle-status/<uuid:user_id>/<int:app_id>/', toggle_user_modulo_active_ajax_view, name='toggle_user_modulo_active'),
+    path('matriz/purga-total/<uuid:user_id>/<int:app_id>/', expulsar_usuario_modulo_total_ajax_view, name='expulsar_usuario_modulo_total'),
     
     # 🎛️ PILAR 4: GOBERNANZA DE CAPACIDADES GEOGRÁFICAS
     path('platform/capabilities/', matrix_capabilities_view, name='matrix_capabilities'),

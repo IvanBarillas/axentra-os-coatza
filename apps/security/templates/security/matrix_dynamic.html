@@ -56,158 +56,195 @@
                 <span class="bg-gray-100 border border-gray-200/60 px-2 py-0.5 rounded text-slate-700 font-bold font-mono">{{ personal_list|length }}</span>
             </div>
             
-            <div class="divide-y divide-gray-100 max-h-[520px] overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+            <div class="divide-y divide-gray-100 max-h-[520px] overflow-y-auto pr-2 space-y-2 custom-scrollbar flex flex-col w-full">
                 {% for item in personal_list %}
-                <a href="?app_slug={{ app_slug_actual }}&user_id={{ item.usuario.id }}" 
-                   class="flex items-center gap-3 p-3 rounded-2xl transition duration-200 border text-left block group
-                          {% if item.es_el_seleccionado %} bg-slate-950 border-slate-950 text-white shadow-md {% else %} bg-gray-50 border-transparent hover:bg-gray-100 hover:border-gray-200 text-slate-700 {% endif %}">
+                <div class="relative group/tarjeta flex items-center justify-between w-full min-h-[64px] rounded-2xl p-0.5" id="user-row-container-{{ item.usuario.id }}">
                     
-                    <div class="w-8 h-8 rounded-xl font-mono font-black text-xs flex items-center justify-center shrink-0 shadow-3xs transition-colors
-                                {% if item.es_el_seleccionado %} bg-white/20 text-white border border-white/10 {% else %} bg-slate-900 text-white {% endif %}">
-                        {{ item.usuario.first_name|slice:":1"|upper }}
-                    </div>
-                    
-                    <div class="min-w-0 flex-1 truncate">
-                        <div class="font-bold text-xs truncate uppercase {% if item.es_el_seleccionado %} text-white {% else %} text-gray-950 {% endif %}">
-                            {{ item.usuario.full_name }}
+                    <a href="?app_slug={{ app_slug_actual }}&user_id={{ item.usuario.id }}" 
+                       id="user-card-link-{{ item.usuario.id }}"
+                       class="flex-1 flex items-center justify-between p-3 rounded-2xl transition border duration-150 min-w-0 w-full
+                              {% if item.es_el_seleccionado %} 
+                                  bg-slate-950 border-slate-950 text-white shadow-md 
+                              {% elif item.is_suspended %} 
+                                  bg-gray-100/70 border-gray-200 text-gray-400 opacity-60 line-through decoration-gray-300
+                              {% else %} 
+                                  bg-gray-50 border-transparent hover:bg-gray-100 hover:border-gray-200 text-slate-700 
+                              {% endif %}">
+                        
+                        <div class="flex items-center gap-3 truncate pr-16 min-w-0">
+                            <div class="w-8 h-8 rounded-xl font-mono font-black text-xs flex items-center justify-center shrink-0 
+                                        {% if item.es_el_seleccionado %} bg-white/20 text-white {% elif item.is_suspended %} bg-gray-300 text-gray-600 {% else %} bg-slate-900 text-white {% endif %}">
+                                {{ item.usuario.first_name|slice:":1"|upper }}
+                            </div>
+                            <div class="truncate min-w-0">
+                                <div class="font-bold text-xs truncate uppercase {% if item.es_el_seleccionado %} text-white {% elif item.is_suspended %} text-gray-400 {% else %} text-gray-950 {% endif %}">{{ item.usuario.full_name }}</div>
+                                <div class="text-[9px] font-mono truncate mt-0.5 {% if item.es_el_seleccionado %} text-slate-400 {% else %} text-gray-400 {% endif %}">{{ item.usuario.email }}</div>
+                            </div>
                         </div>
-                        <div class="text-[9px] font-mono truncate mt-0.5 {% if item.es_el_seleccionado %} text-slate-400 {% else %} text-gray-400 {% endif %}">
-                            {{ item.usuario.email }}
+                        
+                        <div class="shrink-0 flex items-center justify-end pl-1">
+                            {% if item.is_suspended %}
+                                <span class="text-[8px] font-black font-mono uppercase px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 tracking-wide animate-pulse">SUSP</span>
+                            {% else %}
+                                <span class="text-[8px] font-black font-mono uppercase px-1.5 py-0.5 rounded shrink-0 {% if item.es_el_seleccionado %} bg-white/10 text-white {% else %} bg-gray-200 text-slate-600 {% endif %}">
+                                    {{ item.role_actual }}
+                                </span>
+                            {% endif %}
                         </div>
-                    </div>
+                    </a>
+
+                    {% if item.usuario.id != request.user.id and item.role_actual != 'OWNER' %}
+                        {% if item.is_suspended %}
+                            {% include "security/htmx/matrix_user_actions_partial.html" with item=item rol_active=False app=app %}
+                        {% else %}
+                            {% include "security/htmx/matrix_user_actions_partial.html" with item=item rol_active=True app=app %}
+                        {% endif %}
+                    {% endif %}
                     
-                    <span class="text-[8px] font-black font-mono uppercase px-1.5 py-0.5 rounded shrink-0 {% if item.es_el_seleccionado %} bg-white/10 text-white border border-white/10 {% else %} bg-gray-200 text-slate-600 border border-gray-300/40 {% endif %}">
-                        {{ item.rol_actual }}
-                    </span>
-                </a>
+                </div>
                 {% endfor %}
             </div>
         </div>
 
         <div class="lg:col-span-8">
             {% if usuario_enfocado %}
-            <form method="POST" action="{{ request.path }}?app_slug={{ app_slug_actual }}&user_id={{ usuario_enfocado.usuario.id }}" 
-                  class="bg-white rounded-[32px] border border-gray-200/80 p-6 md:p-8 space-y-6 shadow-2xs">
-                {% csrf_token %}
-                <input type="hidden" name="user_id" value="{{ usuario_enfocado.usuario.id }}">
-                <input type="hidden" name="app_slug" value="{{ app_slug_actual }}">
-                <input type="hidden" name="action" value="update_permissions">
+            <div id="panel-permisos-derecho" class="w-full">
+                <form method="POST" action="{{ request.path }}?app_slug={{ app_slug_actual }}&user_id={{ usuario_enfocado.usuario.id }}" 
+                      class="bg-white rounded-[32px] border border-gray-200/80 p-6 md:p-8 space-y-6 shadow-2xs">
+                    {% csrf_token %}
+                    <input type="hidden" name="user_id" value="{{ usuario_enfocado.usuario.id }}">
+                    <input type="hidden" name="app_slug" value="{{ app_slug_actual }}">
+                    <input type="hidden" name="action" value="update_permissions">
 
-                <div class="border-b border-gray-100 pb-4">
-                    <span class="text-[9px] font-black font-mono text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100 uppercase tracking-widest">⚙️ INSPECCIÓN Y MUTACIÓN ATÓMICA</span>
-                    <h3 class="text-2xl font-black text-gray-950 mt-2 tracking-tight uppercase">{{ usuario_enfocado.usuario.full_name }}</h3>
-                    <p class="text-xs text-slate-400 font-mono lowercase mt-0.5">{{ usuario_enfocado.usuario.email }}</p>
-                </div>
-
-                {% if usuario_enfocado.bloqueo_visual %}
-                    {% if usuario_enfocado.motivo_bloqueo == 'auto_lock' %}
-                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3 text-xs text-amber-800 font-medium shadow-2xs animate-fade-in font-mono">
-                        <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
-                        <div>
-                            <span class="font-black block uppercase tracking-wider text-[10px] text-amber-900 mb-0.5">CONSOLA AUTO-PROTEGIDA</span>
-                            Por motivos de seguridad institucional, el formulario se despliega en modo de solo lectura. No puedes modificar tus propios rangos ni alterar tu mapa de llaves para prevenir degradaciones accidentales.
-                        </div>
+                    <div class="border-b border-gray-100 pb-4">
+                        <span class="text-[9px] font-black font-mono text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100 uppercase tracking-widest">⚙️ INSPECCIÓN Y MUTACIÓN ATÓMICA</span>
+                        <h3 class="text-2xl font-black text-gray-950 mt-2 tracking-tight uppercase">{{ usuario_enfocado.usuario.full_name }}</h3>
+                        <p class="text-xs text-slate-400 font-mono lowercase mt-0.5">{{ usuario_enfocado.usuario.email }}</p>
                     </div>
-                    {% elif usuario_enfocado.motivo_bloqueo == 'weight_lock' or usuario_enfocado.motivo_bloqueo == 'owner_lock' %}
-                    <div class="bg-red-50 border border-red-200 p-4 rounded-2xl flex items-start gap-3 text-xs text-red-800 font-medium shadow-2xs animate-fade-in font-mono">
-                        <i data-lucide="shield-x" class="w-4 h-4 text-red-600 shrink-0 mt-0.5"></i>
-                        <div>
-                            <span class="font-black block uppercase tracking-wider text-[10px] text-red-900 mb-0.5">CONSOLA PROTEGIDA POR ESCALAFÓN</span>
-                            Violación de jerarquía evitada. No cuentas con el peso local suficiente para alterar o declarar el rango de este funcionario debido a su nivel superior en la DB.
-                        </div>
-                    </div>
-                    {% endif %}
-                {% endif %}
 
-                <div class="space-y-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-mono">Asignación de Perfil Base (Rol)</label>
-                    <select name="role_{{ usuario_enfocado.usuario.id }}" id="id_role_select" 
-                            {% if usuario_enfocado.bloqueo_visual %}disabled{% endif %}
-                            class="w-full md:w-2/3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:bg-white focus:border-gray-950 outline-none transition-all duration-300 cursor-pointer shadow-inner disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed uppercase font-mono">
-                        {% for val, etiqueta in roles_choices %}
-                            <option value="{{ val }}" {% if usuario_enfocado.rol_actual == val %}selected{% endif %}>
-                                {{ etiqueta }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="space-y-3">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-mono border-b border-gray-50 pb-1">🔑 Llaves Autorizadas para este Perfil (JSON Field Overrides Escudados)</label>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1" id="contenedor_llaves_atomi">
-                        {% for perm in usuario_enfocado.permisos %}
-                            <div class="p-4 border rounded-2xl flex items-center justify-between transition group {% if usuario_enfocado.bloqueo_visual %} bg-gray-50 border-gray-200/80 {% else %} bg-gray-50/50 border-gray-200/60 hover:bg-gray-50 hover:border-gray-300 {% endif %}" data-perm-card="{{ perm.llave }}">
-                                <div class="pr-3 truncate">
-                                    <span class="block text-xs font-mono font-bold text-slate-800 {% if not usuario_enfocado.bloqueo_visual %}group-hover:text-purple-600{% endif %}">{{ perm.llave }}</span>
-                                    <span class="text-[9px] text-slate-400 font-medium mt-0.5 block leading-tight normal-case break-words max-w-xs">{{ perm.descripcion }}</span>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer shrink-0 pl-2">
-                                    <input type="checkbox" name="user_{{ usuario_enfocado.usuario.id }}" value="{{ perm.llave }}"
-                                           {% if perm.concedido_total or usuario_enfocado.rol_actual == 'owner' %}checked{% endif %}
-                                           {% if perm.llave == 'has_access_module' or usuario_enfocado.rol_actual == 'owner' or usuario_enfocado.bloqueo_visual %}disabled{% endif %}
-                                           data-perm="{{ perm.llave }}"
-                                           class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                                </label>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="pt-4 border-t border-gray-100 flex justify-end">
                     {% if usuario_enfocado.bloqueo_visual %}
-                        <div class="bg-red-50 text-red-700 border border-red-200 font-black py-4 px-8 rounded-xl text-[10px] uppercase tracking-widest select-none cursor-not-allowed shadow-inner font-mono">
-                            🔒 ESCRITURA INHABILITADA POR RANGO
+                        {% if usuario_enfocado.motivo_bloqueo == 'suspended_lock' %}
+                        <div class="bg-red-50 border border-red-200 p-4 rounded-2xl flex items-start gap-3 text-xs text-red-800 font-medium shadow-2xs animate-fade-in font-mono">
+                            <i data-lucide="shield-off" class="w-4 h-4 text-red-600 shrink-0 mt-0.5"></i>
+                            <div>
+                                <span class="font-black block uppercase tracking-wider text-[10px] text-red-900 mb-0.5">MEMBRESÍA CONGELADA</span>
+                                Esta cuenta de acceso se encuentra suspendida de este aplicativo. Active el switch del escudo en la barra lateral izquierda para desbloquear la grilla y habilitar el guardado de configuraciones.
+                            </div>
                         </div>
-                    {% else %}
-                        <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-black py-4 px-8 rounded-xl text-[10px] uppercase tracking-widest transition shadow-md transform active:scale-95 flex items-center gap-2 cursor-pointer font-mono">
-                            <i data-lucide="shield-check" class="w-4 h-4 text-slate-400"></i>
-                            <span>🔒 Compilar y Guardar en JSON</span>
-                        </button>
+                        {% elif usuario_enfocado.motivo_bloqueo == 'auto_lock' %}
+                        <div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3 text-xs text-amber-800 font-medium shadow-2xs animate-fade-in font-mono">
+                            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                            <div>
+                                <span class="font-black block uppercase tracking-wider text-[10px] text-amber-900 mb-0.5">CONSOLA AUTO-PROTEGIDA</span>
+                                Por motivos de seguridad institucional, el formulario se despliega en modo de solo lectura. No puedes modificar tus propios rangos ni alterar tu mapa de llaves para prevenir degradaciones accidentales.
+                            </div>
+                        </div>
+                        {% elif usuario_enfocado.motivo_bloqueo == 'weight_lock' or usuario_enfocado.motivo_bloqueo == 'owner_lock' %}
+                        <div class="bg-red-50 border border-red-200 p-4 rounded-2xl flex items-start gap-3 text-xs text-red-800 font-medium shadow-2xs animate-fade-in font-mono">
+                            <i data-lucide="shield-x" class="w-4 h-4 text-red-600 shrink-0 mt-0.5"></i>
+                            <div>
+                                <span class="font-black block uppercase tracking-wider text-[10px] text-red-900 mb-0.5">CONSOLA PROTEGIDA POR ESCALAFÓN</span>
+                                Violación de jerarquía evitada. No cuentas con el peso local suficiente para alterar o declarar el rango de este funcionario debido a su nivel superior en la DB.
+                            </div>
+                        </div>
+                        {% endif %}
                     {% endif %}
-                </div>
-            </form>
 
-            <script>
-                document.addEventListener("DOMContentLoaded", function() {
-                    const roleSelect = document.getElementById("id_role_select");
-                    const roleMapping = JSON.parse('{{ role_mapping|safe|default:"{}" }}');
-                    const esBloqueoVisual = {% if usuario_enfocado.bloqueo_visual %}true{% else %}false{% endif %};
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-mono">Asignación de Perfil Base (Rol)</label>
+                        <select name="role_{{ usuario_enfocado.usuario.id }}" id="id_role_select" 
+                                {% if usuario_enfocado.bloqueo_visual %}disabled{% endif %}
+                                class="w-full md:w-2/3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:bg-white focus:border-gray-950 outline-none transition-all duration-300 cursor-pointer shadow-inner disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed uppercase font-mono">
+                            {% for val, etiqueta in roles_choices %}
+                                <option value="{{ val }}" {% if usuario_enfocado.rol_actual == val %}selected{% endif %}>
+                                    {{ etiqueta }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                    function sincronizarMatrizPorRol(selectedRole, esCambioManual) {
-                        if (esBloqueoVisual) return;
+                    <div class="space-y-3">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider font-mono border-b border-gray-50 pb-1">🔑 Llaves Autorizadas para este Perfil (JSON Field Overrides Escudados)</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1" id="contenedor_llaves_atomi">
+                            {% for perm in usuario_enfocado.permisos %}
+                                <div class="p-4 border rounded-2xl flex items-center justify-between transition group {% if usuario_enfocado.bloqueo_visual %} bg-gray-50 border-gray-200/80 {% else %} bg-gray-50/50 border-gray-200/60 hover:bg-gray-50 hover:border-gray-300 {% endif %}" data-perm-card="{{ perm.llave }}">
+                                    <div class="pr-3 truncate">
+                                        <span class="block text-xs font-mono font-bold text-slate-800 {% if not usuario_enfocado.bloqueo_visual %}group-hover:text-purple-600{% endif %}">{{ perm.llave }}</span>
+                                        <span class="text-[9px] text-slate-400 font-medium mt-0.5 block leading-tight normal-case break-words max-w-xs">{{ perm.descripcion }}</span>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer shrink-0 pl-2">
+                                        <input type="checkbox" name="user_{{ usuario_enfocado.usuario.id }}" value="{{ perm.llave }}"
+                                               {% if perm.concedido_total or usuario_enfocado.rol_actual == 'owner' %}checked{% endif %}
+                                               {% if perm.llave == 'has_access_module' or usuario_enfocado.rol_actual == 'owner' or usuario_enfocado.bloqueo_visual %}disabled{% endif %}
+                                               data-perm="{{ perm.llave }}"
+                                               class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    </label>
+                                </div>
+                            {% empty %}
+                                <div class="col-span-1 md:col-span-2 p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 font-mono text-[11px] text-gray-400 uppercase tracking-wide">
+                                    <i data-lucide="shield-alert" class="w-5 h-5 mx-auto text-gray-300 mb-2"></i>
+                                    <span>// Este nodo operativo no declara llaves granulares en su manifiesto corporativo. El rol base define el acceso total.</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
 
-                        const cards = document.querySelectorAll('[data-perm-card]');
-                        const permisosPorDefecto = roleMapping[selectedRole] || [];
-                        
-                        cards.forEach(card => {
-                            const permName = card.getAttribute('data-perm-card');
-                            const checkbox = card.querySelector('input[type="checkbox"]');
+                    <div class="pt-4 border-t border-gray-100 flex justify-end">
+                        {% if usuario_enfocado.bloqueo_visual %}
+                            <div class="bg-red-50 text-red-700 border border-red-200 font-black py-4 px-8 rounded-xl text-[10px] uppercase tracking-widest select-none cursor-not-allowed shadow-inner font-mono">
+                                🔒 ESCRITURA INHABILITADA POR RANGO O SUSPENSIÓN
+                            </div>
+                        {% else %}
+                            <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-black py-4 px-8 rounded-xl text-[10px] uppercase tracking-widest transition shadow-md transform active:scale-95 flex items-center gap-2 cursor-pointer font-mono">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-slate-400"></i>
+                                <span>🔒 Compilar y Guardar en JSON</span>
+                            </button>
+                        {% endif %}
+                    </div>
+                </form>
+
+                <script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                        const roleSelect = document.getElementById("id_role_select");
+                        const roleMapping = JSON.parse('{{ role_mapping|safe|default:"{}" }}');
+                        const esBloqueoVisual = {% if usuario_enfocado.bloqueo_visual %}true{% else %}false{% endif %};
+
+                        function sincronizarMatrizPorRol(selectedRole, esCambioManual) {
+                            if (esBloqueoVisual) return;
+
+                            const cards = document.querySelectorAll('[data-perm-card]');
+                            const permisosPorDefecto = roleMapping[selectedRole] || [];
                             
-                            if (selectedRole === 'owner') {
-                                checkbox.checked = true;
-                                checkbox.disabled = true;
-                            } else {
-                                checkbox.disabled = false;
-                                if (permName === 'has_access_module') {
+                            cards.forEach(card => {
+                                const permName = card.getAttribute('data-perm-card');
+                                const checkbox = card.querySelector('input[type="checkbox"]');
+                                
+                                if (selectedRole === 'owner') {
                                     checkbox.checked = true;
                                     checkbox.disabled = true;
-                                } else if (esCambioManual) {
-                                    checkbox.checked = permisosPorDefecto.includes(permName);
+                                } else {
+                                    checkbox.disabled = false;
+                                    if (permName === 'has_access_module') {
+                                        checkbox.checked = true;
+                                        checkbox.disabled = true;
+                                    } else if (esCambioManual) {
+                                        checkbox.checked = permisosPorDefecto.includes(permName);
+                                    }
                                 }
-                            }
-                        });
-                    }
+                            });
+                        }
 
-                    if (roleSelect) {
-                        sincronizarMatrizPorRol(roleSelect.value, false);
-                        roleSelect.addEventListener("change", function() {
-                            sincronizarMatrizPorRol(this.value, true);
-                        });
-                    }
-                });
-            </script>
+                        if (roleSelect) {
+                            sincronizarMatrizPorRol(roleSelect.value, false);
+                            roleSelect.addEventListener("change", function() {
+                                sincronizarMatrizPorRol(this.value, true);
+                            });
+                        }
+                    });
+                </script>
+            </div>
             {% else %}
-            <div class="bg-white rounded-[32px] border border-dashed border-gray-200 p-16 text-center max-w-md mx-auto shadow-2xs animate-fade-in">
+            <div id="panel-permisos-derecho" class="bg-white rounded-[32px] border border-dashed border-gray-200 p-16 text-center max-w-md mx-auto shadow-2xs animate-fade-in">
                 <div class="w-14 h-14 bg-slate-50 rounded-2xl border border-gray-100 flex items-center justify-center text-2xl mx-auto mb-4 select-none shadow-inner">
                     🔑
                 </div>

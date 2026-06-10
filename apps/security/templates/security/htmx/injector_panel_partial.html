@@ -1,0 +1,22 @@
+<div id="modulo-injector-container" class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
+    <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+        <i data-lucide="user-plus" class="w-3.5 h-3.5 text-slate-400"></i> // Incorporar funcionario público a este aplicativo
+    </div>
+    <form hx-post="{% url 'security:inyectar_usuario' app.id %}"
+          hx-target="#personal-list-container"
+          hx-swap="outerHTML"
+          class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+            <select name="user_id" class="w-full h-11 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-950/10 appearance-none cursor-pointer">
+                <option value="" disabled selected>🔍 Seleccionar funcionario para inyección de llaves...</option>
+                {% for user in disponibles_para_inyectar %}
+                    <option value="{{ user.id }}">{{ user.full_name|upper }} ({{ user.email }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="h-11 px-6 bg-slate-950 text-white rounded-xl text-2xs font-black tracking-widest uppercase hover:bg-slate-900 transition flex items-center justify-center gap-2 font-mono shrink-0">
+            Inyectar al módulo →
+        </button>
+    </form>
+</div>
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
