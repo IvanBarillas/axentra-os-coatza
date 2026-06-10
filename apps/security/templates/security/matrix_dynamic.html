@@ -87,18 +87,36 @@
                                 <span class="text-[8px] font-black font-mono uppercase px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 tracking-wide animate-pulse">SUSP</span>
                             {% else %}
                                 <span class="text-[8px] font-black font-mono uppercase px-1.5 py-0.5 rounded shrink-0 {% if item.es_el_seleccionado %} bg-white/10 text-white {% else %} bg-gray-200 text-slate-600 {% endif %}">
-                                    {{ item.role_actual }}
+                                    {{ item.rol_actual }}
                                 </span>
                             {% endif %}
                         </div>
                     </a>
 
-                    {% if item.usuario.id != request.user.id and item.role_actual != 'OWNER' %}
-                        {% if item.is_suspended %}
-                            {% include "security/htmx/matrix_user_actions_partial.html" with item=item rol_active=False app=app %}
-                        {% else %}
-                            {% include "security/htmx/matrix_user_actions_partial.html" with item=item rol_active=True app=app %}
+                    {% if item.usuario.id != request.user.id and item.rol_actual != 'OWNER' %}
+                    <div class="absolute right-3 opacity-0 group-hover/tarjeta:opacity-100 flex items-center gap-1.5 transition-all duration-150 z-10 p-1" id="actions-wrapper-{{ item.usuario.id }}">
+                        
+                        <button type="button"
+                                hx-post="{% url 'security:toggle_user_modulo_active' item.usuario.id app.id %}"
+                                hx-target="#actions-wrapper-{{ item.usuario.id }}"
+                                hx-swap="outerHTML"
+                                class="p-1.5 rounded-lg border transition duration-150 cursor-pointer shadow-3xs {% if not item.is_suspended %} bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white {% else %} bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-600 hover:text-white {% endif %}"
+                                title="{% if not item.is_suspended %}Suspender Acceso Temporalmente{% else %}Activar Membresía{% endif %}">
+                            <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                        </button>
+
+                        {% if request.user.is_manager or request.user.is_superuser %}
+                        <button type="button"
+                                hx-post="{% url 'security:expulsar_usuario_modulo_total' item.usuario.id app.id %}"
+                                hx-target="#user-row-container-{{ item.usuario.id }}"
+                                hx-swap="delete"
+                                hx-confirm="🚨 ¿EJECUTAR PURGA TOTAL? Se eliminarán permanentemente los accesos de {{ item.usuario.full_name|upper }}."
+                                class="p-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition duration-150 cursor-pointer shadow-3xs"
+                                title="Eliminar de la App">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
                         {% endif %}
+                    </div>
                     {% endif %}
                     
                 </div>
@@ -183,7 +201,7 @@
                             {% empty %}
                                 <div class="col-span-1 md:col-span-2 p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 font-mono text-[11px] text-gray-400 uppercase tracking-wide">
                                     <i data-lucide="shield-alert" class="w-5 h-5 mx-auto text-gray-300 mb-2"></i>
-                                    <span>// Este nodo operativo no declara llaves granulares en su manifiesto corporativo. El rol base define el acceso total.</span>
+                                    <span>// Este nodo operativo no declara llaves granulares en su manifiesto corporativo.</span>
                                 </div>
                             {% endfor %}
                         </div>
@@ -202,47 +220,47 @@
                         {% endif %}
                     </div>
                 </form>
+            </div>
 
-                <script>
-                    document.addEventListener("DOMContentLoaded", function() {
-                        const roleSelect = document.getElementById("id_role_select");
-                        const roleMapping = JSON.parse('{{ role_mapping|safe|default:"{}" }}');
-                        const esBloqueoVisual = {% if usuario_enfocado.bloqueo_visual %}true{% else %}false{% endif %};
+            <script>
+                document.addEventListener("DOMContentLoaded", function() {
+                    const roleSelect = document.getElementById("id_role_select");
+                    const roleMapping = JSON.parse('{{ role_mapping|safe|default:"{}" }}');
+                    const esBloqueoVisual = {% if usuario_enfocado.bloqueo_visual %}true{% else %}false{% endif %};
 
-                        function sincronizarMatrizPorRol(selectedRole, esCambioManual) {
-                            if (esBloqueoVisual) return;
+                    function sincronizarMatrizPorRol(selectedRole, esCambioManual) {
+                        if (esBloqueoVisual) return;
 
-                            const cards = document.querySelectorAll('[data-perm-card]');
-                            const permisosPorDefecto = roleMapping[selectedRole] || [];
+                        const cards = document.querySelectorAll('[data-perm-card]');
+                        const permisosPorDefecto = roleMapping[selectedRole] || [];
+                        
+                        cards.forEach(card => {
+                            const permName = card.getAttribute('data-perm-card');
+                            const checkbox = card.querySelector('input[type="checkbox"]');
                             
-                            cards.forEach(card => {
-                                const permName = card.getAttribute('data-perm-card');
-                                const checkbox = card.querySelector('input[type="checkbox"]');
-                                
-                                if (selectedRole === 'owner') {
+                            if (selectedRole === 'owner') {
+                                checkbox.checked = true;
+                                checkbox.disabled = true;
+                            } else {
+                                checkbox.disabled = false;
+                                if (permName === 'has_access_module') {
                                     checkbox.checked = true;
                                     checkbox.disabled = true;
-                                } else {
-                                    checkbox.disabled = false;
-                                    if (permName === 'has_access_module') {
-                                        checkbox.checked = true;
-                                        checkbox.disabled = true;
-                                    } else if (esCambioManual) {
-                                        checkbox.checked = permisosPorDefecto.includes(permName);
-                                    }
+                                } else if (esCambioManual) {
+                                    checkbox.checked = permisosPorDefecto.includes(permName);
                                 }
-                            });
-                        }
+                            }
+                        });
+                    }
 
-                        if (roleSelect) {
-                            sincronizarMatrizPorRol(roleSelect.value, false);
-                            roleSelect.addEventListener("change", function() {
-                                sincronizarMatrizPorRol(this.value, true);
-                            });
-                        }
-                    });
-                </script>
-            </div>
+                    if (roleSelect) {
+                        sincronizarMatrizPorRol(roleSelect.value, false);
+                        roleSelect.addEventListener("change", function() {
+                            sincronizarMatrizPorRol(this.value, true);
+                        });
+                    }
+                });
+            </script>
             {% else %}
             <div id="panel-permisos-derecho" class="bg-white rounded-[32px] border border-dashed border-gray-200 p-16 text-center max-w-md mx-auto shadow-2xs animate-fade-in">
                 <div class="w-14 h-14 bg-slate-50 rounded-2xl border border-gray-100 flex items-center justify-center text-2xl mx-auto mb-4 select-none shadow-inner">
@@ -253,6 +271,7 @@
             </div>
             {% endif %}
         </div>
+
     </div>
 </div>
 
