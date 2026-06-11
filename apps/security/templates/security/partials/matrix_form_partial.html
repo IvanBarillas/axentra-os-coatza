@@ -1,0 +1,133 @@
+{% if usuario_enfocado %}
+<div id="panel-permisos-derecho" class="w-full animate-fade-in">
+    <form method="POST" action="{% url 'security:guardar_llaves' app.id usuario_enfocado.usuario.id %}" class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs space-y-6">
+        {% csrf_token %}
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-4 gap-2">
+            <div>
+                <div class="text-[9px] font-black text-gray-400 font-mono uppercase tracking-wider">// Inspección del Árbol de Credenciales</div>
+                <h3 class="text-sm font-black text-gray-950 font-mono uppercase mt-0.5">
+                    {{ usuario_enfocado.usuario.full_name }}
+                </h3>
+            </div>
+
+            <div class="flex items-center gap-2 font-mono text-[10px]">
+                <span class="text-gray-400 font-bold uppercase tracking-wider">Rol de Dominio:</span>
+                {% if usuario_enfocado.bloqueo_visual %}
+                    <span class="bg-gray-100 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-black uppercase tracking-wide">
+                        {{ usuario_enfocado.rol_actual|upper }}
+                    </span>
+                {% else %}
+                    <select name="role" id="id_role_select" class="bg-gray-50 border border-gray-200 rounded-xl py-1.5 px-3 uppercase text-gray-900 font-bold focus:outline-hidden cursor-pointer">
+                        {% for val, etiqueta in roles_choices %}
+                            <option value="{{ val }}" {% if val == usuario_enfocado.rol_actual %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if usuario_enfocado.bloqueo_visual %}
+        <div class="p-4 bg-amber-50 border border-amber-200 text-amber-950 font-mono text-[11px] rounded-2xl flex gap-3 uppercase tracking-wide leading-relaxed animate-fade-in">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+            <div>
+                <strong class="text-amber-950 block font-black text-[11px] tracking-wider mb-0.5">Consola en Modo de Lectura Protegido:</strong>
+                {% if usuario_enfocado.motivo_bloqueo == "auto_lock" %}
+                    No puedes auto-modificar tus llaves JSON. Auto-regulación activa.
+                {% elif usuario_enfocado.motivo_bloqueo == "owner_lock" %}
+                    El perfil del Owner Supremo es inmutable y se encuentra resguardado por el Core.
+                {% elif usuario_enfocado.motivo_bloqueo == "weight_lock" %}
+                    Violación de Escalafón: Este funcionario posee un peso jerárquico igual o superior a tus llaves locales.
+                {% elif usuario_enfocado.motivo_bloqueo == "suspended_lock" %}
+                    La cuenta del funcionario se encuentra suspendida temporalmente. Reactive el switch para operar.
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for p in usuario_enfocado.permisos %}
+            <div class="p-4 border {% if p.concedido_total %}bg-slate-50/50 border-gray-200/80 shadow-3xs{% else %}border-gray-100/70 opacity-60{% endif %} rounded-2xl flex items-start justify-between gap-3.5 transition select-none" data-perm-card="{{ p.llave }}">
+                <div class="space-y-0.5 pr-2 truncate">
+                    <span class="block text-[11px] font-bold font-mono text-gray-950 uppercase tracking-tight flex items-center gap-1.5">
+                        {{ p.llave }}
+                        {% if p.obligatorio_by_role %}
+                            <span class="text-[8px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-sm tracking-widest font-sans uppercase">CORE</span>
+                        {% endif %}
+                    </span>
+                    <p class="text-[10px] text-gray-400 font-sans font-medium leading-normal whitespace-normal">{{ p.descripcion }}</p>
+                </div>
+                <input type="checkbox" 
+                       name="permisos_checks" 
+                       value="{{ p.llave }}"
+                       {% if p.concedido_total %}checked{% endif %}
+                       {% if usuario_enfocado.bloqueo_visual or p.obligatorio_by_role %}disabled{% endif %}
+                       class="w-4 h-4 rounded-sm border-gray-300 text-purple-600 focus:ring-purple-500 mt-0.5 shrink-0 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="flex justify-end pt-2 border-t border-gray-100">
+            {% if usuario_enfocado.bloqueo_visual %}
+                <div class="bg-gray-100 text-gray-400 border border-gray-200 font-black py-4 px-8 rounded-xl text-[10px] uppercase tracking-widest select-none cursor-not-allowed font-mono">
+                    Escritura Inhabilitada
+                </div>
+            {% else %}
+                <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-mono font-bold text-[10px] uppercase tracking-wider py-4 px-8 rounded-xl transition transform active:scale-95 shadow-xs flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="lock" class="w-3.5 h-3.5 text-gray-400"></i>
+                    <span>Re-grabar Privilegios</span>
+                </button>
+            {% endif %}
+        </div>
+
+    </form>
+</div>
+
+<script>
+    (function() {
+        const roleSelect = document.getElementById("id_role_select");
+        const roleMapping = JSON.parse('{{ role_mapping_json|safe|default:"{}" }}');
+        const esBloqueoVisual = {% if usuario_enfocado.bloqueo_visual %}true{% else %}false{% endif %};
+
+        function sincronizarMatrizPorRol(selectedRole, esCambioManual) {
+            if (esBloqueoVisual) return;
+            const cards = document.querySelectorAll('[data-perm-card]');
+            const permisosPorDefecto = roleMapping[selectedRole] || [];
+            
+            cards.forEach(card => {
+                const permName = card.getAttribute('data-perm-card');
+                const checkbox = card.querySelector('input[type="checkbox"]');
+                if (!checkbox) return;
+
+                if (selectedRole === 'owner') {
+                    checkbox.checked = true;
+                    checkbox.disabled = true;
+                } else {
+                    checkbox.disabled = false;
+                    if (permName === 'has_access_module') {
+                        checkbox.checked = true;
+                        checkbox.disabled = true;
+                    } else if (esCambioManual) {
+                        checkbox.checked = permisosPorDefecto.includes(permName);
+                    }
+                }
+            });
+        }
+
+        if (roleSelect) {
+            sincronizarMatrizPorRol(roleSelect.value, false);
+            roleSelect.addEventListener("change", function() {
+                sincronizarMatrizPorRol(this.value, true);
+            });
+        }
+    })();
+</script>
+{% else %}
+<div id="panel-permisos-derecho" class="bg-white rounded-[32px] border border-dashed border-gray-200 p-16 text-center max-w-md mx-auto shadow-2xs">
+    <div class="w-14 h-14 bg-slate-50 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 mx-auto mb-4 shadow-inner">
+        <i data-lucide="fingerprint" class="w-6 h-6 stroke-1.5"></i>
+    </div>
+    <h4 class="text-base font-black text-gray-950 tracking-tight font-mono uppercase">Consola de Llaves de Acceso</h4>
+    <p class="text-xs text-gray-400 font-medium font-mono mt-2 leading-relaxed uppercase">Seleccione un funcionario del padrón izquierdo para escanear, auditar o mutar su mapa de privilegios locales en este nodo operativo.</p>
+</div>
+{% endif %}
