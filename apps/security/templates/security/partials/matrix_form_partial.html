@@ -92,30 +92,38 @@
         function sincronizarMatrizPorRol(selectedRole, esCambioManual) {
             if (esBloqueoVisual) return;
             const cards = document.querySelectorAll('[data-perm-card]');
-            const permisosPorDefecto = roleMapping[selectedRole] || [];
             
             cards.forEach(card => {
                 const permName = card.getAttribute('data-perm-card');
                 const checkbox = card.querySelector('input[type="checkbox"]');
                 if (!checkbox) return;
 
+                // 👑 REGLA SOBERANA PARA EL OWNER SUPREMO
                 if (selectedRole === 'owner') {
                     checkbox.checked = true;
                     checkbox.disabled = true;
                 } else {
+                    // 🛡️ ENFOQUE PROPUSTO: Para cualquier otro rol, mantenemos los controles editables
                     checkbox.disabled = false;
+                    
+                    // El token de entrada al ecosistema es obligatorio por diseño y se queda fijo
                     if (permName === 'has_access_module') {
                         checkbox.checked = true;
                         checkbox.disabled = true;
                     } else if (esCambioManual) {
-                        checkbox.checked = permisosPorDefecto.includes(permName);
+                        // ❌ [NUEVA REGLA]: Al mutar de rol manualmente en la UX, NO encendemos nada en masa.
+                        // Forzamos un estado limpio (apagado) para que el administrador asigne los tokens de forma explícita.
+                        checkbox.checked = false;
                     }
                 }
             });
         }
 
         if (roleSelect) {
+            // Inicialización al cargar la vista parcial (respeta lo que viene real de la BD)
             sincronizarMatrizPorRol(roleSelect.value, false);
+            
+            // Evento de escucha al cambiar el selector
             roleSelect.addEventListener("change", function() {
                 sincronizarMatrizPorRol(this.value, true);
             });

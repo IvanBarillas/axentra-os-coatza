@@ -154,17 +154,15 @@ def dynamic_permission_matrix_view(request):
 def guardar_llaves_json_view(request, app_id, user_id):
     """
     MUTADOR ATÓMICO: Compila la grilla de checkboxes y actualiza el JSONField en Postgres.
-    🛡️ CORTAFUEGOS SOBERANO: Permite a un Mánager global modificar a cualquier usuario (incluso Owners).
+    🛡️ ENFOQUE ZERO-TRUST CALIBRADO: Impide la auto-asignación masiva al cambiar a 'admin'.
+    Solo el rol 'owner' hereda todo por defecto; los demás nacen con el mínimo absoluto.
     """
     try:
-        # 1. Definición estricta de las entidades requeridas
         app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
         target_user = get_object_or_404(User, id=user_id)
         
-        # 2. Evaluación de rango del operador actual
         is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
 
-        # 3. Extracción y normalización del nuevo rol
         nuevo_rol = request.POST.get('role') or request.POST.get(f'role_{user_id}') or request.POST.get('nuevo_rol')
         if not nuevo_rol:
             messages.error(request, "⚠️ No se especificó un rol válido en la petición.")
@@ -172,25 +170,16 @@ def guardar_llaves_json_view(request, app_id, user_id):
             
         nuevo_rol = str(nuevo_rol).lower().strip()
 
-        # 4. Extracción de los checkboxes de la matriz
+        # 🟢 CAPTURA GRANULAR REAL: Extraemos únicamente los checkboxes que el usuario marcó en la pantalla
         llaves_encendidas = request.POST.getlist('permisos_checks') or request.POST.getlist(f'user_{user_id}') or []
 
-        # 5. Recuperación del rol actual en el módulo para evaluar el escalafón de pesos
         rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module).first()
         rol_actual_str = rol_actual_obj.role if rol_actual_obj else 'viewer'
 
-        # Supongamos que tienes una función utilitaria o diccionario en tu config para los pesos
-        # Si no usas pesos dinámicos por código, puedes omitir o adaptar este bloque
-        try:
-            from apps.security.utils import get_app_permissions
-            config_app = get_app_permissions(app_module.slug)
-            weights_map = config_app.get('weights', {})
-            permissions_pool = config_app.get('permissions', {})
-        except ImportError:
-            weights_map = {'owner': 100, 'admin': 80, 'reviewer': 50, 'viewer': 10}
-            permissions_pool = {}
+        config_app = get_app_permissions(app_module.slug)
+        weights_map = config_app.get('weights', {})
+        permissions_pool = config_app.get('permissions', {})
 
-        # 6. Cortafuegos de jerarquía para usuarios normales (No Managers)
         if not is_manager_global:
             rol_operador_obj = UserAppRole.objects.filter(user=request.user, app=app_module, is_active=True).first()
             rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
@@ -200,37 +189,38 @@ def guardar_llaves_json_view(request, app_id, user_id):
             peso_nuevo_destino = weights_map.get(str(nuevo_rol).lower().strip(), 0)
 
             if peso_actual_destino >= peso_operador or peso_nuevo_destino >= peso_operador:
-                messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico para alterar o declarar este rango.")
+                messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico requerido.")
                 return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
 
-        # 7. Si se promueve a Owner, se le heredan todas las llaves disponibles por defecto
+        # 🟢 EXCLUSIVIDAD DE PROMO_OWNER: Solo si se selecciona OWNER se llena la piscina completa.
+        # Si se selecciona 'admin', NO tocamos la lista 'llaves_encendidas'; dejamos que viaje limpia con lo que marcó la UX.
         if nuevo_rol == "owner" and permissions_pool:
             llaves_encendidas = list(permissions_pool.keys())
 
-        # El token de acceso al módulo es obligatorio por diseño
+        # El token mínimo obligatorio vitalicio de acceso al chasis se queda amarrado por seguridad
         if 'has_access_module' not in llaves_encendidas:
             llaves_encendidas.append('has_access_module')
 
-        # 8. Invocación al servicio con los nombres exactos de los parámetros requeridos
-        success = PermissionService.save_matrix_permissions(
-            target_user=target_user, 
-            app_module=app_module, 
-            nuevo_rol=nuevo_rol, 
-            llaves_encendidas=llaves_encendidas
-        )
-
-        if success:
-            messages.success(request, f"🔒 Matriz de configuración actualizada para {target_user.get_full_name() or target_user.username}.")
+        # 👑 PERSISTENCIA DIRECTA PARA EVITAR INTERCEPTORES DEL SERVICE
+        # Si eres Manager Supremo, forzamos la sobreescritura directa en las columnas del ORM
+        # saltándonos cualquier factory o cargador automático que le auto-inyecte permisos al rol admin
+        if is_manager_global and rol_actual_obj:
+            rol_actual_obj.role = nuevo_rol
+            rol_actual_obj.permissions_list = llaves_encendidas
+            rol_actual_obj.save()
+            messages.success(request, f"🔒 [NIVEL MAESTRO]: Privilegios granulares reconfigurados para {target_user.username} con rol [{nuevo_rol.upper()}].")
         else:
-            # 👑 RESCATE SUPREMO: Si el servicio sigue rechazando la transacción en el validador estricto, 
-            # y el operador es un mánager, forzamos la escritura directamente en la persistencia del ORM.
-            if is_manager_global and rol_actual_obj:
-                rol_actual_obj.role = nuevo_rol
-                rol_actual_obj.permissions_list = llaves_encendidas
-                rol_actual_obj.save()
-                messages.success(request, f"⚡ [FORCED BYPASS]: Rango reconfigurado por decreto de Mánager Supremo para {target_user.username}.")
+            # Flujo estándar para operadores tradicionales
+            success = PermissionService.save_matrix_permissions(
+                target_user=target_user, 
+                app_module=app_module, 
+                nuevo_rol=nuevo_rol, 
+                llaves_encendidas=llaves_encendidas
+            )
+            if success:
+                messages.success(request, f"🔒 Matriz actualizada para {target_user.username}.")
             else:
-                messages.error(request, "❌ Error de consistencia al procesar la mutación en el ecosistema.")
+                messages.error(request, "❌ Error de consistencia al procesar la mutación.")
                 
         return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
 
