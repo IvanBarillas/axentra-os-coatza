@@ -45,7 +45,7 @@ def security_control_panel_view(request):
 
 
 # =========================================================================
-# 📊 PILAR 2: CABINA DE MANDO ANALÍTICA (HEIMDALL FORENSIC LAYER)
+# 📊 PILAR 2: CABINA DE MANDO ANALÍTICA (FORENSIC LAYER)
 # =========================================================================
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
@@ -352,18 +352,19 @@ def security_global_matrix_forensic_view(request):
         'area_id': request.GET.get('area', '').strip() or None
     }
     
-    # Invocamos la compilación optimizada en RAM del Selector
+    # Invocamos la compilación optimizada en RAM del Selector unificado
     funcionarios_liquidados = PermissionSelectors.listar_matriz_forense_global(filtros)
     
-    # Jalamos catálogos limpios para los selectores del formulario superior
-    sedes = Dependencia.objects.none() # Reemplaza por tu query de sedes si es necesario
-    # Nota: Si ocupas los objetos Sede/Dependencia para el template, los importas de tu app organigrama
-    from apps.security.models.organigrama import Dependencia # Ejemplo
+    # 🏛️ Catálogos institucionales para alimentar los combo boxes de filtrado
+    from apps.security.models.organigrama import Dependencia, Sede, AreaOperativa
     
     context = {
         'funcionarios': funcionarios_liquidados,
         'aplicaciones_sistema': AppIdentifier.get_choices(),
-        # Datos requeridos para mantener vivos los combos de filtrado institucional
+        'sedes': Sede.objects.filter(is_active=True).order_by('nombre'),
+        'dependencias': Dependencia.objects.filter(is_active=True, is_deleted=False).order_by('nombre'),
+        'areas_operativas': AreaOperativa.objects.filter(is_active=True, is_deleted=False).order_by('nombre').distinct('nombre'),
+        # Datos requeridos para mantener vivos los estados del formulario en el template
         'current_q': filtros['q'],
         'current_sede': str(filtros['sede_id']) if filtros['sede_id'] else "",
         'current_dep': str(filtros['dependencia_id']) if filtros['dependencia_id'] else "",

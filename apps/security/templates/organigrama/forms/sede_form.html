@@ -1,4 +1,5 @@
 {% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
 
 {% block app_context_badge %}Territorio Municipal{% endblock %}
 {% block title %}
@@ -82,10 +83,11 @@
 
         </div>
 
+        <!-- Purgado Axentra Logs -->
         <div class="p-5 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3.5 items-start">
             <i data-lucide="shield-check" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"></i>
             <p class="text-[10px] text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
-                <strong class="text-gray-950">Gobernanza Atómica:</strong> Al persistir este registro, los datos se empacarán bajo un esquema criptográfico `SedeInputDTO` y se auditarán automáticamente en el historial forense de `Heimdall Logs` vinculando tu usuario activo.
+                <strong class="text-gray-950">Gobernanza Atómica:</strong> Al persistir este registro, los datos se empacarán bajo un esquema criptográfico `SedeInputDTO` y se auditarán automáticamente en el historial forense de `Axentra Logs` vinculando tu usuario activo.
             </p>
         </div>
 
@@ -102,4 +104,6 @@
 
     </form>
 </div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
 {% endblock %}

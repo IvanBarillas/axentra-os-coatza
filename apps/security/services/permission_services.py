@@ -103,7 +103,7 @@ class PermissionService:
 
         accion_log = f"Mutación de Privilegios: Rol asignado [{rol_limpio.upper()}]" if not created else f"Inyección Inicial: Otorgado Rol [{rol_limpio.upper()}]"
         
-        # Buffer circular Inmutable (Heimdall Audit Log)
+        # Buffer circular Inmutable (Audit Log)
         SecurityAuditLog.objects.create(
             operator_user=target_user,
             level_status=SecurityAuditLog.Levels.SUCCESS,

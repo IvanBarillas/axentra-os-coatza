@@ -7,32 +7,26 @@
 {% block dashboard_content %}
 <div class="min-h-[70vh] flex items-center justify-center p-4 bg-slate-950 rounded-[40px] border border-slate-900/60 animate-fade-in select-none">
     
-    <!-- Mosaico perimetral blindado estilo Cyberpunk -->
     <div class="max-w-md w-full bg-slate-900/90 border border-red-900/40 rounded-[32px] p-8 shadow-[0_32px_64px_rgba(220,38,38,0.06)] space-y-6 relative overflow-hidden backdrop-blur-md">
         
-        <!-- Barra superior de pulso forense -->
         <div class="absolute top-0 left-0 w-full h-1.5 bg-red-600 animate-pulse"></div>
         
-        <!-- Escudo Centinela Heimdall -->
         <div class="flex justify-center">
-            <div class="w-16 h-16 bg-red-950/40 border border-red-500/30 rounded-2xl text-red-500 text-3xl flex items-center justify-center shadow-lg shadow-red-950/50 animate-bounce">
-                🛡️
+            <div class="w-16 h-16 bg-red-950/40 border border-red-500/30 rounded-2xl text-red-500 flex items-center justify-center shadow-lg shadow-red-950/50">
+                <i data-lucide="shield-alert" class="w-8 h-8 text-red-500"></i>
             </div>
         </div>
 
-        <!-- Encabezado de la Interceptación -->
         <div class="text-center space-y-2">
             <span class="inline-block px-3 py-1 rounded-full bg-red-950/80 text-red-400 text-[9px] font-black uppercase tracking-[0.2em] font-mono border border-red-800/40">
-                🚨 HEIMDALL SECURITY SHIELD
+                AXENTRA SECURITY SHIELD
             </span>
             <h3 class="text-xl font-black text-white tracking-tight uppercase font-mono">Petición Interceptada</h3>
             <p class="text-xs text-slate-400 font-medium leading-relaxed font-mono uppercase">
-                <!-- 🟢 DINÁMICO: Renderiza el motivo real del desplome enviado por el controlador views.py -->
                 {{ error_detalle|default:"El sistema de seguridad perimetral ha congelado esta petición debido a un intento de navegación no autorizado o manipulación de parámetros de red." }}
             </p>
         </div>
 
-        <!-- Buffer de Trazas del Log Forense -->
         <div class="p-5 bg-slate-950/80 border border-slate-800/60 rounded-2xl space-y-3 font-mono text-[10px] text-slate-400">
             <div class="text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1.5">
                 <span class="w-1 h-1 bg-red-500 rounded-full inline-block animate-ping"></span>
@@ -43,19 +37,19 @@
                 <p>• <strong class="text-slate-500">ORIGEN:</strong> Cuenta de usuario activa autenticada.</p>
                 <p>• <strong class="text-slate-500">TRAZA:</strong> Identificador UUID y firma digital inyectados al stream de auditoría forense.</p>
                 <p class="text-red-400/90 font-bold mt-2 border-t border-red-950/40 pt-2 tracking-wide text-[9px]">
-                    ⚠️ ESTA ACCIÓN HA SIDO NOTIFICADA DE FORMA AUTOMÁTICA AL ADMINISTRADOR SUPREMO DE LA PLATAFORMA.
+                    ESTA ACCIÓN HA SIDO NOTIFICADA DE FORMA AUTOMÁTICA AL ADMINISTRADOR SUPREMO DE LA PLATAFORMA.
                 </p>
             </div>
         </div>
 
-        <!-- Botón de Abortar y Salida Segura -->
         <div class="pt-2 flex justify-center">
-            <!-- 🟢 CORRECCIÓN DE RUTA: Redirección garantizada al chasis ligero de ciberseguridad -->
             <a href="{% url 'security:control_panel' %}" class="w-full text-center bg-red-600 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest py-4 rounded-xl transition-all duration-300 transform active:scale-95 shadow-md shadow-red-900/20 font-mono">
-                ⚠️ Abortar Operación y Salir Seguro
+                Abortar Operación y Salir Seguro
             </a>
         </div>
         
     </div>
 </div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
 {% endblock %}

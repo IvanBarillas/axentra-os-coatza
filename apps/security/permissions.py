@@ -36,11 +36,12 @@ class SecurityPermissions:
         'viewer': ['has_access_module'],
     }
 
+    # 🛰️ SIDEBAR TOTALMENTE CALIBRADO CON EL NUEVO ENDPOINT FORENSE (SIN EMOJIS)
     SIDEBAR_MENU = [
         ["layout-dashboard", "Cuarto de Control", "security:control_panel", 1, "has_access_module"],
-        ["grid", "Matriz de Permisos", "security:dynamic_matrix", 2, "can_view_matrix"],
-        ["settings", "Identidad Global", "security:tenant_config", 3, "can_configure_tenant"],
+        ["activity", "Auditoría Forense", "security:global_matrix_forensic", 3, "can_view_matrix"],
         ["bar-chart-3", "Consola Analítica", "security:dashboard", 4, "can_view_analytics"],
+        ["settings", "Identidad Global", "security:tenant_config", 5, "can_configure_tenant"],
     ]
     
     # 🛰️ CONFIGURACIÓN LOGÍSTICA DE CAPACIDADES (Semántica de Negocio Local Organigrama)

@@ -7,7 +7,8 @@
 {% block dashboard_content %}
 <div class="space-y-10 pb-12 w-full animate-fade-in select-none">
     
-    {% dashboard_header badge_text="🛰️ TELEMETRÍA FORENSE DE AUDITORÍA" title="Consola Analítica" description="Monitoreo de trazas en vivo de operaciones críticas, traslapes de identidad y bloqueos del Core Engine." status_text="STREAMING LIVE" status_color="emerald-500" accent_color="slate-950" modulo_actual="security" %}
+    <!-- Cambiado el emoji satelital por la declaración limpia de Axentra OS -->
+    {% dashboard_header badge_text="TELEMETRÍA FORENSE DE AUDITORÍA" title="Consola Analítica" description="Monitoreo de trazas en vivo de operaciones críticas, traslapes de identidad y bloqueos del Core Engine." status_text="STREAMING LIVE" status_color="emerald-500" accent_color="slate-950" modulo_actual="security" %}
     
     <div class="bg-[#090d16] p-8 rounded-[32px] border border-slate-800 shadow-2xl flex flex-col justify-between min-h-[480px]">
         <div>
@@ -18,7 +19,8 @@
                         <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
                         <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
                     </div>
-                    <span class="text-[10px] font-black text-slate-400 font-mono uppercase tracking-widest pl-2">Heimdall Security Audit Stream (Today's Cycle)</span>
+                    <!-- Purgado  Axentra -->
+                    <span class="text-[10px] font-black text-slate-400 font-mono uppercase tracking-widest pl-2">Axentra Security Audit Stream (Today's Cycle)</span>
                 </div>
                 <span class="text-[9px] font-bold font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">AES-256 LOGGER BUFFER</span>
             </div>
@@ -27,20 +29,27 @@
                 {% for log in recents_audits %}
                 <div class="flex items-start gap-4 p-2.5 rounded-xl hover:bg-slate-900/60 transition duration-150">
                     <span class="text-slate-600 shrink-0 select-none">[{{ log.timestamp|date:"H:i:s" }}]</span>
-                    <span class="{% if log.tipo == 'CRITICAL' %} text-red-500 font-bold {% elif log.tipo == 'SUCCESS' %} text-emerald-400 {% else %} text-blue-400 {% endif %} shrink-0 select-none">
-                        ● {{ log.tipo }}
+                    
+                    <!-- Reemplazado el punto manual por la semántica visual del chasis -->
+                    <span class="{% if log.tipo == 'CRITICAL' %} text-red-500 font-bold {% elif log.tipo == 'SUCCESS' %} text-emerald-400 {% else %} text-blue-400 {% endif %} shrink-0 select-none flex items-center gap-1.5 uppercase text-[10px] tracking-wider">
+                        <span class="w-1.5 h-1.5 rounded-full {% if log.tipo == 'CRITICAL' %} bg-red-500 {% elif log.tipo == 'SUCCESS' %} bg-emerald-400 {% else %} bg-blue-400 {% endif %}"></span>
+                        {{ log.tipo }}
                     </span>
+                    
                     <span class="text-slate-300 truncate">
                         Operator <strong class="text-slate-400 font-semibold">{{ log.operador }}</strong> executed [<span class="text-amber-400 font-bold">{{ log.accion }}</span>] on cluster scope: '<span class="text-slate-100">{{ log.destino }}</span>'.
                     </span>
                 </div>
                 {% empty %}
-                <div class="text-slate-600 text-xs py-16 font-mono text-center select-none border border-dashed border-slate-800/60 rounded-2xl">
-                    // No execution packets or mutations captured during today's fiscal cycle.
+                <div class="text-slate-600 text-xs py-16 font-mono text-center select-none border border-dashed border-slate-800/60 rounded-2xl flex flex-col items-center justify-center gap-2">
+                    <i data-lucide="terminal" class="w-5 h-5 text-slate-700"></i>
+                    <span>// No execution packets or mutations captured during today's fiscal cycle.</span>
                 </div>
                 {% endfor %}
             </div>
         </div>
     </div>
 </div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
 {% endblock %}

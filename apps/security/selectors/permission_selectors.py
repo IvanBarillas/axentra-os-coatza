@@ -163,13 +163,24 @@ class PermissionSelectors:
 
     @classmethod
     def listar_matriz_forense_global(cls, filtros) -> list:
-        """🪙 RAM FORENSIC ENGINE: Extrae la plantilla operativa completa e inyecta los mapas de acceso."""
+        """
+        🪙 RAM FORENSIC ENGINE: Extrae la plantilla operativa completa e inyecta 
+        los mapas transaccionales de acceso cruzado evitando el problema N+1.
+        🟢 BLINDAJE ABSOLUTO: Computa acrónimos dinámicos basados en el slug real de la Dependencia.
+        """
+        # Extraemos personal operativo excluyendo superusuarios con precarga de relaciones
         usuarios_queryset = (
             User.objects.filter(is_superuser=False)
-            .select_related('profile', 'profile__area', 'profile__area__dependencia', 'profile__area__sede_fisica')
+            .select_related(
+                'axentra_profile', 
+                'axentra_profile__area', 
+                'axentra_profile__area__dependencia', 
+                'axentra_profile__area__sede_fisica'
+            )
             .order_by('-date_joined')
         )
         
+        # Filtros de búsqueda nominativa o por correo
         if filtros.get('q'):
             q_filter = filtros.get('q')
             usuarios_queryset = usuarios_queryset.filter(
@@ -178,17 +189,19 @@ class PermissionSelectors:
                 db_models.Q(last_name__icontains=q_filter)
             )
             
+        # Filtros de estructura orgánica (Filtros del chasis superior)
         sede_id = filtros.get('sede_id')
         dependencia_id = filtros.get('dependencia_id')
         area_id = filtros.get('area_id')
         
         if sede_id:
-            usuarios_queryset = usuarios_queryset.filter(profile__area__sede_fisica_id=sede_id)
+            usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__sede_fisica_id=sede_id)
         if dependencia_id:
-            usuarios_queryset = usuarios_queryset.filter(profile__area__dependencia_id=dependencia_id)
+            usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__dependencia_id=dependencia_id)
         if area_id:
-            usuarios_queryset = usuarios_queryset.filter(profile__area__id=area_id)
+            usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__id=area_id)
 
+        # Carga masiva de credenciales a memoria RAM para evitar consultas recurrentes
         todos_los_roles = UserAppRole.objects.filter(is_active=True).select_related('app')
         matriz_seguridad_ram = {}
         for rol in todos_los_roles:
@@ -200,11 +213,16 @@ class PermissionSelectors:
             }
 
         plantilla_final_funcionarios = []
+        
+        # Conectores gramaticales a omitir para la construcción del acrónimo limpio
+        particulas_ignorar = {'de', 'la', 'el', 'y', 'los', 'las', 'en', 'para'}
+
         for user in usuarios_queryset:
             roles_usuario = matriz_seguridad_ram.get(user.id, {})
             accesos_modulos = {}
             owners_modulos = {}  
             
+            # Cruzamos los privilegios contra el catálogo inmutable del Core
             for slug, _ in AppIdentifier.get_choices():
                 if getattr(user, 'is_manager', False):
                     accesos_modulos[slug] = True
@@ -217,17 +235,30 @@ class PermissionSelectors:
                     accesos_modulos[slug] = (rol_str == "owner") or ("has_access_module" in permisos_list)
                     owners_modulos[slug] = (rol_str == "owner")
             
-            profile = getattr(user, 'profile', None)
+            profile = getattr(user, 'axentra_profile', None)
             area = getattr(profile, 'area', None) if profile else None
+            dependencia = getattr(area, 'dependencia', None) if area else None
             
+            # 🪐 ALGORITMO DE ACRÓNIMO DINÁMICO SANITIZADO
+            if dependencia and dependencia.slug:
+                # Rompemos el slug por guiones (Ej: "direccion-de-tecnologias-y-sistemas")
+                palabras = dependencia.slug.split('-')
+                # Filtramos conectores y extraemos la inicial de las palabras clave
+                letras_clave = [p[0].upper() for p in palabras if p and p not in particulas_ignorar]
+                
+                # Si el acrónimo queda muy corto (ej: una sola palabra), usamos los primeros 4 caracteres
+                dep_siglas = "".join(letras_clave) if len(letras_clave) > 1 else dependencia.slug[:4].upper()
+            else:
+                dep_siglas = 'MUNI'
+
             plantilla_final_funcionarios.append({
                 'full_name': user.get_full_name() or user.username,
                 'email': user.email,
                 'profile_id': profile.id if profile else None,
                 'is_email_verified': getattr(user, 'is_email_verified', False),
                 'is_manager': getattr(user, 'is_manager', False),
-                'sede_nombre': area.sede_fisica.nombre if area and area.sede_fisica else '',
-                'dependencia_siglas': area.dependencia.siglas if area and area.dependencia else '',
+                'sede_nombre': area.sede_fisica.nombre if area and getattr(area, 'sede_fisica', None) else '',
+                'dependencia_siglas': dep_siglas,  # Acrónimo calculado elegantemente en tiempo de ejecución
                 'area_nombre': area.nombre if area else '',
                 'accesos_modulos': accesos_modulos,
                 'owners_modulos': owners_modulos

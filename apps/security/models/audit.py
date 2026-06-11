@@ -4,7 +4,7 @@ from django.db import models
 from django.conf import settings
 
 class SecurityAuditLog(models.Model):
-    """Buffer circular de auditoría forense (Heimdall Logs)."""
+    """Buffer circular de auditoría forense."""
     class Levels(models.TextChoices):
         CRITICAL = "CRITICAL", "🚨 Operación Crítica / Traslape / Bloqueo"
         SUCCESS = "SUCCESS", "🟢 Operación Exitosa / Acceso Concedido"

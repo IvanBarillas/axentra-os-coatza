@@ -10,7 +10,7 @@
     <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <div class="text-[10px] font-black text-red-600 font-mono uppercase tracking-widest mb-1">
-                🛡️ CONTROL PERIMETRAL / MATRIX AUDIT
+                CONTROL PERIMETRAL / MATRIX AUDIT
             </div>
             <h2 class="text-3xl font-black text-gray-950 tracking-tighter uppercase font-mono">Matriz de Accesos Multi-App</h2>
             <p class="text-xs text-gray-400 font-medium font-mono mt-0.5 uppercase">Visor maestro de privilegios. Inspeccione de forma síncrona qué funcionarios tienen inyectado el token de acceso general.</p>
@@ -51,11 +51,11 @@
                                     {% if not funcionario.profile_id %}
                                         <span class="text-red-600 font-black px-1.5 py-0.5 rounded bg-red-100/80 text-[8px] tracking-wide animate-pulse">ALERTA: SIN PERFIL ORGÁNICO</span>
                                     {% else %}
-                                        <span class="text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px]">📍 {{ funcionario.sede_nombre }}</span>
+                                        <span class="text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px] font-mono">{{ funcionario.sede_nombre }}</span>
                                         <span class="text-gray-300">|</span>
-                                        <span class="text-gray-500 font-bold">🏢 {{ funcionario.dependencia_siglas }}</span>
+                                        <span class="text-gray-500 font-bold font-mono">{{ funcionario.dependencia_siglas }}</span>
                                         <span class="text-gray-300">|</span>
-                                        <span class="text-blue-600 font-black">{{ funcionario.area_nombre }}</span>
+                                        <span class="text-blue-600 font-black font-mono">{{ funcionario.area_nombre }}</span>
                                     {% endif %}
                                 </div>
                             </td>
@@ -63,7 +63,7 @@
                             <td class="py-4 px-6 whitespace-nowrap text-center">
                                 {% if funcionario.is_email_verified %}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-emerald-600 text-white font-mono tracking-wider shadow-2xs">VERIFICADO</span>
-                                Constitutional {% else %}
+                                {% else %}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-amber-500 text-white font-mono tracking-wider animate-pulse">PENDIENTE</span>
                                 {% endif %}
                             </td>
