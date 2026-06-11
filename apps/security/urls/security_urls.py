@@ -8,7 +8,8 @@ from apps.security.views.security_views import (
     security_dashboard_view,         
     dynamic_permission_matrix_view,  
     matrix_capabilities_view,        
-    add_capability_node_view,        
+    add_capability_node_view,
+    security_global_matrix_forensic_view,        
     toggle_capability_ajax_view,     
     tenant_config_view,
     toggle_user_modulo_active_ajax_view               
@@ -24,6 +25,7 @@ urls_security = [
     
     # 🪐 PILAR 3: CÁPSULA DINÁMICA UNIVERSAL (Matriz de Checkboxes JSONField)
     path('matriz/', dynamic_permission_matrix_view, name='dynamic_matrix'),
+    path('matriz/auditoria-global/', security_global_matrix_forensic_view, name='global_matrix_forensic'),
     path('matriz/guardar-llaves/<int:app_id>/<uuid:user_id>/', guardar_llaves_json_view, name='guardar_llaves'),
     path('matriz/inyectar-funcionario/<int:app_id>/', inyectar_funcionario_view, name='inyectar_funcionario'),
     

@@ -17,9 +17,13 @@ from .accounts_selectors import (
 # 🛡️ PILAR 3: CIBERSEGURIDAD CENTRAL Y MATRIZ (SECURITY)
 from .security_selectors import (
     SecurityDashboardSelectors, 
-    PermissionSelectors,  
     TenantConfigSelectors
 )
+
+from .permission_selectors import (
+    PermissionSelectors,
+)
+
 
 # Exposición oficial libre de fantasmas para el Core de Axentra OS
 __all__ = [
@@ -36,5 +40,6 @@ __all__ = [
     # Dominios de Security
     'SecurityDashboardSelectors', 
     'TenantConfigSelectors',
-    'PermissionSelectors'
+    
+    'PermissionSelectors',
 ]

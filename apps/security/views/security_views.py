@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_POST
 
 from apps.security.models.organigrama import AppDependencyCapability, Dependencia
+from apps.security.selectors.permission_selectors import PermissionSelectors
 from apps.security.services.permission_loader import get_app_permissions
 from apps.shared.apps_config import AppIdentifier
 from apps.security.decorators import axentra_gate_enforcer
@@ -22,8 +23,8 @@ from apps.security.forms import TenantConfigForm
 from apps.security.selectors.security_selectors import (
     CapabilitySelectors,
     SecurityDashboardSelectors,
-    PermissionSelectors
 )
+
 from apps.security.services.security_services import PermissionService
 
 User = get_user_model()
@@ -52,7 +53,7 @@ def security_dashboard_view(request):
     """Consola Central de Ciberseguridad: Audita densidad de llaves JSONField y logs."""
     context = SecurityDashboardSelectors.obtener_metricas_firewall()
     context['recents_audits'] = SecurityDashboardSelectors.obtener_buffer_auditoria(limite=50)
-    return render(request, 'security/dashboard/dashboard_security.html', context)
+    return render(request, 'security/dashboard/security_dashboard.html', context)
 
 
 # =========================================================================
@@ -338,3 +339,35 @@ def expulsar_usuario_modulo_total_ajax_view(request, user_id, app_id):
 # =========================================================================
 # 🎛️ 
 # =========================================================================
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
+def security_global_matrix_forensic_view(request):
+    """🛡️ AUDITORÍA GLOBAL MATRIX: Escanea y diagnostica de forma masiva los tokens de acceso."""
+    # Recolectamos los parámetros de filtrado orgánico desde el GET
+    filtros = {
+        'q': request.GET.get('q', '').strip(),
+        'sede_id': request.GET.get('sede', '').strip() or None,
+        'dependencia_id': request.GET.get('dependencia', '').strip() or None,
+        'area_id': request.GET.get('area', '').strip() or None
+    }
+    
+    # Invocamos la compilación optimizada en RAM del Selector
+    funcionarios_liquidados = PermissionSelectors.listar_matriz_forense_global(filtros)
+    
+    # Jalamos catálogos limpios para los selectores del formulario superior
+    sedes = Dependencia.objects.none() # Reemplaza por tu query de sedes si es necesario
+    # Nota: Si ocupas los objetos Sede/Dependencia para el template, los importas de tu app organigrama
+    from apps.security.models.organigrama import Dependencia # Ejemplo
+    
+    context = {
+        'funcionarios': funcionarios_liquidados,
+        'aplicaciones_sistema': AppIdentifier.get_choices(),
+        # Datos requeridos para mantener vivos los combos de filtrado institucional
+        'current_q': filtros['q'],
+        'current_sede': str(filtros['sede_id']) if filtros['sede_id'] else "",
+        'current_dep': str(filtros['dependencia_id']) if filtros['dependencia_id'] else "",
+        'current_area': str(filtros['area_id']) if filtros['area_id'] else "",
+    }
+    
+    return render(request, 'security/global_matrix_forensic.html', context)
