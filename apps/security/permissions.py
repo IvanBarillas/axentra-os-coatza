@@ -1,4 +1,3 @@
-# apps/security/permissions.py
 from apps.shared.apps_config import AppIdentifier
 
 # =========================================================================
@@ -27,16 +26,26 @@ class SecurityPermissions:
         'can_configure_tenant': 'Acción Crítica Core: Permite alterar la identidad visual, logos y RFC legal de la entidad.',
     }
 
-    # 🟢 CALIBRACIÓN ATÓMICA DE LOS 5 ROLES OBLIGATORIOS
+    # Calibración de Roles del Dominio de Ciberseguridad (Incluye un Rol Extra)
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_view_matrix', 'can_modify_matrix', 'can_configure_tenant'],
         'admin': ['has_access_module', 'can_view_analytics', 'can_view_matrix', 'can_modify_matrix'],
+        'cyber_auditor': ['has_access_module', 'can_view_analytics', 'can_view_matrix'],  # ◄── Rol Extra Especializado
         'editor': ['has_access_module', 'can_view_analytics', 'can_view_matrix'],
         'reviewer': ['has_access_module', 'can_view_matrix'],
         'viewer': ['has_access_module'],
     }
 
-    # 🛰️ SIDEBAR TOTALMENTE CALIBRADO CON EL NUEVO ENDPOINT FORENSE (SIN EMOJIS)
+    # 🪐 ESCALAFÓN DE AUTORIDAD SOBERANO PARA SECURITY
+    ROLE_WEIGHTS = {
+        'owner': 100,
+        'admin': 80,
+        'cyber_auditor': 70,  # Capacidad de auditoría intermedia alta
+        'editor': 60,
+        'reviewer': 40,
+        'viewer': 20,
+    }
+
     SIDEBAR_MENU = [
         ["layout-dashboard", "Cuarto de Control", "security:control_panel", 1, "has_access_module"],
         ["activity", "Auditoría Forense", "security:global_matrix_forensic", 3, "can_view_matrix"],
@@ -44,7 +53,6 @@ class SecurityPermissions:
         ["settings", "Identidad Global", "security:tenant_config", 5, "can_configure_tenant"],
     ]
     
-    # 🛰️ CONFIGURACIÓN LOGÍSTICA DE CAPACIDADES (Semántica de Negocio Local Organigrama)
     CAPABILITIES = {
         'flag_alfa': {
             'label': "🛠️ [Security] ¿Es Dependencia Proveedora de Seguridad?",
@@ -93,13 +101,24 @@ class AccountsPermissions:
         'can_delete_user': 'Acción Crítica: Permite aplicar bajas del sistema.',
     }
 
-    # 🟢 CALIBRACIÓN ATÓMICA DE LOS 5 ROLES OBLIGATORIOS (Adaptando editor_rh a editor)
+    # Calibración de Roles Adaptados a la Operación de Recursos Humanos (Nombres Localizados)
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password', 'can_delete_user'],
-        'admin': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password'],
+        'director_rh': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password'], # ◄── Admin Localizado
+        'oficial_rh': ['has_access_module', 'can_view_list', 'can_create_user', 'can_edit_user'], # ◄── Editor Localizado
         'editor': ['has_access_module', 'can_view_list', 'can_create_user', 'can_edit_user'],
         'reviewer': ['has_access_module', 'can_view_list'],
         'viewer': ['has_access_module'],
+    }
+
+    # 🪐 ESCALAFÓN DE AUTORIDAD SOBERANO PARA ACCOUNTS
+    ROLE_WEIGHTS = {
+        'owner': 100,
+        'director_rh': 85,  # Jerarquía de alta dirección operativa
+        'oficial_rh': 65,   # Capturista con privilegios de modificación
+        'editor': 60,
+        'reviewer': 45,
+        'viewer': 20,
     }
 
     SIDEBAR_MENU = [
@@ -135,13 +154,24 @@ class OrganigramaPermissions:
         'can_mutate_structure': 'Acción Crítica Orgánica: Permite administrar, crear, editar y eliminar de forma lógica Secretarías, Direcciones Generales y Áreas Operativas.',
     }
 
-    # 🟢 CALIBRACIÓN ATÓMICA DE LOS 5 ROLES OBLIGATORIOS (Adaptando manager a admin)
+    # Calibración de Roles Orientados a la Topología Urbana y Catastral (Nombres Localizados)
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_manage_infrastructure', 'can_mutate_structure'],
         'admin': ['has_access_module', 'can_view_analytics', 'can_manage_infrastructure'],
+        'planeador_urbano': ['has_access_module', 'can_manage_infrastructure'], # ◄── Editor Localizado
         'editor': ['has_access_module', 'can_manage_infrastructure'],
         'reviewer': ['has_access_module', 'can_view_analytics'],
         'viewer': ['has_access_module'],
+    }
+
+    # 🪐 ESCALAFÓN DE AUTORIDAD SOBERANO PARA ORGANIGRAMA
+    ROLE_WEIGHTS = {
+        'owner': 100,
+        'admin': 80,
+        'planeador_urbano': 65,  # Gestiona sedes físicas y distribución
+        'editor': 60,
+        'reviewer': 40,
+        'viewer': 20,
     }
 
     SIDEBAR_MENU = [

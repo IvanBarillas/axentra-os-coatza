@@ -29,8 +29,6 @@ from apps.security.services.security_services import PermissionService
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
-ROLE_WEIGHTS = {'owner': 100, 'admin': 80, 'editor': 60, 'reviewer': 40, 'viewer': 20}
-
 # =========================================================================
 # 🏁 PILAR 1: CHASIS DE CONTROL TÁCTICO LIGERO
 # =========================================================================
@@ -64,11 +62,8 @@ def tenant_config_view(request):
     config_instancia = TenantConfig.objects.first()
     if not config_instancia:
         config_instancia = TenantConfig.objects.create(
-            app_name="Axentra OS",
-            entidad_nombre="H. Ayuntamiento Constitucional",
-            siglas="AXN"
+            app_name="Axentra OS", entidad_nombre="H. Ayuntamiento Constitucional", siglas="AXN"
         )
-
     if request.method == 'POST':
         form = TenantConfigForm(request.POST, request.FILES, instance=config_instancia)
         if form.is_valid():
@@ -77,11 +72,7 @@ def tenant_config_view(request):
             return redirect('security:control_panel')
     else:
         form = TenantConfigForm(instance=config_instancia)
-        
-    return render(request, 'security/forms/tenant_form.html', {
-        'form': form,
-        'config': config_instancia
-    })
+    return render(request, 'security/forms/tenant_form.html', {'form': form, 'config': config_instancia})
 
 
 # =========================================================================
@@ -90,12 +81,8 @@ def tenant_config_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def dynamic_permission_matrix_view(request):
-    """
-    CONTROLADOR DE LECTURA PURO (GET): Despacha el estado de la matriz.
-    Mantiene cero responsabilidades mutacionales.
-    """
+    """CONTROLADOR DE LECTURA PURO (GET): Despacha el estado de la matriz."""
     app_slug = request.GET.get('app_slug')
-    
     if not app_slug:
         logger.warning(f"🛑 [INTENTO DE BYPASS]: {request.user.email} intentó entrar a la matriz sin app_slug.")
         return render(request, 'security/errors/400_missing_context.html', {
@@ -108,19 +95,15 @@ def dynamic_permission_matrix_view(request):
     is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
 
     context = PermissionSelectors.get_secured_matrix_data(
-        app_module=app_module,
-        user_focus_id=user_focus_id,
-        request_user=request.user,
-        is_manager_global=is_manager_global
+        app_module=app_module, user_focus_id=user_focus_id, request_user=request.user, is_manager_global=is_manager_global
     )
     
     context.update({
         'app': app_module,
         'app_slug_actual': app_module.slug,
         'modulo_actual': app_slug,
-        'roles_buscador': list(UserAppRole.Roles.choices),
+        'roles_buscador': [rol[0] for rol in context.get('roles_choices', [])],
     })
-
     return render(request, 'security/matrix_dynamic.html', context)
 
 
@@ -128,33 +111,35 @@ def dynamic_permission_matrix_view(request):
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def guardar_llaves_json_view(request, app_id, user_id):
-    """
-    MUTADOR ATÓMICO A: Compila la grilla de checkboxes y actualiza el JSONField en Postgres.
-    """
+    """Compila la grilla de checkboxes y actualiza el JSONField en Postgres validando escalafón dinámico."""
     app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
     target_user = get_object_or_404(User, id=user_id)
     is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
 
     nuevo_rol_base = request.POST.get(f'role_{user_id}') or request.POST.get('role') or request.POST.get('nuevo_rol')
     llaves_encendidas = request.POST.getlist(f'user_{user_id}') or request.POST.getlist('permisos_checks') or []
-    nuevo_rol_base = nuevo_rol_base.lower().strip()
+    nuevo_rol_base = str(nuevo_rol_base).lower().strip()
 
     rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module).first()
     rol_actual_str = rol_actual_obj.role if rol_actual_obj else 'viewer'
+
+    # 🛰️ CORTAFUEGOS JERÁRQUICO SOBERANO: Extrae el mapa de autoridad específico de la app
+    config_app = get_app_permissions(app_module.slug)
+    weights_map = config_app.get('weights', {})
 
     if not is_manager_global:
         rol_operador_obj = UserAppRole.objects.filter(user=request.user, app=app_module, is_active=True).first()
         rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
         
-        peso_operador = ROLE_WEIGHTS.get(rol_operador_str, 0)
-        peso_actual_destino = ROLE_WEIGHTS.get(rol_actual_str, 0)
-        peso_nuevo_destino = ROLE_WEIGHTS.get(nuevo_rol_base, 0)
+        # Validación de pesos contra el manifiesto de la aplicación activa
+        peso_operador = weights_map.get(str(rol_operador_str).lower().strip(), 0)
+        peso_actual_destino = weights_map.get(str(rol_actual_str).lower().strip(), 0)
+        peso_nuevo_destino = weights_map.get(str(nuevo_rol_base).lower().strip(), 0)
 
         if peso_actual_destino >= peso_operador or peso_nuevo_destino >= peso_operador:
-            messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico para alterar o declarar este rango.")
-            return redirect("security:dynamic_matrix")
+            messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales en este módulo no tienen el peso jerárquico para alterar o declarar este rango.")
+            return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
 
-    config_app = get_app_permissions(app_module.slug)
     if nuevo_rol_base == "owner":
         llaves_encendidas = list(config_app.get('permissions', {}).keys())
 
@@ -173,9 +158,6 @@ def guardar_llaves_json_view(request, app_id, user_id):
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def inyectar_funcionario_view(request, app_id):
-    """
-    MUTADOR ATÓMICO B: Incorpora un nuevo servidor público al módulo satélite federado.
-    """
     app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
     is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
 
@@ -190,8 +172,7 @@ def inyectar_funcionario_view(request, app_id):
     if PermissionService.authorize_new_user_entry(app_module, str(target_user.id), rol_a_inyectar):
         messages.success(request, f"🟢 Funcionario {target_user.email} inyectado con éxito como [{rol_a_inyectar.upper()}].")
     else:
-        messages.warning(request, "⚠️ Operación cancelada: El funcionario ya cuenta con membresía activa o el proceso falló.")
-        
+        messages.warning(request, "⚠️ Operación cancelada: El funcionario ya cuenta con membresía activa.")
     return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
     
 

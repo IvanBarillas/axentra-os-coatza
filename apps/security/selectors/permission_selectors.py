@@ -15,9 +15,6 @@ from apps.shared.apps_config import AppIdentifier
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
-ROLE_WEIGHTS = {'owner': 100, 'admin': 80, 'editor': 60, 'reviewer': 40, 'viewer': 20}
-
-
 class PermissionSelectors:
     """Control analítico perimetral de credenciales y gobernanza de la Matriz JSON."""
     
@@ -78,9 +75,11 @@ class PermissionSelectors:
         # 1. Traer el padrón total (incluyendo suspendidos) para la lista física izquierda
         roles_activos = UserAppRole.objects.filter(app=app_module).select_related('user').order_by('user__first_name')
         
+        # 🟢 CONEXIÓN ATÓMICA: Jalamos el payload completo que incluye el mapa de pesos específico
         config_app = get_app_permissions(app_module.slug)
         catalogo_permisos = config_app.get('permissions', {})
         role_mapping = config_app.get('roles', {})
+        weights_map = config_app.get('weights', {}) # ◄── Mapa de pesos real de la App
         
         personal_list = []
         usuario_enfocado_data = None
@@ -112,7 +111,7 @@ class PermissionSelectors:
                         'obligatorio_by_role': obligatorio_by_role
                     })
                 
-                # 🛡️ Aduana de Ciberseguridad: Cálculo semántico de bloqueos visuales
+                # 🛡️ Aduana de Ciberseguridad: Cálculo semántico de bloqueos visuales basado en el manifiesto local
                 bloqueo_visual = False
                 motivo_bloqueo = "none"
 
@@ -120,8 +119,9 @@ class PermissionSelectors:
                     rol_operador_obj = UserAppRole.objects.filter(user=request_user, app=app_module, is_active=True).first()
                     rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
                     
-                    peso_operador = ROLE_WEIGHTS.get(rol_operador_str, 0)
-                    peso_destino = ROLE_WEIGHTS.get(r.role, 0)
+                    # Extrae la jerarquía de autoridad leyendo dinámicamente el mapa de la app actual
+                    peso_operador = weights_map.get(str(rol_operador_str).lower().strip(), 0)
+                    peso_destino = weights_map.get(str(r.role).lower().strip(), 0)
 
                     if str(r.user.id) == str(request_user.id):
                         bloqueo_visual = True
@@ -141,7 +141,7 @@ class PermissionSelectors:
                     'motivo_bloqueo': "suspended_lock" if not r.is_active else motivo_bloqueo
                 }
 
-        # 3. Filtrado quirúrgico del padrón de usuarios disponibles para inyectar (excluye asignados)
+        # 3. Filtrado del padrón de usuarios disponibles para inyectar (excluye asignados)
         if is_manager_global:
             usuarios_ya_asignados = UserAppRole.objects.filter(app=app_module).values_list('user_id', flat=True)
             usuarios_potenciales = User.objects.filter(is_active=True, is_superuser=False, is_manager=False).exclude(id__in=usuarios_ya_asignados).order_by('first_name')
@@ -150,17 +150,18 @@ class PermissionSelectors:
             usuarios_potenciales = None
             mostrar_buscador = False
 
-        roles_grilla = [(val, etiqueta) for val, etiqueta in UserAppRole.Roles.choices if val != 'owner' or is_manager_global]
+        # Inyecta las llaves del mapeo de la app para que el combo-box del HTML se llene dinámicamente
+        roles_grilla = [(rol_key, rol_key.upper()) for rol_key in role_mapping.keys() if rol_key != 'owner' or is_manager_global]
 
         return {
             'personal_list': personal_list,
             'usuario_enfocado': usuario_enfocado_data,
-            'roles_choices': roles_grilla,
+            'roles_choices': roles_grilla, # ◄── Combo boxes dinámicos atados al manifiesto local de la app
             'role_mapping': role_mapping,
             'mostrar_buscador': mostrar_buscador,
             'usuarios_potenciales': usuarios_potenciales
         }
-
+    
     @classmethod
     def listar_matriz_forense_global(cls, filtros) -> list:
         """

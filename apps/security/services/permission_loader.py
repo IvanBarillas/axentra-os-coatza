@@ -14,9 +14,13 @@ def get_app_permissions(app_slug):
     Busca en caliente el archivo permissions.py de forma inteligente:
     - Si pertenece al Core unificado, lee 'apps.security.permissions'.
     - Si es una App satélite independiente, lee su ruta nativa desacoplada.
+    🟢 REGISTRO DINÁMICO: Incorpora la extracción de ROLE_WEIGHTS soberanos.
     """
     app_slug = str(app_slug).strip().lower()
-    fallback_config = {'permissions': {}, 'roles': {}}
+    
+    # Escalafón base del sistema operativo para proteger la retrocompatibilidad
+    default_weights = {'owner': 100, 'admin': 80, 'editor': 60, 'reviewer': 40, 'viewer': 20}
+    fallback_config = {'permissions': {}, 'roles': {}, 'weights': default_weights}
     
     # 🏛️ CATÁLOGO DE SUBMÓDULOS DEL NÚCLEO CORE (UNIFICADOS EN DISCO)
     CORE_SUBMODULES = ['security', 'accounts', 'organigrama']
@@ -39,13 +43,15 @@ def get_app_permissions(app_slug):
                 clase_permisos = getattr(module, attr_name)
                 return {
                     'permissions': getattr(clase_permisos, 'PERMISSIONS', {}),
-                    'roles': getattr(clase_permisos, 'ROLE_MAPPING', {})
+                    'roles': getattr(clase_permisos, 'ROLE_MAPPING', {}),
+                    'weights': getattr(clase_permisos, 'ROLE_WEIGHTS', default_weights) # ◄── Extracción atómica
                 }
                 
         # Fallback si el archivo no usa clases y tiene las constantes sueltas
         return {
             'permissions': getattr(module, 'PERMISSIONS', {}),
-            'roles': getattr(module, 'ROLE_MAPPING', {})
+            'roles': getattr(module, 'ROLE_MAPPING', {}),
+            'weights': getattr(module, 'ROLE_WEIGHTS', default_weights)
         }
     except ModuleNotFoundError:
         logger.warning(f"⚠️ El módulo [{app_slug.upper()}] no cuenta con un manifiesto permissions.py activo en '{module_path}'.")
@@ -66,6 +72,7 @@ def get_user_permissions_for_app(user, app_slug):
     EL RADAR EN CALIENTE:
     Convierte el JSONField de la BD en banderas booleanas legibles por el HTML,
     las Vistas FBV y los Context Processors del sistema operativo.
+    🟢 TELEMETRÍA AVANZADA: Imprime el escalafón jerárquico dinámico en consola.
     """
     app_slug = str(app_slug).strip().lower()
     
@@ -87,6 +94,10 @@ def get_user_permissions_for_app(user, app_slug):
     except Exception:
         llamado_desde = "Origen Desconocido"
 
+    # Jalamos la configuración perimetral de la app (incluyendo su mapa de pesos)
+    config_app = get_app_permissions(app_slug)
+    weights_map = config_app.get('weights', {})
+
     print("\n🕵️‍♂️ " + "🔍"*25)
     print(f"📡 RADAR EN CALIENTE AXENTRA OS: EVALUADOR DE PERMISOS [{app_slug.upper()}]")
     print(f"👤 Evaluando a:        {user.email}")
@@ -100,9 +111,8 @@ def get_user_permissions_for_app(user, app_slug):
         permisos['has_access'] = True
         permisos['has_access_module'] = True
         
-        config = get_app_permissions(app_slug)
         all_perms = set()
-        for perms_list in config['roles'].values():
+        for perms_list in config_app['roles'].values():
             all_perms.update(perms_list)
             
         lista_maestra = list(all_perms)
@@ -115,7 +125,7 @@ def get_user_permissions_for_app(user, app_slug):
         for permiso in lista_maestra:
             permisos[permiso] = True
             
-        print("👑 RESULTADO: Acceso total concedido por regla jerárquica de Manager Supremo.")
+        print("👑 RESULTADO: Acceso total concedido por regla jerárquica de Manager Supremo [Peso Absoluto: INF].")
         print("🔍"*26 + "\n")
         return permisos
 
@@ -140,7 +150,11 @@ def get_user_permissions_for_app(user, app_slug):
         print("🔍"*26 + "\n")
         return permisos
 
-    print(f"🎖️ Membresía (role) en DB:   [{rol.role.upper()}]")
+    # Extraemos el peso dinámico del rol leyéndolo desde el manifiesto inyectado
+    rol_str = str(rol.role).lower().strip()
+    peso_detectado = weights_map.get(rol_str, 0)
+
+    print(f"🎖️ Membresía (role) en DB:   [{rol.role.upper()}] (Peso de Autoridad Local: {peso_detectado})")
     print(f"📦 JSONField guardado en DB:  {rol.permissions_list}")
 
     # Activamos los flags maestros de entrada general perimetral
@@ -164,8 +178,7 @@ def get_user_permissions_for_app(user, app_slug):
     # =========================================================================
     if rol.role in ['owner', 'OWNER']:
         print("⚠ DETECTOR: El usuario tiene rango de OWNER. Analizando inyección heredada...")
-        config = get_app_permissions(app_slug)
-        owner_perms = config['roles'].get('owner', []) or config['roles'].get('OWNER', [])
+        owner_perms = config_app['roles'].get('owner', []) or config_app['roles'].get('OWNER', [])
         
         for p in owner_perms:
             permisos[p] = True
