@@ -3,42 +3,15 @@ import sys
 import logging
 import traceback
 from typing import List, Dict, Any
-from importlib import import_module
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from apps.security.models import UserAppRole, AppModule
 
+# 🛰️ UNIFICACIÓN ESTRUCTURAL: Centraliza la carga de manifiestos dinámicos evitando colisiones en RAM
+from apps.security.services.permission_loader import get_app_permissions
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
-
-def get_app_permissions(app_slug: str) -> Dict[str, Any]:
-    """
-    Busca en caliente el archivo permissions.py de la app solicitada de forma nativa.
-    Resuelve de manera automática las firmas CamelCase esperadas para los manifiestos.
-    """
-    app_slug = str(app_slug).strip().lower()
-    try:
-        # Importamos dinámicamente el manifiesto unificado de permisos
-        module = import_module('apps.security.permissions')
-        
-        # Formateador CamelCase robusto para el slug (ej: "dynamic_forms" -> "DynamicForms")
-        slug_procesado = "".join([word.capitalize() for word in app_slug.split("_")])
-        clases_esperadas = [f"{slug_procesado}Permissions", "ModulePermissions"]
-        
-        for attr_name in clases_esperadas:
-            if hasattr(module, attr_name):
-                clase_permisos = getattr(module, attr_name)
-                return {
-                    'permissions': getattr(clase_permisos, 'PERMISSIONS', {}),
-                    'roles': getattr(clase_permisos, 'ROLE_MAPPING', {})
-                }
-        return {
-            'permissions': getattr(module, 'PERMISSIONS', {}),
-            'roles': getattr(module, 'ROLE_MAPPING', {})
-        }
-    except Exception:
-        logger.warning(f"⚠️ El manifiesto de ciberseguridad para [{app_slug.upper()}] no pudo ser localizado.")
-        return {'permissions': {}, 'roles': {}}
 
 
 class PermissionService:
@@ -62,8 +35,7 @@ class PermissionService:
                 if rol_existente and rol_existente.is_active:
                     return False
 
-                # 🟢 ENFOQUE SEGURIDAD MÁXIMA (ZERO TRUST): Si es 'owner' se lleva el catálogo total.
-                # Si es cualquier otro rango, nace exclusivamente con la llave de acceso perimetral base.
+                # 🟢 ZERO TRUST ENFORCEMENT: Si es 'owner' se lleva el catálogo total dinámico.
                 if rol_limpio == "owner":
                     config_app = get_app_permissions(app_module.slug)
                     llaves_finales = list(config_app.get('permissions', {}).keys())
@@ -93,7 +65,6 @@ class PermissionService:
         del manifiesto permissions.py activo de la aplicación correspondiente.
         """
         try:
-            # Medidor de telemetría e introspección de ejecución por consola profunda
             frame = sys._getframe(1)
             invocado_desde = f"{frame.f_code.co_filename.split('/')[-1]} -> {frame.f_code.co_name}()"
         except Exception:
@@ -119,7 +90,7 @@ class PermissionService:
         lista_final_json = list(set([str(llave).strip() for llave in llaves_encendidas if llave]))
 
         # =========================================================================
-        # 🛡️ FILTRO DE CONGRUENCIA PERIMETRAL: DEPURACIÓN DE LLAVES INEXISTENTES
+        # 🛡️ FILTRO DE CONGRUENCIA MULTI-APP: CONSUME EL CARGADOR INTELIGENTE
         # =========================================================================
         llaves_validas_manifiesto = set()
         config_app = get_app_permissions(app_module.slug)
