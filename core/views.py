@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect
 from apps.security.models import UserAppRole
 from apps.shared.apps_config import AppIdentifier
 from apps.shared.manifest_registry import AxentraOSRegistry
+from apps.shared.utils.telemetry import AxentraRadar
 
 def launcher_home_view(request):
     """
@@ -40,16 +41,20 @@ def launcher_home_view(request):
     )
 
     # ============================================================================
-    # 🛰️ BITÁCORA DE INTROSPECCIÓN EN VIVO (MESA DE TELEMETRÍA PURIFICADA)
+    # 🔮 REFRACTORIZACIÓN INTEGRADA: LLAMADA AL DESPACHADOR DE TELEMETRÍA GLOBAL
     # ============================================================================
-    print("\n🔮 " + "═"*76)
-    print("🖥️  INSPECTOR DE RENDERIZADO DEL LAUNCHER VIEWER (SEGMENTADO)")
-    print(f"👤 Servidor Público: {request.user.email}")
-    print(f"👑 ¿Es Root/Bypass?:  {is_root}")
-    print(f"🎯 Slugs Extraídos de UserAppRole: {allowed_apps_identifiers}")
-    print(f"🏛️  Módulos Core Hidratados: {len(launcher_data.get('core_apps', []))}")
-    print(f"🛰️  Módulos Satélites Hidratados: {len(launcher_data.get('satellite_apps', []))}")
-    print("═"*80 + "\n")
+    AxentraRadar.imprimir_auditoria(
+        componente="launcher_home_view",
+        request=request,
+        titulo="Inspector de Renderizado del Launcher Viewer",
+        icono="🔮",
+        extra_data={
+            "¿Es Root/Bypass?": "SÍ (Acceso Total Abierto)" if is_root else "NO (Flujo Restringido por ORM)",
+            "Slugs Extraídos (BD/Choices)": allowed_apps_identifiers,
+            "Módulos Core Hidratados": len(launcher_data.get('core_apps', [])),
+            "Módulos Satélites Hidratados": len(launcher_data.get('satellite_apps', []))
+        }
+    )
     # ============================================================================
 
     # 🟢 ENVIAMOS EL CONTEXTO: Pasamos launcher_data que contiene las dos listas internas

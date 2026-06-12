@@ -139,3 +139,9 @@ CSRF_COOKIE_HTTPONLY = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'same-origin'
+
+# =========================================================================
+# CONFIGURACIÓN SOBERANA DE TELEMETRÍA (AXENTRA RADAR INTERRUPTOR)
+# =========================================================================
+# Lee del archivo .env correspondiente; si no existe, por defecto se apaga.
+AXENTRA_CORE_VERBOSE_RADAR = config('AXENTRA_CORE_VERBOSE_RADAR', default=False, cast=bool)

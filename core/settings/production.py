@@ -53,6 +53,11 @@ LOGGING = {
     },
     'root': {
         'handlers': ['file'],
-        'level': 'WARNING', # Solo guardamos Advertencias y Errores graves para cuidar el disco
+        'level': 'WARNING', 
     },
 }
+
+# =========================================================================
+# VELOCIDAD CERO: Apagado estricto e inmutable para entorno en vivo
+# =========================================================================
+AXENTRA_CORE_VERBOSE_RADAR = False

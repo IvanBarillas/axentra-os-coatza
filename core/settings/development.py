@@ -37,3 +37,8 @@ LOGGING = {
         'level': 'DEBUG', # Nivel detallado para encontrar bugs rápido en WSL
     },
 }
+
+# =========================================================================
+# INTERRUPTOR LOCAL: Siempre encendido para inspección visual en WSL/Consola
+# =========================================================================
+AXENTRA_CORE_VERBOSE_RADAR = True
