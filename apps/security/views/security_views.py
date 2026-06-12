@@ -116,21 +116,41 @@ def tenant_config_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def dynamic_permission_matrix_view(request):
-    """CONTROLADOR DE LECTURA PURO (GET): Despacha el estado de la matriz."""
+    """CONTROLADOR DE LECTURA PURO (GET): Despacha el estado de la matriz con centinela forense."""
     app_slug = request.GET.get('app_slug', '').strip().lower()
+    
+    # 🚨 INTERCEPTOR PERIMETRAL: Si no hay firma de contexto, es manipulación manual o tampering
     if not app_slug:
+        
+        # 🪐 AUDITORÍA FORENSE INMEDIATA: Registra la brecha de seguridad con el operador responsable
+        ForensicAuditor.registrar_evento(
+            request=request,
+            action_type=SecurityAuditLog.ActionTypes.UPDATE,  # Mapeado a tus clases transaccionales
+            module_component="MATRIX_PERIMETER",
+            action_name="URL_TAMPERING_ATTEMPT",
+            target_scope="Intento de omisión/manipulación del parámetro contextual de aplicación (app_slug) en el GET de la matriz.",
+            level=SecurityAuditLog.Levels.CRITICAL,  # Nivel crítico directo para alertar a la consola analítica
+            search_target="BYPASS_REJECTED"
+        )
+        
+        # Despachamos el rebote responsivo en modo oscuro
         return render(request, 'security/errors/400_missing_context.html', {
             'error_detalle': "Bloqueo de Infraestructura: La Consola requiere una firma de aplicación explícita."
         }, status=400)
 
+    # Flujo transaccional estándar si el contexto viene sano y firmado
     app_module = get_object_or_404(AppModule, slug=app_slug, is_active=True)
     user_focus_id = request.GET.get('user_id')
+    
     is_manager_global = getattr(request.user, 'is_manager', False) or (
         hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin
     )
 
     context = PermissionSelectors.get_secured_matrix_data(
-        app_module=app_module, user_focus_id=user_focus_id, request_user=request.user, is_manager_global=is_manager_global
+        app_module=app_module, 
+        user_focus_id=user_focus_id, 
+        request_user=request.user, 
+        is_manager_global=is_manager_global
     )
     
     context.update({
@@ -141,7 +161,8 @@ def dynamic_permission_matrix_view(request):
         'roles_buscador': [rol[0] for rol in context.get('roles_choices', [])],
     })
 
-    if request.META.get('HTTP_HX_REQUEST'):
+    # Intercepción elástica de pipelines asíncronos de HTMX
+    if request.META.get('HTTP_HX_REQUEST') or request.headers.get('HX-Request'):
         return render(request, 'security/partials/matrix_form_partial.html', context)
 
     return render(request, 'security/matrix_dynamic.html', context)
