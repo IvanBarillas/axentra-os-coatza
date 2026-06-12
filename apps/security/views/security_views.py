@@ -3,6 +3,7 @@ import json
 import uuid
 import logging
 import traceback
+from django.db.models import Count
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
@@ -27,9 +28,8 @@ logger = logging.getLogger(__name__)
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="has_access_module")
 def security_control_panel_view(request):
-    """Estación base ligera para el monitoreo táctico y accesos rápidos Core."""
-    context = SecurityDashboardSelectors.obtener_metricas_firewall()
-    return render(request, 'security/control_panel.html', context)
+    """Estación base ligera operativa libre de contadores estadísticos pesados."""
+    return render(request, 'security/control_panel.html')
 
 
 @login_required
@@ -39,7 +39,6 @@ def security_dashboard_view(request):
     Consola Central de Ciberseguridad: Audita densidad de llaves JSONField y logs.
     🪐 FILTRADO FORENSE EN CALIENTE: Lee parámetros GET para búsquedas e inspecciones.
     """
-    # 🔍 Recolección de parámetros de la URL
     filtros = {
         'app_namespace': request.GET.get('app_namespace', '').strip().lower() or None,
         'action_type': request.GET.get('action_type', '').strip().upper() or None,
@@ -50,17 +49,36 @@ def security_dashboard_view(request):
         'fecha_fin': request.GET.get('fecha_fin', '').strip() or None,
     }
 
+    # Recolectamos la metadata base del firewall
     context = SecurityDashboardSelectors.obtener_metricas_firewall()
-    
-    # Pasamos el mapa de filtros al buffer analítico
     context['recents_audits'] = SecurityDashboardSelectors.obtener_buffer_auditoria(limite=50, filtros=filtros)
-    
-    # Inyectamos catálogos y estados actuales al contexto para pintar los formularios HTML
+
+    # 📊 GRÁFICA 1: Agregación de volumen de logs por App/Namespace
+    log_counts = SecurityAuditLog.objects.values('app_namespace')\
+        .annotate(total=Count('id'))\
+        .order_by('-total')[:6]
+    g_logs_labels = [item['app_namespace'].upper() for item in log_counts if item['app_namespace']]
+    g_logs_valores = [item['total'] for item in log_counts if item['app_namespace']]
+
+    # 📊 GRÁFICA 2: Agregación por severidad/nivel crítico
+    level_counts = SecurityAuditLog.objects.values('level_status')\
+        .annotate(total=Count('id'))\
+        .order_by('-total')
+    g_levels_labels = [item['level_status'] for item in level_counts if item['level_status']]
+    g_levels_valores = [item['total'] for item in level_counts if item['level_status']]
+
+    # Inyectamos catálogos y estructuras JSON seguras para Chart.js
     context.update({
         'apps_sistema': [choice[0] for choice in AppIdentifier.get_choices()],
         'tipos_accion': SecurityAuditLog.ActionTypes.choices,
         'niveles_status': SecurityAuditLog.Levels.choices,
-        'filtros_actuales': filtros
+        'filtros_actuales': filtros,
+        
+        # Estructuras de datos serializadas para los canvas neón
+        'g_logs_labels': json.dumps(g_logs_labels),
+        'g_logs_valores': json.dumps(g_logs_valores),
+        'g_levels_labels': json.dumps(g_levels_labels),
+        'g_levels_valores': json.dumps(g_levels_valores),
     })
     
     return render(request, 'security/dashboard/security_dashboard.html', context)

@@ -1,16 +1,75 @@
 {% extends "layouts/dashboard_layout.html" %}
 {% load axentra_ui %}
+{% load static %}
 
 {% block app_context_badge %}Consola Analítica{% endblock %}
 {% block title %}Consola Forense | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
+<script src="{% static 'js/chart.umd.js' %}"></script>
+
 <div class="space-y-6 pb-12 w-full animate-fade-in select-none">
     
-    {% dashboard_header badge_text="TELEMETRÍA FORENSE DE AUDITORÍA" title="Consola Analítica" description="Monitoreo de trazas en vivo de operaciones críticas, traslapes de identidad y bloqueos del Core Engine." status_text="STREAMING LIVE" status_color="emerald-500" accent_color="slate-950" modulo_actual="security" %}
-    
-    <form method="GET" class="bg-[#090d16] border border-slate-800/80 p-4 rounded-2xl flex flex-wrap items-center gap-3">
+    <div class="bg-[#090d16] border border-slate-800/80 p-6 md:p-8 rounded-[32px] shadow-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <div class="text-[9px] font-bold text-emerald-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span>TELEMETRÍA FORENSE DE AUDITORÍA // {{ tenant.siglas }}</span>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-100 tracking-tight uppercase font-mono">Consola Analítica</h2>
+            <p class="text-[11px] text-slate-400 font-medium font-mono mt-0.5 uppercase">Monitoreo de trazas en vivo de operaciones críticas, traslapes de identidad y bloqueos del Core Engine.</p>
+        </div>
         
+        <a href="{% url 'security:control_panel' %}" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-black py-3 px-5 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-sm flex items-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-400"></i>
+            <span>Volver al Cuarto de Control</span>
+        </a>
+    </div>
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% stats_card label="Aplicaciones Auditadas" value=total_apps icon="satellite" subtext="Módulos federados en vivo" value_color="slate-200" hover_color="red-500" bg_icon="slate-900" %}
+        {% stats_card label="Bolsas de Asignación" value=llaves_activas_db icon="key" subtext="● Registros JSONField activos" subtext_highlight=True value_color="emerald-400" hover_color="emerald-500" bg_icon="emerald-950/50" %}
+        
+        {% if cuentas_riesgo > 0 %}
+            {% stats_card label="Alertas de Traslape" value=cuentas_riesgo icon="zap" subtext="⚠️ Cuentas muertas con llaves vivas" subtext_highlight=True value_color="red-400" hover_color="red-500" bg_icon="red-950/60" %}
+        {% else %}
+            {% stats_card label="Alertas de Traslape" value="0" icon="zap" subtext="✓ Cero brechas de consistencia" value_color="slate-400" hover_color="slate-700" bg_icon="slate-900" %}
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="bg-[#090d16] border border-slate-800/80 p-6 rounded-[32px] lg:col-span-2 flex flex-col justify-between h-[360px]">
+            <div>
+                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4 text-emerald-400 animate-pulse"></i>
+                    <span>Flujo de Operaciones Recientes</span>
+                </h4>
+                <p class="text-[10px] text-slate-500 font-mono mt-0.5 uppercase">// Volumen de paquetes de auditoría indexados por aplicación.</p>
+            </div>
+            
+            <div class="flex-1 w-full h-full min-h-0 relative mt-4 flex items-center justify-center p-2 bg-[#111827]/40 border border-slate-800/60 rounded-2xl">
+                <canvas id="chartFrecuenciaForense"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-[#090d16] border border-slate-800/80 p-6 rounded-[32px] lg:col-span-1 flex flex-col justify-between h-[360px]">
+            <div>
+                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono flex items-center gap-2">
+                    <i data-lucide="pie-chart" class="w-4 h-4 text-red-500"></i>
+                    <span>Distribución por Criticidad</span>
+                </h4>
+                <p class="text-[10px] text-slate-500 font-mono mt-0.5 uppercase">// Balance operativo por severidad real.</p>
+            </div>
+            
+            <div class="flex-1 w-full h-full min-h-0 relative mt-4 flex items-center justify-center p-2 bg-[#111827]/40 border border-slate-800/60 rounded-2xl">
+                <canvas id="chartCriticidadMix"></canvas>
+            </div>
+        </div>
+        
+    </div>
+
+    <form method="GET" class="bg-[#090d16] border border-slate-800/80 p-4 rounded-2xl flex flex-wrap items-center gap-3">
         <div class="flex flex-col gap-1 shrink-0">
             <span class="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider">Ecosistema/App</span>
             <select name="app_namespace" class="bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-3 py-1.5 focus:outline-none focus:border-amber-500 transition max-w-[120px]">
@@ -110,21 +169,72 @@
 </div>
 
 <style>
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 5px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #090d16;
-        border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #1e293b;
-        border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #d97706;
-    }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #090d16; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d97706; }
 </style>
 
-<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+
+        const logsLabels = {{ g_logs_labels|safe }};
+        const logsValores = {{ g_logs_valores|safe }};
+        const levelsLabels = {{ g_levels_labels|safe }};
+        const levelsValores = {{ g_levels_valores|safe }};
+
+        Chart.defaults.font.family = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        Chart.defaults.font.size = 10;
+        Chart.defaults.color = '#4b5563'; 
+
+        const ctxFrecuencia = document.getElementById('chartFrecuenciaForense').getContext('2d');
+        new Chart(ctxFrecuencia, {
+            type: 'bar',
+            data: {
+                labels: logsLabels.length ? logsLabels : ['Sin datos'],
+                datasets: [{
+                    data: logsValores.length ? logsValores : [0],
+                    backgroundColor: 'rgba(16, 185, 129, 0.75)',
+                    hoverBackgroundColor: '#10b981',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
+                    y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' }, beginAtZero: true }
+                }
+            }
+        });
+
+        const ctxCriticidad = document.getElementById('chartCriticidadMix').getContext('2d');
+        new Chart(ctxCriticidad, {
+            type: 'doughnut',
+            data: {
+                labels: levelsLabels.length ? levelsLabels : ['INFO', 'CRITICAL'],
+                datasets: [{
+                    data: levelsValores.length ? levelsValores : [100, 0],
+                    backgroundColor: ['#10b981', '#ef4444', '#3b82f6', '#f59e0b'],
+                    borderWidth: 1.5,
+                    borderColor: '#090d16'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 8, padding: 10, color: '#9ca3af', usePointStyle: true }
+                    }
+                },
+                cutout: '72%'
+            }
+        });
+    });
+</script>
 {% endblock %}
