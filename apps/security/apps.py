@@ -28,7 +28,7 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
         
         user_root, user_creado = User.objects.get_or_create(
             email=email_root,
-            defaults={'is_staff': True, 'is_superuser': True, 'is_active': True}
+            defaults={'is_staff': False, 'is_superuser': True, 'is_active': True}
         )
         
         if user_creado:

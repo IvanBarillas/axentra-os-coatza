@@ -18,7 +18,7 @@ from apps.security.views.security_views import (
 
 # El namespace 'security' se amarra en el archivo raíz principal del proyecto
 urls_security = [
-    # 🏁 PILAR 1: CUARTO DE CONTROL TÁCTICO LIGERO (Opción 1 del SIDEBAR)
+    # 🏁 PILAR 1: Panel Administrativo TÁCTICO LIGERO (Opción 1 del SIDEBAR)
     path('control/', security_control_panel_view, name='control_panel'),
 
     # 📊 PILAR 2: CONSOLA ANALÍTICA FORENSE / PACKET STREAM (Opción 4 del SIDEBAR)

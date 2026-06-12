@@ -26,30 +26,28 @@ class SecurityPermissions:
         'can_configure_tenant': 'Acción Crítica Core: Permite alterar la identidad visual, logos y RFC legal de la entidad.',
     }
 
-    # Calibración de Roles del Dominio de Ciberseguridad (Incluye un Rol Extra)
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_view_matrix', 'can_modify_matrix', 'can_configure_tenant'],
         'admin': ['has_access_module', 'can_view_analytics', 'can_view_matrix', 'can_modify_matrix'],
-        'cyber_auditor': ['has_access_module', 'can_view_analytics', 'can_view_matrix'],  # ◄── Rol Extra Especializado
+        'cyber_auditor': ['has_access_module', 'can_view_analytics', 'can_view_matrix'],
         'editor': ['has_access_module', 'can_view_analytics', 'can_view_matrix'],
         'reviewer': ['has_access_module', 'can_view_matrix'],
         'viewer': ['has_access_module'],
     }
 
-    # 🪐 ESCALAFÓN DE AUTORIDAD SOBERANO PARA SECURITY
     ROLE_WEIGHTS = {
         'owner': 100,
         'admin': 80,
-        'cyber_auditor': 70,  # Capacidad de auditoría intermedia alta
+        'cyber_auditor': 70,
         'editor': 60,
         'reviewer': 40,
         'viewer': 20,
     }
 
     SIDEBAR_MENU = [
-        ["layout-dashboard", "Cuarto de Control", "security:control_panel", 1, "has_access_module"],
+        ["layout-dashboard", "Panel Administrativo", "security:control_panel", 1, "has_access_module"],
         ["activity", "Auditoría Forense", "security:global_matrix_forensic", 3, "can_view_matrix"],
-        ["bar-chart-3", "Consola Analítica", "security:dashboard", 4, "can_view_analytics"],
+        ["bar-chart-3", "Dashboard Analítico", "security:dashboard", 4, "can_view_analytics"],
         ["settings", "Identidad Global", "security:tenant_config", 5, "can_configure_tenant"],
     ]
     
@@ -101,31 +99,29 @@ class AccountsPermissions:
         'can_delete_user': 'Acción Crítica: Permite aplicar bajas del sistema.',
     }
 
-    # Calibración de Roles Adaptados a la Operación de Recursos Humanos (Nombres Localizados)
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password', 'can_delete_user'],
-        'director_rh': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password'], # ◄── Admin Localizado
-        'oficial_rh': ['has_access_module', 'can_view_list', 'can_create_user', 'can_edit_user'], # ◄── Editor Localizado
+        'director_rh': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password'],
+        'oficial_rh': ['has_access_module', 'can_view_list', 'can_create_user', 'can_edit_user'],
         'editor': ['has_access_module', 'can_view_list', 'can_create_user', 'can_edit_user'],
         'reviewer': ['has_access_module', 'can_view_list'],
         'viewer': ['has_access_module'],
     }
 
-    # 🪐 ESCALAFÓN DE AUTORIDAD SOBERANO PARA ACCOUNTS
     ROLE_WEIGHTS = {
         'owner': 100,
-        'director_rh': 85,  # Jerarquía de alta dirección operativa
-        'oficial_rh': 65,   # Capturista con privilegios de modificación
+        'director_rh': 85,
+        'oficial_rh': 65,
         'editor': 60,
         'reviewer': 45,
         'viewer': 20,
     }
 
     SIDEBAR_MENU = [
-        ["layout-dashboard", "Cuarto de Control", "accounts:control_panel", 1, "has_access_module"],
+        ["layout-dashboard", "Panel Administrativo", "accounts:control_panel", 1, "has_access_module"],
         ["users", "Padrón de Empleados", "accounts:funcionario_list", 2, "can_view_list"],
         ["user-plus", "Alta de Servidor", "accounts:funcionario_create", 3, "can_create_user"],
-        ["bar-chart-3", "Consola Analítica", "accounts:dashboard", 4, "can_view_analytics"],
+        ["bar-chart-3", "Dashboard Analítico", "accounts:dashboard", 4, "can_view_analytics"],
     ]
 
 
@@ -154,29 +150,27 @@ class OrganigramaPermissions:
         'can_mutate_structure': 'Acción Crítica Orgánica: Permite administrar, crear, editar y eliminar de forma lógica Secretarías, Direcciones Generales y Áreas Operativas.',
     }
 
-    # Calibración de Roles Orientados a la Topología Urbana y Catastral (Nombres Localizados)
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_manage_infrastructure', 'can_mutate_structure'],
         'admin': ['has_access_module', 'can_view_analytics', 'can_manage_infrastructure'],
-        'planeador_urbano': ['has_access_module', 'can_manage_infrastructure'], # ◄── Editor Localizado
+        'planeador_urbano': ['has_access_module', 'can_manage_infrastructure'],
         'editor': ['has_access_module', 'can_manage_infrastructure'],
         'reviewer': ['has_access_module', 'can_view_analytics'],
         'viewer': ['has_access_module'],
     }
 
-    # 🪐 ESCALAFÓN DE AUTORIDAD SOBERANO PARA ORGANIGRAMA
     ROLE_WEIGHTS = {
         'owner': 100,
         'admin': 80,
-        'planeador_urbano': 65,  # Gestiona sedes físicas y distribución
+        'planeador_urbano': 65,
         'editor': 60,
         'reviewer': 40,
         'viewer': 20,
     }
 
     SIDEBAR_MENU = [
-        ["layout-dashboard", "Cuarto de Control", "organigrama:control_panel", 1, "has_access_module"],
+        ["layout-dashboard", "Panel Administrativo", "organigrama:control_panel", 1, "has_access_module"],
         ["map-pin", "Sedes e Inmuebles", "organigrama:sede_list", 2, "can_manage_infrastructure"],
         ["git-fork", "Dependencias y áreas", "organigrama:estructura_list", 3, "has_access_module"],
-        ["bar-chart-3", "Consola Analítica", "organigrama:dashboard", 4, "can_view_analytics"],
+        ["bar-chart-3", "Dashboard Analítico", "organigrama:dashboard", 4, "can_view_analytics"],
     ]

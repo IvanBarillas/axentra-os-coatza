@@ -1,4 +1,4 @@
-<nav class="bg-white/80 backdrop-blur-md shadow-2xs border-b border-gray-200/80 sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 py-3.5 select-none">
+<nav class="bg-white/80 backdrop-blur-md shadow-2xs border-b border-gray-200/80 sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 py-3 select-none">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
         
         <div class="flex items-center gap-4">
@@ -9,50 +9,50 @@
                 <i data-lucide="menu" class="h-5 w-5"></i>
             </button>
 
-            <a href="{% url 'launcher_home' %}" class="text-xl font-bold text-gray-900 flex items-center gap-2.5 tracking-tight transition-opacity hover:opacity-90">
+            <a href="{% url 'launcher_home' %}" class="text-xl font-bold text-gray-950 flex items-center gap-3 tracking-tight transition-opacity hover:opacity-90">
                 {% if tenant.logo_light %}
                     <img src="{{ tenant.logo_light }}" alt="Escudo Oficial" class="w-7 h-7 object-contain">
                 {% else %}
-                    <div class="bg-gray-950 text-white p-1.5 rounded-xl shadow-sm flex items-center justify-center w-7 h-7 font-mono font-bold text-xs">
-                        🏛️
+                    <div class="bg-gray-950 text-white rounded-xl shadow-xs flex items-center justify-center w-7 h-7 font-mono font-bold text-xs shrink-0">
+                        <i data-lucide="building-2" class="w-4 h-4 text-gray-200"></i>
                     </div>
                 {% endif %}
-                <div class="leading-none">
-                    <span>{{ tenant.app_name|default:"Axentra" }}</span><span class="text-blue-600 font-light font-mono">OS</span>
+                <div class="leading-none select-none">
+                    <span class="font-extrabold uppercase tracking-tight text-gray-950">{{ tenant.app_name|default:"Axentra" }}</span><span class="text-blue-600 font-light font-mono ml-0.5">OS</span>
                 </div>
             </a>
         </div>
 
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-5">
             
             {% if request.user.is_authenticated %}
                 
                 {% if request.user.is_staff or request.user.is_superuser %}
                     <a href="/axentra-core-secret-portal-manager-wsl/" 
                        target="_blank" 
-                       class="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-700 font-mono border border-amber-200 bg-amber-50/60 px-3 py-1.5 rounded-xl hover:bg-amber-100/80 hover:text-amber-800 transition duration-200">
-                        <i data-lucide="wrench" class="w-3.5 h-3.5"></i> Panel Django
+                       class="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 font-mono border border-amber-200 bg-amber-50/50 px-3 py-1.5 rounded-xl hover:bg-amber-100/80 hover:text-amber-900 transition duration-150">
+                        <i data-lucide="wrench" class="w-3.5 h-3.5 text-amber-600"></i> Panel Django
                     </a>
                 {% endif %}
                 
                 <a href="{% url 'launcher_home' %}" 
-                   class="hidden md:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 font-mono hover:text-gray-900 transition duration-200">
-                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-gray-400"></i> Mis Aplicaciones
+                   class="hidden md:inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono hover:text-gray-950 transition duration-150">
+                    <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Mis Aplicaciones
                 </a>
 
-                <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 gap-2 shadow-2xs">
-                    <span class="text-[9px] text-gray-400 font-bold font-mono uppercase tracking-wider">
-                        {% if request.user.is_manager %}MANAGER:{% else %}OPERADOR:{% endif %}
+                <div class="flex items-center bg-gray-50/80 border border-gray-200 rounded-xl px-3 py-1.5 gap-2 shadow-3xs font-mono">
+                    <span class="text-[8px] text-gray-400 font-black uppercase tracking-widest border-r border-gray-200 pr-2">
+                        {% if request.user.is_manager %}MGR{% else %}OPR{% endif %}
                     </span>
-                    <span class="text-xs font-bold text-gray-700 tracking-tight">
+                    <span class="text-[11px] font-bold text-gray-700 tracking-tight lowercase">
                         {{ request.user.first_name|default:request.user.email }}
                     </span>
                 </div>
 
-                <form action="{% url 'accounts:logout' %}" method="post" class="border-l border-gray-200 pl-4 flex items-center">
+                <form action="{% url 'accounts:logout' %}" method="post" class="border-l border-gray-200/80 pl-3.5 flex items-center">
                     {% csrf_token %}
                     <button type="submit" 
-                            class="text-gray-400 hover:text-red-600 transition duration-200 p-1.5 rounded-lg hover:bg-red-50 cursor-pointer flex items-center justify-center" 
+                            class="text-gray-400 hover:text-red-600 transition duration-150 p-1.5 rounded-xl hover:bg-red-50 cursor-pointer flex items-center justify-center" 
                             title="Cerrar Sesión de Forma Segura">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
                     </button>
@@ -60,7 +60,7 @@
 
             {% else %}
                 <a href="{% url 'accounts:login' %}" 
-                   class="text-xs font-bold uppercase tracking-widest text-gray-600 hover:text-blue-600 transition font-mono flex items-center gap-1">
+                   class="text-xs font-bold uppercase tracking-widest text-gray-600 hover:text-blue-600 transition font-mono flex items-center gap-1.5">
                     <i data-lucide="log-in" class="w-4 h-4"></i> Entrar
                 </a>
             {% endif %}

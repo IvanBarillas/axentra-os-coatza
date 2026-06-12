@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def organigrama_control_view(request):
-    """Cuarto de Control General: Enrutador táctico de alta velocidad sin carga analítica."""
+    """Panel Administrativo General: Enrutador táctico de alta velocidad sin carga analítica."""
     return render(request, 'organigrama/control_panel.html')
 
 

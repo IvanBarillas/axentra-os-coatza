@@ -1,30 +1,29 @@
-<!-- templates/partials/_footer.html -->
-<footer class="bg-white border-t border-gray-200/80 py-3.5 px-4 sm:px-6 lg:px-8 select-none w-full">
-    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-medium text-gray-500">
+<footer class="bg-white border-t border-gray-200/80 py-3 px-4 sm:px-6 lg:px-8 select-none w-full">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] font-mono font-medium text-gray-400">
         
-        <!-- Izquierda: Identidad y Licencia del Cliente -->
-        <div class="flex items-center gap-2">
-            <span class="font-bold text-gray-900 tracking-tight flex items-center gap-1">
+        <div class="flex items-center gap-2 text-xs font-sans font-normal text-gray-500">
+            <span class="font-extrabold text-gray-950 tracking-tight flex items-center gap-1.5 select-none">
                 <i data-lucide="shield" class="w-3.5 h-3.5 text-blue-600"></i> {{ tenant.app_name|default:"Axentra OS" }}
             </span>
-            <span class="text-gray-300">|</span>
-            <span class="text-gray-400">Entorno Licenciado para:</span>
-            <span class="font-semibold text-gray-700 truncate max-w-[220px]">
-                {{ tenant.siglas|default:"COATZA" }}
+            <span class="text-gray-200">/</span>
+            <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-gray-400">Licencia:</span>
+            <span class="font-mono font-black uppercase tracking-wider text-gray-700 truncate max-w-[220px]">
+                [{{ tenant.siglas|default:"COATZA" }}]
             </span>
         </div>
 
-        <!-- Centro: Copyright y RFC Legal -->
-        <div class="flex items-center gap-4 font-mono text-[10px] tracking-tight text-gray-400">
-            <span>&copy; 2026 AXENTRA SECURITY</span>
-            <span class="text-gray-200">•</span>
-            <span>RFC: {{ tenant.rfc|default:"MUNICIPAL" }}</span>
+        <div class="flex items-center gap-3 font-mono text-[9px] tracking-wider uppercase text-gray-400">
+            <span>&copy; 2026 Axentra Security</span>
+            <span class="text-gray-200 font-sans">/</span>
+            <span>RFC: <strong class="text-gray-600 font-bold">{{ tenant.rfc|default:"MUNICIPAL" }}</strong></span>
         </div>
 
-        <!-- Derecha: SLA Activo -->
-        <div class="flex items-center gap-4 shrink-0">
-            <div class="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200 text-[10px] font-bold tracking-wide uppercase text-gray-500">
-                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+        <div class="flex items-center shrink-0">
+            <div class="flex items-center gap-2 bg-gray-950 border border-gray-900 px-2.5 py-1 rounded-xl text-[8px] font-mono font-black tracking-[0.15em] uppercase text-white shadow-xs">
+                <span class="relative flex h-1.5 w-1.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
                 <span>SLA ENFORCED</span>
             </div>
         </div>

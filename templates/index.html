@@ -1,56 +1,63 @@
 {% extends "layouts/dashboard_layout.html" %}
+{% load axentra_ui %}
 
-{% block title %}Launcher Principal · {{ tenant.app_name }}{% endblock %}
+{% block title %}Estación Central de Gobernanza | {{ tenant.app_name|default:"Axentra" }}{% endblock %}
 
 {% block dashboard_content %}
 <div class="space-y-10 pb-12 w-full animate-fade-in select-none">
     
-    <div class="bg-white p-8 md:p-10 rounded-[32px] border border-gray-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-            <span class="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] mb-3 font-mono">
-                {{ tenant.app_name }} / AXENTRA GOVERNMENT
+    <div class="bg-white p-8 md:p-10 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+        <div class="z-10">
+            <span class="inline-block px-3 py-1 rounded-full bg-blue-50/80 border border-blue-100 text-blue-600 text-[9px] font-black uppercase tracking-[0.2em] mb-3 font-mono">
+                {{ tenant.app_name|default:"AXENTRA" }} // ENTERPRISE ARCHITECTURE
             </span>
-            <h2 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase font-mono">Selector APPS Central</h2>
-            <p class="text-sm text-slate-500 font-medium mt-2 leading-relaxed max-w-2xl font-sans">
-                Dirección de Innovación y Desarrollo Tecnológico | <span class="font-bold text-slate-700">{{ tenant.entidad_nombre }}</span>
+            <h2 class="text-3xl md:text-4xl font-black text-gray-950 tracking-tighter uppercase font-mono">Estación Central de Gobernanza</h2>
+            <p class="text-xs text-gray-400 font-bold font-mono mt-1 uppercase tracking-wide">
+                Dirección de Innovación y Desarrollo Tecnológico // <span class="text-gray-600 font-black">{{ tenant.entidad_nombre|default:"Ecosistema Operativo de Gestión Pública" }}</span>
             </p>
         </div>
-        <div class="bg-slate-50 px-4 py-2.5 rounded-xl border border-gray-200 text-[11px] font-bold font-mono text-slate-600 tracking-tight shadow-inner whitespace-nowrap">
-            🖥️ Servidor: Local (WSL Dev)
+        
+        <div class="bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-200 text-[10px] font-mono font-black text-gray-500 tracking-wider shadow-3xs whitespace-nowrap z-10 uppercase">
+            SERVIDOR CORE: LOCAL // DEV_WSL_ENV
         </div>
     </div>
 
     {% if launcher_data.core_apps %}
     <div class="space-y-4">
-        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-blue-600 font-mono px-2 flex items-center gap-2">
-            <i data-lucide="shield" class="w-4 h-4"></i> Módulos de Administración Central (Core OS)
+        <h3 class="text-[9px] font-black uppercase tracking-[0.25em] text-gray-400 font-mono px-2 flex items-center gap-2">
+            <i data-lucide="shield" class="w-3.5 h-3.5 text-gray-400"></i> 
+            <span>Aplicativos Core de Infraestructura</span>
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for card in launcher_data.core_apps %}
-                <div class="bg-white p-6 rounded-[32px] border border-gray-200 shadow-xs transition-all duration-400 hover:-translate-y-1.5 hover:shadow-2xl flex flex-col justify-between group">
+                <div class="bg-white p-6 rounded-[32px] border border-gray-200/90 shadow-3xs hover:border-gray-950/20 hover:shadow-md transition-all duration-300 flex flex-col justify-between group min-h-[250px]">
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <div class="rounded-xl p-3 transition-colors duration-300
-                                {% if card.app_code == 'security' %}bg-gray-100 text-gray-900 group-hover:bg-gray-900 group-hover:text-white
-                                {% elif card.app_code == 'accounts' %}bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white
-                                {% elif card.app_code == 'organigrama' %}bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white
-                                {% else %}bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white{% endif %}">
-                                <i data-lucide="{{ card.icon|default:'box' }}" class="h-6 w-6 transition-transform duration-300 group-hover:scale-110"></i>
+                            <div class="rounded-xl p-3 shadow-3xs transition-all duration-300
+                                {% if card.app_code == 'security' %}bg-slate-950 text-amber-400
+                                {% elif card.app_code == 'accounts' %}bg-blue-600 text-white
+                                {% elif card.app_code == 'organigrama' %}bg-amber-500 text-white
+                                {% else %}bg-gray-950 text-white{% endif %}">
+                                <i data-lucide="{{ card.icon|default:'box' }}" class="h-5 w-5"></i>
                             </div>
-                            <span class="text-[9px] font-black font-mono bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                            <span class="text-[8px] font-black font-mono bg-gray-50 border border-gray-200/60 text-gray-500 px-2.5 py-1 rounded-md uppercase tracking-widest">
                                 {{ card.badge_text|default:'Core App' }}
                             </span>
                         </div>
-                        <h4 class="text-lg font-black text-slate-900 mb-1 tracking-tight uppercase font-mono transition-colors group-hover:text-blue-600">
+                        <h4 class="text-base font-black text-gray-950 font-mono uppercase tracking-tight mt-3">
                             {{ card.title }}
                         </h4>
-                        <p class="text-slate-500 text-[11px] font-medium leading-relaxed mb-4 font-sans tracking-normal normal-case">
+                        <p class="text-gray-400 text-[11px] font-bold leading-relaxed mt-2 font-mono uppercase line-clamp-3">
                             {{ card.description }}
                         </p>
                     </div>
-                    <a href="{% url card.url_name %}" class="block text-center bg-gray-950 hover:bg-gray-900 text-white text-[10px] font-black py-3 px-4 rounded-xl uppercase tracking-widest transition-all duration-150 transform active:scale-95 shadow-sm font-mono">
-                        {{ card.button_text|default:"Ingresar al Módulo" }} →
-                    </a>
+                    
+                    <div class="pt-4 border-t border-gray-100/80 mt-4">
+                        <a href="{% url card.url_name %}" class="w-full inline-flex items-center justify-center gap-2 bg-gray-950 hover:bg-blue-600 text-white font-black py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-sm transform active:scale-95 whitespace-nowrap">
+                            <span>Ingresar a la APP</span>
+                            <svg class="w-3.5 h-3.5 text-blue-400 group-hover:text-white transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </a>
+                    </div>
                 </div>
             {% endfor %}
         </div>
@@ -59,31 +66,36 @@
 
     {% if launcher_data.satellite_apps %}
     <div class="space-y-4">
-        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 font-mono px-2 flex items-center gap-2">
-            <i data-lucide="layers" class="w-4 h-4"></i> Módulos Operativos y Aplicaciones Satélites
+        <h3 class="text-[9px] font-black uppercase tracking-[0.25em] text-gray-400 font-mono px-2 flex items-center gap-2">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-gray-400"></i> 
+            <span>Módulos Periféricos de Gestión Pública</span>
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for card in launcher_data.satellite_apps %}
-                <div class="bg-white p-6 rounded-[32px] border border-gray-200 shadow-xs transition-all duration-400 hover:-translate-y-1.5 hover:shadow-2xl flex flex-col justify-between group">
+                <div class="bg-white p-6 rounded-[32px] border border-gray-200/90 shadow-3xs hover:border-gray-950/20 hover:shadow-md transition-all duration-300 flex flex-col justify-between group min-h-[250px]">
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <div class="rounded-xl p-3 bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
-                                <i data-lucide="{{ card.icon|default:'box' }}" class="h-6 w-6 transition-transform duration-300 group-hover:scale-110"></i>
+                            <div class="rounded-xl p-3 bg-indigo-600 text-white shadow-3xs">
+                                <i data-lucide="{{ card.icon|default:'box' }}" class="h-5 w-5"></i>
                             </div>
-                            <span class="bg-purple-50 text-purple-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-md border border-purple-100 font-mono">
+                            <span class="bg-purple-50 text-purple-700 border border-purple-100 text-[8px] font-black uppercase px-2.5 py-1 rounded-md font-mono tracking-widest">
                                 {{ card.badge_text|default:'Satélite' }}
                             </span>
                         </div>
-                        <h4 class="text-lg font-black text-slate-900 mb-1 tracking-tight uppercase font-mono transition-colors group-hover:text-indigo-600">
+                        <h4 class="text-base font-black text-gray-950 font-mono uppercase tracking-tight mt-3">
                             {{ card.title }}
                         </h4>
-                        <p class="text-slate-500 text-[11px] font-medium leading-relaxed mb-4 font-sans tracking-normal normal-case">
+                        <p class="text-gray-400 text-[11px] font-bold leading-relaxed mt-2 font-mono uppercase line-clamp-3">
                             {{ card.description }}
                         </p>
                     </div>
-                    <a href="{% url card.url_name %}" class="block text-center bg-gray-950 hover:bg-gray-900 text-white text-[10px] font-black py-3 px-4 rounded-xl uppercase tracking-widest transition-all duration-150 transform active:scale-95 shadow-sm font-mono">
-                        {{ card.button_text|default:"Ingresar al Módulo" }} →
-                    </a>
+                    
+                    <div class="pt-4 border-t border-gray-100/80 mt-4">
+                        <a href="{% url card.url_name %}" class="w-full inline-flex items-center justify-center gap-2 bg-gray-950 hover:bg-indigo-600 text-white font-black py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-sm transform active:scale-95 whitespace-nowrap">
+                            <span>Ingresar a la APP</span>
+                            <svg class="w-3.5 h-3.5 text-indigo-400 group-hover:text-white transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </a>
+                    </div>
                 </div>
             {% endfor %}
         </div>
@@ -92,18 +104,28 @@
 
     {% if not launcher_data.core_apps and not launcher_data.satellite_apps %}
     <div class="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-gray-200 p-8 max-w-xl mx-auto shadow-xs mt-6 animate-fade-in">
-        <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-amber-100 shadow-inner select-none">
+        <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-amber-100 shadow-inner">
             <i data-lucide="lock" class="w-6 h-6"></i>
         </div>
-        <h3 class="text-xl font-black text-slate-900 tracking-tight font-mono uppercase">Consola de Seguridad AXENTRA</h3>
-        <p class="text-slate-500 text-xs font-medium mt-2 leading-relaxed px-4 font-sans">
+        <h3 class="text-xl font-black text-gray-950 tracking-tight font-mono uppercase">Consola de Seguridad AXENTRA</h3>
+        <p class="text-gray-500 text-xs font-medium mt-2 leading-relaxed px-4 font-sans">
             Su cuenta institucional <span class="font-mono text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">{{ request.user.email }}</span> se encuentra autenticada de manera exitosa, pero no cuenta con aplicativos asignados en la Matriz de Permisos en este momento.
         </p>
-        <div class="mt-6 p-3 bg-gray-50 border border-gray-150 rounded-xl text-[10px] text-gray-500 font-bold font-mono uppercase tracking-wider">
-            Consulte al Administrador del Core para la inyección de llaves.
+        <div class="mt-6 p-3 bg-gray-50 border border-gray-150 rounded-xl text-[10px] text-gray-400 font-bold font-mono uppercase tracking-wider">
+            Consulte al Administrador del Core para la inyección de llaves de acceso.
         </div>
     </div>
     {% endif %}
+
+    <div class="flex justify-center pt-4">
+        <form action="{% url 'accounts:logout' %}" method="post" class="max-w-xs w-full">
+            {% csrf_token %}
+            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-gray-500 font-bold py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition border border-gray-200 cursor-pointer shadow-3xs transform active:scale-95">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+                <span>Terminar Sesión de Operador</span>
+            </button>
+        </form>
+    </div>
 
 </div>
 

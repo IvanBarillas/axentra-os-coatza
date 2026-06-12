@@ -1,0 +1,39 @@
+<nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-950 via-gray-900/98 to-gray-900 backdrop-blur-lg border-t border-white/10 shadow-[0_-15px_40px_rgba(0,0,0,0.5)] z-50 px-4 py-2.5 nav-mobile-contraste" 
+     role="navigation" 
+     aria-label="Navegación móvil rápida">
+    <div class="flex justify-around items-center max-w-md mx-auto">
+        
+        <a href="/" class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none" aria-label="Ir a la página de inicio">
+            <svg class="w-5 h-5 text-blue-500 group-hover:text-blue-400 transition-colors duration-200 icon-contraste transition-transform group-active:scale-90" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.47 3.82a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.69-8.69a2.25 2.25 0 00-3.18 0l-8.69 8.69a.75.75 0 001.06 1.06l8.69-8.69z" />
+                <path d="M5.25 11.44v7.81c0 .414.336.75.75.75h4.125a.75.75 0 00.75-.75v-4.875c0-.414.336-.75.75-.75h1.5c.414 0 .75.336.75.75V19.5a.75.75 0 00.75.75H18a.75.75 0 00.75-.75v-7.81l-6.75-6.75-6.75 6.75z" />
+            </svg>
+            <span class="text-[9px] font-black tracking-wider uppercase text-blue-500 group-hover:text-blue-400 transition-colors text-contraste">Inicio</span>
+        </a>
+
+        <a href="{% url 'launcher_home' %}" class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none" aria-label="Ingresar a la consola de aplicaciones">
+            <svg class="w-5 h-5 text-white/50 group-hover:text-white transition-colors duration-200 icon-contraste transition-transform group-active:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" h="9" x="3" y="3" rx="1"/><rect width="7" h="5" x="14" y="3" rx="1"/><rect width="7" h="9" x="14" y="12" rx="1"/><rect width="7" h="5" x="3" y="16" rx="1"/></svg>
+            <span class="text-[9px] font-bold tracking-wider uppercase text-white/50 group-hover:text-white transition-colors text-contraste">Consola</span>
+        </a>
+
+        <a href="{% url 'accounts:login' %}" class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none" aria-label="Ingresar al sistema corporativo">
+            <svg class="w-5 h-5 text-white/50 group-hover:text-white transition-colors duration-200 icon-contraste transition-transform group-active:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+            <span class="text-[9px] font-bold tracking-wider uppercase text-white/50 group-hover:text-white transition-colors text-contraste">Acceso</span>
+        </a>
+
+        <a href="https://api.whatsapp.com/send?phone=5219212601146&text=Hola.%20Necesito%20asistencia%20en%20el%20Ecosistema%20Gubernamental%20de%20{{ tenant.app_name|default:'Axentra' }}." 
+           target="_blank" 
+           rel="noopener noreferrer"
+           class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none relative"
+           aria-label="Contactar al Asistente por WhatsApp">
+            <div class="relative flex items-center justify-center">
+                <span class="absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75 animate-ping -top-0.5 -right-0.5"></span>
+                <svg class="w-5 h-5 text-emerald-400 group-hover:text-emerald-300 transition-colors duration-200 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]" viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5l-.995 3.648a1 1 0 001.214 1.214l3.648-.995A9.963 9.963 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zM8.51 7.23a.75.75 0 00-1.012.224l-.84 1.26a1.75 1.75 0 00-.236 1.38c.18.736.636 1.7 1.455 2.52l3.24 3.24c.82.819 1.784 1.275 2.52 1.455.485.119.996.03 1.38-.236l1.26-.84a.75.75 0 00.224-1.012l-1.5-2.25a.75.75 0 00-1.012-.224l-.63.42a.25.25 0 01-.277.012l-1.914-1.914a.25.25 0 01.012-.277l.42-.63a.75.75 0 00-.224-1.012l-2.25-1.5z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <span class="text-[9px] font-black tracking-wider uppercase text-emerald-400 group-hover:text-emerald-300 transition-colors drop-shadow-[0_0_4px_rgba(52,211,153,0.2)]">Soporte IA</span>
+        </a>
+
+    </div>
+</nav>

@@ -12,7 +12,7 @@ urls_accounts = [
     path('logout/', auth_views.LogoutView.as_view(next_page='accounts:login'), name='logout'),
     path('acceso-denegado/', TemplateView.as_view(template_name='errors/403.html'), name='access_denied'),
 
-    # 🟢 Cuarto de Control: Chasis ligero general (Opción 1 del SIDEBAR_MENU)
+    # 🟢 Panel Administrativo: Chasis ligero general (Opción 1 del SIDEBAR_MENU)
     path('control/', accounts_control_panel_view, name='control_panel'),
 
     # 📊 Consola Analítica: Dashboard pesado de KPIs (Opción 4 del SIDEBAR_MENU)

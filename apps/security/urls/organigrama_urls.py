@@ -31,7 +31,7 @@ from apps.security.views.organigrama_views import (
 
 urls_organigrama = [
     # 📊 Inteligencia Estructural y Dashboard Central
-    # 🏢 La Nueva Entrada General de Alta Velocidad (Cuarto de Control)
+    # 🏢 La Nueva Entrada General de Alta Velocidad (Panel Administrativo)
     path('control/', organigrama_control_view, name='control_panel'), 
     
     # 📊 La Cabina de Mando Analítica (Ahora es una sub-vista restringida)

@@ -110,7 +110,7 @@ LOGIN_REDIRECT_URL = 'launcher_home'
 LOGIN_URL = 'login'
 
 # Destino tras cerrar sesión en el sistema
-LOGOUT_REDIRECT_URL = 'intro_portal'
+LOGOUT_REDIRECT_URL = '/'
 
 AUTH_USER_MODEL = 'security.User'
 

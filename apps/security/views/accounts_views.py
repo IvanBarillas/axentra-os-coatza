@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="has_access_module")
 def accounts_control_panel_view(request):
-    """Cuarto de Control: Chasis ligero operativo libre de métricas gerenciales pesadas."""
+    """Panel Administrativo: Chasis ligero operativo libre de métricas gerenciales pesadas."""
     return render(request, 'accounts/control_panel.html')
 
 

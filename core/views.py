@@ -58,12 +58,11 @@ def launcher_home_view(request):
 
 def intro_portal_view(request):
     """
-    Renderiza la compuerta externa de bienvenida (Landing Portal) de Axentra OS,
-    desplegando los marcos normativos de control interno y los disparadores de sesión.
+    Renderiza la compuerta externa de bienvenida (Landing Portal) de Axentra OS.
     """
-    # Si ya está autenticado, lo redirigimos directo al selector de apps para evitar doble login
+    # Si el operador ya tiene una sesión activa en el navegador,
+    # lo saltamos de forma automática al launcher interno.
     if request.user.is_authenticated:
         return redirect('launcher_home')
         
-    # El singleton del tenant lo inyecta de forma automática tu context processor
     return render(request, "intro.html")

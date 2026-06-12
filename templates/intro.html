@@ -1,136 +1,96 @@
 {% extends "base.html" %}
 {% load axentra_ui %}
 
-{% block title %}Consola General de Aplicaciones | {{ tenant.app_name }}{% endblock %}
+{% block title %}Bienvenidos | {{ tenant.app_name|default:"Axentra OS" }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 flex flex-col justify-between select-none animate-fade-in relative overflow-hidden">
+<div class="min-h-screen bg-gray-50 flex flex-col justify-between select-none animate-fade-in relative overflow-hidden font-sans pb-16 lg:pb-0">
     
-    <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute bottom-0 right-0 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -top-40 -left-40 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-1/2 left-1/3 w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-20 -right-20 w-[600px] h-[600px] bg-purple-600/5 rounded-full blur-3xl pointer-events-none"></div>
 
-    <header class="w-full px-6 py-5 max-w-7xl mx-auto flex justify-between items-center z-10">
-        <div class="flex items-center gap-3">
-            {% if tenant.logo_light %}
-                <img src="{{ tenant.logo_light }}" alt="Escudo Oficial" class="w-8 h-8 object-contain">
-            {% else %}
-                <div class="bg-gray-950 text-white p-1.5 rounded-xl shadow-xs flex items-center justify-center w-8 h-8 font-mono font-bold text-xs">
-                    🏛️
+    <nav class="bg-white/80 backdrop-blur-md border-b border-gray-200/80 sticky top-0 z-50 w-full px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            
+            <div class="flex items-center gap-3">
+                {% if tenant.logo_light %}
+                    <img src="{{ tenant.logo_light }}" alt="Escudo Oficial" class="w-8 h-8 object-contain">
+                {% else %}
+                    <div class="bg-gray-950 text-white rounded-xl shadow-xs flex items-center justify-center w-8 h-8 font-mono font-black text-xs shrink-0 tracking-tighter">
+                        AX
+                    </div>
+                {% endif %}
+                <div class="leading-none">
+                    <span class="text-base font-black text-gray-950 tracking-tight uppercase">{{ tenant.app_name|default:"Axentra" }}</span><span class="text-blue-600 font-light font-mono text-sm ml-0.5">OS</span>
                 </div>
-            {% endif %}
-            <div class="leading-none">
-                <span class="text-base font-bold text-gray-950 tracking-tight">{{ tenant.app_name|default:"Axentra" }}</span><span class="text-blue-600 font-light font-mono text-sm">OS</span>
+            </div>
+
+            <div class="hidden sm:flex items-center gap-2 font-mono text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                <span class="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
+                <span>Estación Pública de Conectividad</span>
             </div>
         </div>
+    </nav>
+
+    <main class="flex-1 w-full max-w-5xl mx-auto px-6 z-10 flex flex-col lg:flex-row items-center justify-center gap-12 py-12">
         
-        <div class="flex items-center gap-4 text-xs font-bold font-mono uppercase tracking-wider text-gray-400">
-            <span class="text-gray-900 font-bold lowercase font-sans bg-gray-100 px-2.5 py-1 rounded-xl border border-gray-200/80">{{ request.user.email }}</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-emerald-600 flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Sesión Autenticada
-            </span>
-        </div>
-    </header>
-
-    <main class="flex-1 w-full max-w-6xl mx-auto px-6 z-10 py-8 space-y-12 flex flex-col justify-center">
-        
-        <div class="text-center md:text-left">
-            <h2 class="text-3xl font-extrabold text-gray-950 tracking-tight font-mono uppercase">Consola General de Aplicaciones</h2>
-            <p class="text-[11px] text-gray-400 font-medium font-mono mt-0.5 uppercase">// Entorno modular unificado de {{ tenant.entidad_nombre|default:"H. Ayuntamiento de Coatzacoalcos" }}. Selecciona un entorno para operar.</p>
-        </div>
-
-        <div class="space-y-4">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] font-mono px-2 flex items-center gap-2">
-                <i data-lucide="shield" class="w-3.5 h-3.5 text-gray-400"></i>
-                <span>Aplicativos Core del Sistema Operativo</span>
-            </h3>
+        <div class="space-y-6 text-center lg:text-left flex-1">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100/60 text-blue-700 text-[9px] font-black uppercase tracking-[0.2em] font-mono mx-auto lg:mx-0">
+                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+                <span>Plataforma de Innovación Tecnológica</span>
+            </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for card in launcher_data.core_apps %}
-                    <div class="group bg-white p-6 rounded-[32px] border border-gray-200/80 shadow-2xs hover:border-gray-300 hover:shadow-xs transition-all duration-200 flex flex-col justify-between min-h-[220px]">
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-[9px] font-bold font-mono bg-gray-50 text-gray-600 border border-gray-200/60 px-2.5 py-0.5 rounded-md uppercase tracking-wider">{{ card.badge_text }}</span>
-                                <div class="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-950 group-hover:bg-gray-950 group-hover:text-white transition duration-300">
-                                    <i data-lucide="{{ card.icon|default:'box' }}" class="w-4 h-4"></i>
-                                </div>
-                            </div>
-                            <h4 class="text-base font-bold text-gray-950 font-mono uppercase tracking-tight mt-4">{{ card.title }}</h4>
-                            <p class="text-[11px] text-gray-400 font-medium font-mono mt-1.5 uppercase leading-relaxed line-clamp-3">{{ card.description }}</p>
-                        </div>
-                        
-                        <div class="pt-4 border-t border-gray-100/60 mt-4">
-                            <a href="{% url card.url_name %}" class="w-full inline-flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-950 border border-gray-200/80 hover:text-white text-gray-900 font-bold py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-3xs transform active:scale-95 whitespace-nowrap">
-                                <span>Inicializar Módulo</span>
-                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-                            </a>
-                        </div>
-                    </div>
-                {% empty %}
-                    <div class="col-span-full text-center py-8 border border-dashed border-gray-200 rounded-3xl font-mono text-[10px] text-gray-400 uppercase tracking-widest bg-white/40">
-                        // Firma criptográfica insuficiente: No posee llaves de acceso para módulos core
-                    </div>
-                {% endfor %}
+            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-950 tracking-tighter uppercase font-mono leading-none">
+                Ecosistema de <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Soluciones</span> Digitales
+            </h1>
+            
+            <p class="text-xs sm:text-sm text-gray-400 font-bold font-mono uppercase leading-relaxed max-w-xl">
+                // Entorno operativo unificado para el despliegue de módulos administrativos, gestión de tareas, control de infraestructura y optimización de servicios del <span class="text-gray-700 font-bold">{{ tenant.entidad_nombre|default:"Departamento de Sistemas" }}</span>.
+            </p>
+
+            <div class="hidden sm:flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 font-mono text-[10px]">
+                <div class="bg-white px-4 py-2.5 rounded-xl border border-gray-200 shadow-3xs text-gray-600 uppercase tracking-wide">
+                    // Módulos Internos y Operativos
+                </div>
+                <div class="bg-white px-4 py-2.5 rounded-xl border border-gray-200 shadow-3xs text-gray-600 uppercase tracking-wide">
+                    // Servicios y Trámites Digitales
+                </div>
             </div>
         </div>
 
-        <div class="space-y-4">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] font-mono px-2 flex items-center gap-2">
-                <i data-lucide="layers" class="w-3.5 h-3.5 text-gray-400"></i>
-                <span>Módulos Satélites de Gestión Pública</span>
-            </h3>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for card in launcher_data.satellite_apps %}
-                    <div class="group bg-white p-6 rounded-[32px] border border-gray-200/80 shadow-2xs hover:border-gray-300 hover:shadow-xs transition-all duration-200 flex flex-col justify-between min-h-[220px]">
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-[9px] font-bold font-mono bg-gray-50 text-gray-600 border border-gray-200/60 px-2.5 py-0.5 rounded-md uppercase tracking-wider">{{ card.badge_text }}</span>
-                                <div class="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-950 group-hover:bg-gray-950 group-hover:text-white transition duration-300">
-                                    <i data-lucide="{{ card.icon|default:'box' }}" class="w-4 h-4"></i>
-                                </div>
-                            </div>
-                            <h4 class="text-base font-bold text-gray-950 font-mono uppercase tracking-tight mt-4">{{ card.title }}</h4>
-                            <p class="text-[11px] text-gray-400 font-medium font-mono mt-1.5 uppercase leading-relaxed line-clamp-3">{{ card.description }}</p>
+        <div class="w-full max-w-sm shrink-0 z-10">
+            <div class="bg-white p-8 rounded-[32px] border border-gray-200/90 shadow-2xs relative overflow-hidden">
+                
+                <h3 class="text-base font-bold text-gray-950 font-mono uppercase tracking-tight">Control de Accesos</h3>
+                <p class="text-[11px] text-gray-400 font-mono mt-1 uppercase leading-normal">// Inicie sesión para desplegar el abanico de soluciones y herramientas asignadas a su perfil institucional.</p>
+                
+                <div class="mt-6 pt-6 border-t border-gray-100">
+                    {% if request.user.is_authenticated %}
+                        <div class="p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl text-center mb-4">
+                            <p class="text-[10px] font-mono font-bold text-emerald-800 uppercase tracking-wider">Identidad Validada</p>
+                            <p class="text-[11px] text-emerald-600 truncate font-mono mt-0.5">{{ request.user.email }}</p>
                         </div>
-                        
-                        <div class="pt-4 border-t border-gray-100/60 mt-4">
-                            <a href="{% url card.url_name %}" class="w-full inline-flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-950 border border-gray-200/80 hover:text-white text-gray-900 font-bold py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-3xs transform active:scale-95 whitespace-nowrap">
-                                <span>Inicializar Módulo</span>
-                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-                            </a>
-                        </div>
-                    </div>
-                {% empty %}
-                    <div class="col-span-full text-center py-12 border border-dashed border-gray-200 rounded-[32px] bg-white/50 backdrop-blur-xs flex flex-col items-center justify-center p-6 gap-2 select-none">
-                        <i data-lucide="boxes" class="w-6 h-6 text-gray-300 stroke-1"></i>
-                        <p class="text-[10px] font-bold text-gray-400 font-mono uppercase tracking-wider">// No se localizan aplicaciones satélites instaladas en este ciclo fiscal.</p>
-                    </div>
-                {% endfor %}
+                        <a href="{% url 'launcher_home' %}" class="w-full inline-flex items-center justify-center bg-gray-950 hover:bg-gray-900 text-white font-bold py-3.5 px-4 rounded-xl text-[10px] font-mono uppercase tracking-widest transition transform active:scale-95 shadow-sm cursor-pointer">
+                            <span>Desplegar Consola</span>
+                        </a>
+                    {% else %}
+                        <a href="{% url 'accounts:login' %}" class="w-full inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl text-[10px] font-mono uppercase tracking-widest transition transform active:scale-95 shadow-xs cursor-pointer">
+                            <span>Ingresar al Entorno</span>
+                        </a>
+                    {% endif %}
+                </div>
             </div>
-        </div>
-
-        <div class="flex justify-center pt-2">
-            <form action="{% url 'accounts:logout' %}" method="post" class="max-w-xs w-full">
-                {% csrf_token %}
-                <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-600 font-bold py-3 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition border border-gray-200 cursor-pointer shadow-3xs transform active:scale-95">
-                    <i data-lucide="log-out" class="w-4 h-4 text-gray-400"></i>
-                    <span>Terminar Sesión de Operador</span>
-                </button>
-            </form>
         </div>
 
     </main>
 
-    <footer class="w-full py-4 border-t border-gray-200/60 text-center text-[10px] font-bold font-mono text-gray-400 uppercase tracking-widest bg-white z-10">
-        &copy; 2026 AXENTRA SECURITY • LICENCIA ENFORCED PARA EL MUNICIPIO DE {{ tenant.siglas|default:"COATZA" }}
+    <footer class="w-full py-4 border-t border-gray-200/60 text-center text-[9px] font-black font-mono text-gray-400 uppercase tracking-[0.15em] bg-white z-10 shrink-0">
+        &copy; 2026 {{ tenant.app_name|default:"AXENTRA" }} &bull; ARCHITECTURE FRAMEWORK &bull; LICENCIA ACTIVA
     </footer>
 
-</div>
+    {% include "components/bottom_nav.html" %}
+    {% include "components/whatsapp_flotante.html" %}
 
-<script>
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-</script>
+</div>
 {% endblock %}
