@@ -393,7 +393,7 @@ def security_global_matrix_forensic_view(request):
     
     context = {
         'funcionarios': funcionarios_liquidados,
-        'aplicaciones_sistema': AppIdentifier.get_choices(),
+        'aplicaciones_sistema': AppIdentifier.get_choices(), # 🧠 Vital para que el bucle for dibuje las columnas/tarjetas en el swap
         'sedes': Sede.objects.filter(is_active=True).order_by('nombre'),
         'dependencias': Dependencia.objects.filter(is_active=True, is_deleted=False).order_by('nombre'),
         'areas_operativas': AreaOperativa.objects.filter(is_active=True, is_deleted=False).order_by('nombre').distinct('nombre'),
@@ -402,6 +402,11 @@ def security_global_matrix_forensic_view(request):
         'current_dep': str(filtros['dependencia_id']) if filtros['dependencia_id'] else "",
         'current_area': str(filtros['area_id']) if filtros['area_id'] else "",
     }
+    
+    # 🛡️ Si es HTMX, inyectamos directamente el parcial configurado
+    if request.headers.get('HX-Request'):
+        return render(request, 'security/partials/global_matrix_results_partial.html', context)
+    
     return render(request, 'security/global_matrix_forensic.html', context)
 
 

@@ -1,0 +1,25 @@
+<div class="space-y-2 font-mono w-full">
+    
+    <div class="relative w-full">
+        <span class="absolute inset-y-0 left-0 pl-3 md:pl-3.5 flex items-center text-gray-400 pointer-events-none">
+            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+        </span>
+        <input type="text" 
+               name="{{ input_name }}" 
+               placeholder="{{ placeholder }}" 
+               class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-9 pr-4 py-2.5 text-[11px] md:text-xs font-mono font-medium text-gray-800 outline-none transition-all placeholder:text-gray-400 normal-case shadow-3xs"
+               hx-get="{{ search_url }}"
+               hx-trigger="keyup changed delay:300ms, search"
+               hx-target="#{{ target_id }}"
+               hx-indicator="#search-loading-indicator">
+    </div>
+
+    <div id="search-loading-indicator" class="htmx-indicator flex items-center gap-2 justify-center py-1 text-[9px] text-gray-400 font-black tracking-wider animate-pulse">
+        <span class="relative flex h-1.5 w-1.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+        </span>
+        <span>ESCANEANDO PADRÓN CENTRAL...</span>
+    </div>
+
+</div>

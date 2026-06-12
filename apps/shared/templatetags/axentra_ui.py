@@ -99,3 +99,16 @@ def badge_toggle(is_active, toggle_url):
         'is_active': is_active,
         'toggle_url': toggle_url,
     }
+    
+@register.inclusion_tag('common/tags/user_search_component.html')
+def user_search_filter(search_url, target_id="search-results-container", placeholder="Buscar operador por nombre o email...", input_name="user_q"):
+    """
+    Renderiza el motor de búsqueda elástica de operadores.
+    Permite parametrizar el input_name para evitar colisiones 400 Bad Request en el backend.
+    """
+    return {
+        'search_url': search_url,
+        'target_id': target_id,
+        'placeholder': placeholder,
+        'input_name': input_name, # nombre del parámetro es dinámico
+    }
