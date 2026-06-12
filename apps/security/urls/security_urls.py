@@ -1,6 +1,7 @@
 # apps/security/urls/security_urls.py
 from django.urls import path
 from apps.security.views.security_views import (
+    descargar_auditoria_excel_view,
     expulsar_usuario_modulo_total_ajax_view,
     guardar_llaves_json_view,
     inyectar_funcionario_view,
@@ -22,6 +23,7 @@ urls_security = [
 
     # 📊 PILAR 2: CONSOLA ANALÍTICA FORENSE / PACKET STREAM (Opción 4 del SIDEBAR)
     path('dashboard/', security_dashboard_view, name='dashboard'),
+    path('dashboard/analytics/download/excel/', descargar_auditoria_excel_view, name='descargar_auditoria_excel'),
     
     # 🪐 PILAR 3: CÁPSULA DINÁMICA UNIVERSAL (Matriz de Checkboxes JSONField)
     path('matriz/', dynamic_permission_matrix_view, name='dynamic_matrix'),

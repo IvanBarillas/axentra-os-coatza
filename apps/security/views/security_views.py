@@ -35,9 +35,34 @@ def security_control_panel_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
 def security_dashboard_view(request):
-    """Consola Central de Ciberseguridad: Audita densidad de llaves JSONField y logs."""
+    """
+    Consola Central de Ciberseguridad: Audita densidad de llaves JSONField y logs.
+    🪐 FILTRADO FORENSE EN CALIENTE: Lee parámetros GET para búsquedas e inspecciones.
+    """
+    # 🔍 Recolección de parámetros de la URL
+    filtros = {
+        'app_namespace': request.GET.get('app_namespace', '').strip().lower() or None,
+        'action_type': request.GET.get('action_type', '').strip().upper() or None,
+        'level_status': request.GET.get('level_status', '').strip().upper() or None,
+        'search_target': request.GET.get('search_target', '').strip() or None,
+        'operador': request.GET.get('operador', '').strip().lower() or None,
+        'fecha_inicio': request.GET.get('fecha_inicio', '').strip() or None,
+        'fecha_fin': request.GET.get('fecha_fin', '').strip() or None,
+    }
+
     context = SecurityDashboardSelectors.obtener_metricas_firewall()
-    context['recents_audits'] = SecurityDashboardSelectors.obtener_buffer_auditoria(limite=50)
+    
+    # Pasamos el mapa de filtros al buffer analítico
+    context['recents_audits'] = SecurityDashboardSelectors.obtener_buffer_auditoria(limite=50, filtros=filtros)
+    
+    # Inyectamos catálogos y estados actuales al contexto para pintar los formularios HTML
+    context.update({
+        'apps_sistema': [choice[0] for choice in AppIdentifier.get_choices()],
+        'tipos_accion': SecurityAuditLog.ActionTypes.choices,
+        'niveles_status': SecurityAuditLog.Levels.choices,
+        'filtros_actuales': filtros
+    })
+    
     return render(request, 'security/dashboard/security_dashboard.html', context)
 
 
@@ -360,3 +385,26 @@ def security_global_matrix_forensic_view(request):
         'current_area': str(filtros['area_id']) if filtros['area_id'] else "",
     }
     return render(request, 'security/global_matrix_forensic.html', context)
+
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
+def descargar_auditoria_excel_view(request):
+    """
+    ENDPOINT DE EXTRACCIÓN: Captura la query actual de la URL
+    y descarga la evidencia completa sin límites de paginación.
+    """
+    # 🟢 SANEADO: Extracción limpia del GET sin colisiones de asignación
+    filtros = {
+        'app_namespace': request.GET.get('app_namespace', '').strip().lower() or None,
+        'action_type': request.GET.get('action_type', '').strip().upper() or None,
+        'level_status': request.GET.get('level_status', '').strip().upper() or None,
+        'search_target': request.GET.get('search_target', '').strip() or None,
+        'operador': request.GET.get('operador', '').strip().lower() or None,
+        'fecha_inicio': request.GET.get('fecha_inicio', '').strip() or None,
+        'fecha_fin': request.GET.get('fecha_fin', '').strip() or None,
+    }
+    
+    # Invocamos la generación física del libro de Excel pasándole el request para el contexto si es necesario
+    return PermissionService.exportar_auditoria_excel(filtros)

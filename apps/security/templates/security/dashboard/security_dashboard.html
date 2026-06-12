@@ -5,51 +5,126 @@
 {% block title %}Consola Forense | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="space-y-10 pb-12 w-full animate-fade-in select-none">
+<div class="space-y-6 pb-12 w-full animate-fade-in select-none">
     
-    <!-- Cambiado el emoji satelital por la declaración limpia de Axentra OS -->
     {% dashboard_header badge_text="TELEMETRÍA FORENSE DE AUDITORÍA" title="Consola Analítica" description="Monitoreo de trazas en vivo de operaciones críticas, traslapes de identidad y bloqueos del Core Engine." status_text="STREAMING LIVE" status_color="emerald-500" accent_color="slate-950" modulo_actual="security" %}
     
-    <div class="bg-[#090d16] p-8 rounded-[32px] border border-slate-800 shadow-2xl flex flex-col justify-between min-h-[480px]">
-        <div>
-            <div class="flex items-center justify-between border-b border-slate-800/80 pb-4">
-                <div class="flex items-center gap-2">
-                    <div class="flex gap-1.5">
-                        <span class="w-3 h-3 rounded-full bg-red-500 inline-block animate-pulse"></span>
-                        <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
-                        <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
-                    </div>
-                    <!-- Purgado  Axentra -->
-                    <span class="text-[10px] font-black text-slate-400 font-mono uppercase tracking-widest pl-2">Axentra Security Audit Stream (Today's Cycle)</span>
-                </div>
-                <span class="text-[9px] font-bold font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">AES-256 LOGGER BUFFER</span>
-            </div>
-
-            <div class="mt-6 font-mono text-[11px] leading-relaxed space-y-2.5 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
-                {% for log in recents_audits %}
-                <div class="flex items-start gap-4 p-2.5 rounded-xl hover:bg-slate-900/60 transition duration-150">
-                    <span class="text-slate-600 shrink-0 select-none">[{{ log.timestamp|date:"H:i:s" }}]</span>
-                    
-                    <!-- Reemplazado el punto manual por la semántica visual del chasis -->
-                    <span class="{% if log.tipo == 'CRITICAL' %} text-red-500 font-bold {% elif log.tipo == 'SUCCESS' %} text-emerald-400 {% else %} text-blue-400 {% endif %} shrink-0 select-none flex items-center gap-1.5 uppercase text-[10px] tracking-wider">
-                        <span class="w-1.5 h-1.5 rounded-full {% if log.tipo == 'CRITICAL' %} bg-red-500 {% elif log.tipo == 'SUCCESS' %} bg-emerald-400 {% else %} bg-blue-400 {% endif %}"></span>
-                        {{ log.tipo }}
-                    </span>
-                    
-                    <span class="text-slate-300 truncate">
-                        Operator <strong class="text-slate-400 font-semibold">{{ log.operador }}</strong> executed [<span class="text-amber-400 font-bold">{{ log.accion }}</span>] on cluster scope: '<span class="text-slate-100">{{ log.destino }}</span>'.
-                    </span>
-                </div>
-                {% empty %}
-                <div class="text-slate-600 text-xs py-16 font-mono text-center select-none border border-dashed border-slate-800/60 rounded-2xl flex flex-col items-center justify-center gap-2">
-                    <i data-lucide="terminal" class="w-5 h-5 text-slate-700"></i>
-                    <span>// No execution packets or mutations captured during today's fiscal cycle.</span>
-                </div>
+    <form method="GET" class="bg-[#090d16] border border-slate-800/80 p-4 rounded-2xl flex flex-wrap items-center gap-3">
+        
+        <div class="flex flex-col gap-1 shrink-0">
+            <span class="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider">Ecosistema/App</span>
+            <select name="app_namespace" class="bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-3 py-1.5 focus:outline-none focus:border-amber-500 transition max-w-[120px]">
+                <option value="">-- Todas --</option>
+                {% for app in apps_sistema %}
+                    <option value="{{ app }}" {% if filtros_actuales.app_namespace == app %}selected{% endif %}>{{ app|upper }}</option>
                 {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1 shrink-0">
+            <span class="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider">Verbo</span>
+            <select name="action_type" class="bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-3 py-1.5 focus:outline-none focus:border-amber-500 transition max-w-[110px]">
+                <option value="">-- Todos --</option>
+                {% for val, label in tipos_accion %}
+                    <option value="{{ val }}" {% if filtros_actuales.action_type == val %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1 shrink-0">
+            <span class="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider">Desde</span>
+            <input type="date" name="fecha_inicio" value="{{ filtros_actuales.fecha_inicio|default:'' }}" class="bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-3 py-1.2 focus:outline-none focus:border-amber-500 transition uppercase">
+        </div>
+
+        <div class="flex flex-col gap-1 shrink-0">
+            <span class="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider">Hasta</span>
+            <input type="date" name="fecha_fin" value="{{ filtros_actuales.fecha_fin|default:'' }}" class="bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-3 py-1.2 focus:outline-none focus:border-amber-500 transition uppercase">
+        </div>
+
+        <div class="flex flex-col gap-1 flex-1 min-w-[140px]">
+            <span class="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider">Operador</span>
+            <input type="text" name="operador" value="{{ filtros_actuales.operador|default:'' }}" placeholder="Correo..." class="bg-[#111827] border border-slate-800 rounded-lg text-slate-200 font-mono text-[11px] px-3 py-1.5 focus:outline-none focus:border-amber-500 transition placeholder:text-slate-700">
+        </div>
+
+        <div class="flex flex-col gap-1 flex-1 min-w-[140px]">
+            <span class="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider">Criterio Objeto</span>
+            <input type="text" name="search_target" value="{{ filtros_actuales.search_target|default:'' }}" placeholder="UUID, Serie..." class="bg-[#111827] border border-slate-800 rounded-lg text-slate-200 font-mono text-[11px] px-3 py-1.5 focus:outline-none focus:border-amber-500 transition placeholder:text-slate-700">
+        </div>
+
+        <div class="flex items-center gap-2 pt-4">
+            <button type="submit" class="bg-slate-900 border border-slate-700 hover:border-amber-500 text-slate-200 font-mono text-[11px] font-bold px-4 py-1.5 rounded-lg transition duration-150 flex items-center gap-1.5">
+                <i data-lucide="filter" class="w-3.5 h-3.5"></i> Filtrar
+            </button>
+            
+            <a href="{% url 'security:descargar_auditoria_excel' %}" 
+               onclick="this.href=this.href + window.location.search;"
+               class="bg-emerald-950 border border-emerald-800 hover:border-emerald-400 text-emerald-400 hover:text-emerald-200 font-mono text-[11px] font-bold px-4 py-1.5 rounded-lg transition duration-150 flex items-center gap-1.5">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar Evidencia (.XLSX)
+            </a>
+
+            <a href="{% url 'security:dashboard' %}" class="bg-slate-950 border border-slate-800/80 hover:bg-slate-900 text-slate-500 hover:text-slate-300 font-mono text-[11px] px-3 py-1.5 rounded-lg transition duration-150">
+                Limpiar
+            </a>
+        </div>
+    </form>
+    
+    <div class="bg-[#090d16] p-6 rounded-[32px] border border-slate-800 shadow-2xl flex flex-col h-[520px]">
+        
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-4 shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="flex gap-1.5">
+                    <span class="w-3 h-3 rounded-full bg-red-500 inline-block animate-pulse"></span>
+                    <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                </div>
+                <span class="text-[10px] font-black text-slate-400 font-mono uppercase tracking-widest pl-2">Axentra Security Audit Stream (Today's Cycle)</span>
             </div>
+            <span class="text-[9px] font-bold font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">AES-256 LOGGER BUFFER</span>
+        </div>
+
+        <div class="flex-1 mt-4 font-mono text-[11px] leading-relaxed space-y-2 overflow-y-auto pr-2 custom-scrollbar">
+            {% for log in recents_audits %}
+            <div class="flex items-start gap-4 p-2 rounded-xl hover:bg-slate-900/60 transition duration-150 border border-transparent hover:border-slate-800/40">
+                <span class="text-slate-600 shrink-0 select-none">[{{ log.timestamp|date:"H:i:s" }}]</span>
+                
+                <span class="bg-slate-900 text-slate-400 text-[9px] px-1.5 py-0.5 rounded border border-slate-800 shrink-0 font-bold tracking-wider font-mono">{{ log.app }}</span>
+
+                <span class="{% if log.tipo == 'CRITICAL' %} text-red-500 font-bold {% elif log.tipo == 'SUCCESS' %} text-emerald-400 {% else %} text-blue-400 {% endif %} shrink-0 select-none flex items-center gap-1.5 uppercase text-[10px] tracking-wider min-w-[75px]">
+                    <span class="w-1.5 h-1.5 rounded-full {% if log.tipo == 'CRITICAL' %} bg-red-500 {% elif log.tipo == 'SUCCESS' %} bg-emerald-400 {% else %} bg-blue-400 {% endif %}"></span>
+                    {{ log.tipo }}
+                </span>
+                
+                <span class="text-slate-300">
+                    [<span class="text-indigo-400">{{ log.verbo }}</span>] Op: <strong class="text-slate-400 font-semibold">{{ log.operador }}</strong> 
+                    target: [<span class="text-amber-400 font-bold">{{ log.target }}</span>] ➔ <span class="text-slate-100">{{ log.destino }}</span>
+                </span>
+            </div>
+            {% empty %}
+            <div class="h-full w-full flex flex-col items-center justify-center text-slate-600 text-xs font-mono select-none border border-dashed border-slate-800/60 rounded-2xl gap-2 py-24">
+                <i data-lucide="terminal" class="w-5 h-5 text-slate-700"></i>
+                <span>// No execution packets or mutations match the current query criteria.</span>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #090d16;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #1e293b;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #d97706;
+    }
+</style>
 
 <script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
 {% endblock %}
