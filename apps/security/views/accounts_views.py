@@ -28,18 +28,18 @@ logger = logging.getLogger(__name__)
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="has_access_module")
 def accounts_control_panel_view(request):
-    """Cuarto de Control: Chasis ligero general con tarjetas de estatus y accesos rápidos."""
-    context = AccountsDashboardSelectors.obtener_metricas_plantilla()
-    return render(request, 'accounts/control_panel.html', context)
+    """Cuarto de Control: Chasis ligero operativo libre de métricas gerenciales pesadas."""
+    return render(request, 'accounts/control_panel.html')
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_analytics")
 def accounts_dashboard_view(request):
-    """Consola Analítica: Gráficas de rendimiento e incorporación histórica pesada."""
-    context = {
-        'cronologia_altas': AccountsDashboardSelectors.obtener_cronologia_altas()
-    }
+    """Consola Analítica: Centraliza KPIs de personal e inyecta la telemetría cronológica."""
+    # 🟢 Unificamos las métricas estáticas y las dinámicas en un solo contexto analítico
+    context = AccountsDashboardSelectors.obtener_metricas_plantilla()
+    context['cronologia_altas'] = AccountsDashboardSelectors.obtener_cronologia_altas()
+    
     return render(request, 'accounts/dashboard/accounts_dashboard.html', context)
 
 

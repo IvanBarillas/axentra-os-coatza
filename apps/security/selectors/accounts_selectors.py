@@ -49,7 +49,7 @@ class AccountsDashboardSelectors:
             
             cronologia_altas.append({
                 'mes': nombre_mes,
-                'amount': conteo_altas,  # Estandarizado
+                'amount': conteo_altas,
                 'cantidad': conteo_altas,
                 'porcentaje': porcentaje_barra
             })
