@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from apps.security.forms import CustomUserCreationForm, CustomUserChangeForm
+from django.utils.safestring import mark_safe
 
 # Importamos todos nuestros modelos unificados de forma limpia
 from apps.security.models import (
@@ -137,14 +138,48 @@ class TenantConfigAdmin(admin.ModelAdmin):
 # =========================================================================
 @admin.register(SecurityAuditLog)
 class SecurityAuditLogAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'level_status', 'operator_email', 'action_name', 'target_scope')
+    # 🟢 OPTIMIZADO: Se añade el funcionario destino en el listado para análisis rápido
+    list_display = ('created_at', 'get_level_badge', 'operator_email', 'target_email', 'action_name', 'target_scope')
     list_filter = ('level_status', 'created_at')
-    search_fields = ('operator_user__email', 'action_name', 'target_scope')
+    # 🟢 FORENSIC SEARCH: Buscador extendido hacia el correo del afectado para rastreos quirúrgicos
+    search_fields = ('operator_user__email', 'target_user__email', 'action_name', 'target_scope')
     ordering = ('-created_at',)
+    
+    # Declaramos los campos que se verán al dar clic en el detalle del Log
+    fields = ('id', 'created_at', 'level_status', 'operator_user', 'target_user', 'action_name', 'target_scope', 'telemetria_json_pretty')
+    # Forzamos que los metadatos e ID sean de solo lectura para evitar alteraciones accidentales en el detalle
+    readonly_fields = ('id', 'created_at', 'telemetria_json_pretty')
 
-    # 🟢 ACCESO TOTAL: Eliminados los métodos 'has_add_permission/has_delete_permission' falsos.
-    # Como administrador único, puedes purgar logs antiguos o inyectar eventos de prueba de forma libre.
+    # 🟢 ACCESO TOTAL: Eliminados los métodos 'has_add_permission/has_delete_permission' por tu decreto.
+    # Como administrador único, posees el control físico para purgar registros o inyectar eventos de testing.
 
     def operator_email(self, obj):
         return obj.operator_user.email
     operator_email.short_description = "Operador"
+    operator_email.admin_order_field = 'operator_user__email'
+
+    def target_email(self, obj):
+        return obj.target_user.email if obj.target_user else "GLOBAL / SISTEMA"
+    target_email.short_description = "Funcionario Destino"
+    target_email.admin_order_field = 'target_user__email'
+
+    # 🎨 COMPONENTE VISUAL: Badge a color para identificar la criticidad al vuelo en la grilla
+    def get_level_badge(self, obj):
+        if obj.level_status == SecurityAuditLog.Levels.CRITICAL:
+            return mark_safe('<span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; rounded: 6px; font-weight: bold; border-radius: 6px;">🚨 CRITICAL</span>')
+        elif obj.level_status == SecurityAuditLog.Levels.SUCCESS:
+            return mark_safe('<span style="background: #dcfce7; color: #166534; padding: 3px 8px; rounded: 6px; font-weight: bold; border-radius: 6px;">🟢 SUCCESS</span>')
+        return mark_safe('<span style="background: #e0f2fe; color: #075985; padding: 3px 8px; rounded: 6px; font-weight: bold; border-radius: 6px;">🔵 INFO</span>')
+    get_level_badge.short_description = "Nivel del Evento"
+    get_level_badge.admin_order_field = 'level_status'
+
+    # 🖥️ INTROSPECCIÓN GRANULAR: Formatea el JSONField de Postgres con estilo tipo consola oscura
+    def telemetria_json_pretty(self, obj):
+        if not obj.payload_json:
+            return "No se capturó telemetría adicional."
+        # Formateamos el diccionario a un string JSON con sangría limpia de 4 espacios
+        json_bonito = json.dumps(obj.payload_json, indent=4, ensure_ascii=False)
+        return mark_safe(
+            f'<pre style="background: #0f172a; color: #38bdf8; padding: 16px; border-radius: 12px; font-family: monospace; font-size: 11px; max-height: 500px; overflow-y: auto;">{json_bonito}</pre>'
+        )
+    telemetria_json_pretty.short_description = "Detalle del Delta Criptográfico (Antes vs Después)"

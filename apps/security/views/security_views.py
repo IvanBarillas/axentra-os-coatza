@@ -10,9 +10,12 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 
+from apps.security.models.audit import SecurityAuditLog
 from apps.security.models.organigrama import AppDependencyCapability, Dependencia
 from apps.security.selectors.permission_selectors import PermissionSelectors
 from apps.security.services.permission_loader import get_app_permissions
+from apps.security.utils.forensic_auditor import ForensicAuditor
+from apps.security.utils.hierarchy_enforcer import HierarchyEnforcer
 from apps.shared.apps_config import AppIdentifier
 from apps.security.decorators import axentra_gate_enforcer
 
@@ -154,14 +157,16 @@ def dynamic_permission_matrix_view(request):
 def guardar_llaves_json_view(request, app_id, user_id):
     """
     MUTADOR ATÓMICO: Compila la grilla de checkboxes y actualiza el JSONField en Postgres.
-    🛡️ ENFOQUE ZERO-TRUST CALIBRADO: Impide la auto-asignación masiva al cambiar a 'admin'.
-    Solo el rol 'owner' hereda todo por defecto; los demás nacen con el mínimo absoluto.
+    🛡️ ENFOQUE ZERO-TRUST CALIBRADO: Las llaves se manejan de forma explícita y consciente.
+    🛰️ TELEMETRÍA FORENSE INTEGRADA: Captura de deltas, IP, User-Agent e índice dinámico.
     """
     try:
         app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
         target_user = get_object_or_404(User, id=user_id)
         
-        is_manager_global = getattr(request.user, 'is_manager', False) or (hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin)
+        is_manager_global = getattr(request.user, 'is_manager', False) or (
+            hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin
+        )
 
         nuevo_rol = request.POST.get('role') or request.POST.get(f'role_{user_id}') or request.POST.get('nuevo_rol')
         if not nuevo_rol:
@@ -169,48 +174,72 @@ def guardar_llaves_json_view(request, app_id, user_id):
             return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
             
         nuevo_rol = str(nuevo_rol).lower().strip()
-
-        # 🟢 CAPTURA GRANULAR REAL: Extraemos únicamente los checkboxes que el usuario marcó en la pantalla
         llaves_encendidas = request.POST.getlist('permisos_checks') or request.POST.getlist(f'user_{user_id}') or []
 
+        # 🪐 EXTRACCIÓN ANTES: Capturamos el estado previo en base de datos para la caja negra
         rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module).first()
-        rol_actual_str = rol_actual_obj.role if rol_actual_obj else 'viewer'
+        rol_anterior = rol_actual_obj.role if rol_actual_obj else 'ninguno'
+        permisos_anteriores = list(rol_actual_obj.permissions_list or []) if rol_actual_obj else []
 
         config_app = get_app_permissions(app_module.slug)
         weights_map = config_app.get('weights', {})
         permissions_pool = config_app.get('permissions', {})
 
-        if not is_manager_global:
-            rol_operador_obj = UserAppRole.objects.filter(user=request.user, app=app_module, is_active=True).first()
-            rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
-            
-            peso_operador = weights_map.get(str(rol_operador_str).lower().strip(), 0)
-            peso_actual_destino = weights_map.get(str(rol_actual_str).lower().strip(), 0)
-            peso_nuevo_destino = weights_map.get(str(nuevo_rol).lower().strip(), 0)
+        # 🛡️ LLAMADA AL VALIDADOR DE ESCALAFÓN GLOBAL CENTRALIZADO
+        tiene_autoridad = HierarchyEnforcer.validar_autoridad_operador(
+            request=request,
+            target_user=target_user,
+            app_module=app_module,
+            nuevo_rol_slug=nuevo_rol,
+            weights_map=weights_map
+        )
+        
+        if not tiene_autoridad:
+            messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico requerido para mutar este objetivo.")
+            return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
 
-            if peso_actual_destino >= peso_operador or peso_nuevo_destino >= peso_operador:
-                messages.error(request, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico requerido.")
-                return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
-
-        # 🟢 EXCLUSIVIDAD DE PROMO_OWNER: Solo si se selecciona OWNER se llena la piscina completa.
-        # Si se selecciona 'admin', NO tocamos la lista 'llaves_encendidas'; dejamos que viaje limpia con lo que marcó la UX.
+        # 🟢 EXCLUSIVIDAD DE PROMO_OWNER: Hereda piscina completa por diseño estático.
         if nuevo_rol == "owner" and permissions_pool:
             llaves_encendidas = list(permissions_pool.keys())
 
-        # El token mínimo obligatorio vitalicio de acceso al chasis se queda amarrado por seguridad
+        # El token mínimo obligatorio vitalicio de acceso al chasis se amarra por diseño defensivo
         if 'has_access_module' not in llaves_encendidas:
             llaves_encendidas.append('has_access_module')
 
-        # 👑 PERSISTENCIA DIRECTA PARA EVITAR INTERCEPTORES DEL SERVICE
-        # Si eres Manager Supremo, forzamos la sobreescritura directa en las columnas del ORM
-        # saltándonos cualquier factory o cargador automático que le auto-inyecte permisos al rol admin
+        # 🪐 ANALÍTICA DELTA: Mapeamos los tokens ganados y perdidos de forma exacta
+        tokens_ganados = [p for p in llaves_encendidas if p not in permisos_anteriores]
+        tokens_perdidos = [p for p in permisos_anteriores if p not in llaves_encendidas]
+
+        payload_delta = {
+            'antes': {'role': rol_anterior, 'permissions': permisos_anteriores},
+            'despues': {'role': nuevo_rol, 'permissions': llaves_encendidas},
+            'delta_cambios': {
+                'tokens_ganados': tokens_ganados,
+                'tokens_perdidos': tokens_perdidos,
+                'rol_mutado': rol_anterior != nuevo_rol
+            }
+        }
+
+        # 👑 FLUJO A: PERSISTENCIA DIRECTA (BYPASS DE MÁNAGER SUPREMO)
         if is_manager_global and rol_actual_obj:
             rol_actual_obj.role = nuevo_rol
             rol_actual_obj.permissions_list = llaves_encendidas
             rol_actual_obj.save()
+            
+            # Disparamos Auditoría con Criterio de Búsqueda Dinámica Indexada (ID del Usuario destino)
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_name="MUTACION_MATRIZ_BYPASS",
+                target_scope=f"Modificación maestro-decreto de matriz sobre {target_user.email}",
+                level=SecurityAuditLog.Levels.SUCCESS,
+                target_user=target_user,
+                search_target=target_user.id, # ◄── Guardado en tu columna indexada de criterio genérico
+                payload=payload_delta
+            )
             messages.success(request, f"🔒 [NIVEL MAESTRO]: Privilegios granulares reconfigurados para {target_user.username} con rol [{nuevo_rol.upper()}].")
+        
+        # 🛡️ FLUJO B: PERSISTENCIA ESTÁNDAR VÍA SERVICE LAYER
         else:
-            # Flujo estándar para operadores tradicionales
             success = PermissionService.save_matrix_permissions(
                 target_user=target_user, 
                 app_module=app_module, 
@@ -218,6 +247,16 @@ def guardar_llaves_json_view(request, app_id, user_id):
                 llaves_encendidas=llaves_encendidas
             )
             if success:
+                # Disparamos Auditoría Estándar Informativa
+                ForensicAuditor.registrar_evento(
+                    request=request,
+                    action_name="MUTACION_MATRIZ_ESTANDAR",
+                    target_scope=f"Actualización granular de rutina sobre la grilla de {target_user.email}",
+                    level=SecurityAuditLog.Levels.INFO,
+                    target_user=target_user,
+                    search_target=target_user.id, # ◄── Guardado en tu columna indexada de criterio genérico
+                    payload=payload_delta
+                )
                 messages.success(request, f"🔒 Matriz actualizada para {target_user.username}.")
             else:
                 messages.error(request, "❌ Error de consistencia al procesar la mutación.")
