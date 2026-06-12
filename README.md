@@ -147,16 +147,11 @@ Perfiles soportados:
 - `reviewer`
 - `viewer`
 
-Por ejemplo, al asignar el rol `admin`, el sistema concede automáticamente:
+## Directiva Inmutable Zero-Trust SOBERANA
 
-- `has_access_module`
-- `can_write_records`
+En Axentra OS, el rol owner es el único perfil que clona e inyecta la piscina completa de permisos automáticos desde el primer segundo.
 
-sin habilitar privilegios destructivos como `can_delete_records`.
-
-Este bloque representa la capa de abstracción entre permisos atómicos y funciones organizacionales.
-
----
+Al cambiar el rol a admin o cualquier escala jerárquica inferior, el sistema vacía las llaves en ceros por diseño defensivo, preservando únicamente el token mínimo vitalicio obligatorio de acceso al chasis (has_access_module). El operador del sistema deberá encender manualmente cada casilla en la grilla visual de la interfaz.
 
 #### `SIDEBAR_MENU`
 
@@ -208,17 +203,6 @@ Responsabilidades:
 - Adaptar la lógica del sistema mediante configuración.
 - Asociar características funcionales a estructuras administrativas.
 
-Ejemplos de uso:
-
-- Determinar si una dirección puede proveer personal técnico especializado.
-- Restringir catálogos visibles durante la generación de reportes.
-- Limitar ámbitos operativos de determinadas dependencias.
-- Activar comportamientos específicos para procesos institucionales.
-
-Este bloque representa la capa semántica de comportamiento institucional dentro de Axentra OS.
-
----
-
 > **Nota conceptual**
 >
 > En Axentra OS, los permisos y las capacidades representan conceptos distintos:
@@ -230,7 +214,7 @@ Este bloque representa la capa semántica de comportamiento institucional dentro
 
 ---
 
-### Ejemplo completo
+### Ejemplo completo de Manifiesto Local
 
 ```python
 from apps.shared.apps_config import AppIdentifier
@@ -477,38 +461,42 @@ def procesar_formulario_view(request):
 
 ## 5. Servicio de Auditoría Forense
 
-Toda acción crítica relacionada con ciberseguridad o modificaciones estructurales debe registrarse mediante `SecurityAuditService`.
+Toda mutación de datos, conmutación de estados, asignación de privilegios o alteración estructural en Axentra OS es devorada por el motor transaccional ForensicAuditor. Este opera de forma totalmente desacoplada de la capa visual (Vistas) y se ejecuta con un diseño de catálogo de acciones normalizado.
 
-### Protocolo fail-safe
+### Estructura Binaria de Auditoría
 
-Si el registro en PostgreSQL falla, el evento es redirigido automáticamente al sistema de archivos local para evitar la interrupción del flujo transaccional.
+El motor forense indexa en PostgreSQL cada evento separando la acción del escenario mediante dos columnas indexadas clave:
 
-**Archivo:** `apps/security/services/audit_service.py`
+`action_type` (El Verbo Global): `CREATE` (Alta), `UPDATE` (Edición), `DELETE` (Baja lógica/Física), `ASSIGN` (Privilegios), `ACCESS` (Login/API), `RESET` (Lockdown de credenciales), o `QUERY` (Consultas masivas).
 
-```python
-from apps.security.services.audit_service import (
-    SecurityAuditService,
-)
+`module_component` (El Sujeto/Componente): Identificadores estandarizados como `MATRIZ_PERMISOS`, `FICHA_PERSONAL`, `SEDES_INFRAESTRUCTURA`, `DEPENDENCIAS_RAIZ` o `AREAS_MATRIZ`.
 
-from apps.security.models.security_models import (
-    SecurityAuditLog,
-)
+Protocolo de Inyección Forense de Negocio
+Los desarrolladores del ecosistema deben invocar el auditor directamente dentro de las capas de servicios transaccionales (`Service Layer`), delegando el rastreo automatizado de IPs, Navegadores (`User-Agent`), marcas de tiempo y el cálculo analítico de deltas ("Antes vs Después") en formato JSON.
 
+```Python
+from apps.security.models.audit import SecurityAuditLog
+from apps.security.utils.forensic_auditor import ForensicAuditor
 
-SecurityAuditService.registrar_evento(
-    usuario=request.user,
-    nivel=SecurityAuditLog.Levels.SUCCESS,
-    accion=(
-        "Mutación de Identidad Global: "
-        "Se modificaron las siglas legales "
-        "del Ayuntamiento"
-    ),
-    destino=(
-        f"App: Security | "
-        f"TenantConfig ID: {config.id}"
-    ),
+# Invocación atómica dentro de un Service Layer del negocio
+ForensicAuditor.registrar_evento(
+    request=request,                                      # Extrae IP y User-Agent de forma transparente
+    action_type=SecurityAuditLog.ActionTypes.UPDATE,      # Verbo Normalizado del catálogo Core
+    module_component="FICHA_PERSONAL",                   # Componente o vista de origen
+    action_name="EDICION_FICHA_IDENTIDAD",                # Acción específica del negocio
+    target_scope=f"Actualización del expediente de {usuario.email}",
+    level=SecurityAuditLog.Levels.INFO,                   # Criticidad (INFO, SUCCESS, CRITICAL)
+    target_user=usuario,                                  # Funcionario afectado (Opcional)
+    search_target=usuario.id,                             # Criterio genérico indexado (UUID/Serie/Clave)
+    payload=payload_delta                                 # Telemetría estructurada JSON (Snapshot Anterior vs Nuevo)
 )
 ```
+
+### Cabina de Mando Analítica (Dashboard) y Reportes de Evidencia
+
+La plataforma provee una Consola Analítica Avanzada con filtros en caliente (filtrado por App, Verbo, Criticidad, Operador y Búsqueda parcial de Criterios Objeto).
+
+El sistema cuenta con un botón táctico de Compliance Forense que exporta el QuerySet completo a formatos Excel (.xlsx) inmutables, auto-ajustando las columnas e incrustando de forma íntegra el JSON de evidencia para auditorías internas de la Contraloría.
 
 ---
 
