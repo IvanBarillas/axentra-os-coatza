@@ -11,14 +11,13 @@
         <div>
             <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                <span>Catálogo General de la App // Core</span>
+                <span>Catálogo General de la App / Core</span>
             </div>
             <h2 class="text-2xl font-bold text-gray-950 tracking-tight uppercase font-mono">Plantilla de Personal</h2>
             <p class="text-[11px] text-gray-400 font-medium font-mono mt-0.5 uppercase">Listado centralizado de servidores públicos adscritos a la estructura orgánica matricial.</p>
         </div>
         
         <div class="flex items-center gap-3 w-full sm:w-auto shrink-0">
-
             {% if request.axentra_is_root or "can_create_user" in request.axentra_permissions_list %}
             <a href="{% url 'accounts:funcionario_create' %}" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-5 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-sm flex items-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer">
                 <i data-lucide="user-plus" class="w-4 h-4 text-gray-400"></i>
@@ -28,10 +27,30 @@
         </div>
     </div>
 
-    {% organizational_filters clear_url="/app/accounts/funcionarios/lista/" placeholder_text="Buscar por funcionario, RFC o correo..." %}
+    {% url 'accounts:funcionario_list' as funcionario_list_url %}
+    {% organizational_filters action_url=funcionario_list_url clear_url=funcionario_list_url placeholder_text="Buscar por funcionario, RFC o correo..." target_id="tbody-funcionarios" %}
 
     <div id="funcionario-table-container" class="bg-white rounded-[32px] border border-gray-200/80 shadow-2xs overflow-hidden">
-        {% include 'accounts/htmx/funcionario_table_partial.html' %}
+        <div class="overflow-x-auto w-full">
+            <table class="w-full text-left border-collapse select-none">
+                <thead>
+                    <tr class="border-b border-gray-100 bg-gray-50/70 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        <th class="py-4 px-6 font-semibold">Servidor Público</th>
+                        <th class="py-4 px-6 font-semibold">Adscripción Estructural Resuelta</th>
+                        <th class="py-4 px-6 font-semibold text-center">Estado Cuenta</th>
+                        <th class="py-4 px-6 font-semibold text-center">Verificación</th>
+                        <th class="py-4 px-6 font-semibold text-center">Rol Sistema</th>
+                        <th class="py-4 px-6 font-semibold text-center">Acciones</th>
+                    </tr>
+                </thead>
+                
+                <tbody id="tbody-funcionarios" class="divide-y divide-gray-100 text-xs text-gray-700">
+                    {% include 'accounts/htmx/funcionario_table_partial.html' %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
 {% endblock %}

@@ -57,8 +57,8 @@ def check_access(accesos_dict, slug_app):
     return False
 
 @register.inclusion_tag('common/tags/organizational_filters.html', takes_context=True)
-def organizational_filters(context, action_url="", clear_url="", placeholder_text=""):
-    """Filtros encadenados para la estructura jerárquica del Ayuntamiento."""
+def organizational_filters(context, action_url="", clear_url="", placeholder_text="", target_id="tbody-funcionarios"):
+    """Filtros encadenados para la estructura jerárquica del Ayuntamiento con Target dinámico."""
     return {
         'sedes': context.get('sedes'),
         'dependencias': context.get('dependencias'),
@@ -68,6 +68,7 @@ def organizational_filters(context, action_url="", clear_url="", placeholder_tex
         'action_url': action_url,
         'clear_url': clear_url,
         'placeholder_text': placeholder_text,
+        'target_id': target_id,  #  Mapeo de contenedor flexible
     }
     
 @register.simple_tag

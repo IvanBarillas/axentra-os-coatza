@@ -1,16 +1,18 @@
 {% extends "layouts/dashboard_layout.html" %}
 {% load axentra_ui %}
 
+<!-- 🟢 CORREGIDO: Cierre limpio de la etiqueta endblock -->
 {% block app_context_badge %}Modelado de Estructura{% endblock %}
 {% block title %}{% if action == 'create' %}Nueva Dependencia{% else %}Modificar Dependencia{% endif %} | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
 <div class="max-w-2xl mx-auto space-y-6 pb-12 animate-fade-in select-none pt-4">
     
+    <!-- CABECERA DEL FORMULARIO -->
     <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1">
-                📍 Administración Central > Estructura > {% if action == 'create' %}Alta{% else %}Edición{% endif %}
+                Administración Central / Estructura / {% if action == 'create' %}Alta{% else %}Edición{% endif %}
             </div>
             <h2 class="text-2xl font-bold text-gray-950 tracking-tight font-mono uppercase">
                 {% if action == 'create' %}Registrar Dirección General{% else %}Modificar Dirección Core{% endif %}
@@ -24,11 +26,13 @@
         </a>
     </div>
 
+    <!-- CUERPO CENTRAL -->
     <div class="bg-white p-8 md:p-10 rounded-[32px] border border-gray-200/80 shadow-2xs">
         
+        <!-- ALERTA DE ERRORES FORMALES -->
         {% if form.errors %}
         <div class="p-4 bg-red-50 border border-red-100 rounded-2xl text-xs text-red-600 font-medium space-y-1 mb-6 font-mono text-[11px] uppercase tracking-wide">
-            <p class="font-black tracking-wider text-[10px] text-red-700">⚠️ Error de Consistencia Orgánica:</p>
+            <p class="font-black tracking-wider text-[10px] text-red-700">Error de Consistencia Orgánica:</p>
             {% for field, errors in form.errors.items %}
                 {% for error in errors %}
                     <p>• <span class="font-bold">{{ field }}:</span> {{ error }}</p>
@@ -42,24 +46,31 @@
             
             <div class="space-y-2">
                 <label for="{{ form.nombre.id_for_label }}" class="font-bold text-gray-700">Nombre Oficial del Ente Público / Secretaría</label>
-                {{ form.nombre }}
+                <div class="w-full">
+                    {{ form.nombre }}
+                </div>
             </div>
             
             <div class="space-y-2">
                 <label for="{{ form.encargado_departamento.id_for_label }}" class="font-bold text-gray-700">Titular Responsable / Director General</label>
-                {{ form.encargado_departamento }}
+                <div class="w-full">
+                    {{ form.encargado_departamento }}
+                </div>
                 <p class="text-[10px] text-gray-400 font-medium mt-1.5 leading-relaxed font-sans tracking-normal normal-case">
                     Servidor público asignado como cabeza del ramo estructural para autorizaciones y firmas de nómina (Opcional).
                 </p>
             </div>
 
+            <!-- BOTÓN DE ACCIÓN TÁCTICA -->
             <div class="pt-4 border-t border-gray-100 flex justify-end">
                 <button type="submit" class="w-full sm:w-auto bg-gray-950 hover:bg-gray-900 text-white font-bold py-3.5 px-6 rounded-xl font-mono uppercase tracking-widest transition-all duration-200 shadow-sm flex items-center justify-center gap-2 cursor-pointer transform active:scale-95">
                     <i data-lucide="save" class="w-4 h-4 text-gray-400"></i>
-                    <span>Guardar Dependencia Core</span>
+                    <span>Guardar Dependencia</span>
                 </button>
             </div>
         </form>
     </div>
 </div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
 {% endblock %}

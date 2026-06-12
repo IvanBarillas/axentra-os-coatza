@@ -197,7 +197,7 @@ def sede_toggle_status_view(request, pk: uuid.UUID):
         action_type=SecurityAuditLog.ActionTypes.UPDATE,
         module_component="SEDES_INFRAESTRUCTURA",
         action_name="TOGGLE_STATUS_SEDE_FISICA",
-        target_scope=f"Conmutación del estado operativo para el inmueble {sede.nombre} (Activo final: {sede.is_active}).",
+        target_scope=f"Actualización del estado operativo para el inmueble {sede.nombre} (Activo final: {sede.is_active}).",
         level=SecurityAuditLog.Levels.INFO,
         search_target=sede.id,
         payload={'anterior': estado_anterior, 'nuevo': sede.is_active}
@@ -287,7 +287,7 @@ def dependencia_toggle_status_view(request, pk):
         action_type=SecurityAuditLog.ActionTypes.UPDATE,
         module_component="DEPENDENCIAS_RAIZ",
         action_name="TOGGLE_STATUS_DEPENDENCIA",
-        target_scope=f"Conmutación del estado operativo para la Dirección {dep_instancia.nombre} (Activo final: {dep_instancia.is_active}).",
+        target_scope=f"Actualización del estado operativo para la Dirección {dep_instancia.nombre} (Activo final: {dep_instancia.is_active}).",
         level=SecurityAuditLog.Levels.INFO,
         search_target=dep_instancia.id,
         payload={'anterior': estado_anterior, 'nuevo': dep_instancia.is_active}
@@ -372,7 +372,7 @@ def area_toggle_status_view(request, pk: uuid.UUID):
         action_type=SecurityAuditLog.ActionTypes.UPDATE,
         module_component="AREAS_MATRIZ",
         action_name="TOGGLE_STATUS_NODO_OPERATIVO",
-        target_scope=f"Conmutación del estado operativo para la sub-oficina {area_instancia.nombre} (Activo final: {area_instancia.is_active}).",
+        target_scope=f"Actualización del estado operativo para la sub-oficina {area_instancia.nombre} (Activo final: {area_instancia.is_active}).",
         level=SecurityAuditLog.Levels.INFO,
         search_target=area_instancia.id,
         payload={'anterior': estado_anterior, 'nuevo': area_instancia.is_active}

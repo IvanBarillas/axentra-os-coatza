@@ -99,7 +99,19 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Redirección de la identidad digital del funcionario público al módulo unificado
+
+# =========================================================================
+# 🛡️ CONFIGURACIÓN DE AUTENTICACIÓN Y REDIRECCIÓN CORE
+# =========================================================================
+# Destino definitivo tras un login exitoso (Apunta a tu path('launcher/', ...))
+LOGIN_REDIRECT_URL = 'launcher_home'
+
+# Destino en caso de que un usuario intente entrar a una ruta protegida sin sesión
+LOGIN_URL = 'login'
+
+# Destino tras cerrar sesión en el sistema
+LOGOUT_REDIRECT_URL = 'intro_portal'
+
 AUTH_USER_MODEL = 'security.User'
 
 AXES_FAILURE_LIMIT = 5

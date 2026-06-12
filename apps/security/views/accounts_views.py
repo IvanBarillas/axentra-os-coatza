@@ -51,22 +51,51 @@ def accounts_dashboard_view(request):
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_list_view(request):
     """
-    Despacha la nómina general filtrada mediante selectores optimizados.
-    Soporta renderizado completo tradicional o parches atómicos en el DOM vía HTMX.
+    Despacha la nómina general filtrada mediante selectores optimizados de matriz.
+    Mantiene el soporte híbrido HTMX aislando los retornos de fragmentos puros.
     """
     search_query = request.GET.get('q', '').strip()
+    sede_id = request.GET.get('sede', '').strip()
+    dependencia_id = request.GET.get('dependencia', '').strip()
+    area_id = request.GET.get('area', '').strip()
+    
+    # Sanitización de banderas por defecto de interfaz
+    if sede_id.lower() in ['all', 'none', '']: sede_id = ""
+    if dependencia_id.lower() in ['all', 'none', '']: dependencia_id = ""
+    if area_id.lower() in ['all', 'none', '']: area_id = ""
+    
+    funcionarios = FuncionarioSelectors.listar_plantilla_activa(
+        search_query=search_query,
+        sede_id=sede_id,
+        dependencia_id=dependencia_id,
+        area_id=area_id
+    )
     
     context = {
-        'funcionarios': FuncionarioSelectors.listar_plantilla_activa(search_query=search_query),
-        'sedes': Sede.objects.filter(is_active=True, is_deleted=False).order_by('nombre'),
-        'dependencias': Dependencia.objects.filter(is_active=True, is_deleted=False).order_by('nombre'),
-        'areas_operativas': AreaOperativa.objects.filter(is_active=True, is_deleted=False).order_by('nombre'),
+        'funcionarios': funcionarios,
+        'sedes': Sede.objects.filter(is_deleted=False).order_by('nombre'),
+        'dependencias': Dependencia.objects.filter(is_deleted=False).order_by('nombre'),
+        'areas_operativas': AreaOperativa.objects.filter(is_deleted=False).order_by('nombre'),
         'current_q': search_query,
+        'current_sede': request.GET.get('sede', ''),
+        'current_dep': request.GET.get('dependencia', ''),
+        'current_area': request.GET.get('area', ''),
+        'target_id': 'tbody-funcionarios', # Garantiza la consistencia en el tag
     }
     
-    if request.headers.get('HX-Request') or request.headers.get('hx-request'):
+    # 🟢 CONTROL DE FLUJO ABSOLUTO: Verificación por cabeceras estándar y META de Django
+    es_htmx = (
+        request.headers.get('HX-Request') == 'true' or 
+        request.headers.get('hx-request') == 'true' or
+        request.META.get('HTTP_HX_REQUEST') == 'true'
+    )
+    
+    if es_htmx:
+        # Si la petición es asíncrona, escupimos ÚNICAMENTE las filas puras. 
+        # Esto mata de raíz el efecto de duplicación de interfaces.
         return render(request, 'accounts/htmx/funcionario_table_partial.html', context)
         
+    # Si entran escribiendo la URL limpia en el navegador, se monta el chasis completo
     return render(request, 'accounts/funcionario_list.html', context)
 
 
@@ -230,17 +259,23 @@ def funcionario_toggle_status_view(request, pk: uuid.UUID):
         return HttpResponse(status=403, content="Bloqueo de seguridad: Auto-congelación denegada.")
         
     funcionario = get_object_or_404(User, id=pk)
+    
+    # Previene mutación de cuentas lógicamente borradas
+    if funcionario.is_deleted:
+        return HttpResponse(status=400, content="No se puede conmutar el estatus de un usuario dado de baja.")
+        
     estado_anterior = funcionario.is_active
     funcionario.is_active = not funcionario.is_active
     funcionario.save()
     
-    # 🪐 LOG MANUAL EN CALIENTE DESDE LA VISTA AUXILIAR: Como este interruptor no pasa por 
-    # el Service maestro sino que muta un flag directo, le metemos su llamada al inyector aquí mismo
+    # 🪐 LOG MANUAL EN CALIENTE DESDE LA VISTA AUXILIAR
     from apps.security.utils.forensic_auditor import ForensicAuditor
     from apps.security.models.audit import SecurityAuditLog
     
     ForensicAuditor.registrar_evento(
         request=request,
+        action_type=SecurityAuditLog.ActionTypes.UPDATE,
+        module_component="MATRIZ_PERMISOS",
         action_name="TOGGLE_STATUS_FUNCIONARIO",
         target_scope=f"Conmutación de estatus de cuenta para {funcionario.email} (Estado final: {funcionario.is_active}).",
         level=SecurityAuditLog.Levels.INFO if funcionario.is_active else SecurityAuditLog.Levels.CRITICAL,
@@ -249,7 +284,12 @@ def funcionario_toggle_status_view(request, pk: uuid.UUID):
         payload={'is_active_before': estado_anterior, 'is_active_after': funcionario.is_active}
     )
     
-    return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
-        'is_active': funcionario.is_active,
-        'toggle_url': reverse('accounts:funcionario_toggle_status', args=[funcionario.id])
-    })
+    # 🟢 CORRECCIÓN DE INTERFAZ: Si es HTMX, mandamos un disparador para actualizar la celda o re-renderizamos el badge
+    if request.headers.get('HX-Request') or request.headers.get('hx-request'):
+        # Retorna el componente del Badge con el nuevo estado sin tumbar la tabla
+        return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
+            'is_active': funcionario.is_active,
+            'toggle_url': reverse('accounts:funcionario_toggle_status', args=[funcionario.id])
+        })
+        
+    return redirect('accounts:funcionario_list')

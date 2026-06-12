@@ -42,6 +42,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     must_change_password = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
     
     is_manager = models.BooleanField(
         default=False, 

@@ -107,23 +107,44 @@ class FuncionarioSelectors:
         )
 
     @classmethod
-    def listar_plantilla_activa(cls, search_query: str = "") -> List[FuncionarioReadOnlyDTO]:
-        """Extrae la nómina del Ayuntamiento mitigando el N+1 mediante caché en RAM."""
-        # 🟢 CORRECCIÓN ATÓMICA: El select_related migra al related_name premium 'axentra_profile'
+    def listar_plantilla_activa(cls, search_query: str = "", sede_id: str = "", dependencia_id: str = "", area_id: str = "") -> List[FuncionarioReadOnlyDTO]:
+        """
+        Extrae la nómina del Ayuntamiento mitigando el N+1 mediante caché en RAM.
+        Filtra por dimensiones territoriales y estructurales en una sola transacción SQL.
+        """
+        # 🟢 REGLA DE INTEGRIDAD DE QA: Se añade is_deleted=False para omitir usuarios dados de baja
         usuarios_queryset = (
-            User.objects.filter(is_superuser=False)
-            .select_related('axentra_profile', 'axentra_profile__area', 'axentra_profile__area__dependencia', 'axentra_profile__area__sede_fisica')
+            User.objects.filter(is_superuser=False, is_deleted=False)
+            .select_related(
+                'axentra_profile', 
+                'axentra_profile__area', 
+                'axentra_profile__area__dependencia', 
+                'axentra_profile__area__sede_fisica'
+            )
             .order_by('-created_at')
         )
         
+        # 1. Filtro por Búsqueda de Texto Abierto
         if search_query:
             usuarios_queryset = usuarios_queryset.filter(
                 db_models.Q(email__icontains=search_query) | 
                 db_models.Q(first_name__icontains=search_query) | 
                 db_models.Q(last_name__icontains=search_query)
             )
+            
+        # 2. Filtro por Sede Inmobiliaria Física
+        if sede_id:
+            usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__sede_fisica_id=sede_id)
+            
+        # 3. Filtro por Dependencia / Dirección General
+        if dependencia_id:
+            usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__dependencia_id=dependencia_id)
+            
+        # 4. Filtro por Área Operativa / Oficina
+        if area_id:
+            usuarios_queryset = usuarios_queryset.filter(axentra_profile__area_id=area_id)
         
-        # 🟢 CORRECCIÓN ATÓMICA: select_related('app') ahora utiliza la relación optimizada del modelo
+        # 🟢 CACHÉ EN RAM DE ROLES (Mantiene tu misma lógica de alto rendimiento)
         todos_los_roles = UserAppRole.objects.filter(is_active=True).select_related('app')
         matriz_seguridad_ram = {}
         for rol in todos_los_roles:
@@ -143,7 +164,7 @@ class FuncionarioSelectors:
             for slug, _ in AppIdentifier.get_choices():
                 if user.is_manager:
                     mapa_accesos_modulo[slug] = True
-                    mapa_owners_modulo[slug] = True  # 🟢 Sincronizado: Los managers heredan el ownership implícito
+                    mapa_owners_modulo[slug] = True  
                 else:
                     datos_rol = roles_usuario.get(slug, {})
                     permisos_list = datos_rol.get('permisos', [])

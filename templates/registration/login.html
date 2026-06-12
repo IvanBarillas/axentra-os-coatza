@@ -1,16 +1,19 @@
 <!-- apps/accounts/templates/registration/login.html -->
 {% extends 'base.html' %}
 {% load axentra_ui %}
+{% load static %}
 
 {% block title %}Autenticación Oficial | {{ tenant.app_name }}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 w-full select-none animate-fade-in relative overflow-hidden">
     
-    <!-- Decoración de fondo sutil congruente con la Intro -->
+    <!-- Decoración de fondo sutil congruente con el chasis Core -->
     <div class="absolute -top-40 -right-40 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-600/5 rounded-full blur-3xl pointer-events-none"></div>
 
-    <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200/80 transition duration-300 z-10">
+    <!-- 🏢 EVOLUCIÓN: Caja de Login alineada a los bordes de la Suite (rounded-[32px]) -->
+    <div class="w-full max-w-md bg-white p-8 rounded-[32px] shadow-xl border border-gray-200/80 transition duration-300 z-10">
         
         <!-- =========================================================================
              🏛️ IDENTIDAD INSTITUCIONAL
@@ -20,7 +23,7 @@
                 {% if tenant.logo_light %}
                     <img src="{{ tenant.logo_light.url }}" alt="Logo Institucional" class="max-w-full max-h-full object-contain animate-fade-in">
                 {% else %}
-                    <div class="w-12 h-12 rounded-xl bg-gray-950 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    <div class="w-12 h-12 rounded-xl bg-gray-950 text-white flex items-center justify-center font-bold text-lg shadow-sm font-mono">
                         A
                     </div>
                 {% endif %}
@@ -35,13 +38,13 @@
         </div>
 
         <!-- =========================================================================
-             ⚠️ CUADRO DE ALERTAS / ERRORES DE CREDENCIALES
+             ⚠️ CUADRO DE ALERTAS / ERRORES DE CREDENCIALES (Monitoreado por Axes)
              ========================================================================= -->
         {% if form.errors %}
-            <div class="bg-red-50/60 border border-red-200 p-3.5 rounded-xl mb-5 animate-head-shake">
-                <p class="text-xs font-bold text-red-700 leading-relaxed flex items-center justify-center gap-2">
-                    <i data-lucide="shield-alert" class="w-4 h-4 text-red-600 shrink-0"></i> 
-                    <span>Credenciales incorrectas. Verifique su cuenta institucional.</span>
+            <div class="bg-red-50/60 border border-red-200/80 p-3.5 rounded-2xl mb-5 animate-head-shake">
+                <p class="text-xs font-bold text-red-700 leading-relaxed flex items-start gap-2 font-mono uppercase text-[10px]">
+                    <i data-lucide="shield-alert" class="w-4 h-4 text-red-600 shrink-0 mt-0.5"></i> 
+                    <span>Acceso denegado. Verifique sus credenciales institucionales. Intento registrado en bitácora.</span>
                 </p>
             </div>
         {% endif %}
@@ -58,7 +61,7 @@
                     Correo Electrónico
                 </label>
                 <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
                         <i data-lucide="mail" class="w-4 h-4"></i>
                     </span>
                     <input type="email" 
@@ -66,18 +69,18 @@
                            id="id_username" 
                            required 
                            autofocus 
-                           placeholder="usuario@coatzacoalcos.gob.mx"
+                           placeholder="usuario@gobierno.gob.mx"
                            class="w-full pl-10 pr-4 py-2.5 bg-gray-50/60 border border-gray-200 rounded-xl text-xs font-semibold font-mono text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 outline-none transition-all duration-200 shadow-2xs">
                 </div>
             </div>
 
-            <!-- Campo: Contraseña -->
+            <!-- Campo: Contraseña (Conmutador Visual Integrado) -->
             <div class="space-y-1.5">
                 <label for="id_password" class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider font-mono">
                     Contraseña
                 </label>
                 <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
                         <i data-lucide="lock" class="w-4 h-4"></i>
                     </span>
                     <input type="password" 
@@ -85,28 +88,63 @@
                            id="id_password" 
                            required 
                            placeholder="••••••••"
-                           class="w-full pl-10 pr-4 py-2.5 bg-gray-50/60 border border-gray-200 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 outline-none transition-all duration-200 shadow-2xs">
+                           class="w-full pl-10 pr-10 py-2.5 bg-gray-50/60 border border-gray-200 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 outline-none transition-all duration-200 shadow-2xs">
+                    
+                    <!-- 👁️ BOTÓN DE REVELACIÓN DE IDENTIDAD -->
+                    <button type="button" id="togglePasswordVisibility" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition cursor-pointer">
+                        <i data-lucide="eye" id="eyeIcon" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
 
             <!-- Botón de Transmisión -->
-            <button type="submit" class="w-full bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-4 rounded-xl shadow-md flex justify-center items-center gap-2 text-[10px] uppercase tracking-wider mt-4 cursor-pointer transition transform active:scale-95">
+            <button type="submit" class="w-full bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-4 rounded-xl shadow-md flex justify-center items-center gap-2 text-[10px] uppercase tracking-wider mt-6 cursor-pointer transition transform active:scale-95">
                 <i data-lucide="key-round" class="w-3.5 h-3.5 text-blue-400"></i>
                 <span>Validar Identidad Laboral</span>
             </button>
         </form>
         
-        <!-- Enlace de desvío por si el usuario se equivocó y quiere regresar al inicio legal -->
-        <div class="mt-4 pt-3 border-t border-gray-100 text-center">
+        <!-- Enlace de desvío -->
+        <div class="mt-5 pt-4 border-t border-gray-100 text-center">
             <a href="{% url 'intro_portal' %}" class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-blue-600 transition">
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver al Portal de Control Interno
             </a>
         </div>
     </div>
     
-    <!-- Pie de Seguridad Exclusivo de Axentra -->
-    <p class="text-center text-[9px] font-bold text-gray-400 mt-6 font-mono uppercase tracking-widest z-10">
-        AXENTRA OS SUBSYSTEM • SEGURIDAD PERIMETRAL DE ACCESOS DETECTADA
-    </p>
+    <!-- Pie de Seguridad Exclusivo de Axentra (Conexión implícita con Axes) -->
+    <div class="text-center text-[9px] font-bold text-gray-400 mt-6 font-mono uppercase tracking-widest z-10 flex flex-col gap-1 items-center">
+        <span>AXENTRA OS SUBSYSTEM • SEGURIDAD PERIMETRAL DE ACCESOS ACTIVADA</span>
+        <span class="text-emerald-600 flex items-center gap-1">
+            <span class="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></span> CENTINELA DE INTENTOS ACTIVO VIA AXES ENGINE
+        </span>
+    </div>
 </div>
+
+<!-- 🪐 LÓGICA DE CONTROL OPERATIVO DE INTERFAZ -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+
+        const passwordInput = document.getElementById('id_password');
+        const toggleButton = document.getElementById('togglePasswordVisibility');
+        const eyeIcon = document.getElementById('eyeIcon');
+
+        toggleButton.addEventListener('click', function() {
+            // Conmutación de tipo de input
+            const isPassword = passwordInput.getAttribute('type') === 'password';
+            passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+            
+            // Conmutación dinámica del icono Lucide sin romper el chasis
+            if (isPassword) {
+                eyeIcon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                eyeIcon.setAttribute('data-lucide', 'eye');
+            }
+            
+            // Forzamos a Lucide a repintar el nodo modificado en tiempo real
+            if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+        });
+    });
+</script>
 {% endblock %}

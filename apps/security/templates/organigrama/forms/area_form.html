@@ -7,10 +7,11 @@
 {% block dashboard_content %}
 <div class="max-w-2xl mx-auto space-y-6 pb-12 animate-fade-in select-none pt-4">
     
+    <!-- CABECERA DEL FORMULARIO -->
     <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1">
-                📍 Administración Central > Estructura > {% if action == 'create' %}Inyectar Área{% else %}Edición{% endif %}
+                Administración Central / Estructura / {% if action == 'create' %}Inyectar Área{% else %}Edición{% endif %}
             </div>
             <h2 class="text-2xl font-bold text-gray-950 tracking-tight font-mono uppercase">
                 {% if action == 'create' %}Inyectar Área Operativa{% else %}Modificar Oficina / Departamento{% endif %}
@@ -24,38 +25,74 @@
         </a>
     </div>
 
+    <!-- CUERPO DE MAQUETACIÓN ESTRUCTURAL -->
     <div class="bg-white p-8 md:p-10 rounded-[32px] border border-gray-200/80 shadow-2xs">
         
+        <!-- ALERTA DE ERRORES FORMALES -->
         {% if form.non_field_errors %}
         <div class="p-4 bg-red-50 border border-red-100 rounded-2xl text-xs text-red-600 font-medium space-y-1 mb-6 font-mono text-[11px] uppercase tracking-wide">
-            <p class="font-black tracking-wider text-[10px] text-red-700">⚠️ Error de Consistencia Orgánica:</p>
+            <p class="font-black tracking-wider text-[10px] text-red-700">Error de Consistencia Orgánica:</p>
             <p>• {{ form.non_field_errors.0 }}</p>
         </div>
         {% endif %}
 
-        <form method="POST" action="{% url 'organigrama:area_create' %}" class="space-y-6 font-mono text-xs uppercase tracking-wide text-left">
+        <form method="POST" action="{% if action == 'create' %}{% url 'organigrama:area_create' %}{% else %}.{% endif %}" class="space-y-6 font-mono text-xs uppercase tracking-wide text-left">
             {% csrf_token %}
             
-            <div class="space-y-4 text-sm">
-                {% for field in form %}
-                <div class="flex flex-col gap-1.5 text-left">
-                    <label for="{{ field.id_for_label }}" class="text-xs font-bold text-gray-700 uppercase tracking-wider">{{ field.label }}</label>
-                    <div class="relative rounded-xl w-full">
-                        {{ field }}
+            <!-- 🟢 CONTENEDOR EN REJILLA PARALELA PARA LOS DOS SELECTS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <!-- Selector 1: Dependencia Jerárquica -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="{{ form.dependencia.id_for_label }}" class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        {{ form.dependencia.label }}
+                    </label>
+                    <div class="w-full">
+                        {{ form.dependencia }}
                     </div>
-                    {% if field.errors %}
-                        <span class="text-xs font-semibold text-rose-600 mt-0.5 flex items-center gap-1 normal-case font-sans">
-                            <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-500"></i> {{ field.errors.0 }}
+                    {% if form.dependencia.errors %}
+                        <span class="text-[10px] font-bold text-rose-600 mt-0.5 flex items-center gap-1 uppercase">
+                            <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-500"></i> {{ form.dependencia.errors.0 }}
                         </span>
                     {% endif %}
                 </div>
-                {% endfor %}
+
+                <!-- Selector 2: Sede Física Inmobiliaria -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="{{ form.sede_fisica.id_for_label }}" class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        {{ form.sede_fisica.label }}
+                    </label>
+                    <div class="w-full">
+                        {{ form.sede_fisica }}
+                    </div>
+                    {% if form.sede_fisica.errors %}
+                        <span class="text-[10px] font-bold text-rose-600 mt-0.5 flex items-center gap-1 uppercase">
+                            <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-500"></i> {{ form.sede_fisica.errors.0 }}
+                        </span>
+                    {% endif %}
+                </div>
+
             </div>
 
+            <!-- 🟢 CAMPO DE TEXTO ABAJO: Abarcando el ancho completo -->
+            <div class="flex flex-col gap-1.5">
+                <label for="{{ form.nombre.id_for_label }}" class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    {{ form.nombre.label }}
+                </label>
+                <div class="w-full">
+                    {{ form.nombre }}
+                </div>
+                {% if form.nombre.errors %}
+                    <span class="text-[10px] font-bold text-rose-600 mt-0.5 flex items-center gap-1 uppercase">
+                        <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-500"></i> {{ form.nombre.errors.0 }}
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- BOTONES DE CONTROL DE FLUJO -->
             <div class="pt-5 border-t border-gray-100 flex justify-end gap-3 font-mono text-[11px] uppercase tracking-wider">
-    
                 <a href="{% url 'organigrama:estructura_list' %}" 
-                class="bg-gray-50 hover:bg-gray-100 border border-gray-200/60 text-gray-700 font-bold py-3 px-5 rounded-xl transition shadow-3xs cursor-pointer flex items-center justify-center transform active:scale-95">
+                   class="bg-gray-50 hover:bg-gray-100 border border-gray-200/60 text-gray-700 font-bold py-3 px-5 rounded-xl transition shadow-3xs cursor-pointer flex items-center justify-center transform active:scale-95">
                     Cancelar Alta
                 </a>
                 
@@ -68,4 +105,6 @@
         </form>
     </div>
 </div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
 {% endblock %}

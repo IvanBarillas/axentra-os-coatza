@@ -13,7 +13,7 @@
         <div class="min-w-0 flex-1">
             <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 {% if action == 'update' %}bg-blue-500{% else %}bg-emerald-500{% endif %} rounded-full"></span>
-                <span>Infraestructura Inmobiliaria // Gestión Criptográfica</span>
+                <span>Infraestructura Inmobiliaria // Gobernanza Territorial</span>
             </div>
             <h2 class="text-2xl font-bold text-gray-950 tracking-tight uppercase font-mono">
                 {% if action == 'update' %}Editar Parámetros de Sede{% else %}Registrar Sede Territorial{% endif %}
@@ -35,7 +35,7 @@
         <div class="p-4 bg-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 text-red-950 font-mono text-[11px] uppercase tracking-wide animate-pulse">
             <i data-lucide="shield-alert" class="w-4 h-4 text-red-600 mt-0.5 shrink-0"></i>
             <div class="space-y-1">
-                <span class="font-bold block">Fallo Crítico de Consistencia en Servidor:</span>
+                <span class="font-bold block">Inconsistencia en los Datos de Entrada:</span>
                 {% for error in form.non_field_errors %}
                     <p class="text-red-800 lowercase font-sans font-medium text-xs">{{ error }}</p>
                 {% endfor %}
@@ -49,7 +49,7 @@
                 <label for="{{ form.nombre.id_for_label }}" class="text-[10px] font-bold text-gray-400 font-mono uppercase tracking-wider block px-1">
                     Nomenclatura Oficial del Inmueble
                 </label>
-                <div class="relative">
+                <div class="w-full">
                     {{ form.nombre }}
                 </div>
                 {% if form.nombre.errors %}
@@ -59,7 +59,7 @@
                         </p>
                     {% endfor %}
                 {% else %}
-                    <p class="text-[9px] text-gray-400 font-mono uppercase tracking-wide px-1 mt-1">// Nombre identificable único para mamparas, oficios e inyección de personal.</p>
+                    <p class="text-[9px] text-gray-400 font-mono uppercase tracking-wide px-1 mt-1">// Nombre identificable único para mamparas, oficios oficiales e inyección estructural de personal.</p>
                 {% endif %}
             </div>
 
@@ -67,7 +67,7 @@
                 <label for="{{ form.direccion.id_for_label }}" class="text-[10px] font-bold text-gray-400 font-mono uppercase tracking-wider block px-1">
                     Ubicación Geográfica Legal
                 </label>
-                <div class="relative">
+                <div class="w-full">
                     {{ form.direccion }}
                 </div>
                 {% if form.direccion.errors %}
@@ -77,17 +77,17 @@
                         </p>
                     {% endfor %}
                 {% else %}
-                    <p class="text-[9px] text-gray-400 font-mono uppercase tracking-wide px-1 mt-1">// Calle, número, colonia y especificaciones de referencia territorial municipal.</p>
+                    <p class="text-[9px] text-gray-400 font-mono uppercase tracking-wide px-1 mt-1">// Calle, número, colonia y especificaciones de referencia territorial municipal vigente.</p>
                 {% endif %}
             </div>
 
         </div>
 
-        <!-- Purgado Axentra Logs -->
         <div class="p-5 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3.5 items-start">
             <i data-lucide="shield-check" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"></i>
             <p class="text-[10px] text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
-                <strong class="text-gray-950">Gobernanza Atómica:</strong> Al persistir este registro, los datos se empacarán bajo un esquema criptográfico `SedeInputDTO` y se auditarán automáticamente en el historial forense de `Axentra Logs` vinculando tu usuario activo.
+                <strong class="text-gray-950 block mb-0.5">Integridad Institucional Activa:</strong> 
+                Al guardar este registro, el chasis de Axentra OS validará la consistencia geográfica de la sede y actualizará la disponibilidad del nodo en el organigrama unificado del Ayuntamiento, registrando la operación bajo tu cuenta autenticada.
             </p>
         </div>
 
@@ -98,7 +98,7 @@
             
             <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-xl uppercase tracking-wider transition transform active:scale-95 cursor-pointer shadow-xs flex items-center gap-2">
                 <i data-lucide="database" class="w-3.5 h-3.5 text-gray-400"></i>
-                <span>{% if action == 'update' %}Re-grabar Parámetros{% else %}Grabar en Matriz{% endif %}</span>
+                <span>{% if action == 'update' %}Actualizar Sede{% else %}guardar Sede{% endif %}</span>
             </button>
         </div>
 

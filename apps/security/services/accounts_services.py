@@ -200,27 +200,29 @@ class FuncionarioService:
     @staticmethod
     def tramitar_baja_institucional(request, pk: uuid.UUID, operador_email: str) -> Tuple[bool, str]:
         """
-        Lockdown Administrativo: Revocación total de acceso al ecosistema (Inactivación).
+        Lockdown Administrativo: Aplica Soft-Delete e inactiva la cuenta del ecosistema.
         """
         try:
             usuario = User.objects.get(pk=pk)
             if usuario.is_manager or usuario.is_superuser:
                 return False, "Restricción de Infraestructura: No se pueden alterar cuentas directivas desde el CRUD común."
 
+            # 🟢 CORRECCIÓN: Persistencia doble de seguridad perimetral
+            usuario.is_deleted = True  
             usuario.is_active = False  
             usuario.save()
 
             # 🪐 REGISTRO DE LOCKDOWN TOTAL DE IDENTIDAD NORMALIZADO
             ForensicAuditor.registrar_evento(
                 request=request,
-                action_type=SecurityAuditLog.ActionTypes.DELETE,      # 🔤 Verbo Global
-                module_component="BAJA_PERSONAL",                    # 🗺️ Componente Local
+                action_type=SecurityAuditLog.ActionTypes.DELETE,      
+                module_component="BAJA_PERSONAL",                    
                 action_name="LOCKDOWN_BAJA_INSTITUCIONAL",
                 target_scope=f"Cierre perimetral de cuenta institucional para {usuario.email}.",
                 level=SecurityAuditLog.Levels.CRITICAL,
                 target_user=usuario,
                 search_target=usuario.id,
-                payload={'operador_baja': operador_email, 'is_active_final': False}
+                payload={'operador_baja': operador_email, 'is_deleted_final': True, 'is_active_final': False}
             )
 
             FuncionarioService._imprimir_auditoria_mutacion("LOCKDOWN / BAJA", usuario.email, "🛑 CUENTA CONGELADA", f"Operador: {operador_email}")
