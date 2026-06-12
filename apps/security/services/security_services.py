@@ -1,13 +1,14 @@
 # apps/security/services/security_services.py
-import sys
 import logging
+import sys
 import traceback
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from apps.security.models import UserAppRole, AppModule
-
-# 🛰️ UNIFICACIÓN ESTRUCTURAL: Centraliza la carga de manifiestos dinámicos evitando colisiones en RAM
+from apps.security.models.audit import SecurityAuditLog
+from apps.security.utils.forensic_auditor import ForensicAuditor
+from apps.security.utils.hierarchy_enforcer import HierarchyEnforcer
 from apps.security.services.permission_loader import get_app_permissions
 
 User = get_user_model()
@@ -15,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 class PermissionService:
-    """Lógica transaccional unificada para la inyección, depuración y grabación de privilegios JSON."""
+    """Lógica transaccional centralizada para la inyección, mutación y auditoría de privilegios."""
 
     @staticmethod
-    def authorize_new_user_entry(app_module: AppModule, user_id: str, rol_a_inyectar: str = 'viewer') -> bool:
+    def authorize_new_user_entry(request, app_module: AppModule, user_id: str, rol_a_inyectar: str = 'viewer') -> bool:
         """
-        Incorpora de forma limpia a un nuevo funcionario dentro de la aduana de un aplicativo,
-        otorgándole su rol base bajo la filosofía Zero Trust (en ceros, sin permisos fantasma).
+        Incorpora un funcionario al padrón de una aplicación bajo la filosofía Zero Trust.
+        🛰️ AUDITORÍA NORMALIZADA: Registra el evento bajo el tipo CREATE en el componente MATRIZ_PERMISOS.
         """
         try:
             target_user = User.objects.get(id=user_id)
@@ -35,7 +36,6 @@ class PermissionService:
                 if rol_existente and rol_existente.is_active:
                     return False
 
-                # 🟢 ZERO TRUST ENFORCEMENT: Si es 'owner' se lleva el catálogo total dinámico.
                 if rol_limpio == "owner":
                     config_app = get_app_permissions(app_module.slug)
                     llaves_finales = list(config_app.get('permissions', {}).keys())
@@ -51,110 +51,103 @@ class PermissionService:
                         'is_active': True
                     }
                 )
-            logger.info(f"🟢 CIBERSEGURIDAD: Funcionario {target_user.email} sembrado en Módulo [{app_module.slug.upper()}] bajo política Zero Trust.")
+
+            # 🪐 BITÁCORA FORENSE ATÓMICA DE INYECCIÓN
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.CREATE,
+                module_component="MATRIZ_PERMISOS",
+                action_name="INYECCION_PERIMETRAL_FUNCIONARIO",
+                target_scope=f"Siembra inicial del funcionario {target_user.email} en {app_module.name} con rol [{rol_limpio.upper()}].",
+                level=SecurityAuditLog.Levels.SUCCESS,
+                target_user=target_user,
+                search_target=target_user.id,
+                payload={'initial_role': rol_limpio, 'app_slug': app_module.slug}
+            )
+
+            logger.info(f"🟢 CIBERSEGURIDAD: Funcionario {target_user.email} sembrado en [{app_module.slug.upper()}].")
             return True
         except Exception as e:
-            logger.error(f"❌ FALLO TRANSACCIONAL (authorize_new_user_entry): {str(e)}")
+            logger.error(f"❌ FALLO (authorize_new_user_entry): {str(e)}")
             return False
 
     @staticmethod
-    def save_matrix_permissions(target_user: User, app_module: AppModule, nuevo_rol: str, llaves_encendidas: List[str]) -> bool:
+    def save_matrix_permissions(request, target_user: Any, app_module: AppModule, nuevo_rol: str, llaves_encendidas: List[str], is_manager_bypass: bool = False) -> Tuple[bool, str]:
         """
-        Compila e inyecta el override JSONField ejecutando un saneamiento estricto:
-        Elimina de forma obligatoria cualquier llave guardada que no exista dentro 
-        del manifiesto permissions.py activo de la aplicación correspondiente.
+        🚀 REFACTOR MASTER CENTRALIZADO BLINDADO: Sanea, valida jerarquía, calcula deltas y guarda.
+        🛡️ ENFOQUE ZERO-TRUST ESTRICTO: Solo 'owner' hereda todos los permisos. ADMIN nace en ceros.
+        🛰️ COMPILACIÓN FORENSE AUTÓNOMA: El servicio calcula el delta de forma nativa para blindar el payload_json.
         """
         try:
-            frame = sys._getframe(1)
-            invocado_desde = f"{frame.f_code.co_filename.split('/')[-1]} -> {frame.f_code.co_name}()"
-        except Exception:
-            invocado_desde = "Origen Desconocido"
-
-        # =========================================================================
-        # 🚨 SISTEMA DE DEPURACIÓN EN VIVO (ENTRADA DEL POST)
-        # =========================================================================
-        print("\n📥 " + "⚡"*25)
-        print("🛠️  DETECTOR SERVICE: INICIO DE PERSISTENCIA EN MATRIZ UNIVERSAL")
-        print(f"👤 Funcionario Destino:       {target_user.email}")
-        print(f"🎬 Controlador Invocador:     {invocado_desde}")
-        print(f"📦 Módulo Base de Datos:      [{app_module.slug.upper()}]")
-        print(f"📥 Rol Base recibido:         '{nuevo_rol}'")
-        print(f"📥 Llaves crudas del POST:    {llaves_encendidas}")
-
-        if target_user.is_manager or target_user.is_superuser:
-            print("🛡️  DETECTOR: El usuario objetivo es Manager/Superuser global. Operación ABORTADA.")
-            print("⚡"*26 + "\n")
-            return False
-
-        rol_limpio = str(nuevo_rol).lower().strip()
-        lista_final_json = list(set([str(llave).strip() for llave in llaves_encendidas if llave]))
-
-        # =========================================================================
-        # 🛡️ FILTRO DE CONGRUENCIA MULTI-APP: CONSUME EL CARGADOR INTELIGENTE
-        # =========================================================================
-        llaves_validas_manifiesto = set()
-        config_app = get_app_permissions(app_module.slug)
-        llaves_validas_manifiesto.update(config_app.get('permissions', {}).keys())
-        
-        if llaves_validas_manifiesto:
-            llaves_filtradas = [llave for llave in lista_final_json if llave in llaves_validas_manifiesto]
-            llaves_descartadas = [llave for llave in lista_final_json if llave not in llaves_validas_manifiesto]
+            rol_limpio = str(nuevo_rol).lower().strip()
             
-            if llaves_descartadas:
-                print(f"🗑️  AUDITORÍA DE SEGURIDAD: Eliminando llaves basura del JSON: {llaves_descartadas}")
+            # 🪐 SNAPSHOT ANTES: Capturamos el estado actual real de la BD antes de alterarlo
+            rol_actual_obj = UserAppRole.objects.filter(user=target_user, app=app_module).first()
+            rol_anterior = rol_actual_obj.role if rol_actual_obj else 'ninguno'
+            permisos_anteriores = list(rol_actual_obj.permissions_list or []) if rol_actual_obj else []
+
+            # 🛡️ VALIDACIÓN DE ESCALAFÓN DE JERARQUÍA
+            config_app = get_app_permissions(app_module.slug)
+            weights_map = config_app.get('weights', {})
+            permissions_pool = config_app.get('permissions', {})
+
+            tiene_autoridad = HierarchyEnforcer.validar_autoridad_operador(
+                request=request, target_user=target_user, app_module=app_module,
+                nuevo_rol_slug=rol_limpio, weights_map=weights_map
+            )
+            if not tiene_autoridad:
+                return False, "🚫 Violación de Escalafón: Tus privilegios locales no tienen el peso jerárquico requerido."
+
+            # Saneamiento y filtrado de llaves inyectadas desde el POST contra el manifiesto
+            lista_final_json = list(set([str(llave).strip() for llave in llaves_encendidas if llave]))
+            if permissions_pool:
+                lista_final_json = [l for l in lista_final_json if l in permissions_pool.keys()]
+
+            # Regla de control Zero-Trust: Solo Owner clona la piscina completa
+            if rol_limpio == 'owner' and permissions_pool:
+                lista_final_json = list(permissions_pool.keys())
             
-            lista_final_json = llaves_filtradas
+            # El token mínimo de entrada se amarra por diseño defensivo
+            if 'has_access_module' not in lista_final_json:
+                lista_final_json.append('has_access_module')
 
-        # =========================================================================
-        # 🎯 BLINDAJE INSTITUCIONAL DE RANGOS ALTOS (SHIELD INJECTOR)
-        # =========================================================================
-        if rol_limpio == 'owner':
-            for llave in ['can_assign_roles', 'can_configure_tenant', 'can_view_matrix', 'can_view_analytics']:
-                if llave in llaves_validas_manifiesto and llave not in lista_final_json:
-                    lista_final_json.append(llave)
-            print("🛡️  SHIELD INJECTOR: Sincronizadas las llaves legítimas del perfil OWNER.")
-            
-        elif rol_limpio == 'admin':
-            for llave in ['can_view_matrix', 'can_view_analytics']:
-                if llave in llaves_validas_manifiesto and llave not in lista_final_json:
-                    lista_final_json.append(llave)
-            print("🛡️  SHIELD INJECTOR: Sincronizadas las llaves legítimas del perfil ADMIN.")
+            # 🪐 ANÁLISIS FORENSE DELTA: Calculamos tokens ganados y perdidos de manera autónoma
+            payload_delta = {
+                'antes': {'role': rol_anterior, 'permissions': permisos_anteriores},
+                'despues': {'role': rol_limpio, 'permissions': lista_final_json},
+                'delta_cambios': {
+                    'tokens_ganados': [p for p in lista_final_json if p not in permisos_anteriores],
+                    'tokens_perdidos': [p for p in permisos_anteriores if p not in lista_final_json],
+                    'rol_mutado': rol_anterior != rol_limpio
+                }
+            }
 
-        # Garantizamos la llave de acceso base obligatoria del ecosistema Axentra
-        if 'has_access_module' not in lista_final_json:
-            lista_final_json.append('has_access_module')
-
-        # =========================================================================
-        # 🚀 PERSISTENCIA Y MUTACIÓN FÍSICA TRANSACCIONAL EN POSTGRESQL
-        # =========================================================================
-        try:
+            # Persistencia física atómica en PostgreSQL
             with transaction.atomic():
-                instancia_rol, created = UserAppRole.objects.update_or_create(
-                    user=target_user,
-                    app=app_module,
-                    defaults={
-                        'role': rol_limpio,
-                        'permissions_list': lista_final_json,
-                        'is_active': True
-                    }
+                UserAppRole.objects.update_or_create(
+                    user=target_user, app=app_module,
+                    defaults={'role': rol_limpio, 'permissions_list': lista_final_json, 'is_active': True}
                 )
 
-            # =========================================================================
-            # 🚨 CONTROL DE VERIFICACIÓN POST-GUARDADO (RETORNO DE LA DB)
-            # =========================================================================
-            print("\n💾 " + "✅"*25)
-            print("📊 CONFIRMACIÓN DE LA BASE DE DATOS (POSTGRES RETORNO):")
-            print(f"¿Se creó un registro nuevo?: {'SÍ 🆕' if created else 'NO (Actualización de registro existente 🔄)'}")
-            print(f"ID de la Membresía afectada: {instancia_rol.id}")
-            print(f"Rol final guardado:          [{instancia_rol.role}]")
-            print(f"JSON final guardado:         {instancia_rol.permissions_list}")
-            print("-" * 52)
-            print("📋 TRACEBACK DE MUTACIÓN TRANSACCIONAL ATÓMICA:")
-            for line in traceback.format_stack()[-3:-1]:
-                print(f"   {line.strip()}")
-            print("✅"*26 + "\n")
+            # 🪐 INYECTOR FORENSE CENTRALIZADO CON EL PAYLOAD COMPLETO
+            action_code = "MUTACION_MATRIZ_BYPASS" if is_manager_bypass else "MUTACION_MATRIZ_ESTANDAR"
+            level_status = SecurityAuditLog.Levels.SUCCESS if is_manager_bypass else SecurityAuditLog.Levels.INFO
             
-            return True
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.ASSIGN,     # 🔤 Verbo Normalizado
+                module_component="MATRIZ_PERMISOS",                  # 🗺️ Componente Local
+                action_name=action_code,
+                target_scope=f"Reconfiguración granular sobre la grilla de {target_user.email} en el módulo de {app_module.name}",
+                level=level_status,
+                target_user=target_user,
+                search_target=target_user.id,
+                payload=payload_delta                                # ◄── Guardado impecable en Postgres
+            )
+
+            msg = f"🔒 [NIVEL MAESTRO]: Reconfiguración por decreto completada." if is_manager_bypass else f"🔒 Matriz actualizada con éxito."
+            return True, msg
+
         except Exception as e:
-            logger.error(f"❌ FALLO TRANSACCIONAL (save_matrix_permissions): {str(e)}")
-            return False
+            logger.error(f"❌ FALLO TRANSACCIONAL (save_matrix_permissions): {str(e)}\n{traceback.format_exc()}")
+            return False, f"Fallo interno de consistencia: {str(e)}"

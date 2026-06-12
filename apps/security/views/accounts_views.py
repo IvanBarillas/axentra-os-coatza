@@ -2,12 +2,12 @@
 import uuid
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import HttpResponse
-from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import SetPasswordForm
 
 from apps.shared.apps_config import AppIdentifier
@@ -15,7 +15,7 @@ from apps.security.decorators import axentra_gate_enforcer
 from apps.security.models import User, UserProfile
 from apps.security.models.organigrama import Dependencia, AreaOperativa, Sede
 from apps.security.selectors.accounts_selectors import AccountsDashboardSelectors, FuncionarioSelectors
-from apps.security.services.accounts_services import FuncionarioService  # Ajustado a tu namespace
+from apps.security.services.accounts_services import FuncionarioService
 from apps.security.forms import (
     StaffUserCreationForm, StaffUserProfileForm, 
     StaffUserChangeForm, StaffUserProfileChangeForm, 
@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="has_access_module")
 def accounts_control_panel_view(request):
     """Cuarto de Control: Chasis ligero general con tarjetas de estatus y accesos rápidos."""
-    # 🟢 Las métricas y contadores viven aquí para accionar el módulo al instante
     context = AccountsDashboardSelectors.obtener_metricas_plantilla()
     return render(request, 'accounts/control_panel.html', context)
 
@@ -38,7 +37,6 @@ def accounts_control_panel_view(request):
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_analytics")
 def accounts_dashboard_view(request):
     """Consola Analítica: Gráficas de rendimiento e incorporación histórica pesada."""
-    # 🟢 Aquí solo se calculan los datos pesados de series de tiempo/cronologías
     context = {
         'cronologia_altas': AccountsDashboardSelectors.obtener_cronologia_altas()
     }
@@ -66,7 +64,6 @@ def funcionario_list_view(request):
         'current_q': search_query,
     }
     
-    # 🎰 PROTOCOLO HYPER-REACTIVE HTMX LAYER:
     if request.headers.get('HX-Request') or request.headers.get('hx-request'):
         return render(request, 'accounts/htmx/funcionario_table_partial.html', context)
         
@@ -97,13 +94,16 @@ def funcionario_create_view(request):
                 'telefono_oficina': profile_form.cleaned_data.get('telefono_oficina')
             }
             
+            # 🟢 CABLEADO FORENSE: Se inyecta el 'request' para heredar IP y User-Agent al log automático
             exito, usuario, errores = FuncionarioService.crear_funcionario(
-                post_data=payload, raw_password=form.cleaned_data.get('password')
+                request=request, 
+                post_data=payload, 
+                raw_password=form.cleaned_data.get('password')
             )
 
             if exito and usuario:
                 messages.success(request, f"El funcionario {usuario.full_name} ha sido dado de alta con éxito.")
-                return redirect('accounts:funcionario_list')  # Estandarizado a tu namespace real
+                return redirect('accounts:funcionario_list')
             if errores:
                 form.add_error(None, errores.get('server_error', ['Error de consistencia interna'])[0])
     else:
@@ -118,7 +118,6 @@ def funcionario_create_view(request):
 def funcionario_editar_view(request, pk: uuid.UUID):
     """Modificación atómica en caliente de expedientes maestros de adscripción."""
     usuario_instance = get_object_or_404(User, id=pk)
-    # 🟢 CORRECCIÓN: Buscamos el perfil usando la clave explícita para evitar colisión de accesores inversos
     perfil_instance = get_object_or_404(UserProfile, user=usuario_instance)
 
     if request.method == 'POST':
@@ -141,7 +140,12 @@ def funcionario_editar_view(request, pk: uuid.UUID):
                 'telefono_oficina': form_profile.cleaned_data.get('telefono_oficina')
             }
             
-            exito, usuario, errores = FuncionarioService.editar_funcionario(pk, payload)
+            # 🟢 CABLEADO FORENSE: Se inyecta el 'request' para calcular el delta en caliente
+            exito, usuario, errores = FuncionarioService.editar_funcionario(
+                request=request, 
+                pk=pk, 
+                post_data=payload
+            )
             if exito:
                 messages.success(request, f"La ficha de {usuario.full_name} se actualizó correctamente.")
                 return redirect('accounts:funcionario_list')
@@ -154,27 +158,34 @@ def funcionario_editar_view(request, pk: uuid.UUID):
     return render(request, 'accounts/forms/funcionario_update_form.html', {
         'form_user': form_user, 
         'form_profile': form_profile, 
-        'funcionario': usuario_instance  # 🟢 CORRECCIÓN: Pasamos el objeto directo para evitar llamadas a métodos inexistentes
+        'funcionario': usuario_instance
     })
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission='can_change_password')
 def funcionario_cambiar_password_view(request, pk: uuid.UUID):
-    """Cifrado administrativo forzado de contraseñas con doble validación de coincidencia."""
-    # Forzamos la búsqueda sobre tu modelo real de Axentra
+    """Cifrado administrativo forzado de contraseñas con inyección perimetral de logs de auditoría."""
     usuario_instance = get_object_or_404(get_user_model(), id=pk)
     
     if request.method == 'POST':
         form = SetPasswordForm(user=usuario_instance, data=request.POST)
         if form.is_valid():
-            # El formulario SetPasswordForm hace el hash y guarda nativamente al usuario
-            form.save() 
+            nueva_password = form.cleaned_data.get('new_password1')
             
-            # Recargamos el objeto desde la BD para forzar el flag customizado sin que proteste el linter
-            get_user_model().objects.filter(id=pk).update(must_change_password=True)
+            # 🟢 REFACTOR CRÍTICO: En lugar de guardar desde el formulario plano, invocamos 
+            # el método del servicio para que la mutación criptográfica caiga directo en la bitácora
+            success = FuncionarioService.forzar_reseteo_password(
+                request=request, 
+                pk=pk, 
+                nueva_password=nueva_password
+            )
             
-            messages.success(request, f"🔒 Credenciales restablecidas con éxito para {usuario_instance.full_name}.")
+            if success:
+                messages.success(request, f"🔒 Credenciales restablecidas con éxito para {usuario_instance.full_name}.")
+            else:
+                messages.error(request, "❌ No se pudo restablecer la credencial en el Core.")
+                
             return redirect('accounts:funcionario_list')
     else:
         form = SetPasswordForm(user=usuario_instance)
@@ -193,9 +204,13 @@ def funcionario_soft_delete_view(request, pk: uuid.UUID):
         messages.error(request, "Operación denegada: No puede aplicar una baja sobre su propia sesión.")
         return redirect('accounts:funcionario_list')
 
-    exito, mensaje = FuncionarioService.tramitar_baja_institucional(pk, request.user.email)
+    # 🟢 CABLEADO FORENSE: Pasamos el 'request' como primer parámetro
+    exito, mensaje = FuncionarioService.tramitar_baja_institucional(
+        request=request, 
+        pk=pk, 
+        operador_email=request.user.email
+    )
     
-    # 🚀 RESPUESTA REACTIVA: Si la orden viene de HTMX, borramos la fila del DOM al instante con estatus 200
     if request.headers.get('HX-Request') or request.headers.get('hx-request'):
         return HttpResponse(status=200, content="")
 
@@ -210,15 +225,30 @@ def funcionario_soft_delete_view(request, pk: uuid.UUID):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission='can_edit_user')
 def funcionario_toggle_status_view(request, pk: uuid.UUID):
-    """Alternador AJAX de estatus operativo (is_active) para cuentas de personal."""
+    """Alternador AJAX de estatus operativo (is_active) con inyector forense manual."""
     if str(pk) == str(request.user.id):
         return HttpResponse(status=403, content="Bloqueo de seguridad: Auto-congelación denegada.")
         
     funcionario = get_object_or_404(User, id=pk)
+    estado_anterior = funcionario.is_active
     funcionario.is_active = not funcionario.is_active
     funcionario.save()
     
-    # Devolvemos tu componente UI global para reemplazar el Badge de la fila al vuelo
+    # 🪐 LOG MANUAL EN CALIENTE DESDE LA VISTA AUXILIAR: Como este interruptor no pasa por 
+    # el Service maestro sino que muta un flag directo, le metemos su llamada al inyector aquí mismo
+    from apps.security.utils.forensic_auditor import ForensicAuditor
+    from apps.security.models.audit import SecurityAuditLog
+    
+    ForensicAuditor.registrar_evento(
+        request=request,
+        action_name="TOGGLE_STATUS_FUNCIONARIO",
+        target_scope=f"Conmutación de estatus de cuenta para {funcionario.email} (Estado final: {funcionario.is_active}).",
+        level=SecurityAuditLog.Levels.INFO if funcionario.is_active else SecurityAuditLog.Levels.CRITICAL,
+        target_user=funcionario,
+        search_target=funcionario.id,
+        payload={'is_active_before': estado_anterior, 'is_active_after': funcionario.is_active}
+    )
+    
     return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
         'is_active': funcionario.is_active,
         'toggle_url': reverse('accounts:funcionario_toggle_status', args=[funcionario.id])

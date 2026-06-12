@@ -24,7 +24,7 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
         # 👤 PASO 1: SEMBRADO DEL OPERADOR SUPREMO
         # =========================================================================
         print("👥 1. Validando existencia del Operador Supremo...")
-        email_root = "owner@g.com"
+        email_root = "owner@axentra.com.mx"
         
         user_root, user_creado = User.objects.get_or_create(
             email=email_root,
@@ -32,11 +32,11 @@ def sincronizar_entorno_so_axentra(sender, **kwargs):
         )
         
         if user_creado:
-            user_root.set_password("owner123")
+            user_root.set_password("1q2w3e4r5t%")
             if hasattr(user_root, 'is_manager'):
                 setattr(user_root, 'is_manager', True)
             user_root.save()
-            print(f"   ↳ 👑 Operador Supremo creado con éxito: [{email_root}] (Pass default: owner123)")
+            print(f"   ↳ 👑 Operador Supremo creado con éxito: [{email_root}] (Pass default: 1q2w3e4r5t%)")
         else:
             modificado = False
             if not user_root.is_superuser:
