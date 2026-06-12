@@ -1,24 +1,32 @@
-<div class="bg-white border border-gray-200/80 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-[0_16px_32px_rgba(37,99,235,0.05)] flex flex-col justify-between group">
-    <div class="space-y-4">
-        <div class="flex items-center justify-between">
-            <div class="w-11 h-11 rounded-xl {{ bg_icon }} border border-gray-100 flex items-center justify-center text-blue-600 transition-transform duration-300 group-hover:scale-110">
-                <i data-lucide="{{ icon }}" class="w-5 h-5"></i>
-            </div>
-            {% if target_count %}
-                <div class="text-right">
-                    <span class="block text-base font-bold text-gray-950 tracking-tight">{{ target_count }}</span>
-                    <span class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono">{{ target_label }}</span>
-                </div>
-            {% endif %}
+<div class="bg-white p-4 md:p-6 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs hover:border-{{ hover_color|default:'blue-600' }}/30 hover:shadow-md transition-all duration-300 flex md:flex-col justify-between items-center md:items-stretch gap-4 md:gap-0 min-h-0 md:min-h-[240px] group">
+    
+    <div class="flex md:flex-col items-center md:items-start gap-4 md:gap-0 min-w-0 flex-1 md:flex-initial">
+        
+        <div class="rounded-xl p-3 shadow-3xs transition-all duration-300 {{ bg_icon|default:'bg-gray-50' }} border border-gray-100 text-gray-700 group-hover:bg-{{ hover_color|default:'blue-600' }} group-hover:text-white shrink-0">
+            <i data-lucide="{{ icon|default:'box' }}" class="h-5 w-5 transition-transform duration-300 group-hover:scale-110"></i>
         </div>
-        <div class="space-y-1">
-            <h4 class="text-base font-bold text-gray-950 tracking-tight group-hover:text-blue-600 transition-colors">{{ title }}</h4>
-            <p class="text-gray-500 text-xs leading-relaxed font-medium">{{ description }}</p>
+        
+        <div class="min-w-0 md:mt-4 text-left">
+            <span class="hidden md:inline-block text-[8px] font-black font-mono bg-gray-50 border border-gray-200/60 text-gray-500 px-2 py-0.5 rounded-md uppercase tracking-widest">
+                Módulo Operativo
+            </span>
+            
+            <h4 class="text-sm font-black text-gray-950 font-mono uppercase tracking-tight md:mt-2 truncate">
+                {{ title }}
+            </h4>
+            
+            <p class="hidden md:block text-gray-400 text-[11px] font-medium leading-relaxed mt-2 font-mono uppercase line-clamp-3">
+                {{ description }}
+            </p>
         </div>
     </div>
-    <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end">
-        <a href="{{ url_destination }}" class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-blue-600 hover:text-blue-700 transition transform active:scale-95">
-            {{ button_text }} <i data-lucide="chevron-right" class="w-4 h-4"></i>
+    
+    <div class="pt-0 md:pt-4 md:border-t md:border-gray-100/80 md:mt-4 shrink-0">
+        <a href="{{ url_destination }}" class="inline-flex items-center justify-center gap-2 bg-gray-950 hover:bg-{{ hover_color|default:'blue-600' }} text-white font-black py-2.5 md:py-3 px-3 md:px-4 rounded-xl text-[9px] md:text-[10px] font-mono uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-sm transform active:scale-95 group/btn">
+            <span class="hidden md:inline">{{ button_text|default:"Desplegar" }}</span>
+            <span class="inline md:hidden">Abrir</span>
+            <svg class="w-3.5 h-3.5 text-{{ hover_color|default:'blue-600' }} group-hover/btn:text-white transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </a>
     </div>
+
 </div>

@@ -2,12 +2,12 @@
 
 <div class="w-full flex flex-col h-full space-y-4 animate-fade-in" x-data="{ buscarArea: '' }">
     
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-2">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-2 text-left">
         <div class="font-mono">
             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">// Nodos de Oficinas adscritos a:</span>
-            <h4 class="text-sm font-black text-slate-900 uppercase tracking-tight mt-0.5">{{ dependencia.nombre }}</h4>
+            <h4 class="text-sm font-black text-slate-900 uppercase tracking-tight mt-0.5 leading-tight">{{ dependencia.nombre }}</h4>
         </div>
-        <span class="bg-gray-950 text-white text-[10px] font-mono font-bold px-3 py-1 rounded-xl uppercase tracking-wide shadow-2xs">
+        <span class="bg-gray-950 text-white text-[10px] font-mono font-bold px-3 py-1 rounded-xl uppercase tracking-wide shadow-2xs self-start sm:self-center">
             {{ areas|length }} Áreas
         </span>
     </div>
@@ -25,7 +25,8 @@
     {% endif %}
 
     <div class="flex-grow max-h-[440px] overflow-y-auto pr-1 custom-scrollbar space-y-2">
-        <table class="w-full text-left border-separate border-spacing-y-2 font-mono text-[11px]">
+        
+        <table class="hidden md:table w-full text-left border-separate border-spacing-y-2 font-mono text-[11px]">
             <thead>
                 <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px]">
                     <th class="pb-1 pl-4 w-1/2">Nombre de la Oficina o Celda</th>
@@ -57,18 +58,14 @@
                         
                         <td class="p-4 rounded-r-2xl text-end">
                             <div class="flex items-center justify-end gap-2" @click.stop>
-                                
                                 {% url 'organigrama:area_toggle_status' area.id as area_toggle_url %}
                                 {% badge_toggle area.is_active area_toggle_url %}
 
                                 {% if request.axentra_is_root or "can_mutate_structure" in request.axentra_permissions_list %}
-                                    
                                     <a href="{% url 'organigrama:area_update' area.id %}" 
-                                       class="p-1.5 bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-950 rounded-lg transition shadow-3xs cursor-pointer inline-flex items-center justify-center"
-                                       title="Editar Especificaciones">
+                                       class="p-1.5 bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-950 rounded-lg transition shadow-3xs cursor-pointer inline-flex items-center justify-center">
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </a>
-                                    
                                     <button type="button"
                                             id="btn-del-area-{{ area.id }}"
                                             hx-post="{% url 'organigrama:area_delete' area.id %}"
@@ -80,26 +77,80 @@
                                                 '¿Está totalmente seguro de aplicar la baja lógica al área o departamento \'{{ area.nombre }}\'? Se desvinculará permanentemente de la estructura central.',
                                                 'btn-del-area-{{ area.id }}'
                                             )"
-                                            class="p-1.5 bg-gray-50 border border-gray-200 text-gray-400 hover:bg-red-600 hover:text-white rounded-lg transition shadow-3xs cursor-pointer inline-flex items-center justify-center"
-                                            title="Dar de baja oficina">
+                                            class="p-1.5 bg-gray-50 border border-gray-200 text-gray-400 hover:bg-red-600 hover:text-white rounded-lg transition shadow-3xs cursor-pointer inline-flex items-center justify-center">
                                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                     </button>
-
-                                {% endif %} </div>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="3" class="p-8 text-center text-slate-400 font-medium uppercase text-[10px] tracking-widest bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-                            <div class="flex flex-col items-center justify-center gap-2 py-6">
-                                <i data-lucide="git-commit" class="w-6 h-6 text-slate-300 stroke-1"></i>
-                                <span>// Este ramo no contains sub-oficinas fragmentadas aún</span>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="block md:hidden space-y-2 w-full font-mono text-[11px]">
+            {% for area in areas %}
+                <div class="fila-area bg-white p-4 rounded-xl border border-gray-100 shadow-3xs flex flex-col gap-3 transition-all duration-200"
+                    x-show="buscarArea === '' || '{{ area.nombre }}'.toUpperCase().includes(buscarArea.toUpperCase())"
+                    x-transition:enter="transition ease-out duration-100"
+                    x-transition:enter-start="opacity-0 scale-98"
+                    x-transition:enter-end="opacity-100 scale-100">
+                    
+                    <div class="flex justify-between items-start gap-3 text-left">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 font-bold text-slate-900 uppercase tracking-tight">
+                                <span class="w-1.5 h-1.5 bg-gray-950 rounded-full shrink-0"></span>
+                                <span class="break-words leading-tight">{{ area.nombre }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-slate-400 uppercase tracking-wide text-[10px] mt-1.5">
+                                <i data-lucide="map-pin" class="w-3 h-3 text-slate-400 shrink-0"></i>
+                                <span class="truncate">{{ area.sede_fisica.nombre|default:"Sede Central" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-2 border-t border-gray-50 flex items-center justify-between gap-2" @click.stop>
+                        <div>
+                            {% url 'organigrama:area_toggle_status' area.id as area_toggle_url_mob %}
+                            {% badge_toggle area.is_active area_toggle_url_mob %}
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            {% if request.axentra_is_root or "can_mutate_structure" in request.axentra_permissions_list %}
+                                <a href="{% url 'organigrama:area_update' area.id %}" 
+                                   class="p-2 bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-950 rounded-xl transition shadow-3xs cursor-pointer inline-flex items-center justify-center transform active:scale-95">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                </a>
+                                <button type="button"
+                                        id="btn-del-area-mob-{{ area.id }}"
+                                        hx-post="{% url 'organigrama:area_delete' area.id %}"
+                                        hx-target="closest .fila-area"
+                                        hx-swap="delete"
+                                        hx-trigger="confirmed"
+                                        @click="triggerConfirm(
+                                            'Alerta de Reducción Estructural',
+                                            '¿Está seguro de aplicar la baja lógica a: \'{{ area.nombre }}\'?',
+                                            'btn-del-area-mob-{{ area.id }}'
+                                        )"
+                                        class="p-2 bg-gray-50 border border-gray-200 text-gray-400 hover:bg-red-600 hover:text-white rounded-xl transition shadow-3xs cursor-pointer inline-flex items-center justify-center transform active:scale-95">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if not areas %}
+        <div class="w-full text-center py-10 bg-gray-50/50 border border-dashed border-gray-200 rounded-2xl font-mono text-[10px]">
+            <div class="flex flex-col items-center justify-center gap-2 py-6">
+                <i data-lucide="git-commit" class="w-6 h-6 text-slate-300 stroke-1"></i>
+                <span class="text-slate-400 font-bold uppercase tracking-widest">// Este ramo no contiene sub-oficinas fragmentadas aún</span>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 

@@ -1,14 +1,25 @@
-<div class="bg-white border border-gray-200/80 p-5 rounded-2xl shadow-xs transition duration-300 hover:border-blue-300 hover:shadow-[0_12px_24px_rgba(37,99,235,0.03)] flex items-center justify-between group">
-    <div class="space-y-1">
-        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono block">{{ label }}</span>
-        <h3 class="text-2xl font-bold tracking-tight text-gray-950 group-hover:text-blue-600 transition-colors">{{ value }}</h3>
+<div class="bg-white p-4 md:p-5 rounded-2xl border border-gray-200/80 shadow-3xs transition-all duration-300 hover:border-{{ hover_color|default:'blue-600' }}/30 hover:shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-5 group relative overflow-hidden">
+    
+    <div class="space-y-0.5 md:space-y-1 text-left order-2 sm:order-1 min-w-0 flex-1">
+        <span class="text-[9px] md:text-xs font-black text-gray-400 uppercase tracking-widest font-mono block truncate">
+            {{ label }}
+        </span>
+        
+        <h3 class="text-xl md:text-2xl lg:text-3xl font-black tracking-tighter text-gray-950 transition-colors duration-200 group-hover:text-{{ hover_color|default:'blue-600' }} font-mono leading-none pt-0.5">
+            {{ value }}
+        </h3>
+        
         {% if subtext %}
-            <p class="text-[11px] font-medium {% if subtext_highlight %}text-emerald-600{% else %}text-gray-400{% endif %} mt-0.5">
-                {{ subtext }}
+            <p class="text-[10px] md:text-[11px] font-bold font-mono uppercase tracking-wide truncate pt-1
+                {% if subtext_highlight %}text-emerald-500
+                {% else %}text-gray-400{% endif %}">
+                // {{ subtext }}
             </p>
         {% endif %}
     </div>
-    <div class="w-12 h-12 rounded-xl {{ bg_icon }} border border-gray-100 flex items-center justify-center text-gray-700 transition-transform duration-300 group-hover:scale-110">
-        <i data-lucide="{{ icon }}" class="w-5 h-5"></i>
+    
+    <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl {{ bg_icon|default:'bg-gray-50' }} border border-gray-100/80 flex items-center justify-center text-gray-700 transition-all duration-300 group-hover:bg-{{ hover_color|default:'blue-600' }} group-hover:text-white shrink-0 order-1 sm:order-2 self-start sm:self-center shadow-3xs">
+        <i data-lucide="{{ icon|default:'bar-chart-3' }}" class="w-4 h-4 md:w-5 md:h-5 transition-transform duration-300 group-hover:scale-110"></i>
     </div>
+
 </div>

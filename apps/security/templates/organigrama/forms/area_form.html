@@ -5,33 +5,37 @@
 {% block title %}{% if action == 'create' %}Nueva Área Operativa{% else %}Modificar Área{% endif %} | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="max-w-2xl mx-auto space-y-6 pb-12 animate-fade-in select-none pt-4">
+<!-- pb-24 garantiza la zona de exclusión táctil para que el bottom_nav móvil nunca tape los botones de acción -->
+<div class="max-w-2xl mx-auto space-y-6 pb-24 md:pb-16 animate-fade-in select-none pt-2 md:pt-4">
     
-    <!-- CABECERA DEL FORMULARIO -->
-    <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1">
-                Administración Central / Estructura / {% if action == 'create' %}Inyectar Área{% else %}Edición{% endif %}
+    <!-- 👑 HEADER DE RETORNO INSTITUCIONAL COMPACTO -->
+    <div class="bg-white p-5 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative overflow-hidden">
+        <div class="min-w-0 flex-1 w-full text-left">
+            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 leading-none">
+                Administración Central // Estructura // {% if action == 'create' %}Inyectar Área{% else %}Edición{% endif %}
             </div>
-            <h2 class="text-2xl font-bold text-gray-950 tracking-tight font-mono uppercase">
-                {% if action == 'create' %}Inyectar Área Operativa{% else %}Modificar Oficina / Departamento{% endif %}
+            <h2 class="text-xl md:text-2xl font-black text-gray-950 tracking-tighter uppercase font-mono truncate leading-tight">
+                {% if action == 'create' %}Inyectar Área Operativa{% else %}Modificar Oficina{% endif %}
             </h2>
-            <p class="text-xs text-gray-400 font-medium mt-0.5 font-sans normal-case">
-                Asignación geográfica y jerárquica de sub-oficinas, celdas operativas o departamentos subordinados.
+            <p class="hidden md:block text-xs text-gray-400 font-bold font-mono mt-1.5 uppercase tracking-wide leading-none">
+                // Asignación geográfica y jerárquica de sub-oficinas, celdas operativas o departamentos subordinados.
             </p>
         </div>
-        <a href="{% url 'organigrama:estructura_list' %}" class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold py-2.5 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-3xs flex items-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver
+        
+        <!-- 🎯 RETORNO AL MODELADO JERÁRQUICO -->
+        <a href="{% url 'organigrama:estructura_list' %}" class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0">
+            <i data-lucide="arrow-left" class="w-4 h-4 text-gray-400"></i>
+            <span>Volver a Estructura</span>
         </a>
     </div>
 
-    <!-- CUERPO DE MAQUETACIÓN ESTRUCTURAL -->
-    <div class="bg-white p-8 md:p-10 rounded-[32px] border border-gray-200/80 shadow-2xs">
+    <!-- CUERPO DE MAQUETACIÓN ESTRUCTURAL COMPACTO -->
+    <div class="bg-white p-5 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs">
         
         <!-- ALERTA DE ERRORES FORMALES -->
         {% if form.non_field_errors %}
-        <div class="p-4 bg-red-50 border border-red-100 rounded-2xl text-xs text-red-600 font-medium space-y-1 mb-6 font-mono text-[11px] uppercase tracking-wide">
-            <p class="font-black tracking-wider text-[10px] text-red-700">Error de Consistencia Orgánica:</p>
+        <div class="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 font-medium space-y-1 mb-6 font-mono text-[11px] uppercase tracking-wide text-left animate-pulse">
+            <p class="font-black tracking-wider text-[10px] text-red-700">// Error de Consistencia Orgánica:</p>
             <p>• {{ form.non_field_errors.0 }}</p>
         </div>
         {% endif %}
@@ -39,19 +43,19 @@
         <form method="POST" action="{% if action == 'create' %}{% url 'organigrama:area_create' %}{% else %}.{% endif %}" class="space-y-6 font-mono text-xs uppercase tracking-wide text-left">
             {% csrf_token %}
             
-            <!-- 🟢 CONTENEDOR EN REJILLA PARALELA PARA LOS DOS SELECTS -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- 🟢 CONTENEDOR EN REJILLA PARALELA EVOLUTIVA -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 
                 <!-- Selector 1: Dependencia Jerárquica -->
                 <div class="flex flex-col gap-1.5">
-                    <label for="{{ form.dependencia.id_for_label }}" class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <label for="{{ form.dependencia.id_for_label }}" class="text-[10px] font-black text-gray-400 uppercase tracking-wider block px-1">
                         {{ form.dependencia.label }}
                     </label>
                     <div class="w-full">
                         {{ form.dependencia }}
                     </div>
                     {% if form.dependencia.errors %}
-                        <span class="text-[10px] font-bold text-rose-600 mt-0.5 flex items-center gap-1 uppercase">
+                        <span class="text-[10px] font-bold text-rose-600 mt-1 flex items-center gap-1 uppercase px-1 animate-fade-in">
                             <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-500"></i> {{ form.dependencia.errors.0 }}
                         </span>
                     {% endif %}
@@ -59,14 +63,14 @@
 
                 <!-- Selector 2: Sede Física Inmobiliaria -->
                 <div class="flex flex-col gap-1.5">
-                    <label for="{{ form.sede_fisica.id_for_label }}" class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <label for="{{ form.sede_fisica.id_for_label }}" class="text-[10px] font-black text-gray-400 uppercase tracking-wider block px-1">
                         {{ form.sede_fisica.label }}
                     </label>
                     <div class="w-full">
                         {{ form.sede_fisica }}
                     </div>
                     {% if form.sede_fisica.errors %}
-                        <span class="text-[10px] font-bold text-rose-600 mt-0.5 flex items-center gap-1 uppercase">
+                        <span class="text-[10px] font-bold text-rose-600 mt-1 flex items-center gap-1 uppercase px-1 animate-fade-in">
                             <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-500"></i> {{ form.sede_fisica.errors.0 }}
                         </span>
                     {% endif %}
@@ -74,30 +78,30 @@
 
             </div>
 
-            <!-- 🟢 CAMPO DE TEXTO ABAJO: Abarcando el ancho completo -->
+            <!-- 🟢 CAMPO DE TEXTO: NOMENCLATURA DE LA CELDA -->
             <div class="flex flex-col gap-1.5">
-                <label for="{{ form.nombre.id_for_label }}" class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <label for="{{ form.nombre.id_for_label }}" class="text-[10px] font-black text-gray-400 uppercase tracking-wider block px-1">
                     {{ form.nombre.label }}
                 </label>
                 <div class="w-full">
                     {{ form.nombre }}
                 </div>
                 {% if form.nombre.errors %}
-                    <span class="text-[10px] font-bold text-rose-600 mt-0.5 flex items-center gap-1 uppercase">
+                    <span class="text-[10px] font-bold text-rose-600 mt-1 flex items-center gap-1 uppercase px-1 animate-fade-in">
                         <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-500"></i> {{ form.nombre.errors.0 }}
                     </span>
                 {% endif %}
             </div>
 
-            <!-- BOTONES DE CONTROL DE FLUJO -->
-            <div class="pt-5 border-t border-gray-100 flex justify-end gap-3 font-mono text-[11px] uppercase tracking-wider">
+            <!-- BOTONES DE CONTROL DE FLUJO ADAPTATIVOS -->
+            <div class="pt-5 border-t border-gray-100/80 flex flex-col sm:flex-row justify-end gap-3 font-mono text-[10px] uppercase tracking-widest w-full">
                 <a href="{% url 'organigrama:estructura_list' %}" 
-                   class="bg-gray-50 hover:bg-gray-100 border border-gray-200/60 text-gray-700 font-bold py-3 px-5 rounded-xl transition shadow-3xs cursor-pointer flex items-center justify-center transform active:scale-95">
+                   class="w-full sm:w-auto text-center bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 font-black py-3.5 px-5 rounded-xl transition shadow-3xs cursor-pointer flex items-center justify-center transform active:scale-95">
                     Cancelar Alta
                 </a>
                 
                 <button type="submit" 
-                        class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer transform active:scale-95">
+                        class="w-full sm:w-auto bg-gray-950 hover:bg-gray-900 text-white font-black py-3.5 px-6 rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer transform active:scale-95">
                     <i data-lucide="save" class="w-4 h-4 text-gray-400"></i>
                     <span>Vincular Oficina</span>
                 </button>
