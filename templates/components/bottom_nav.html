@@ -1,39 +1,149 @@
-<nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-950 via-gray-900/98 to-gray-900 backdrop-blur-lg border-t border-white/10 shadow-[0_-15px_40px_rgba(0,0,0,0.5)] z-50 px-4 py-2.5 nav-mobile-contraste" 
-     role="navigation" 
-     aria-label="Navegación móvil rápida">
-    <div class="flex justify-around items-center max-w-md mx-auto">
+<div x-data="{ coreMenuOpen: false, satelliteMenuOpen: false }" class="lg:hidden">
+    
+    <!-- 🌌 PANEL 1: DESPLEGABLE CORE APPS (Hacia arriba) -->
+    <div x-show="coreMenuOpen" 
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="translate-y-10 opacity-0"
+         x-transition:enter-end="translate-y-0 opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="translate-y-0 opacity-100"
+         x-transition:leave-end="translate-y-10 opacity-0"
+         @click.away="coreMenuOpen = false"
+         class="fixed bottom-[74px] left-4 right-4 bg-gray-950/98 backdrop-blur-xl border border-white/10 rounded-[24px] shadow-[0_-15px_40px_rgba(0,0,0,0.5)] z-50 p-4 space-y-3 font-mono select-none"
+         style="display: none;">
         
-        <a href="/" class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none" aria-label="Ir a la página de inicio">
-            <svg class="w-5 h-5 text-blue-500 group-hover:text-blue-400 transition-colors duration-200 icon-contraste transition-transform group-active:scale-90" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11.47 3.82a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.69-8.69a2.25 2.25 0 00-3.18 0l-8.69 8.69a.75.75 0 001.06 1.06l8.69-8.69z" />
-                <path d="M5.25 11.44v7.81c0 .414.336.75.75.75h4.125a.75.75 0 00.75-.75v-4.875c0-.414.336-.75.75-.75h1.5c.414 0 .75.336.75.75V19.5a.75.75 0 00.75.75H18a.75.75 0 00.75-.75v-7.81l-6.75-6.75-6.75 6.75z" />
-            </svg>
-            <span class="text-[9px] font-black tracking-wider uppercase text-blue-500 group-hover:text-blue-400 transition-colors text-contraste">Inicio</span>
-        </a>
+        <div class="px-2 py-1 border-b border-white/5 pb-2">
+            <span class="text-[8px] font-black tracking-widest text-amber-400 block uppercase">// CONSOLA DE INFRAESTRUCTURA CORE</span>
+            <span class="text-[10px] text-gray-400 font-bold block mt-0.5">Aplicativos de Gobernación Crítica</span>
+        </div>
 
-        <a href="{% url 'launcher_home' %}" class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none" aria-label="Ingresar a la consola de aplicaciones">
-            <svg class="w-5 h-5 text-white/50 group-hover:text-white transition-colors duration-200 icon-contraste transition-transform group-active:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" h="9" x="3" y="3" rx="1"/><rect width="7" h="5" x="14" y="3" rx="1"/><rect width="7" h="9" x="14" y="12" rx="1"/><rect width="7" h="5" x="3" y="16" rx="1"/></svg>
-            <span class="text-[9px] font-bold tracking-wider uppercase text-white/50 group-hover:text-white transition-colors text-contraste">Consola</span>
-        </a>
-
-        <a href="{% url 'accounts:login' %}" class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none" aria-label="Ingresar al sistema corporativo">
-            <svg class="w-5 h-5 text-white/50 group-hover:text-white transition-colors duration-200 icon-contraste transition-transform group-active:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
-            <span class="text-[9px] font-bold tracking-wider uppercase text-white/50 group-hover:text-white transition-colors text-contraste">Acceso</span>
-        </a>
-
-        <a href="https://api.whatsapp.com/send?phone=5219212601146&text=Hola.%20Necesito%20asistencia%20en%20el%20Ecosistema%20Gubernamental%20de%20{{ tenant.app_name|default:'Axentra' }}." 
-           target="_blank" 
-           rel="noopener noreferrer"
-           class="flex flex-col items-center justify-center gap-1 text-center group py-1 min-w-[64px] focus:outline-none relative"
-           aria-label="Contactar al Asistente por WhatsApp">
-            <div class="relative flex items-center justify-center">
-                <span class="absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75 animate-ping -top-0.5 -right-0.5"></span>
-                <svg class="w-5 h-5 text-emerald-400 group-hover:text-emerald-300 transition-colors duration-200 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]" viewBox="0 0 24 24" fill="currentColor">
-                    <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5l-.995 3.648a1 1 0 001.214 1.214l3.648-.995A9.963 9.963 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zM8.51 7.23a.75.75 0 00-1.012.224l-.84 1.26a1.75 1.75 0 00-.236 1.38c.18.736.636 1.7 1.455 2.52l3.24 3.24c.82.819 1.784 1.275 2.52 1.455.485.119.996.03 1.38-.236l1.26-.84a.75.75 0 00.224-1.012l-1.5-2.25a.75.75 0 00-1.012-.224l-.63.42a.25.25 0 01-.277.012l-1.914-1.914a.25.25 0 01.012-.277l.42-.63a.75.75 0 00-.224-1.012l-2.25-1.5z" clip-rule="evenodd"/>
-                </svg>
-            </div>
-            <span class="text-[9px] font-black tracking-wider uppercase text-emerald-400 group-hover:text-emerald-300 transition-colors drop-shadow-[0_0_4px_rgba(52,211,153,0.2)]">Soporte IA</span>
-        </a>
-
+        <div class="space-y-1 max-h-52 overflow-y-auto pr-1">
+            {% if launcher_data.core_apps %}
+                {% for card in launcher_data.core_apps %}
+                    <a href="{% url card.url_name %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                        <i data-lucide="{{ card.icon|default:'shield' }}" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                        <span class="truncate">{{ card.title }}</span>
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="text-[10px] text-gray-500 p-3 text-center">// No se localizan llaves Core activas</div>
+            {% endif %}
+        </div>
     </div>
-</nav>
+
+    <!-- 🌌 PANEL 2: DESPLEGABLE SATELITE APPS (Hacia arriba) -->
+    <div x-show="satelliteMenuOpen" 
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="translate-y-10 opacity-0"
+         x-transition:enter-end="translate-y-0 opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="translate-y-0 opacity-100"
+         x-transition:leave-end="translate-y-10 opacity-0"
+         @click.away="satelliteMenuOpen = false"
+         class="fixed bottom-[74px] left-4 right-4 bg-gray-950/98 backdrop-blur-xl border border-white/10 rounded-[24px] shadow-[0_-15px_40px_rgba(0,0,0,0.5)] z-50 p-4 space-y-3 font-mono select-none"
+         style="display: none;">
+        
+        <div class="px-2 py-1 border-b border-white/5 pb-2">
+            <span class="text-[8px] font-black tracking-widest text-indigo-400 block uppercase">// MÓDULOS PERIFÉRICOS</span>
+            <span class="text-[10px] text-gray-400 font-bold block mt-0.5">Gestión y Soluciones Operativas</span>
+        </div>
+
+        <div class="space-y-1 max-h-52 overflow-y-auto pr-1">
+            {% if launcher_data.satellite_apps %}
+                {% for card in launcher_data.satellite_apps %}
+                    <a href="{% url card.url_name %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                        <i data-lucide="{{ card.icon|default:'layers' }}" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+                        <span class="truncate">{{ card.title }}</span>
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="text-[10px] text-gray-500 p-3 text-center">// No se localizan componentes satélites instalados</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 📱 BARRA DE NAVEGACIÓN INFERIOR FIJA MÓVIL (MÁXIMO 4 BOTONES) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-gray-950 border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-50 px-2 py-2 select-none nav-mobile-contraste">
+        <div class="flex justify-around items-center max-w-md mx-auto">
+            
+            <!-- 1. INICIO (Siempre visible en todas las caras) -->
+            <a href="/" class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none">
+                <i data-lucide="home" class="w-4 h-4 text-blue-500"></i>
+                <span class="text-[9px] font-black tracking-wider uppercase text-blue-500 text-contraste">Inicio</span>
+            </a>
+
+            <!-- 🔀 RENDERIZADO POR LÓGICA DE AUTENTICACIÓN -->
+            {% if request.user.is_authenticated %}
+                
+                <!-- 2. BOTÓN DINÁMICO DE MÓDULO INTERNO -->
+                {% if modulo_actual and modulo_actual != 'launcher' %}
+                    <div x-data="{ currentMenuOpen: false }" class="relative">
+                        <div x-show="currentMenuOpen" @click.away="currentMenuOpen = false" class="fixed bottom-[74px] left-4 right-4 bg-gray-900 border border-white/10 rounded-2xl p-3 space-y-1 z-50 shadow-xl" style="display: none;">
+                            <span class="text-[8px] font-black text-gray-500 block uppercase px-2 mb-1">// OPCIONES MÓDULO</span>
+                            {% for boton in menu_actual %}
+                                <a href="{% url boton.url %}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[11px] font-bold text-gray-300 uppercase hover:bg-white/5 {% if request.resolver_match.view_name == boton.url %}text-white bg-blue-600/20 border border-blue-500/30{% endif %}">
+                                    <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-3.5 h-3.5 text-gray-400"></i>
+                                    <span class="truncate">{{ boton.name }}</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+
+                        <button @click="currentMenuOpen = !currentMenuOpen" class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none text-white/70 hover:text-white cursor-pointer">
+                            <i data-lucide="layout-grid" class="w-4 h-4 text-gray-400"></i>
+                            <span class="text-[9px] font-bold tracking-wider uppercase text-white/70 text-contraste">Módulo</span>
+                        </button>
+                    </div>
+                {% endif %}
+
+                <!-- 3. APPS CORE (Solo si tiene rango administrativo) -->
+                {% if request.user.is_staff or request.user.is_superuser or request.user.is_manager %}
+                    <button @click="coreMenuOpen = !coreMenuOpen; satelliteMenuOpen = false" 
+                            class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none cursor-pointer"
+                            :class="coreMenuOpen ? 'text-amber-400' : 'text-white/70 hover:text-white'">
+                        <i data-lucide="shield" class="w-4 h-4" :class="coreMenuOpen ? 'text-amber-400' : 'text-gray-400'"></i>
+                        <span class="text-[9px] font-bold tracking-wider uppercase text-contraste" :class="coreMenuOpen ? 'text-amber-400' : 'text-white/70'">Core Apps</span>
+                    </button>
+                {% endif %}
+
+                <!-- 4. APPS SATÉLITES INTERNAS -->
+                <button @click="satelliteMenuOpen = !satelliteMenuOpen; coreMenuOpen = false" 
+                        class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none cursor-pointer"
+                        :class="satelliteMenuOpen ? 'text-indigo-400' : 'text-white/70 hover:text-white'">
+                    <i data-lucide="layers" class="w-4 h-4" :class="satelliteMenuOpen ? 'text-indigo-400' : 'text-gray-400'"></i>
+                    <span class="text-[9px] font-bold tracking-wider uppercase text-contraste" :class="satelliteMenuOpen ? 'text-indigo-400' : 'text-white/70'">Satélites</span>
+                </button>
+
+            {% else %}
+                
+                <!-- 🔓 MODO PÚBLICO: SOLO SE RENDERIZAN ACCESO Y SOPORTE IA -->
+                <!-- 2. BOTÓN DE ACCESO COMPUERTA LOGUEO -->
+                <a href="{% url 'accounts:login' %}" class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none" aria-label="Ingresar al sistema corporativo">
+                    <i data-lucide="log-in" class="w-4 h-4 text-gray-400"></i>
+                    <span class="text-[9px] font-bold tracking-wider uppercase text-white/50 group-hover:text-white text-contraste">Acceso</span>
+                </a>
+
+                <!-- 3. BOTÓN SOPORTE IA ORIGINAL CON PULSO VERDE PREMIUM -->
+                <a href="https://api.whatsapp.com/send?phone=5219212601146&text=Hola.%20Necesito%20asistencia%20en%20el%20Ecosistema%20Gubernamental%20de%20{{ tenant.app_name|default:'Axentra' }}." 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none relative"
+                   aria-label="Contactar al Asistente por WhatsApp">
+                    <div class="relative flex items-center justify-center">
+                        <span class="absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75 animate-ping -top-0.5 -right-0.5"></span>
+                        <svg class="w-4 h-4 text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5l-.995 3.648a1 1 0 001.214 1.214l3.648-.995A9.963 9.963 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zM8.51 7.23a.75.75 0 00-1.012.224l-.84 1.26a1.75 1.75 0 00-.236 1.38c.18.736.636 1.7 1.455 2.52l3.24 3.24c.82.819 1.784 1.275 2.52 1.455.485.119.996.03 1.38-.236l1.26-.84a.75.75 0 00.224-1.012l-1.5-2.25a.75.75 0 00-1.012-.224l-.63.42a.25.25 0 01-.277.012l-1.914-1.914a.25.25 0 01.012-.277l.42-.63a.75.75 0 00-.224-1.012l-2.25-1.5z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <span class="text-[9px] font-black tracking-wider uppercase text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.2)] text-contraste">Soporte IA</span>
+                </a>
+            {% endif %}
+
+        </div>
+    </nav>
+</div>
+
+<style>
+    html.alto-contraste-activo .nav-mobile-contraste { background: #000000 !important; border-top: 2px solid #ffffff !important; }
+    html.alto-contraste-activo .nav-mobile-contraste .icon-contraste { color: #ffffff !important; }
+    html.alto-contraste-activo .nav-mobile-contraste .text-contraste { color: #ffffff !important; font-weight: 900 !important; }
+</style>
