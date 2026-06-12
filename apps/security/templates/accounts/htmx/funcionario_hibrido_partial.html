@@ -1,0 +1,27 @@
+<div class="hidden md:block bg-white rounded-[32px] border border-gray-200/80 shadow-3xs overflow-hidden">
+    <div class="overflow-x-auto w-full">
+        <table class="w-full text-left border-collapse select-none">
+            <thead>
+                <tr class="border-b border-gray-100 bg-gray-50/70 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    <th class="py-4 px-6 font-semibold">Servidor Público</th>
+                    <th class="py-4 px-6 font-semibold">Adscripción Estructural Resuelta</th>
+                    <th class="py-4 px-6 font-semibold text-center">Estado Cuenta</th>
+                    <th class="py-4 px-6 font-semibold text-center">Verificación</th>
+                    <th class="py-4 px-6 font-semibold text-center">Rol Sistema</th>
+                    <th class="py-4 px-6 font-semibold text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-funcionarios" class="divide-y divide-gray-100 text-xs text-gray-700">
+                {% include 'accounts/htmx/funcionario_table_partial.html' %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="funcionario-mobile-container" class="block md:hidden space-y-3 w-full">
+    {% include 'accounts/htmx/funcionario_cards_partial.html' %}
+</div>
+
+<script>
+    if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+</script>

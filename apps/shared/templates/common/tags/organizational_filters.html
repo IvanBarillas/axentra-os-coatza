@@ -1,9 +1,8 @@
 <form method="GET" 
       action="{{ action_url|default:'' }}" 
-      class="bg-white p-6 rounded-[32px] border border-gray-200/80 shadow-2xs space-y-4 select-none animate-fade-in"
+      class="bg-white p-4 md:p-6 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs space-y-4 select-none animate-fade-in"
       hx-get="{{ action_url|default:'' }}"
-      hx-target="#{{ target_id|default:'tbody-funcionarios' }}"
-      hx-swap="innerHTML"
+      @submit.prevent="/* Previene recargas nativas indeseadas en entornos híbridos */"
       hx-push-url="false"
       hx-indicator="#loading-spinner">
       
@@ -16,15 +15,19 @@
             <input type="text" 
                    name="q" 
                    value="{{ current_q|default:'' }}" 
-                   placeholder="{{ placeholder_text|default:'Buscar por servidor público, rfc o correo...' }}" 
-                   class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono font-medium text-gray-800 outline-none transition-all placeholder:text-gray-400 normal-case"
-                   hx-trigger="keyup changed delay:350ms, search">
+                   placeholder="{{ placeholder_text|default:'Buscar por funcionario, RFC o correo...' }}" 
+                   class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono font-medium text-gray-800 outline-none transition-all placeholder:text-gray-400 normal-case shadow-3xs"
+                   hx-trigger="keyup changed delay:350ms, search"
+                   hx-target="#tbody-funcionarios, #funcionario-mobile-container"
+                   hx-swap="innerHTML">
         </div>
 
         <div class="relative w-full">
             <select name="sede" 
-                    class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-10 py-2.5 text-xs font-mono font-bold text-gray-700 outline-none transition-all cursor-pointer appearance-none uppercase"
-                    hx-trigger="change">
+                    class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-10 py-2.5 text-xs font-mono font-bold text-gray-700 outline-none transition-all cursor-pointer appearance-none uppercase shadow-3xs"
+                    hx-trigger="change"
+                    hx-target="#tbody-funcionarios, #funcionario-mobile-container"
+                    hx-swap="innerHTML">
                 <option value="all">Sedes / Edificios Totales</option>
                 {% for sd in sedes %}
                     <option value="{{ sd.id }}" {% if current_sede == sd.id|stringformat:"s" %}selected{% endif %}>
@@ -39,8 +42,10 @@
 
         <div class="relative w-full">
             <select name="dependencia" 
-                    class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-10 py-2.5 text-xs font-mono font-bold text-gray-700 outline-none transition-all cursor-pointer appearance-none uppercase"
-                    hx-trigger="change">
+                    class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-10 py-2.5 text-xs font-mono font-bold text-gray-700 outline-none transition-all cursor-pointer appearance-none uppercase shadow-3xs"
+                    hx-trigger="change"
+                    hx-target="#tbody-funcionarios, #funcionario-mobile-container"
+                    hx-swap="innerHTML">
                 <option value="all">Dependencias Totales</option>
                 {% for dep in dependencias %}
                     <option value="{{ dep.id }}" {% if current_dep == dep.id|stringformat:"s" %}selected{% endif %}>
@@ -57,7 +62,7 @@
 
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-4 border-t border-gray-100 gap-3">
         
-        <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.15em] flex items-center gap-2">
+        <div class="text-[9px] font-black text-gray-400 font-mono uppercase tracking-[0.15em] flex items-center gap-2 text-left">
             <span class="relative flex h-1.5 w-1.5">
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
@@ -69,7 +74,7 @@
             
             {% if current_q or current_sede and current_sede != 'all' or current_dep and current_dep != 'all' %}
                 <a href="{{ clear_url|default:'#' }}" 
-                   class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold uppercase tracking-wider py-2.5 px-4 rounded-xl transition cursor-pointer text-center shadow-3xs transform active:scale-95"
+                   class="w-full sm:w-auto bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold uppercase tracking-wider py-2.5 px-4 rounded-xl transition cursor-pointer text-center shadow-3xs transform active:scale-95"
                    hx-get="{{ clear_url|default:'#' }}"
                    hx-target="#main-content-target"
                    hx-push-url="true">
@@ -77,7 +82,11 @@
                 </a>
             {% endif %}
             
-            <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-bold uppercase tracking-wider py-2.5 px-5 rounded-xl transition active:scale-95 cursor-pointer shadow-xs flex items-center gap-2">
+            <button type="submit" 
+                    hx-get="{{ action_url|default:'' }}"
+                    hx-target="#tbody-funcionarios, #funcionario-mobile-container"
+                    hx-swap="innerHTML"
+                    class="w-full sm:w-auto bg-gray-950 hover:bg-gray-900 text-white font-black uppercase tracking-widest py-2.5 px-5 rounded-xl transition active:scale-95 cursor-pointer shadow-sm flex items-center justify-center gap-2">
                 <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-gray-400"></i>
                 <span>Ejecutar Filtrado</span>
             </button>

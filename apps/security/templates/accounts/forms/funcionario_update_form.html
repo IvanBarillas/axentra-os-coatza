@@ -1,4 +1,3 @@
-<!-- templates/accounts/forms/funcionario_update_form.html -->
 {% extends "layouts/dashboard_layout.html" %}
 {% load axentra_ui %}
 
@@ -6,85 +5,90 @@
 {% block title %}Editar Funcionario | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="max-w-4xl mx-auto space-y-6 pb-12 animate-fade-in select-none">
+<!-- pb-24 garantiza la zona de exclusión táctil para evitar choques con el bottom_nav móvil -->
+<div class="max-w-4xl mx-auto space-y-6 pb-24 md:pb-16 animate-fade-in select-none pt-2 md:pt-4">
     
-    <!-- =========================================================================
-         🛰️ CABECERA DEL EXPEDIENTE ACTIVO
-         ========================================================================= -->
-    <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 bg-gray-950 rounded-full animate-pulse"></span>
-                <span>Expediente Maestro // Ficha Unificada</span>
+    <!-- 👑 HEADER DE RETORNO INSTITUCIONAL COMPACTO -->
+    <div class="bg-white p-5 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative overflow-hidden">
+        <div class="min-w-0 flex-1 w-full text-left">
+            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 leading-none">
+                Expediente Maestro // Ficha Unificada
             </div>
-            <h2 class="text-2xl font-bold text-gray-950 tracking-tight font-mono uppercase">{{ funcionario.full_name|upper }}</h2>
+            <h2 class="text-xl md:text-2xl font-black text-gray-950 tracking-tighter uppercase font-mono truncate leading-tight">
+                {{ funcionario.full_name|upper }}
+            </h2>
         </div>
-        <a href="{% url 'accounts:funcionario_list' %}" class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-bold py-2.5 px-4 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all duration-200 shadow-3xs flex items-center gap-2 transform active:scale-95 whitespace-nowrap">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i> Retornar al Padrón
+        
+        <!-- 🎯 RETORNO AL PADRÓN -->
+        <a href="{% url 'accounts:funcionario_list' %}" class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0">
+            <i data-lucide="arrow-left" class="w-4 h-4 text-gray-400"></i>
+            <span>Retornar al Padrón</span>
         </a>
     </div>
 
-    <!-- =========================================================================
-         🎰 EDICIÓN MAESTRA ATÓMICA
-         ========================================================================= -->
-    <form method="POST" class="bg-white p-8 md:p-10 rounded-[32px] border border-gray-200/80 shadow-2xs space-y-8 font-mono text-xs uppercase tracking-wide">
+    <!-- 🎰 EDICIÓN MAESTRA ATÓMICA -->
+    <form method="POST" class="bg-white p-5 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs space-y-6 md:space-y-8 font-mono text-xs uppercase tracking-wide">
         {% csrf_token %}
 
         <!-- Sección 1: Identidad Laboral -->
-        <div class="space-y-6">
-            <h3 class="text-[10px] font-bold text-gray-400 tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                <i data-lucide="user-check" class="w-4 h-4 text-gray-400"></i> 
+        <div class="space-y-4 md:space-y-6">
+            <h3 class="text-[9px] md:text-[10px] font-black text-gray-400 tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2 text-left">
+                <i data-lucide="user-check" class="w-4 h-4 text-gray-400 shrink-0"></i> 
                 <span>1. Identidad del Funcionario</span>
             </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                <div class="space-y-2">
-                    <label class="font-bold text-gray-700">Correo Electrónico Institucional</label>
-                    {{ form_user.email }}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 text-left">
+                <div class="space-y-1.5">
+                    <label class="font-black text-gray-400 text-[10px] tracking-wider block px-1">Correo Electrónico Institucional</label>
+                    <div class="w-full">{{ form_user.email }}</div>
                 </div>
-                <div class="space-y-2">
-                    <label class="font-bold text-gray-700">Teléfono de Contacto</label>
-                    {{ form_user.phone }}
+                <div class="space-y-1.5">
+                    <label class="font-black text-gray-400 text-[10px] tracking-wider block px-1">Teléfono de Contacto</label>
+                    <div class="w-full">{{ form_user.phone }}</div>
                 </div>
-                <div class="space-y-2">
-                    <label class="font-bold text-gray-700">Nombre(s)</label>
-                    {{ form_user.first_name }}
+                <div class="space-y-1.5">
+                    <label class="font-black text-gray-400 text-[10px] tracking-wider block px-1">Nombre(s)</label>
+                    <div class="w-full">{{ form_user.first_name }}</div>
                 </div>
-                <div class="space-y-2">
-                    <label class="font-bold text-gray-700">Apellidos</label>
-                    {{ form_user.last_name }}
+                <div class="space-y-1.5">
+                    <label class="font-black text-gray-400 text-[10px] tracking-wider block px-1">Apellidos</label>
+                    <div class="w-full">{{ form_user.last_name }}</div>
                 </div>
             </div>
         </div>
 
         <!-- Sección 2: Control de Estructura -->
-        <div class="space-y-6">
-            <h3 class="text-[10px] font-bold text-gray-400 tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
-                <i data-lucide="map-pin" class="w-4 h-4 text-gray-400"></i> 
+        <div class="space-y-4 md:space-y-6">
+            <h3 class="text-[9px] md:text-[10px] font-black text-gray-400 tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2 text-left">
+                <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 shrink-0"></i> 
                 <span>2. Control de Adscripción y Cargo</span>
             </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                <div class="space-y-2">
-                    <label class="font-bold text-gray-700">Puesto Nominal / Cargo</label>
-                    {{ form_profile.puesto }}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 text-left">
+                <div class="space-y-1.5">
+                    <label class="font-black text-gray-400 text-[10px] tracking-wider block px-1">Puesto Nominal / Cargo</label>
+                    <div class="w-full">{{ form_profile.puesto }}</div>
                 </div>
-                <div class="space-y-2">
-                    <label class="font-bold text-gray-700">Área de Adscripción Orgánica</label>
-                    {{ form_profile.area }}
+                <div class="space-y-1.5">
+                    <label class="font-black text-gray-400 text-[10px] tracking-wider block px-1">Área de Adscripción Orgánica</label>
+                    <div class="w-full">{{ form_profile.area }}</div>
                 </div>
-                <div class="space-y-2">
-                    <label class="font-bold text-gray-700">Extensión de Oficina</label>
-                    {{ form_profile.telefono_oficina }}
+                <div class="space-y-1.5">
+                    <label class="font-black text-gray-400 text-[10px] tracking-wider block px-1">Extensión de Oficina</label>
+                    <div class="w-full">{{ form_profile.telefono_oficina }}</div>
                 </div>
             </div>
         </div>
 
-        <!-- Envío Transaccional -->
-        <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
-            <button type="submit" class="bg-gray-950 hover:bg-gray-900 text-white font-bold py-3.5 px-6 rounded-xl font-mono uppercase tracking-widest transition-all duration-200 shadow-sm flex items-center gap-2 cursor-pointer transform active:scale-95">
+        <!-- Envío Transaccional (Ancho completo en celulares para el pulgar) -->
+        <div class="pt-4 border-t border-gray-100 flex justify-end w-full">
+            <button type="submit" class="w-full sm:w-auto bg-gray-950 hover:bg-gray-900 text-white font-black py-3.5 px-6 rounded-xl font-mono uppercase tracking-widest transition-all duration-150 shadow-sm flex items-center justify-center gap-2 cursor-pointer transform active:scale-95">
                 <i data-lucide="refresh-cw" class="w-4 h-4 text-gray-400"></i>
                 <span>Actualizar Ficha</span>
             </button>
         </div>
     </form>
 </div>
+
+<script>
+    if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+</script>
 {% endblock %}

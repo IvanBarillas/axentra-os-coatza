@@ -5,45 +5,26 @@
 {% block title %}Estación de Control | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="space-y-8 pb-12 w-full animate-fade-in select-none">
+<div class="space-y-6 md:space-y-8 pb-24 md:pb-16 w-full animate-fade-in select-none">
     
-    {% dashboard_header badge_text="ESTACIÓN BASE DE OPERACIONES" title="Panel Administrativo" description="Acceso inmediato al padrón de personal municipal, altas de expedientes y estatus operativo del Capital Humano." status_text="Active Control" accent_color="slate-900" modulo_actual="accounts" %}
+    {% dashboard_header badge_text="ESTACIÓN BASE DE OPERACIONES" title="Gobernanza de Personal" description="Acceso inmediato al padrón consolidado de personal municipal, administración de expedientes y estatus operativo del Capital Humano." status_text="En Línea" status_color="emerald-500" accent_color="slate-900" modulo_actual="accounts" %}
     
-    <!-- 🟢 ACCIONES TÁCTICAS CENTRALIZADAS -->
     <div class="space-y-4">
-        <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] font-mono px-2 flex items-center gap-2 select-none">
-            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-gray-400"></i>
-            <span>Acciones Tácticas sobre el Capital Humano</span>
+        <h3 class="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-[0.22em] font-mono px-1 flex items-center gap-2">
+            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-slate-400"></i>
+            <span>Acciones Tácticas de Capital Humano</span>
         </h3>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {% url 'accounts:funcionario_list' as url_lista %}
             {% url 'accounts:funcionario_create' as url_crear %}
             {% url 'accounts:dashboard' as url_analitica %}
             
-            {% action_card title="Plantilla Completa" description="Visor centralizado en grilla transaccional con buscadores avanzados y filtros de personal institucional." url_destination=url_lista icon="contact" button_text="Abrir Listado" %}
+            {% action_card title="Plantilla de Personal" description="Visor avanzado en grilla transaccional de alta densidad con motores de búsqueda avanzada y filtrado paramétrico de servidores públicos." url_destination=url_lista icon="contact" hover_color="emerald-500" bg_icon="bg-emerald-50" button_text="Abrir Plantilla" %}
             
-            {% action_card title="Alta de Funcionario" description="Incorpore un nuevo servidor público capturando su correo institucional, puesto y celda matricial de adscripción." url_destination=url_crear icon="user-plus" hover_color="slate-900" bg_icon="gray-50" button_text="Nuevo Registro" %}
+            {% action_card title="Alta de Funcionario" description="Aprovisionamiento e incorporación de un nuevo servidor público al chasis central, validando su identidad legal, cargo y celda estructural." url_destination=url_crear icon="user-plus" hover_color="blue-600" bg_icon="bg-blue-50" button_text="Nuevo Registro" %}
             
-            <!-- 🏢 TARJETA CONECTADA: Acceso directo a la analítica gerencial -->
-            <div class="bg-white p-6 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col justify-between min-h-[220px] group hover:border-blue-300 hover:shadow-2xl transition duration-300">
-                <div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold font-mono bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-md uppercase tracking-wider">Alta Gerencia · Personal</span>
-                        <div class="p-2 bg-blue-50 border border-blue-100 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition duration-300">
-                            <i data-lucide="trending-up" class="w-4 h-4"></i>
-                        </div>
-                    </div>
-                    <h4 class="text-sm font-bold text-gray-950 font-mono uppercase mt-4 tracking-tight">Consola Analítica Superior</h4>
-                    <p class="text-xs text-gray-400 mt-1 font-mono uppercase text-[10px]">// Evaluación estadística de capital humano, históricos de contratación y balances de resguardo forense.</p>
-                </div>
-                
-                <div class="pt-4 border-t border-gray-100 mt-4 font-mono text-[10px]">
-                    <a href="{{ url_analitica }}" class="block text-center bg-gray-950 hover:bg-gray-900 text-white font-bold py-3 px-4 rounded-xl transition uppercase tracking-wider">
-                        Ver Panel Analítico →
-                    </a>
-                </div>
-            </div>
+            {% action_card title="Analítica Superior" description="Evaluación estadística cuantitativa de la densidad laboral, históricos de contratación, distribución presupuestal y auditoría forense." url_destination=url_analitica icon="trending-up" hover_color="purple-600" bg_icon="bg-purple-50" button_text="Ver Indicadores" %}
 
         </div>
     </div>

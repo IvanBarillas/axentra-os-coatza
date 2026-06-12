@@ -80,10 +80,9 @@ def funcionario_list_view(request):
         'current_sede': request.GET.get('sede', ''),
         'current_dep': request.GET.get('dependencia', ''),
         'current_area': request.GET.get('area', ''),
-        'target_id': 'tbody-funcionarios', # Garantiza la consistencia en el tag
+        'target_id': 'dynamic-workspace-target', # Actualizado al contenedor maestro híbrido
     }
     
-    # 🟢 CONTROL DE FLUJO ABSOLUTO: Verificación por cabeceras estándar y META de Django
     es_htmx = (
         request.headers.get('HX-Request') == 'true' or 
         request.headers.get('hx-request') == 'true' or
@@ -91,11 +90,9 @@ def funcionario_list_view(request):
     )
     
     if es_htmx:
-        # Si la petición es asíncrona, escupimos ÚNICAMENTE las filas puras. 
-        # Esto mata de raíz el efecto de duplicación de interfaces.
-        return render(request, 'accounts/htmx/funcionario_table_partial.html', context)
+        # 🟢 RETORNO HÍBRIDO: Envía la estructura adaptativa mutada sin romper el árbol jerárquico del DOM
+        return render(request, 'accounts/htmx/funcionario_hibrido_partial.html', context)
         
-    # Si entran escribiendo la URL limpia en el navegador, se monta el chasis completo
     return render(request, 'accounts/funcionario_list.html', context)
 
 
