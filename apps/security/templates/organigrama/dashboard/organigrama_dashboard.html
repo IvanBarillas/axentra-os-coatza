@@ -1,16 +1,13 @@
 {% extends "layouts/dashboard_layout.html" %}
 {% load axentra_ui %}
-
-{% block app_context_badge %}Consola Analítica{% endblock %}
+{% load static %} {% block app_context_badge %}Consola Analítica{% endblock %}
 {% block title %}Consola Analítica | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<!-- Inyección segura del CDN de Chart.js en el chasis -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.umd.js' %}"></script>
 
 <div class="space-y-6 pb-16 w-full animate-fade-in select-none">
     
-    <!-- CABECERA EJECUTIVA -->
     <div class="bg-white p-6 md:p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <div class="text-[9px] font-bold text-blue-600 font-mono uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
@@ -27,7 +24,6 @@
         </a>
     </div>
     
-    <!-- TARJETAS DE INDICADORES (KPIs) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {% stats_card label="Sedes Físicas" value=total_sedes icon="map-pin" subtext="Complejos registrados" value_color="slate-900" hover_color="amber-500" bg_icon="amber-50" %}
         {% stats_card label="Dependencias" value=total_dependencias icon="building-2" subtext="Direcciones generales" value_color="slate-900" hover_color="blue-600" bg_icon="blue-50" %}
@@ -40,10 +36,8 @@
         {% endif %}
     </div>
 
-    <!-- SECCIÓN DE GRÁFICAS ACTIVAS -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        <!-- Gráfica 1: Carga de Personal (Dona Avanzada) -->
         <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col justify-between h-[450px]">
             <div class="shrink-0">
                 <div class="flex items-center justify-between">
@@ -61,7 +55,6 @@
             </div>
         </div>
 
-        <!-- Gráfica 2: Distribución Territorial (Barras Tácticas) -->
         <div class="bg-white p-8 rounded-[32px] border border-gray-200/80 shadow-2xs flex flex-col justify-between h-[450px]">
             <div class="shrink-0">
                 <div class="flex items-center justify-between">
@@ -82,23 +75,19 @@
     </div>
 </div>
 
-<!-- 🪐 MOTOR DE HIDRATACIÓN RENDERING DE CHART.JS -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         if (typeof lucide !== 'undefined') { lucide.createIcons(); }
 
-        // 📊 1. PARSEO DE DATOS EMITIDOS DESDE POSTGRESQL/DJANGO
         const depLabels = {{ grafica_dep_labels|safe }};
         const depValores = {{ grafica_dep_valores|safe }};
         const SedeLabels = {{ grafica_sede_labels|safe }};
         const SedeValores = {{ grafica_sede_valores|safe }};
 
-        // Configuración global de fuentes monoespaciadas estilo Axentra
         Chart.defaults.font.family = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
         Chart.defaults.font.size = 10;
         Chart.defaults.color = '#64748b';
 
-        // 🎨 2. INICIALIZACIÓN GRÁFICA 1: DONA DE PERSONAL
         const ctxPersonal = document.getElementById('chartCargaPersonal').getContext('2d');
         new Chart(ctxPersonal, {
             type: 'doughnut',
@@ -124,7 +113,6 @@
             }
         });
 
-        // 🎨 3. INICIALIZACIÓN GRÁFICA 2: BARRAS DE INFRAESTRUCTURA
         const ctxSedes = document.getElementById('chartDistribucionSedes').getContext('2d');
         new Chart(ctxSedes, {
             type: 'bar',
