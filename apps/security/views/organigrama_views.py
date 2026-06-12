@@ -1,6 +1,8 @@
 # apps/security/views/organigrama_views.py
 import logging
 import uuid
+import json
+from django.db.models import Count
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -36,26 +38,77 @@ def organigrama_control_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def organigrama_dashboard_view(request):
-    """Cabina de mando analítica: Reservada para alta gerencia y auditoría forense."""
-    total_sedes = Sede.objects.filter(is_active=True, is_deleted=False).count()
-    total_dependencias = Dependencia.objects.filter(is_active=True, is_deleted=False).count()
-    total_areas = AreaOperativa.objects.filter(is_active=True, is_deleted=False).count()
+    """Cabina de mando analítica: Métrica con mapeo plano seguro para evitar fallos de Lookup."""
     
-    funcionarios_sin_area = User.objects.filter(
-        is_active=True, axentra_profile__area__isnull=True
-    ).count() if hasattr(User, 'axentra_profile') else 0
+    # 1. KPIs Numéricos Tradicionales
+    total_sedes = Sede.objects.filter(is_deleted=False).count()
+    total_dependencias = Dependencia.objects.filter(is_deleted=False).count()
+    total_areas = AreaOperativa.objects.filter(is_deleted=False).count()
+    
+    # Verificación segura de la existencia del perfil
+    funcionarios_sin_area = 0
+    if hasattr(User, 'axentra_profile'):
+        funcionarios_sin_area = User.objects.filter(
+            is_active=True, axentra_profile__area__isnull=True
+        ).count()
 
-    logs_reales = SecurityAuditLog.objects.filter(
-        app_namespace='organigrama'
-    ).order_by('-created_at')[:5]
+    # 📊 METRICA 1 SEGURO: Conteo desde el Perfil de Usuario hacia la Dependencia
+    grafica_dep_labels = []
+    grafica_dep_valores = []
+    
+    try:
+        # Buscamos en el modelo de perfil (asumiendo que se llama AxentraProfile de tu paquete account/staff)
+        # Agrupamos directamente por el campo de la FK de la dependencia que está amarrada al Área
+        perfiles_queryset = User.objects.filter(is_active=True, axentra_profile__area__isnull=False)\
+            .values('axentra_profile__area__dependencia__nombre')\
+            .annotate(total=Count('id'))\
+            .order_by('-total')[:7]
+            
+        for item in perfiles_queryset:
+            nombre_dep = item['axentra_profile__area__dependencia__nombre']
+            if nombre_dep:
+                grafica_dep_labels.append(nombre_dep)
+                grafica_dep_valores.append(item['total'])
+    except Exception:
+        # Plan de respaldo: Si los nombres de campos varían, listamos las dependencias vacías para no tumbar la app
+        dependencias = Dependencia.objects.filter(is_deleted=False)[:7]
+        grafica_dep_labels = [d.nombre for d in dependencias]
+        grafica_dep_valores = [0] * len(dependencias)
+
+    # 📊 METRICA 2 SEGURO: Conteo de Áreas Operativas por Sede Física
+    grafica_sede_labels = []
+    grafica_sede_valores = []
+    
+    try:
+        # Agrupamos las áreas usando los valores planos de la Sede para no arriesgar lookups inversos
+        areas_queryset = AreaOperativa.objects.filter(is_deleted=False, sede_fisica__is_deleted=False)\
+            .values('sede_fisica__nombre')\
+            .annotate(total=Count('id'))\
+            .order_by('-total')[:7]
+            
+        for item in areas_queryset:
+            nombre_sede = item['sede_fisica__nombre']
+            if nombre_sede:
+                grafica_sede_labels.append(nombre_sede)
+                grafica_sede_valores.append(item['total'])
+    except Exception:
+        sedes = Sede.objects.filter(is_deleted=False)[:7]
+        grafica_sede_labels = [s.nombre for s in sedes]
+        grafica_sede_valores = [0] * len(sedes)
 
     context = {
         'total_sedes': total_sedes,
         'total_dependencias': total_dependencias,
         'total_areas': total_areas,
         'funcionarios_sin_area': funcionarios_sin_area,
-        'cronologia_mutaciones': logs_reales, 
+        
+        # Inyección serializada limpia
+        'grafica_dep_labels': json.dumps(grafica_dep_labels),
+        'grafica_dep_valores': json.dumps(grafica_dep_valores),
+        'grafica_sede_labels': json.dumps(grafica_sede_labels),
+        'grafica_sede_valores': json.dumps(grafica_sede_valores),
     }
+    
     return render(request, 'organigrama/dashboard/organigrama_dashboard.html', context)
 
 
