@@ -10,7 +10,7 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 
-from apps.security.models.organigrama import Dependencia
+from apps.security.models.organigrama import AreaOperativa, Dependencia, Sede
 from apps.shared.apps_config import AppIdentifier
 from apps.security.decorators import axentra_gate_enforcer
 from apps.security.models import AppModule, UserAppRole, TenantConfig, SecurityAuditLog

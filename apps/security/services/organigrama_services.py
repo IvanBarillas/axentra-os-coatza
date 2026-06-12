@@ -1,27 +1,32 @@
 # apps/security/services/organigrama_services.py
 import logging
 import uuid
+import sys
+import os
+import traceback
 from typing import Tuple, Optional, Dict, Any
 from django.db import transaction
 from pydantic import ValidationError
 
+from apps.security.dtos.organigrama_dtos import AreaOperativaInputDTO, DependenciaInputDTO
 from apps.security.models import Dependencia, AreaOperativa, Sede
-from apps.security.dtos import DependenciaInputDTO, AreaOperativaInputDTO
+from apps.security.models.audit import SecurityAuditLog
+from apps.security.utils.forensic_auditor import ForensicAuditor
 
 logger = logging.getLogger(__name__)
 
 class OrganigramaService:
-    """Gobernador Transaccional para la infraestructura orgánica de Axentra OS."""
+    """Gobernador Transaccional e Inyector Forense de la Infraestructura de Axentra OS."""
 
     # =========================================================================
-    # 🗺️ OPERACIONES DE ESCRITURA: SEDES FÍSICAS
+    # 🗺️ OPERACIONES DE ESCRITURA: SEDES FÍSICAS (INMUEBLES)
     # =========================================================================
     @staticmethod
-    def crear_sede(payload: Dict[str, Any]) -> Tuple[bool, Optional[Sede], Optional[Dict[str, Any]]]:
-        """Aprovisionamiento transaccional de un nuevo inmueble institucional."""
+    def crear_sede(request, payload: Dict[str, Any]) -> Tuple[bool, Optional[Sede], Optional[Dict[str, Any]]]:
+        """Aprovisionamiento transaccional de un nuevo inmueble institucional con bitácora forense."""
         try:
-            nombre = payload.get('nombre')
-            direccion = payload.get('direccion', '')
+            nombre = payload.get('nombre', '').strip()
+            direccion = payload.get('direccion', '').strip()
 
             if not nombre:
                 return False, None, {"validation_errors": [{"msg": "El nombre de la sede es obligatorio."}]}
@@ -33,6 +38,18 @@ class OrganigramaService:
                     is_active=True
                 )
 
+            # 🪐 PERSISTENCIA EN BITÁCORA FORENSE NORMALIZADA
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.CREATE,
+                module_component="SEDES_INFRAESTRUCTURA",
+                action_name="ALTA_SEDE_FISICA",
+                target_scope=f"Aprovisionamiento del inmueble municipal: {nueva_sede.nombre}.",
+                level=SecurityAuditLog.Levels.SUCCESS,
+                search_target=nueva_sede.id,
+                payload={'nombre_sede': nueva_sede.nombre, 'direccion': nueva_sede.direccion}
+            )
+
             logger.info(f"🗺️ ORGANIGRAMA: Sede Física '{nueva_sede.nombre}' registrada exitosamente.")
             return True, nueva_sede, None
         except Exception as e:
@@ -40,14 +57,21 @@ class OrganigramaService:
             return False, None, {"server_error": [str(e)]}
 
     @staticmethod
-    def actualizar_sede(sede_instancia: Sede, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
-        """Mutación atómica de los parámetros geográficos de una sede en la base de datos."""
+    def actualizar_sede(request, sede_instancia: Sede, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        """Mutación atómica de los parámetros geográficos calculando snapshot analítico."""
         try:
-            nombre = payload.get('nombre')
-            direccion = payload.get('direccion', '')
+            nombre = payload.get('nombre', '').strip()
+            direccion = payload.get('direccion', '').strip()
 
             if not nombre:
                 return False, {"validation_errors": [{"msg": "El nombre de la sede no puede estar vacío."}]}
+
+            # Snapshot previo
+            snapshot_anterior = {
+                'nombre': sede_instancia.nombre,
+                'direccion': sede_instancia.direccion,
+                'is_active': sede_instancia.is_active
+            }
 
             with transaction.atomic():
                 sede_instancia.nombre = nombre
@@ -56,6 +80,30 @@ class OrganigramaService:
                     sede_instancia.is_active = payload['is_active']
                 sede_instancia.save()
 
+            snapshot_nuevo = {
+                'nombre': sede_instancia.nombre,
+                'direccion': sede_instancia.direccion,
+                'is_active': sede_instancia.is_active
+            }
+
+            # 🪐 COMPILACIÓN DEL DELTA FORENSE
+            payload_delta = {
+                'estado_anterior': snapshot_anterior,
+                'estado_nuevo': snapshot_nuevo,
+                'campos_alterados': [k for k, v in snapshot_anterior.items() if snapshot_nuevo[k] != v]
+            }
+
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.UPDATE,
+                module_component="SEDES_INFRAESTRUCTURA",
+                action_name="ACTUALIZACION_METADATOS_SEDE",
+                target_scope=f"Modificación de parámetros geográficos o nomenclatura de la sede: {sede_instancia.nombre}.",
+                level=SecurityAuditLog.Levels.INFO,
+                search_target=sede_instancia.id,
+                payload=payload_delta
+            )
+
             logger.info(f"🗺️ ORGANIGRAMA: Sede Física ID={sede_instancia.id} modificada correctamente.")
             return True, None
         except Exception as e:
@@ -63,11 +111,11 @@ class OrganigramaService:
             return False, {"server_error": [str(e)]}
 
     # =========================================================================
-    # 🏛️ OPERACIONES DE ESCRITURA: DEPENDENCIAS
+    # 🏛️ OPERACIONES DE ESCRITURA: DEPENDENCIAS (DIRECCIONES GENERALES)
     # =========================================================================
     @staticmethod
-    def crear_dependencia(payload: Dict[str, Any]) -> Tuple[bool, Optional[Dependencia], Optional[Dict[str, Any]]]:
-        """Inyección de una Dirección General o Secretaría validada por Pydantic DTO."""
+    def crear_dependencia(request, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dependencia], Optional[Dict[str, Any]]]:
+        """Inyección de una Dirección General o Secretaría validada por Pydantic DTO con bitácora forense."""
         try:
             input_dto = DependenciaInputDTO(**payload)
         except ValidationError as e:
@@ -81,34 +129,73 @@ class OrganigramaService:
                     is_active=True,
                     is_deleted=False
                 )
+
+            # 🪐 PERSISTENCIA EN BITÁCORA FORENSE
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.CREATE,
+                module_component="DEPENDENCIAS_RAIZ",
+                action_name="ALTA_DEPENDENCIA_ORGANICA",
+                target_scope=f"Inyección de nueva dependencia superior al organigrama: {nueva_dep.nombre}.",
+                level=SecurityAuditLog.Levels.SUCCESS,
+                search_target=nueva_dep.id,
+                payload={'nombre_dependencia': nueva_dep.nombre, 'encargado_id': str(nueva_dep.encargado_departamento_id) if nueva_dep.encargado_departamento_id else None}
+            )
+
             logger.info(f"🏛️ AXENTRA OS: Dependencia '{nueva_dep.nombre}' dada de alta exitosamente.")
             return True, nueva_dep, None
-            
         except Exception as e:
             logger.error(f"❌ TRANSACCIÓN FALLIDA (Crear Dependencia): {str(e)}")
             return False, None, {"server_error": [str(e)]}
 
     @staticmethod
-    def actualizar_dependencia(dep_instancia: Dependencia, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    def actualizar_dependencia(request, dep_instancia: Dependencia, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """Modificación estructural de nomenclatura o asignación de titulares en una dirección."""
         try:
+            snapshot_anterior = {
+                'nombre': dep_instancia.nombre,
+                'encargado_id': str(dep_instancia.encargado_departamento_id) if dep_instancia.encargado_departamento_id else None
+            }
+
             with transaction.atomic():
                 dep_instancia.nombre = payload.get('nombre')
                 dep_instancia.encargado_departamento_id = payload.get('encargado_departamento_id')
                 dep_instancia.save()
-                
-            logger.info(f"🏛️ AXENTRA OS: Dependencia '{dep_instancia.nombre}' actualizada correctamente en PostgreSQL.")
+
+            snapshot_nuevo = {
+                'nombre': dep_instancia.nombre,
+                'encargado_id': str(dep_instancia.encargado_departamento_id) if dep_instancia.encargado_departamento_id else None
+            }
+
+            payload_delta = {
+                'estado_anterior': snapshot_anterior,
+                'estado_nuevo': snapshot_nuevo,
+                'campos_alterados': [k for k, v in snapshot_anterior.items() if snapshot_nuevo[k] != v]
+            }
+
+            # 🪐 INYECTOR FORENSE
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.UPDATE,
+                module_component="DEPENDENCIAS_RAIZ",
+                action_name="MUTACION_ESTRUCTURAL_DEPENDENCIA",
+                target_scope=f"Modificación de nomenclatura o cambio de titular para la dependencia: {dep_instancia.nombre}.",
+                level=SecurityAuditLog.Levels.INFO,
+                search_target=dep_instancia.id,
+                payload=payload_delta
+            )
+
+            logger.info(f"🏛️ AXENTRA OS: Dependencia '{dep_instancia.nombre}' actualizada correctamente.")
             return True, None
-            
         except Exception as e:
             logger.error(f"❌ TRANSACCIÓN FALLIDA (Actualizar Dependencia): {str(e)}")
             return False, {"server_error": [str(e)]}
 
     # =========================================================================
-    # 🎛️ OPERACIONES DE ESCRITURA: ÁREAS OPERATIVAS (LA MATRIZ DE ASIGNACIÓN)
+    # 🎛️ OPERACIONES DE ESCRITURA: ÁREAS OPERATIVAS (OFICINAS INTERNAS)
     # =========================================================================
     @staticmethod
-    def crear_area(payload: Dict[str, Any]) -> Tuple[bool, Optional[AreaOperativa], Optional[Dict[str, Any]]]:
+    def crear_area(request, payload: Dict[str, Any]) -> Tuple[bool, Optional[AreaOperativa], Optional[Dict[str, Any]]]:
         """Instalación de una oficina interna o departamento en el mapa orgánico."""
         try:
             input_dto = AreaOperativaInputDTO(**payload)
@@ -125,6 +212,23 @@ class OrganigramaService:
                     sede_fisica=sede_fisica,
                     nombre=input_dto.nombre,  
                 )
+
+            # 🪐 PERSISTENCIA FORENSE
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.CREATE,
+                module_component="AREAS_MATRIZ",
+                action_name="ALTA_NODO_MATRIZ_OPERATIVA",
+                target_scope=f"Aprovisionamiento de sub-oficina interna: {nueva_area.nombre} adscrita a {dep.nombre}.",
+                level=SecurityAuditLog.Levels.SUCCESS,
+                search_target=nueva_area.id,
+                payload={
+                    'nombre_area': nueva_area.nombre,
+                    'dependencia_id': str(dep.id),
+                    'sede_fisica_id': str(sede_fisica.id)
+                }
+            )
+
             logger.info(f"📍 ORGANIGRAMA: Matriz Actualizada. Oficina '{nueva_area.nombre}' instalada.")
             return True, nueva_area, None
         except Dependencia.DoesNotExist:
@@ -136,7 +240,7 @@ class OrganigramaService:
             return False, None, {"server_error": [str(e)]}
 
     @staticmethod
-    def actualizar_area(area_instancia: AreaOperativa, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    def actualizar_area(request, area_instancia: AreaOperativa, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """Re-adscripción geográfica y jerárquica total de un departamento activo."""
         try:
             input_dto = AreaOperativaInputDTO(**payload)
@@ -144,6 +248,12 @@ class OrganigramaService:
             return False, {"validation_errors": e.errors()}
 
         try:
+            snapshot_anterior = {
+                'nombre': area_instancia.nombre,
+                'dependencia_id': str(area_instancia.dependencia.id),
+                'sede_fisica_id': str(area_instancia.sede_fisica.id)
+            }
+
             with transaction.atomic():
                 dep = Dependencia.objects.get(id=input_dto.dependencia_id, is_deleted=False)
                 sede_fisica = Sede.objects.get(id=input_dto.sede_fisica_id, is_active=True)
@@ -152,6 +262,30 @@ class OrganigramaService:
                 area_instancia.dependencia = dep
                 area_instancia.sede_fisica = sede_fisica
                 area_instancia.save()
+
+            snapshot_nuevo = {
+                'nombre': area_instancia.nombre,
+                'dependencia_id': str(area_instancia.dependencia.id),
+                'sede_fisica_id': str(area_instancia.sede_fisica.id)
+            }
+
+            payload_delta = {
+                'estado_anterior': snapshot_anterior,
+                'estado_nuevo': snapshot_nuevo,
+                'campos_alterados': [k for k, v in snapshot_anterior.items() if snapshot_nuevo[k] != v]
+            }
+
+            # 🪐 BITÁCORA FORENSE
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.UPDATE,
+                module_component="AREAS_MATRIZ",
+                action_name="RE_ADSCRIPCION_NODO_OPERATIVO",
+                target_scope=f"Actualización de adscripción territorial o denominación de la sub-oficina: {area_instancia.nombre}.",
+                level=SecurityAuditLog.Levels.INFO,
+                search_target=area_instancia.id,
+                payload=payload_delta
+            )
                 
             logger.info(f"📍 ORGANIGRAMA: Oficinas del nodo ID={area_instancia.id} re-mapeadas con éxito.")
             return True, None
@@ -163,92 +297,70 @@ class OrganigramaService:
             logger.error(f"❌ TRANSACCIÓN FALLIDA (Actualizar Área): {str(e)}")
             return False, {"server_error": [str(e)]}
 
-    @staticmethod
-    def editar_area(pk: uuid.UUID, payload: Dict[str, Any]) -> Tuple[bool, Optional[AreaOperativa], Optional[Dict[str, Any]]]:
-        """Alias compatible para mutaciones por ID de áreas operativas."""
-        try:
-            with transaction.atomic():
-                area = AreaOperativa.objects.get(pk=pk, is_deleted=False)
-                exito, errores = OrganigramaService.actualizar_area(area, payload)
-                if not exito:
-                    return False, None, errores
-            return True, area, None
-        except AreaOperativa.DoesNotExist:
-            return False, None, {"server_error": ["El área operativa solicitada no existe o fue eliminada."]}
-        except Exception as e:
-            return False, None, {"server_error": [str(e)]}
-
     # =========================================================================
     # 🗑️ BAJAS LÓGICAS CON INTERPOLACIÓN EN CASCADA (SOFT DELETE)
     # =========================================================================
     @staticmethod
-    def eliminar_sede(sede_instancia: Sede) -> None:
+    def eliminar_sede(request, sede_instancia: Sede) -> None:
         """Baja lógica de instancia: Desactiva el inmueble congelando dependientes."""
         with transaction.atomic():
             sede_instancia.is_deleted = True
             sede_instancia.is_active = False
             sede_instancia.save()
-            # 🟢 SINCRO ORM: Apunta de forma directa al related_name optimizado "areas"
             AreaOperativa.objects.filter(sede_fisica=sede_instancia).update(is_active=False)
+            
+        # 🪐 REGISTRO EN BITÁCORA CRÍTICA
+        ForensicAuditor.registrar_evento(
+            request=request,
+            action_type=SecurityAuditLog.ActionTypes.DELETE,
+            module_component="SEDES_INFRAESTRUCTURA",
+            action_name="SOFT_DELETE_SEDE_INFRAESTRUCTURA",
+            target_scope=f"Baja perimetral del inmueble {sede_instancia.nombre}. Sus celdas adscritas se inactivaron.",
+            level=SecurityAuditLog.Levels.CRITICAL,
+            search_target=sede_instancia.id,
+            payload={'is_deleted': True, 'is_active': False}
+        )
         logger.warning(f"⚠️ AUDITORÍA: Soft-Delete aplicado sobre Sede Física ID=[{sede_instancia.id}].")
 
     @staticmethod
-    def dar_baja_logica_sede(pk: uuid.UUID) -> Tuple[bool, str]:
-        """Baja por ID primitivo: Congela la sede e inhabilita las celdas adscritas."""
-        try:
-            with transaction.atomic():
-                sede = Sede.objects.get(pk=pk)
-                OrganigramaService.eliminar_sede(sede)
-            return True, f"La sede '{sede.nombre}' fue archivada y sus celdas operativas inactivadas."
-        except Sede.DoesNotExist:
-            return False, "La sede física solicitada no existe."
-        except Exception as e:
-            return False, f"Error transaccional: {str(e)}"
-
-    @staticmethod
-    def eliminar_dependencia(dep_instancia: Dependencia) -> None:
-        """Baja lógica de instancia: Marca is_deleted y arrastra sub-oficinas en cascada atómica."""
+    def eliminar_dependencia(request, dep_instancia: Dependencia) -> None:
+        """Baja lógica de dirección superior con barrido en cascada atómica."""
         with transaction.atomic():
             dep_instancia.is_active = False
             dep_instancia.is_deleted = True
             dep_instancia.save()
-            
-            # 🟢 BUG ARREGLADO: Ejecuta la mutación de borrado masivo invocando el accesor inverso premium '.areas'
             dep_instancia.areas.update(is_active=False, is_deleted=True)
             
+        # 🪐 REGISTRO EN BITÁCORA CRÍTICA
+        ForensicAuditor.registrar_evento(
+            request=request,
+            action_type=SecurityAuditLog.ActionTypes.DELETE,
+            module_component="DEPENDENCIAS_RAIZ",
+            action_name="SOFT_DELETE_RAMA_DEPENDENCIAL",
+            target_scope=f"Baja lógica atómica de la Dirección: {dep_instancia.nombre}. Sus sub-oficinas inferiores fueron destruidas.",
+            level=SecurityAuditLog.Levels.CRITICAL,
+            search_target=dep_instancia.id,
+            payload={'dependencia_eliminada': dep_instancia.nombre}
+        )
         logger.warning(f"⚠️ AUDITORÍA: Soft-Delete con barrido en cascada aplicado en Dependencia ID=[{dep_instancia.id}].")
 
     @staticmethod
-    def dar_baja_logica_dependencia(pk: uuid.UUID) -> Tuple[bool, str]:
-        """Baja por ID primitivo: Elimina lógicamente la dirección y sus ramas inferiores."""
-        try:
-            with transaction.atomic():
-                dependencia = Dependencia.objects.get(pk=pk)
-                OrganigramaService.eliminar_dependencia(dependencia)
-            return True, f"La dependencia '{dependencia.nombre}' y sus oficinas fueron dadas de baja correctamente."
-        except Dependencia.DoesNotExist:
-            return False, "La dependencia solicitada no existe."
-        except Exception as e:
-            return False, f"Error interno del servidor: {str(e)}"
-
-    @staticmethod
-    def eliminar_area(area_instancia: AreaOperativa) -> None:
+    def eliminar_area(request, area_instancia: AreaOperativa) -> None:
         """Baja lógica de instancia: Remueve la oficina de la matriz de adscripción."""
         with transaction.atomic():
             area_instancia.is_active = False
             area_instancia.is_deleted = True
             area_instancia.save()
+            
+        # 🪐 REGISTRO EN BITÁCORA FORENSE
+        ForensicAuditor.registrar_evento(
+            request=request,
+            action_type=SecurityAuditLog.ActionTypes.DELETE,
+            module_component="AREAS_MATRIZ",
+            action_name="SOFT_DELETE_NODO_OPERATIVO",
+            target_scope=f"Desvinculación y congelamiento del área interna: {area_instancia.nombre}.",
+            level=SecurityAuditLog.Levels.CRITICAL,
+            search_target=area_instancia.id,
+            payload={'area_eliminada': area_instancia.nombre}
+        )
         logger.info(f"🗑️ AUDITORÍA: Soft-Delete instantáneo aplicado en Área ID=[{area_instancia.id}].")
-
-    @staticmethod
-    def dar_baja_logica_area(pk: uuid.UUID) -> Tuple[bool, str]:
-        """Baja por ID primitivo: Soft delete sobre un departamento específico."""
-        try:
-            with transaction.atomic():
-                area = AreaOperativa.objects.get(pk=pk)
-                OrganigramaService.eliminar_area(area)
-            return True, f"El área '{area.nombre}' fue removida con éxito de la matriz."
-        except AreaOperativa.DoesNotExist:
-            return False, "El área operativa solicitada no existe."
-        except Exception as e:
-            return False, f"Error transaccional: {str(e)}"
