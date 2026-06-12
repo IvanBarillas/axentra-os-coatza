@@ -6,7 +6,7 @@ from apps.shared.manifest_registry import AxentraOSRegistry
 
 def launcher_home_view(request):
     """
-    Renderiza el conmutador general de aplicaciones (index.html) de forma dinámica,
+    Renderiza el conmutador general de aplicaciones (launcher_app.html) de forma dinámica,
     hidratando únicamente las cards de las aplicaciones autorizadas en la tabla UserAppRole.
     Separa de forma atómica los módulos en bloques Core y Satélites.
     """
@@ -53,7 +53,7 @@ def launcher_home_view(request):
     # ============================================================================
 
     # 🟢 ENVIAMOS EL CONTEXTO: Pasamos launcher_data que contiene las dos listas internas
-    return render(request, "index.html", {"launcher_data": launcher_data})
+    return render(request, "launcher_app.html", {"launcher_data": launcher_data})
 
 
 def intro_portal_view(request):
@@ -65,4 +65,4 @@ def intro_portal_view(request):
     if request.user.is_authenticated:
         return redirect('launcher_home')
         
-    return render(request, "intro.html")
+    return render(request, "index.html")
