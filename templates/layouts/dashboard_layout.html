@@ -2,7 +2,28 @@
 {% load axentra_ui %}
 
 {% block content %}
-<div x-data="{ sidebarOpen: false }" class="h-screen bg-gray-50 flex flex-col w-full relative overflow-hidden font-sans">
+<div x-data="{ 
+    sidebarOpen: false,
+    coreMenuOpen: false,
+    satelliteMenuOpen: false,
+    currentMenuOpen: false,
+    confirmOpen: false,
+    confirmTitle: '',
+    confirmText: '',
+    confirmTarget: null,
+    triggerConfirm(title, text, targetId) {
+        this.confirmTitle = title;
+        this.confirmText = text;
+        this.confirmTarget = targetId;
+        this.confirmOpen = true;
+    },
+    executeConfirm() {
+        if (this.confirmTarget) {
+            htmx.trigger('#' + this.confirmTarget, 'confirmed');
+        }
+        this.confirmOpen = false;
+    }
+}" class="h-screen bg-gray-50 flex flex-col w-full relative overflow-hidden font-sans">
     
     <div class="h-16 w-full z-40 shrink-0 bg-white">
         {% include "partials/_navbar.html" %}

@@ -15,7 +15,7 @@ class SecurityPermissions:
         'hover_color': 'hover:border-blue-600',
         'text_hover_color': 'group-hover:text-blue-600',
         'url_name': 'security:control_panel',
-        'is_core': True,
+        'is_core': False,
     }
 
     PERMISSIONS = {

@@ -1,4 +1,5 @@
-<div x-data="{ coreMenuOpen: false, satelliteMenuOpen: false }" class="lg:hidden">
+<!-- templates/components/bottom_nav.html -->
+<div class="lg:hidden">
     
     <!-- 🌌 PANEL 1: DESPLEGABLE CORE APPS (Hacia arriba) -->
     <div x-show="coreMenuOpen" 
@@ -17,7 +18,7 @@
             <span class="text-[10px] text-gray-400 font-bold block mt-0.5">Aplicativos de Gobernación Crítica</span>
         </div>
 
-        <div class="space-y-1 max-h-52 overflow-y-auto pr-1">
+        <div class="space-y-1 max-h-48 overflow-y-auto pr-1 scrollbar-none">
             {% if launcher_data.core_apps %}
                 {% for card in launcher_data.core_apps %}
                     <a href="{% url card.url_name %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-white/5 transition-all">
@@ -31,7 +32,7 @@
         </div>
     </div>
 
-    <!-- 🌌 PANEL 2: DESPLEGABLE SATELITE APPS (Hacia arriba) -->
+    <!-- 🌌 PANEL 2: DESPLEGABLE SATELITE APPS -->
     <div x-show="satelliteMenuOpen" 
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="translate-y-10 opacity-0"
@@ -48,7 +49,7 @@
             <span class="text-[10px] text-gray-400 font-bold block mt-0.5">Gestión y Soluciones Operativas</span>
         </div>
 
-        <div class="space-y-1 max-h-52 overflow-y-auto pr-1">
+        <div class="space-y-1 max-h-48 overflow-y-auto pr-1 scrollbar-none">
             {% if launcher_data.satellite_apps %}
                 {% for card in launcher_data.satellite_apps %}
                     <a href="{% url card.url_name %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-white/5 transition-all">
@@ -62,67 +63,116 @@
         </div>
     </div>
 
+    <!-- 🌌 🟢 PANEL 3: DESPLEGABLE HOMOLOGADO DEL MÓDULO ACTIVO (Sincronizado con el estilo Premium) -->
+    {% if modulo_actual and modulo_actual != 'launcher' %}
+        <div x-show="currentMenuOpen" 
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="translate-y-10 opacity-0"
+             x-transition:enter-end="translate-y-0 opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="translate-y-0 opacity-100"
+             x-transition:leave-end="translate-y-10 opacity-0"
+             @click.away="currentMenuOpen = false" 
+             class="fixed bottom-[74px] left-4 right-4 bg-gray-950/98 backdrop-blur-xl border rounded-[24px] shadow-[0_-15px_40px_rgba(0,0,0,0.5)] z-50 p-4 space-y-3 font-mono select-none
+                {% if modulo_actual == 'security' %}border-blue-500/30
+                {% elif modulo_actual == 'accounts' %}border-emerald-500/30
+                {% elif modulo_actual == 'organigrama' %}border-amber-500/30
+                {% else %}border-white/10{% endif %}" 
+             style="display: none;">
+            
+            <div class="px-2 py-1 border-b border-white/5 pb-2">
+                <span class="text-[8px] font-black tracking-widest block uppercase
+                    {% if modulo_actual == 'security' %}text-blue-400
+                    {% elif modulo_actual == 'accounts' %}text-emerald-400
+                    {% elif modulo_actual == 'organigrama' %}text-amber-400
+                    {% else %}text-gray-400{% endif %}">
+                    // ACCIONES DE ENTORNO: {{ modulo_actual }}
+                </span>
+                <span class="text-[10px] text-gray-400 font-bold block mt-0.5">Sub-navegación operativa autorizada</span>
+            </div>
+
+            <div class="space-y-1 max-h-48 overflow-y-auto pr-1 scrollbar-none">
+                {% if menu_actual %}
+                    {% for boton in menu_actual %}
+                        <a href="{% url boton.url %}" 
+                           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-white/5 transition-all
+                            {% if request.resolver_match.view_name == boton.url %}
+                                bg-white/10 text-white border border-white/10
+                            {% endif %}">
+                            <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-3.5 h-3.5 text-gray-400 shrink-0"></i>
+                            <span class="truncate">{{ boton.name }}</span>
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-[10px] text-gray-600 p-2">// Vista base sin sub-navegación</div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
     <!-- 📱 BARRA DE NAVEGACIÓN INFERIOR FIJA MÓVIL (MÁXIMO 4 BOTONES) -->
     <nav class="fixed bottom-0 left-0 right-0 bg-gray-950 border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-50 px-2 py-2 select-none nav-mobile-contraste">
         <div class="flex justify-around items-center max-w-md mx-auto">
             
-            <!-- 1. INICIO (Siempre visible en todas las caras) -->
+            <!-- 1. INICIO -->
             <a href="/" class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none">
                 <i data-lucide="home" class="w-4 h-4 text-blue-500"></i>
                 <span class="text-[9px] font-black tracking-wider uppercase text-blue-500 text-contraste">Inicio</span>
             </a>
 
-            <!-- 🔀 RENDERIZADO POR LÓGICA DE AUTENTICACIÓN -->
+            <!-- 🔀 ACCIONES DE SESIÓN AUTENTICADA -->
             {% if request.user.is_authenticated %}
                 
-                <!-- 2. BOTÓN DINÁMICO DE MÓDULO INTERNO -->
+                <!-- 2. BOTÓN DE MÓDULO INTELIGENTE CON COLOR INSTITUCIONAL -->
                 {% if modulo_actual and modulo_actual != 'launcher' %}
-                    <div x-data="{ currentMenuOpen: false }" class="relative">
-                        <div x-show="currentMenuOpen" @click.away="currentMenuOpen = false" class="fixed bottom-[74px] left-4 right-4 bg-gray-900 border border-white/10 rounded-2xl p-3 space-y-1 z-50 shadow-xl" style="display: none;">
-                            <span class="text-[8px] font-black text-gray-500 block uppercase px-2 mb-1">// OPCIONES MÓDULO</span>
-                            {% for boton in menu_actual %}
-                                <a href="{% url boton.url %}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[11px] font-bold text-gray-300 uppercase hover:bg-white/5 {% if request.resolver_match.view_name == boton.url %}text-white bg-blue-600/20 border border-blue-500/30{% endif %}">
-                                    <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-3.5 h-3.5 text-gray-400"></i>
-                                    <span class="truncate">{{ boton.name }}</span>
-                                </a>
-                            {% endfor %}
-                        </div>
-
-                        <button @click="currentMenuOpen = !currentMenuOpen" class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none text-white/70 hover:text-white cursor-pointer">
-                            <i data-lucide="layout-grid" class="w-4 h-4 text-gray-400"></i>
-                            <span class="text-[9px] font-bold tracking-wider uppercase text-white/70 text-contraste">Módulo</span>
+                    <div class="relative">
+                        <button @click="currentMenuOpen = !currentMenuOpen; coreMenuOpen = false; satelliteMenuOpen = false" 
+                                class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none cursor-pointer transition duration-150 group
+                                {% if modulo_actual == 'security' %}text-blue-500 hover:text-blue-400
+                                {% elif modulo_actual == 'accounts' %}text-emerald-500 hover:text-emerald-400
+                                {% elif modulo_actual == 'organigrama' %}text-amber-500 hover:text-amber-400
+                                {% else %}text-white/70 hover:text-white{% endif %}">
+                            
+                            <i data-lucide="layout-grid" class="w-4 h-4 transition-transform group-active:scale-90
+                                {% if modulo_actual == 'security' %}text-blue-500
+                                {% elif modulo_actual == 'accounts' %}text-emerald-500
+                                {% elif modulo_actual == 'organigrama' %}text-amber-500
+                                {% else %}text-gray-400{% endif %}"></i>
+                            
+                            <span class="text-[9px] font-black tracking-widest uppercase text-contraste truncate max-w-[70px]">
+                                {{ modulo_actual }}
+                            </span>
                         </button>
                     </div>
                 {% endif %}
 
-                <!-- 3. APPS CORE (Solo si tiene rango administrativo) -->
-                {% if request.user.is_staff or request.user.is_superuser or request.user.is_manager %}
-                    <button @click="coreMenuOpen = !coreMenuOpen; satelliteMenuOpen = false" 
+                <!-- 3. INFRAESTRUCTURA CORE -->
+                {% if launcher_data.core_apps %}
+                    <button @click="coreMenuOpen = !coreMenuOpen; satelliteMenuOpen = false; currentMenuOpen = false" 
                             class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none cursor-pointer"
-                            :class="coreMenuOpen ? 'text-amber-400' : 'text-white/70 hover:text-white'">
+                            :class="coreMenuOpen ? 'text-amber-400 font-black' : 'text-white/70 hover:text-white'">
                         <i data-lucide="shield" class="w-4 h-4" :class="coreMenuOpen ? 'text-amber-400' : 'text-gray-400'"></i>
-                        <span class="text-[9px] font-bold tracking-wider uppercase text-contraste" :class="coreMenuOpen ? 'text-amber-400' : 'text-white/70'">Core Apps</span>
+                        <span class="text-[9px] font-bold tracking-wider uppercase text-contraste">Core Apps</span>
                     </button>
                 {% endif %}
 
-                <!-- 4. APPS SATÉLITES INTERNAS -->
-                <button @click="satelliteMenuOpen = !satelliteMenuOpen; coreMenuOpen = false" 
-                        class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none cursor-pointer"
-                        :class="satelliteMenuOpen ? 'text-indigo-400' : 'text-white/70 hover:text-white'">
-                    <i data-lucide="layers" class="w-4 h-4" :class="satelliteMenuOpen ? 'text-indigo-400' : 'text-gray-400'"></i>
-                    <span class="text-[9px] font-bold tracking-wider uppercase text-contraste" :class="satelliteMenuOpen ? 'text-indigo-400' : 'text-white/70'">Satélites</span>
-                </button>
+                <!-- 4. MODULOS SATÉLITES -->
+                {% if launcher_data.satellite_apps %}
+                    <button @click="satelliteMenuOpen = !satelliteMenuOpen; coreMenuOpen = false; currentMenuOpen = false" 
+                            class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none cursor-pointer"
+                            :class="satelliteMenuOpen ? 'text-indigo-400 font-black' : 'text-white/70 hover:text-white'">
+                        <i data-lucide="layers" class="w-4 h-4" :class="satelliteMenuOpen ? 'text-indigo-400' : 'text-gray-400'"></i>
+                        <span class="text-[9px] font-bold tracking-wider uppercase text-contraste">Satélites</span>
+                    </button>
+                {% endif %}
 
             {% else %}
-                
-                <!-- 🔓 MODO PÚBLICO: SOLO SE RENDERIZAN ACCESO Y SOPORTE IA -->
-                <!-- 2. BOTÓN DE ACCESO COMPUERTA LOGUEO -->
+                <!-- MODO PÚBLICO ANÓNIMO -->
                 <a href="{% url 'accounts:login' %}" class="flex flex-col items-center justify-center gap-0.5 text-center py-1 min-w-[64px] focus:outline-none" aria-label="Ingresar al sistema corporativo">
                     <i data-lucide="log-in" class="w-4 h-4 text-gray-400"></i>
                     <span class="text-[9px] font-bold tracking-wider uppercase text-white/50 group-hover:text-white text-contraste">Acceso</span>
                 </a>
 
-                <!-- 3. BOTÓN SOPORTE IA ORIGINAL CON PULSO VERDE PREMIUM -->
                 <a href="https://api.whatsapp.com/send?phone=5219212601146&text=Hola.%20Necesito%20asistencia%20en%20el%20Ecosistema%20Gubernamental%20de%20{{ tenant.app_name|default:'Axentra' }}." 
                    target="_blank" 
                    rel="noopener noreferrer"
@@ -143,7 +193,6 @@
 </div>
 
 <style>
-    html.alto-contraste-activo .nav-mobile-contraste { background: #000000 !important; border-top: 2px solid #ffffff !important; }
-    html.alto-contraste-activo .nav-mobile-contraste .icon-contraste { color: #ffffff !important; }
-    html.alto-contraste-activo .nav-mobile-contraste .text-contraste { color: #ffffff !important; font-weight: 900 !important; }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
