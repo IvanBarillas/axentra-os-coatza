@@ -6,64 +6,54 @@ from apps.shared.apps_config import AppIdentifier
 logger = logging.getLogger(__name__)
 
 class AxentraOSRegistry:
-    """
-    🧠 RECON HUB & REFLECTION ENGINE - AXENTRA OS
-    Motor ciego de descubrimiento e introspección de metadatos.
-    Escanea la topología del disco duro buscando los manifiestos de permisos
-    independientes de cada módulo para alimentar de forma dinámica al Launcher, 
-    las barras laterales y los seeders del Core OS.
-    """
     
     @classmethod
     def get_all_manifests(cls) -> dict:
         """
-        🛰️ ESCÁNER AUTO-ROTATIVO DE MANIFIESTOS:
-        Itera sobre el catálogo maestro de 'AppIdentifier.get_choices()' y mapea 
-        en caliente las clases de permisos declaradas en el ecosistema.
+        🛰️ ESCÁNER HÍBRIDO AUTO-ROTATIVO:
+        Busca manifiestos de forma nativa en la ruta de cada módulo. 
+        Si no existen en su propia carpeta, aplica un fallback automático
+        hacia el archivo unificado de la app de seguridad central.
         """
         manifests = {}
-        
-        # Recuperamos todos los slugs válidos del Core OS (security, accounts, organigrama, helpdesk, etc.)
         modulos_declarados = [choice[0] for choice in AppIdentifier.get_choices()]
         
         for app_code in modulos_declarados:
-            # 🪐 REFACTORIZACIÓN 1: Formateo CamelCase inmune a guiones bajos (ej: dynamic_forms -> DynamicFormsPermissions)
             class_parts = [part.capitalize() for part in app_code.split('_')]
             class_name = f"{''.join(class_parts)}Permissions"
             
-            # 🪐 REFACTORIZACIÓN 2: Desacoplamiento dinámico de rutas del disco duro
-            # El chasis ahora busca de forma inteligente el permissions.py exclusivo de cada app satélite
-            module_path = f"apps.{app_code}.permissions"
+            # Intento 1: Buscar de forma limpia en su propia app satélite dedicada
+            module_path_satelite = f"apps.{app_code}.permissions"
             
             try:
-                mod = importlib.import_module(module_path)
+                mod = importlib.import_module(module_path_satelite)
                 manifest_class = getattr(mod, class_name)
                 manifests[app_code] = manifest_class
-            except (ImportError, AttributeError) as e:
-                # Cambiado a logger.warning o print temporal para que lo veas claro en tu terminal al migrar/correr
-                logger.debug(f"ℹ️ [Registry Discovery] Nodo satélite [{app_code}] omitido o sin manifiesto estructurado: {e}")
-                continue
+                continue # Encontrado en su propio búnker, saltamos al siguiente
+            except (ImportError, AttributeError):
+                # Si no existe la carpeta o la clase ahí, no pasa nada, procedemos al Fallback
+                pass
+            
+            # Intento 2: Fallback hacia el archivo central unificado de Security
+            module_path_core = "apps.security.permissions"
+            try:
+                mod = importlib.import_module(module_path_core)
+                if hasattr(mod, class_name):
+                    manifests[app_code] = getattr(mod, class_name)
+                else:
+                    logger.debug(f"ℹ️ [Registry] Clase [{class_name}] no localizada en ninguna capa.")
+            except ImportError as e:
+                logger.debug(f"⚠️ [Registry Critical] Archivo base de seguridad ausente: {e}")
                 
         return manifests
 
     @classmethod
     def get_manifest_by_slug(cls, app_code: str):
-        """
-        🔍 DESPACHADOR BAJO DEMANDA:
-        Retorna la clase de permisos de un módulo específico para el uso de decoradores y vistas.
-        """
         return cls.get_all_manifests().get(app_code)
 
     @classmethod
     def get_launcher_cards(cls, allowed_app_identifiers: list, is_root: bool = False) -> dict:
-        """
-        🚀 ESCRITORIO OPERATIVO SECTORIZADO (LAUNCHER HUB):
-        """
-        cards_bucket = {
-            'core_apps': [],       # 🏛️ Bloque Superior (Gobernanza Core)
-            'satellite_apps': []   # 🛰️ Bloque Inferior (Módulos de Gestión)
-        }
-        
+        cards_bucket = {'core_apps': [], 'satellite_apps': []}
         all_manifests = cls.get_all_manifests()
         
         for app_code, manifest in all_manifests.items():
@@ -76,7 +66,4 @@ class AxentraOSRegistry:
                         cards_bucket['core_apps'].append(card_data)
                     else:
                         cards_bucket['satellite_apps'].append(card_data)
-                    
         return cards_bucket
-
-  
