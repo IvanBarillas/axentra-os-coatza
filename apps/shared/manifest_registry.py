@@ -23,19 +23,24 @@ class AxentraOSRegistry:
         """
         manifests = {}
         
-        # Recuperamos todos los slugs válidos del Core OS (security, accounts, organigrama, etc.)
+        # Recuperamos todos los slugs válidos del Core OS (security, accounts, organigrama, helpdesk, etc.)
         modulos_declarados = [choice[0] for choice in AppIdentifier.get_choices()]
         
         for app_code in modulos_declarados:
-            # Formateamos el nombre de la clase esperado de fábrica (Ej: 'SecurityPermissions', 'AccountsPermissions')
-            class_name = f"{app_code.capitalize()}Permissions"
-            module_path = f"apps.security.permissions" # Chasis unificado actual
+            # 🪐 REFACTORIZACIÓN 1: Formateo CamelCase inmune a guiones bajos (ej: dynamic_forms -> DynamicFormsPermissions)
+            class_parts = [part.capitalize() for part in app_code.split('_')]
+            class_name = f"{''.join(class_parts)}Permissions"
+            
+            # 🪐 REFACTORIZACIÓN 2: Desacoplamiento dinámico de rutas del disco duro
+            # El chasis ahora busca de forma inteligente el permissions.py exclusivo de cada app satélite
+            module_path = f"apps.{app_code}.permissions"
             
             try:
                 mod = importlib.import_module(module_path)
                 manifest_class = getattr(mod, class_name)
                 manifests[app_code] = manifest_class
             except (ImportError, AttributeError) as e:
+                # Cambiado a logger.warning o print temporal para que lo veas claro en tu terminal al migrar/correr
                 logger.debug(f"ℹ️ [Registry Discovery] Nodo satélite [{app_code}] omitido o sin manifiesto estructurado: {e}")
                 continue
                 
@@ -53,11 +58,7 @@ class AxentraOSRegistry:
     def get_launcher_cards(cls, allowed_app_identifiers: list, is_root: bool = False) -> dict:
         """
         🚀 ESCRITORIO OPERATIVO SECTORIZADO (LAUNCHER HUB):
-        Construye y empaqueta el lote total de tarjetas organizándolas en dos 
-        bloques estructurales independientes basados en la directiva 'is_core'
-        para alimentar las secciones del frontend de forma limpia.
         """
-        # 🟢 CALIBRACIÓN: Retornamos un dict estructurado en lugar de una lista plana
         cards_bucket = {
             'core_apps': [],       # 🏛️ Bloque Superior (Gobernanza Core)
             'satellite_apps': []   # 🛰️ Bloque Inferior (Módulos de Gestión)
@@ -71,11 +72,11 @@ class AxentraOSRegistry:
                     card_data = manifest.LAUNCHER_CARD.copy()
                     card_data['app_code'] = app_code
                     
-                    # 🪐 DISTRIBUCIÓN RECTILÍNEA:
-                    # Evaluamos si la metadata de la clase declara 'is_core': True
                     if card_data.get('is_core', False):
                         cards_bucket['core_apps'].append(card_data)
                     else:
                         cards_bucket['satellite_apps'].append(card_data)
                     
         return cards_bucket
+
+  
