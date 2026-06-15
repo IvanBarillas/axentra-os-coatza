@@ -23,8 +23,8 @@ def global_tenant_settings(request):
             # Inicializador seguro de contingencia (Pattern Singleton Blinder)
             config = TenantConfig.objects.create(
                 app_name='Axentra OS',
-                entidad_nombre='H. Ayuntamiento de Coatzacoalcos',
-                siglas='COATZA'
+                entidad_nombre='Axentra Infraestructure',
+                siglas='AXN'
             )
         return {'tenant': config}
     except Exception as e:
