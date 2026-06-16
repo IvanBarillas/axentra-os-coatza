@@ -4,8 +4,8 @@ from django import template
 register = template.Library()
 
 @register.inclusion_tag('common/tags/dashboard_header.html')
-def dashboard_header(badge_text, title, description, modulo_actual, badge_class=None, status_text="Online", status_color="blue-600", status_pulse=True, mostrar_permisos=True, accent_color="blue-600"):
-    """Renderiza el encabezado de gobernanza unificado de Axentra OS."""
+def dashboard_header(badge_text, title, description, modulo_actual, badge_class=None, status_text="Online", status_color="blue-600", status_pulse=True, mostrar_permisos=True, accent_color="blue-600", app_icon=None, bg_custom="", border_custom="", icon_bg_custom=""):
+    """Renderiza el encabezado de gobernanza unificado de Axentra OS de forma 100% dinámica."""
     return {
         'badge_text': badge_text,
         'title': title,
@@ -17,8 +17,32 @@ def dashboard_header(badge_text, title, description, modulo_actual, badge_class=
         'status_pulse': status_pulse,
         'mostrar_permisos': mostrar_permisos,
         'accent_color': accent_color,
+        'app_icon': app_icon,
+        'bg_custom': bg_custom,
+        'border_custom': border_custom,
+        'icon_bg_custom': icon_bg_custom,
     }
 
+@register.inclusion_tag('common/tags/dashboard_sub_header.html')
+def dashboard_sub_header(title, description, modulo_actual, btn_text="Volver", btn_url="#", btn_icon="arrow-left", bg_custom="", border_custom="", accent_color="blue-600", badge_text=None, text_title_custom=None, text_desc_custom=None, text_badge_custom=None, btn_custom=None):
+    """Renderiza el sub-encabezado dinámico con soporte nativo para Overrides estéticos de cualquier entorno."""
+    return {
+        'title': title,
+        'description': description,
+        'modulo_actual': modulo_actual,
+        'btn_text': btn_text,
+        'btn_url': btn_url,
+        'btn_icon': btn_icon,
+        'bg_custom': bg_custom,
+        'border_custom': border_custom,
+        'accent_color': accent_color,
+        'badge_text': badge_text,
+        'text_title_custom': text_title_custom,
+        'text_desc_custom': text_desc_custom,
+        'text_badge_custom': text_badge_custom,
+        'btn_custom': btn_custom,
+    }
+    
 @register.inclusion_tag('common/tags/stats_card.html')
 def stats_card(label, value, icon, hover_color="blue-600", value_color="gray-950", subtext=None, subtext_highlight=False, bg_icon="blue-50/50"):
     """Renderiza una tarjeta contadora demográfica adaptativa mapeada a Lucide."""
