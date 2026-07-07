@@ -8,7 +8,7 @@ from apps.security.permissions import SecurityPermissions
 from apps.shared.apps_config import AppIdentifier
 from apps.shared.manifest_registry import AxentraOSRegistry
 from apps.security.services.permission_loader import get_user_permissions_for_app
-from apps.shared.utils.telemetry import AxentraRadar  # ✨ Utilidad Universal de Telemetría
+from apps.shared.utils.telemetry import AxentraRadar  
 
 logger = logging.getLogger(__name__)
 
@@ -99,21 +99,32 @@ def menu_dinamico_processor(request):
     """
     🧠 PROCESADOR DE ENTORNO CONTEXTUAL (HYPER-REACTIVE SIDEBAR)
     Sincroniza y expone las variables calculadas por el decorador hacia el motor del DOM.
+    Asegura que el Sidebar 1 estático mantenga su openMenu e iluminación activos.
     """
     context = {'menu_actual': [], 'modulo_actual': 'launcher', 'sidebar_menu': []}
 
-    if not request.user.is_authenticated or not request.resolver_match:
+    if not request.user.is_authenticated:
         return context
 
-    modulo_activo = request.resolver_match.namespace
-    if not modulo_activo:
+    # 📡 CAPA 1: EXTRACTOR DE METADATOS DEL DECORATOR GATE (VELOCIDAD CERO 0 MS)
+    # Tu decorador inyecta 'request.axentra_active_module'. Si existe, lo usamos como ley suprema.
+    modulo_activo = getattr(request, 'axentra_active_module', None)
+    
+    # Fallback: Si la vista no lleva decorador, lo intentamos leer del namespace de la URL
+    if not modulo_activo and request.resolver_match:
+        modulo_activo = request.resolver_match.namespace
+
+    # Si definitivamente estamos en la raíz del launcher o no hay módulo, retornamos seguro
+    if not modulo_activo or modulo_activo == 'launcher':
         return context
 
-    # 🟢 CASO 1: OPTIMIZACIÓN CON TELEMETRÍA (BYPASS DE MEMORIA DESACOPLADO DESDE RAM)
+    # Seteamos el módulo activo de inmediato en el contexto para Alpine.js y Tailwind v4
+    context['modulo_actual'] = modulo_activo
+
+    # 🟢 CASO A: OPTIMIZACIÓN DESACOPLADA DESDE RAM (EL DECORADOR YA ARMÓ EL MENÚ)
     if hasattr(request, 'axentra_sidebar_menu'):
         context['menu_actual'] = request.axentra_sidebar_menu
         context['sidebar_menu'] = request.axentra_sidebar_menu
-        context['modulo_actual'] = modulo_activo
 
         # ✨ TELEMETRÍA EN 1 LÍNEA: Mitigación a velocidad cero (0 ms)
         AxentraRadar.imprimir_auditoria(
@@ -124,19 +135,22 @@ def menu_dinamico_processor(request):
             extra_data={
                 "Módulo Namespace": modulo_activo.upper(),
                 "Enlaces Resueltos en RAM": len(context['menu_actual']),
-                "Rendimiento Telemetría": "Consulta duplicada mitigada a velocidad cero (0 ms)."
+                "Rendimiento Telemetría": "Sincronización del Sidebar 1 acoplada a memoria RAM."
             }
         )
         return context
 
-    # 🛰️ CASO 2: FALLBACK DE SEGURIDAD (Si ingresan a una ruta que no lleva decorador directo)
+    # 🛰️ CASO B: FALLBACK LAYER (Si ingresan por una URL limpia o F5 sin pasar por el flujo interno)
     manifesto_modulo = AxentraOSRegistry.get_manifest_by_slug(modulo_activo)
     if not manifesto_modulo or not hasattr(manifesto_modulo, 'SIDEBAR_MENU'):
-        context['modulo_actual'] = modulo_activo
         return context
 
     menu_maestro_crudo = manifesto_modulo.SIDEBAR_MENU
-    es_root = request.user.is_superuser or getattr(request.user, 'is_manager', False) or getattr(getattr(request.user, 'axentra_profile', None), 'is_root_admin', False)
+    es_root = (
+        request.user.is_superuser or 
+        getattr(request.user, 'is_manager', False) or 
+        getattr(getattr(request.user, 'axentra_profile', None), 'is_root_admin', False)
+    )
     menu_filtrado = []
     
     if es_root:
@@ -157,19 +171,6 @@ def menu_dinamico_processor(request):
 
     menu_filtrado.sort(key=lambda x: x['order'])
     
-    # ✨ TELEMETRÍA EN 1 LÍNEA: Caída al motor del ORM / Fallback Layer
-    AxentraRadar.imprimir_auditoria(
-        componente="menu_dinamico_processor",
-        request=request,
-        titulo="Maestro de Navegación Desacoplado (ORM FALLBACK LAYER)",
-        icono="🖥️",
-        extra_data={
-            "Módulo Namespace": modulo_activo.upper(),
-            "Evaluación de Enlaces": f"{len(menu_filtrado)} visibles de {len(menu_maestro_crudo)} evaluados."
-        }
-    )
-
     context['menu_actual'] = menu_filtrado
     context['sidebar_menu'] = menu_filtrado
-    context['modulo_actual'] = modulo_activo
     return context

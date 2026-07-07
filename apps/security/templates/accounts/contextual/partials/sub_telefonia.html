@@ -1,0 +1,37 @@
+<div class="space-y-4 animate-fade-in font-mono text-left">
+    <div class="border-b border-gray-100 pb-3">
+        <h3 class="text-sm font-black text-gray-900 uppercase tracking-tight">Extensiones y Líneas Digitales</h3>
+        <p class="text-[10px] font-bold text-gray-400 uppercase mt-0.5">Asignación de voz IP, perfiles de marcado y telecomunicaciones.</p>
+    </div>
+
+    <div class="overflow-x-auto border border-gray-100 rounded-xl">
+        <table class="w-full text-left border-collapse text-[11px]">
+            <thead>
+                <tr class="bg-slate-50 text-gray-500 uppercase tracking-wider border-b border-gray-100 font-black">
+                    <th class="py-3 px-4">Extensión</th>
+                    <th class="py-3 px-4">Tipo de Línea</th>
+                    <th class="py-3 px-4">Dispositivo Físico</th>
+                    <th class="py-3 px-4">Perfil Permiso</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-gray-700 font-bold">
+                {% for ext in extensiones %}
+                <tr class="hover:bg-slate-50/60 transition-colors">
+                    <td class="py-3 px-4 text-sm font-black text-gray-900 tracking-tight">{{ ext.numero_extension }}</td>
+                    <td class="py-3 px-4 text-gray-500 uppercase">{{ ext.tipo_linea }}</td>
+                    <td class="py-3 px-4 uppercase">{{ ext.modelo_aparato }}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[9px] font-black uppercase tracking-wider border border-indigo-100/60">{{ ext.perfil_marcado }}</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="py-8 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest bg-slate-50/30">
+                        📞 No hay líneas telefónicas asignadas a este perfil.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>

@@ -50,16 +50,11 @@ def accounts_dashboard_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_list_view(request):
-    """
-    Despacha la nómina general filtrada mediante selectores optimizados de matriz.
-    Mantiene el soporte híbrido HTMX aislando los retornos de fragmentos puros.
-    """
     search_query = request.GET.get('q', '').strip()
     sede_id = request.GET.get('sede', '').strip()
     dependencia_id = request.GET.get('dependencia', '').strip()
     area_id = request.GET.get('area', '').strip()
     
-    # Sanitización de banderas por defecto de interfaz
     if sede_id.lower() in ['all', 'none', '']: sede_id = ""
     if dependencia_id.lower() in ['all', 'none', '']: dependencia_id = ""
     if area_id.lower() in ['all', 'none', '']: area_id = ""
@@ -71,6 +66,16 @@ def funcionario_list_view(request):
         area_id=area_id
     )
     
+    es_htmx = request.headers.get('HX-Request') == 'true' or request.headers.get('hx-request') == 'true'
+    target_solicitado = request.headers.get('HX-Target', '')
+
+    # 🟢 DETERMINACIÓN DEL PADRE ESTRUCTURAL
+    # Si viene del sidebar, heredamos el layout en blanco porque el chasis global ya está pintado en el navegador.
+    if es_htmx and target_solicitado == 'main-content-target':
+        base_template = "layouts/blank_layout.html"
+    else:
+        base_template = "layouts/dashboard_layout.html"
+    
     context = {
         'funcionarios': funcionarios,
         'sedes': Sede.objects.filter(is_deleted=False).order_by('nombre'),
@@ -79,18 +84,11 @@ def funcionario_list_view(request):
         'current_q': search_query,
         'current_sede': request.GET.get('sede', ''),
         'current_dep': request.GET.get('dependencia', ''),
-        'current_area': request.GET.get('area', ''),
-        'target_id': 'dynamic-workspace-target', # Actualizado al contenedor maestro híbrido
+        'base_template': base_template,  # Inyección dinámica de herencia
     }
     
-    es_htmx = (
-        request.headers.get('HX-Request') == 'true' or 
-        request.headers.get('hx-request') == 'true' or
-        request.META.get('HTTP_HX_REQUEST') == 'true'
-    )
-    
-    if es_htmx:
-        # 🟢 RETORNO HÍBRIDO: Envía la estructura adaptativa mutada sin romper el árbol jerárquico del DOM
+    # Si la petición va dirigida al recuadro interno de la tabla pura (filtros rápidos)
+    if es_htmx and target_solicitado == 'dynamic-workspace-target':
         return render(request, 'accounts/htmx/funcionario_hibrido_partial.html', context)
         
     return render(request, 'accounts/funcionario_list.html', context)
@@ -290,3 +288,79 @@ def funcionario_toggle_status_view(request, pk: uuid.UUID):
         })
         
     return redirect('accounts:funcionario_list')
+
+
+
+def funcionario_detail_360_view(request, pk):
+    """🏛️ CABINA CONTEXTUAL 360°: Inicializa el chasis del doble sidebar para un usuario específico."""
+    funcionario = get_object_or_404(User, id=pk)
+    
+    context = {
+        'funcionario': funcionario,
+        'modulo_actual': 'admin',  # Mantiene expandido el menú de administración en el Sidebar 1
+    }
+    return render(request, "contextual/funcionario_detail_360.html", context)
+
+
+def funcionario_sub_identidad_view(request, pk):
+    """🛸 SUB-ENLACE: Información core del expediente laboral."""
+    funcionario = get_object_or_404(User, id=pk)
+    return render(request, "contextual/partials/sub_identidad.html", {'funcionario': funcionario})
+
+
+def funcionario_sub_hardware_view(request, pk):
+    """
+    💻 SUB-ENLACE: Consulta el inventario físico asignado en la CMDB.
+    Se envían datos simulados (Mock Data) estructurados como diccionarios para no romper el Core.
+    Cambiar por Asset.objects.filter(...) cuando exista la app de assets.
+    """
+    funcionario = get_object_or_404(User, id=pk)
+    
+    # 📝 MOCK DATA: Simula los atributos que tendrá tu modelo de activos físicos
+    activos_simulados = [
+        {
+            'codigo_inventario': 'AXN-HW-2026-0891',
+            'nombre': 'Laptop ThinkPad L14 Gen 4',
+            'categoria': 'Cómputo Portátil',
+            'estado': 'Asignado / Excelente',
+            'fecha_resguardo': '15 Ene 2026'
+        },
+        {
+            'codigo_inventario': 'AXN-HW-2026-1044',
+            'nombre': 'Monitor Dell 24" P2422H',
+            'categoria': 'Periféricos de Video',
+            'estado': 'Asignado / Operativo',
+            'fecha_resguardo': '20 Ene 2026'
+        }
+    ]
+    
+    # Si quieres probar el escenario de "Sin activos asignados", pon: activos_simulados = []
+    return render(request, "contextual/partials/sub_hardware.html", {
+        'funcionario': funcionario,
+        'activos': activos_simulados
+    })
+
+
+def funcionario_sub_telefonia_view(request, pk):
+    """
+    📞 SUB-ENLACE: Filtra las extensiones y líneas asociadas al operador.
+    Se envían datos simulados (Mock Data) estructurados como diccionarios para no romper el Core.
+    """
+    funcionario = get_object_or_404(User, id=pk)
+    
+    # 📝 MOCK DATA: Simula los atributos que tendrá tu modelo de telefonía/redes
+    extensiones_simuladas = [
+        {
+            'numero_extension': '4502',
+            'tipo_linea': 'IP / Conmutador Central',
+            'modelo_aparato': 'Cisco IP Phone 7821',
+            'estatus': 'Activa',
+            'perfil_marcado': 'Nacional / Celular'
+        }
+    ]
+    
+    # Si quieres probar el escenario vacío, pon: extensiones_simuladas = []
+    return render(request, "contextual/partials/sub_telefonia.html", {
+        'funcionario': funcionario,
+        'extensiones': extensiones_simuladas
+    })

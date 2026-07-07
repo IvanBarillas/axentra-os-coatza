@@ -3,7 +3,10 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.views.generic import TemplateView
 
-from apps.security.views.accounts_views import accounts_control_panel_view, accounts_dashboard_view, funcionario_cambiar_password_view, funcionario_create_view, funcionario_editar_view, funcionario_list_view, funcionario_soft_delete_view, funcionario_toggle_status_view
+from apps.security.views.accounts_views import (
+    accounts_control_panel_view, accounts_dashboard_view, funcionario_cambiar_password_view, funcionario_create_view, funcionario_editar_view, funcionario_list_view, funcionario_soft_delete_view, funcionario_toggle_status_view,
+    funcionario_sub_identidad_view, funcionario_sub_hardware_view, funcionario_sub_telefonia_view
+    )
 
 
 urls_accounts = [
@@ -28,4 +31,9 @@ urls_accounts = [
     path('funcionarios/baja/<uuid:pk>/', funcionario_soft_delete_view, name='funcionario_delete'),
     
     path('funcionarios/estado/<uuid:pk>/', funcionario_toggle_status_view, name='funcionario_toggle_status'),
+    
+    # ENDPOINTS DE COCHERA HTMX (SIDEBAR 2)
+    path('funcionarios/sub/identidad/<uuid:pk>/', funcionario_sub_identidad_view, name='funcionario_sub_identidad'),
+    path('funcionarios/sub/hardware/<uuid:pk>/', funcionario_sub_hardware_view, name='funcionario_sub_hardware'),
+    path('funcionarios/sub/telefonia/<uuid:pk>/', funcionario_sub_telefonia_view, name='funcionario_sub_telefonia'),
 ]

@@ -1,94 +1,115 @@
-<!-- templates/partials/_sidebar.html -->
 <aside class="hidden lg:flex lg:w-72 flex-col bg-white border-r border-gray-200/80 h-full overflow-y-auto shrink-0 p-5 justify-between animate-fade-in select-none">
-    <div class="space-y-6 flex flex-col h-full">
+    <div class="space-y-4 flex flex-col h-full min-h-0" 
+         x-data="{ openMenu: '{{ modulo_actual }}' }">
         
-        {% if modulo_actual and modulo_actual != 'launcher' %}
-            <!-- ENTORNO ACTIVO CROMÁTICO (Tu código actual idéntico...) -->
-            {% if modulo_actual == 'security' %}
-                <div class="px-4 py-3 rounded-2xl border bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border-indigo-500/30 text-white shadow-xs shrink-0 relative overflow-hidden group">
-                    <div class="absolute -right-6 -bottom-6 text-indigo-500/10 transition-transform duration-300 group-hover:scale-110">
-                        <i data-lucide="shield-check" class="w-16 h-16"></i>
-                    </div>
-                    <span class="text-[8px] font-mono font-black tracking-[0.25em] text-indigo-400 block uppercase">NÚCLEO SOBERANO</span>
-                    <span class="text-xs font-mono font-black uppercase tracking-widest block mt-1 flex items-center gap-2 text-white">
-                        <span class="w-2 h-2 bg-indigo-500 rounded-full relative"></span>
-                        <span>{{ modulo_actual }}::core</span>
-                    </span>
+        <div class="px-3 py-1 flex items-center gap-2 border-b border-gray-100 pb-3 shrink-0">
+            <span class="w-2.5 h-2.5 bg-indigo-600 rounded-full"></span>
+            <h2 class="text-xs font-black font-mono tracking-widest text-slate-800 uppercase">AXENTRA OS</h2>
+        </div>
+
+        <nav class="flex-1 flex flex-col min-h-0 overflow-y-auto space-y-1.5 font-mono text-left pr-1 pt-2">
+            
+            {% if is_global_admin or 'security' in allowed_modules or 'accounts' in allowed_modules or 'organigrama' in allowed_modules %}
+            <div class="space-y-0.5">
+                <button @click="openMenu = openMenu === 'admin' ? '' : 'admin'"
+                        class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-gray-400 hover:text-slate-900 transition-colors cursor-pointer outline-none">
+                    <span class="flex items-center gap-2.5"><i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i> Administración</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform duration-200" :class="openMenu === 'admin' || openMenu === 'security' || openMenu === 'accounts' || openMenu === 'organigrama' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openMenu === 'admin' || openMenu === 'security' || openMenu === 'accounts' || openMenu === 'organigrama'" x-collapse class="pl-3 border-l border-gray-100 ml-4 space-y-0.5">
+                    <a href="#" 
+                       hx-get="#" 
+                       hx-target="#main-content-target"
+                       class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Ciberseguridad
+                    </a>
+                    
+                    <a href="{% url 'accounts:funcionario_list' %}" 
+                        hx-get="{% url 'accounts:funcionario_list' %}" 
+                        hx-target="#main-content-target"
+                        hx-push-url="true"
+                        class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group 
+                                {% if request.resolver_match.url_name == 'funcionario_list' %}text-indigo-600 bg-indigo-50/40{% endif %}">
+                            <i data-lucide="users" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Usuarios
+                        </a>
+                    
+                    <a href="#" 
+                       hx-get="#" 
+                       hx-target="#main-content-target"
+                       class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group">
+                        <i data-lucide="git-fork" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Matriz Orgánica
+                    </a>
                 </div>
-            {% elif modulo_actual == 'accounts' %}
-                <div class="px-4 py-3 rounded-2xl border bg-gradient-to-br from-slate-900 via-gray-950 to-emerald-950 border-emerald-500/30 text-white shadow-xs shrink-0 relative overflow-hidden group">
-                    <div class="absolute -right-6 -bottom-6 text-emerald-500/10 transition-transform duration-300 group-hover:scale-110">
-                        <i data-lucide="users" class="w-16 h-16"></i>
-                    </div>
-                    <span class="text-[8px] font-mono font-black tracking-[0.25em] text-emerald-400 block uppercase">CAPITAL HUMANO</span>
-                    <span class="text-xs font-mono font-black uppercase tracking-widest block mt-1 flex items-center gap-2 text-white">
-                        <span class="w-2 h-2 bg-emerald-500 rounded-full relative"></span>
-                        <span>{{ modulo_actual }}::core</span>
-                    </span>
-                </div>
-            {% elif modulo_actual == 'organigrama' %}
-                <div class="px-4 py-3 rounded-2xl border bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 border-amber-500/30 text-white shadow-xs shrink-0 relative overflow-hidden group">
-                    <div class="absolute -right-6 -bottom-6 text-amber-500/10 transition-transform duration-300 group-hover:scale-110">
-                        <i data-lucide="git-fork" class="w-16 h-16"></i>
-                    </div>
-                    <span class="text-[8px] font-mono font-black tracking-[0.25em] text-amber-400 block uppercase">MATRIZ ORGÁNICA</span>
-                    <span class="text-xs font-mono font-black uppercase tracking-widest block mt-1 flex items-center gap-2 text-white">
-                        <span class="w-2 h-2 bg-amber-500 rounded-full relative"></span>
-                        <span>{{ modulo_actual }}::core</span>
-                    </span>
-                </div>
-            {% else %}
-                <div class="px-4 py-3 rounded-2xl border bg-gray-950 border-gray-800 text-white shadow-xs shrink-0 relative overflow-hidden group">
-                    <span class="text-[8px] font-mono font-black tracking-[0.25em] text-gray-500 block uppercase">ENTORNO ACTIVO</span>
-                    <span class="text-xs font-mono font-black uppercase tracking-widest block mt-1 flex items-center gap-2 text-white">
-                        <span class="w-2 h-2 bg-blue-600 rounded-full relative"></span>
-                        <span>{{ modulo_actual }}::APP</span>
-                    </span>
-                </div>
+            </div>
             {% endif %}
 
-            <!-- MENÚ INTERNO DINÁMICO (Tu bucle for actual idéntico...) -->
-            <nav class="space-y-1 flex-1 flex flex-col mt-4">
-                {% for boton in menu_actual %}
-                    {% if boton.name == "Panel Administrativo" %}
-                        <a href="{% url boton.url %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider text-white bg-gray-950 border border-gray-950 group order-first mb-3 shadow-xs">
-                            <i data-lucide="{{ boton.icon|default:'layout-dashboard' }}" class="w-4 h-4 shrink-0 text-amber-400"></i>
-                            <span class="truncate">{{ boton.name }}</span>
-                        </a>
-                    {% elif boton.name == "Dashboard Analítico" %}
-    <!-- 📊 BOTÓN DE DASHBOARD RESALTADO: Color corporativo visible para guiar al Director instantáneamente -->
-                        <a href="{% url boton.url %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono font-black uppercase tracking-wider transition-all duration-150 order-last mt-auto shadow-sm transform active:scale-98 cursor-pointer group
-                            bg-gray-900 text-white border border-gray-950 hover:bg-gray-800">
-                            
-                            <!-- El icono parpadea en un verde esmeralda táctico universal para simular telemetría activa -->
-                            <i data-lucide="{{ boton.icon|default:'bar-chart-3' }}" class="w-4 h-4 shrink-0 text-emerald-400 group-hover:scale-105 transition-transform duration-200"></i>
-                            
-                            <span class="truncate">{{ boton.name }}</span>
-                        </a>
-                    {% else %}
-                        <a href="{% url boton.url %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider text-gray-500 hover:text-gray-900 hover:bg-gray-50 border border-transparent hover:border-gray-100 transition group">
-                            <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-4 h-4 text-gray-400"></i>
-                            <span class="truncate">{{ boton.name }}</span>
-                        </a>
-                    {% endif %}
-                {% endfor %}
-            </nav>
-        {% else %}
-            <!-- ENTORNO CUANDO ESTÁ EN EL LAUNCHER -->
-            <div class="px-3 py-2.5 bg-gray-950 text-white rounded-xl shadow-xs shrink-0">
-                <span class="text-[9px] font-bold uppercase tracking-widest font-mono text-gray-500 block">SISTEMA OPERATIVO</span>
-                <span class="text-xs font-bold block mt-1 flex items-center gap-2"><i data-lucide="compass" class="w-4 h-4 text-blue-400"></i> Menú Principal</span>
+            {% if is_global_admin or 'helpdesk' in allowed_modules %}
+            <div class="space-y-0.5">
+                <button @click="openMenu = openMenu === 'asistencia' ? '' : 'asistencia'"
+                        class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-gray-400 hover:text-slate-900 transition-colors cursor-pointer outline-none">
+                    <span class="flex items-center gap-2.5"><i data-lucide="headset" class="w-4 h-4 text-slate-500"></i> Asistencia TI</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform duration-200" :class="openMenu === 'asistencia' || openMenu === 'helpdesk' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openMenu === 'asistencia' || openMenu === 'helpdesk'" x-collapse class="pl-3 border-l border-gray-100 ml-4 space-y-0.5">
+                    <a href="#" 
+                       hx-get="#" 
+                       hx-target="#main-content-target"
+                       class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group">
+                        <i data-lucide="ticket" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Mesa de Control
+                    </a>
+                </div>
             </div>
-            <nav class="space-y-1 flex-1 mt-4">
-                <a href="{% url 'launcher_home' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider text-gray-800 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all">
-                    <i data-lucide="layout-grid" class="w-4 h-4 text-gray-500"></i> Selector de Apps
-                </a>
-            </nav>
-        {% endif %}
+            {% endif %}
+
+            {% if is_global_admin or 'assets' in allowed_modules %}
+            <div class="space-y-0.5">
+                <button @click="openMenu = openMenu === 'infra' ? '' : 'infra'"
+                        class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-gray-400 hover:text-slate-900 transition-colors cursor-pointer outline-none">
+                    <span class="flex items-center gap-2.5"><i data-lucide="package" class="w-4 h-4 text-slate-500"></i> Infraestructura</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform duration-200" :class="openMenu === 'infra' || openMenu === 'assets' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openMenu === 'infra' || openMenu === 'assets'" x-collapse class="pl-3 border-l border-gray-100 ml-4 space-y-0.5">
+                    <a href="#" 
+                       hx-get="#" 
+                       hx-target="#main-content-target"
+                       class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group">
+                        <i data-lucide="monitor" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Padrón Hardware
+                    </a>
+                    <a href="#" 
+                       hx-get="#" 
+                       hx-target="#main-content-target"
+                       class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group">
+                        <i data-lucide="phone" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Voz y Extensiones
+                    </a>
+                    <a href="#" 
+                       hx-get="#" 
+                       hx-target="#main-content-target"
+                       class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group">
+                        <i data-lucide="wifi" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Redes Wi-Fi / SSID
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="space-y-0.5">
+                <button @click="openMenu = openMenu === 'territorio' ? '' : 'territorio'"
+                        class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-gray-400 hover:text-slate-900 transition-colors cursor-pointer outline-none">
+                    <span class="flex items-center gap-2.5"><i data-lucide="map" class="w-4 h-4 text-slate-500"></i> Territorio</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform duration-200" :class="openMenu === 'territorio' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openMenu === 'territorio'" x-collapse class="pl-3 border-l border-gray-100 ml-4 space-y-0.5">
+                    <a href="#" 
+                       hx-get="#" 
+                       hx-target="#main-content-target"
+                       class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-tight text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition group">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 shrink-0"></i> Sedes e Inmuebles
+                    </a>
+                </div>
+            </div>
+        </nav>
     </div>
 
-    <!-- PERFIL DEL USUARIO ANCLADO ABAJO FIJO -->
-    <div class="pt-4 border-t border-gray-100 flex items-center gap-2.5 min-w-0 shrink-0">
+    <div class="pt-4 border-t border-gray-100 flex items-center gap-2.5 min-w-0 shrink-0 text-left">
         {% if request.user.is_authenticated %}
             <div class="w-8 h-8 rounded-xl bg-gray-950 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-inner">
                 {{ request.user.email|slice:":1"|upper }}
@@ -104,3 +125,5 @@
         {% endif %}
     </div>
 </aside>
+
+<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>
