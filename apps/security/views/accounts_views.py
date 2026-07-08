@@ -82,7 +82,6 @@ def accounts_analytics_view(request):
 def funcionario_list_view(request):
     """
     👥 CONTROLADOR DE PADRÓN DE FUNCIONARIOS
-
     Tipo de pantalla:
     - Pertenece al módulo ACCOUNTS.
     - No usa sidebar secundario.
@@ -122,23 +121,10 @@ def funcionario_list_view(request):
         dependencias = Dependencia.objects.filter(is_deleted=False).order_by("nombre")
     else:
         profile = request.user.axentra_profile
+        sedes = Sede.objects.filter(id=profile.sede.id, is_deleted=False) if profile.sede else Sede.objects.none()
+        dependencias = Dependencia.objects.filter(id=profile.dependencia.id, is_deleted=False) if profile.dependencia else Dependencia.objects.none()
 
-        sedes = (
-            Sede.objects.filter(id=profile.sede.id, is_deleted=False)
-            if profile.sede
-            else Sede.objects.none()
-        )
-
-        dependencias = (
-            Dependencia.objects.filter(id=profile.dependencia.id, is_deleted=False)
-            if profile.dependencia
-            else Dependencia.objects.none()
-        )
-
-    if hasattr(funcionarios, "model"):
-        total_funcionarios = funcionarios.count()
-    else:
-        total_funcionarios = len(funcionarios)
+    total_funcionarios = funcionarios.count() if hasattr(funcionarios, "model") else len(funcionarios)
 
     context = {
         "funcionarios": funcionarios,
@@ -147,7 +133,6 @@ def funcionario_list_view(request):
         "current_q": search_query,
         "current_sede": request.GET.get("sede", ""),
         "current_dep": request.GET.get("dependencia", ""),
-
         # Contrato Axentra
         "modulo_actual": AppIdentifier.ACCOUNTS,
         "show_module_sidebar": False,
@@ -166,40 +151,20 @@ def funcionario_list_view(request):
         },
     )
 
-    # 1. Click desde sidebar azul:
-    #    reemplaza TODO el workbench, pero SIN sidebar secundario.
+    # 1. Click desde sidebar azul: reemplaza TODO el workbench, pero SIN sidebar secundario.
     if is_htmx and target_htmx == "workbench":
-        return render(
-            request,
-            "accounts/workbench/funcionario_list_workbench.html",
-            context,
-        )
+        return render(request, "accounts/workbench/funcionario_list_workbench.html", context)
 
-    # 2. Si por alguna razón se pide sólo el contenido:
-    #    reemplaza únicamente #page-content.
+    # 2. Si por alguna razón se pide sólo el contenido: reemplaza únicamente #page-content.
     if is_htmx and target_htmx == "page-content":
-        return render(
-            request,
-            "accounts/content/funcionario_list_content.html",
-            context,
-        )
+        return render(request, "accounts/content/funcionario_list_content.html", context)
 
-    # 3. Filtros, búsqueda, paginación:
-    #    reemplaza sólo la región interna de resultados.
+    # 3. Filtros, búsqueda, paginación: reemplaza sólo la región interna de resultados.
     if is_htmx and target_htmx == "funcionario-results":
-        return render(
-            request,
-            "accounts/htmx/funcionario_results.html",
-            context,
-        )
+        return render(request, "accounts/htmx/funcionario_results.html", context)
 
-    # 4. F5 / URL directa:
-    #    carga completa: shell + workbench, pero sin sidebar secundario.
-    return render(
-        request,
-        "accounts/pages/funcionario_list.html",
-        context,
-    )
+    # 4. F5 / URL directa: carga completa: shell + workbench, pero sin sidebar secundario.
+    return render(request, "accounts/pages/funcionario_list.html", context)
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
@@ -395,18 +360,10 @@ def funcionario_create_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_editar_view(request, pk: uuid.UUID):
-    """
-    👤 CONTROLADOR DE EDICIÓN DE FUNCIONARIOS
-
-    Tipo de pantalla:
-    - Pertenece al módulo ACCOUNTS.
-    - Normalmente se carga dentro de #page-content.
-    - Si se guarda por HTMX, regresa a sub_identidad.html.
-    - No regresa al listado.
-    """
+    """👤 CONTROLADOR DE EDICIÓN DE FUNCIONARIOS"""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
-
+    
     usuario_instance = get_object_or_404(User, id=pk)
     perfil_instance = get_object_or_404(UserProfile, user=usuario_instance)
 
@@ -420,30 +377,22 @@ def funcionario_editar_view(request, pk: uuid.UUID):
             "Funcionario Target": usuario_instance.email,
             "Funcionario ID": str(usuario_instance.id),
             "¿Es petición HTMX?": is_htmx,
-            "HX-Target Recibido": target_htmx if target_htmx else "NINGUNO",
+            "HX-Target Recibido": target_htmx or "NINGUNO",
             "HX-Current-URL": request.headers.get("HX-Current-URL", "N/A"),
-        },
+        }
     )
 
     if request.method == "POST":
         datos_saneados = request.POST.copy()
-
         if "area" in datos_saneados and not datos_saneados["area"].strip():
             datos_saneados["area"] = ""
 
-        form_user = StaffUserChangeForm(
-            datos_saneados,
-            instance=usuario_instance,
-        )
-
-        form_profile = StaffUserProfileChangeForm(
-            datos_saneados,
-            instance=perfil_instance,
-        )
+        form_user = StaffUserChangeForm(datos_saneados, instance=usuario_instance)
+        form_profile = StaffUserProfileChangeForm(datos_saneados, instance=perfil_instance)
 
         if form_user.is_valid() and form_profile.is_valid():
             area_instancia = form_profile.cleaned_data.get("area")
-
+            
             payload = {
                 "email": form_user.cleaned_data.get("email"),
                 "first_name": form_user.cleaned_data.get("first_name"),
@@ -455,57 +404,70 @@ def funcionario_editar_view(request, pk: uuid.UUID):
             }
 
             exito, usuario, errores = FuncionarioService.editar_funcionario(
-                request=request,
-                pk=pk,
-                post_data=payload,
+                request=request, 
+                pk=pk, 
+                post_data=payload
             )
 
             if exito:
-                messages.success(
-                    request,
-                    f"La ficha de {usuario.full_name} se actualizó correctamente.",
-                )
-
+                messages.success(request, f"La ficha de {usuario.full_name} se actualizó correctamente.")
                 if is_htmx:
-                    usuario_refrescado = get_object_or_404(User, id=pk)
-                    perfil_refrescado = get_object_or_404(UserProfile, user=usuario_refrescado)
-
-                    response = render(
-                        request,
-                        "accounts/contextual/partials/sub_identidad.html",
-                        {
-                            "funcionario": usuario_refrescado,
-                            "perfil": perfil_refrescado,
-                            "modulo_actual": AppIdentifier.ACCOUNTS,
-                            "show_module_sidebar": True,
-                        },
-                    )
-
-                    response["HX-Push-Url"] = reverse(
-                        "accounts:funcionario_detail",
-                        args=[pk],
-                    )
-
+                    u_ref = get_object_or_404(User, id=pk)
+                    p_ref = get_object_or_404(UserProfile, user=u_ref)
+                    
+                    response = render(request, "accounts/contextual/partials/sub_identidad.html", {
+                        "funcionario": u_ref,
+                        "perfil": p_ref,
+                        "current_funcionario": u_ref,
+                        "modulo_actual": AppIdentifier.ACCOUNTS,
+                        "show_module_sidebar": True,
+                    })
+                    response["HX-Push-Url"] = reverse("accounts:funcionario_detail", args=[pk])
                     return response
-
                 return redirect("accounts:funcionario_detail", pk=pk)
-
+                
             if errores:
-                form_user.add_error(
-                    None,
-                    errores.get("server_error", ["Fallo del Servidor"])[0],
-                )
-
+                form_user.add_error(None, errores.get("server_error", ["Fallo del Servidor"])[0])
     else:
         form_user = StaffUserChangeForm(instance=usuario_instance)
         form_profile = StaffUserProfileChangeForm(instance=perfil_instance)
+
+    # Construcción estructurada del menú contextual
+    raw_menu = AccountsPermissions.FUNCIONARIO_DETAIL_MENU
+    detail_menu = []
+    
+    for item in raw_menu:
+        url_name = item.get("url_name")
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+        tiene_permiso = (
+            request.axentra_is_root
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ACCOUNTS}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if tiene_permiso:
+            detail_menu.append({
+                "icon": item.get("icon", "circle"),
+                "title": item.get("title", "Sin título"),
+                "href": reverse(url_name, args=[usuario_instance.id]),
+                "order": item.get("order", 99),
+                "provider": item.get("provider", AppIdentifier.ACCOUNTS),
+                "stub": item.get("stub", False),
+                "active": url_name == "accounts:funcionario_sub_identidad",
+            })
+            
+    detail_menu.sort(key=lambda item: item["order"])
 
     context = {
         "form_user": form_user,
         "form_profile": form_profile,
         "funcionario": usuario_instance,
-
-        # Contrato Axentra
+        "perfil": perfil_instance,
+        "current_funcionario": usuario_instance,
+        "detail_menu": detail_menu,
         "modulo_actual": AppIdentifier.ACCOUNTS,
         "show_module_sidebar": True,
     }
@@ -520,41 +482,28 @@ def funcionario_editar_view(request, pk: uuid.UUID):
             "Módulo": context["modulo_actual"],
             "Sidebar Contextual": context["show_module_sidebar"],
             "Funcionario": usuario_instance.email,
+            "Items Contextuales": len(detail_menu),
+            "Providers": ", ".join(sorted({i["provider"] for i in detail_menu})) if detail_menu else "Sin providers",
             "Errores User Form": form_user.errors.as_data() if form_user.errors else "Sin errores",
             "Errores Profile Form": form_profile.errors.as_data() if form_profile.errors else "Sin errores",
         },
     )
 
     if is_htmx and target_htmx == "page-content":
-        return render(
-            request,
-            "accounts/content/funcionario_update_form_content.html",
-            context,
-        )
-
-    return render(
-        request,
-        "accounts/pages/funcionario_update.html",
-        context,
-    )
+        return render(request, "accounts/content/funcionario_update_form_content.html", context)
+        
+    return render(request, "accounts/pages/funcionario_update.html", context)
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_change_password")
 def funcionario_cambiar_password_view(request, pk: uuid.UUID):
-    """
-    🔐 CONTROLADOR DE ROTACIÓN ADMINISTRATIVA DE CONTRASEÑAS
-
-    Tipo de pantalla:
-    - Pertenece al módulo ACCOUNTS.
-    - Normalmente se carga dentro de #page-content.
-    - Si se guarda por HTMX, regresa a sub_identidad.html.
-    - No regresa al listado.
-    """
+    """🔐 CONTROLADOR DE ROTACIÓN ADMINISTRATIVA DE CONTRASEÑAS"""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
     UserModel = get_user_model()
     usuario_instance = get_object_or_404(UserModel, id=pk)
+    perfil_instance = getattr(usuario_instance, "axentra_profile", None)
 
     AxentraRadar.imprimir_auditoria(
         componente="accounts_view",
@@ -566,20 +515,16 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
             "Funcionario Target": usuario_instance.email,
             "Funcionario ID": str(usuario_instance.id),
             "¿Es petición HTMX?": is_htmx,
-            "HX-Target Recibido": target_htmx if target_htmx else "NINGUNO",
+            "HX-Target Recibido": target_htmx or "NINGUNO",
             "HX-Current-URL": request.headers.get("HX-Current-URL", "N/A"),
-        },
+        }
     )
 
     if request.method == "POST":
-        form = SetPasswordForm(
-            user=usuario_instance,
-            data=request.POST,
-        )
+        form = SetPasswordForm(user=usuario_instance, data=request.POST)
 
         if form.is_valid():
             nueva_password = form.cleaned_data.get("new_password1")
-
             success = FuncionarioService.forzar_reseteo_password(
                 request=request,
                 pk=pk,
@@ -587,48 +532,60 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
             )
 
             if success:
-                messages.success(
-                    request,
-                    f"Credenciales restablecidas con éxito para {usuario_instance.full_name}.",
-                )
-
+                messages.success(request, f"Credenciales restablecidas con éxito para {usuario_instance.full_name}.")
                 if is_htmx:
                     usuario_refrescado = get_object_or_404(UserModel, id=pk)
                     perfil_refrescado = getattr(usuario_refrescado, "axentra_profile", None)
 
-                    response = render(
-                        request,
-                        "accounts/contextual/partials/sub_identidad.html",
-                        {
-                            "funcionario": usuario_refrescado,
-                            "perfil": perfil_refrescado,
-                            "modulo_actual": AppIdentifier.ACCOUNTS,
-                            "show_module_sidebar": True,
-                        },
-                    )
-
-                    response["HX-Push-Url"] = reverse(
-                        "accounts:funcionario_detail",
-                        args=[pk],
-                    )
-
+                    response = render(request, "accounts/contextual/partials/sub_identidad.html", {
+                        "funcionario": usuario_refrescado,
+                        "perfil": perfil_refrescado,
+                        "current_funcionario": usuario_refrescado,
+                        "modulo_actual": AppIdentifier.ACCOUNTS,
+                        "show_module_sidebar": True,
+                    })
+                    response["HX-Push-Url"] = reverse("accounts:funcionario_detail", args=[pk])
                     return response
-
                 return redirect("accounts:funcionario_detail", pk=pk)
 
-            messages.error(
-                request,
-                "No se pudo restablecer la credencial en el Core.",
-            )
-
+            messages.error(request, "No se pudo restablecer la credencial en el Core.")
     else:
         form = SetPasswordForm(user=usuario_instance)
+
+    raw_menu = AccountsPermissions.FUNCIONARIO_DETAIL_MENU
+    detail_menu = []
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+        tiene_permiso = (
+            request.axentra_is_root
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ACCOUNTS}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if tiene_permiso:
+            detail_menu.append({
+                "icon": item.get("icon", "circle"),
+                "title": item.get("title", "Sin título"),
+                "href": reverse(url_name, args=[usuario_instance.id]),
+                "order": item.get("order", 99),
+                "provider": item.get("provider", AppIdentifier.ACCOUNTS),
+                "stub": item.get("stub", False),
+                "active": url_name == "accounts:funcionario_sub_identidad",
+            })
+
+    detail_menu.sort(key=lambda item: item["order"])
 
     context = {
         "form": form,
         "funcionario": usuario_instance,
-
-        # Contrato Axentra
+        "perfil": perfil_instance,
+        "current_funcionario": usuario_instance,
+        "detail_menu": detail_menu,
         "modulo_actual": AppIdentifier.ACCOUNTS,
         "show_module_sidebar": True,
     }
@@ -643,22 +600,16 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
             "Módulo": context["modulo_actual"],
             "Sidebar Contextual": context["show_module_sidebar"],
             "Funcionario": usuario_instance.email,
+            "Items Contextuales": len(detail_menu),
+            "Providers": ", ".join(sorted({i["provider"] for i in detail_menu})) if detail_menu else "Sin providers",
             "Errores Form": form.errors.as_data() if form.errors else "Sin errores",
         },
     )
 
     if is_htmx and target_htmx == "page-content":
-        return render(
-            request,
-            "accounts/content/funcionario_password_form_content.html",
-            context,
-        )
+        return render(request, "accounts/content/funcionario_password_form_content.html", context)
 
-    return render(
-        request,
-        "accounts/pages/funcionario_password.html",
-        context,
-    )
+    return render(request, "accounts/pages/funcionario_password.html", context)
 
 
 @require_POST

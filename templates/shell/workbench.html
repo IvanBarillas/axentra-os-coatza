@@ -1,35 +1,16 @@
 {% extends "shell/base.html" %}
-
 {% block workbench %}
-
 <div id="workbench" class="flex h-full overflow-hidden animate-fade-in">
-
     {% if show_module_sidebar %}
-
-    <!-- MODULE SIDEBAR -->
-    <aside
-        id="module-sidebar"
-        class="hidden lg:flex lg:w-64 shrink-0 bg-white border-r border-gray-200 overflow-y-auto"
-    >
-        {% block module_sidebar %}{% endblock %}
-    </aside>
-
+        <aside id="module-sidebar" class="hidden lg:flex lg:w-72 shrink-0 bg-white border-r border-gray-200 overflow-y-auto">
+            {% block module_sidebar %}{% endblock %}
+        </aside>
     {% endif %}
-
-    <!-- PAGE AREA -->
     <section class="flex flex-col flex-1 min-w-0 overflow-hidden bg-slate-50">
-
-        <main
-            id="page-content"
-            class="flex-1 overflow-y-auto px-4 sm:px-5 lg:px-6 xl:px-8 py-5 lg:py-6"
-        >
+        <main id="page-content" class="flex-1 overflow-y-auto px-4 sm:px-5 lg:px-6 xl:px-8 py-5 lg:py-6">
             {% block page_content %}{% endblock %}
         </main>
-
         {% include "partials/footer.html" %}
-
     </section>
-
 </div>
-
 {% endblock %}

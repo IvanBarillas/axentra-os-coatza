@@ -1,128 +1,81 @@
+<!-- templates/accounts/content/funcionario_list_content.html -->
 {% load axentra_ui %}
-<div class="w-full space-y-4 animate-fade-in">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-            <span class="inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-            <span>{% if funcionarios %}{{ funcionarios|length }} registro{% if funcionarios|length != 1 %}s{% endif %} encontrado{% if funcionarios|length != 1 %}s{% endif %}{% else %}Sin registros encontrados{% endif %}</span>
-        </div>
-        <div class="hidden sm:flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.18em] text-gray-300">
-            <i data-lucide="mouse-pointer-click" class="h-3.5 w-3.5"></i><span>Seleccione un funcionario para abrir expediente</span>
-        </div>
-    </div>
-    <div class="hidden lg:block overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-100">
-                <thead class="bg-gray-50/80">
-                    <tr>
-                        <th scope="col" class="w-[36%] px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Servidor Público</th>
-                        <th scope="col" class="w-[28%] px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Adscripción</th>
-                        <th scope="col" class="w-[14%] px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Estado</th>
-                        <th scope="col" class="w-[12%] px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Verificación</th>
-                        <th scope="col" class="w-[10%] px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Rol</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 bg-white">
-                    {% for funcionario in funcionarios %}
-                        {% url 'accounts:funcionario_detail' funcionario.id as detail_url %}
-                        <tr class="group transition hover:bg-slate-50/80">
-                            <td class="px-5 py-4 align-middle">
-                                <a href="{{ detail_url }}" hx-get="{{ detail_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-push-url="true" class="flex min-w-0 items-center gap-3 outline-none">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white text-xs font-black uppercase shadow-sm transition group-hover:scale-105">{{ funcionario.email|slice:":1"|upper }}</div>
-                                    <div class="min-w-0">
-                                        <div class="truncate text-sm font-black uppercase tracking-tight text-gray-950 transition group-hover:text-indigo-700">{{ funcionario.full_name|default:funcionario.email }}</div>
-                                        <div class="mt-0.5 flex items-center gap-1.5 truncate text-[10px] font-bold lowercase tracking-wide text-gray-400">
-                                            <i data-lucide="mail" class="h-3 w-3 shrink-0"></i><span class="truncate">{{ funcionario.email }}</span>
-                                        </div>
-                                    </div>
-                                </a>
-                            </td>
-                            <td class="px-5 py-4 align-middle">
-                                <div class="min-w-0">
-                                    <div class="truncate text-xs font-black uppercase tracking-tight text-gray-700">{% if funcionario.axentra_profile and funcionario.axentra_profile.dependencia %}{{ funcionario.axentra_profile.dependencia.nombre }}{% else %}Sin dependencia{% endif %}</div>
-                                    <div class="mt-1 flex items-center gap-1.5 truncate text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                        <i data-lucide="map-pin" class="h-3 w-3 shrink-0"></i>{% if funcionario.axentra_profile and funcionario.axentra_profile.sede %}<span class="truncate">{{ funcionario.axentra_profile.sede.nombre }}</span>{% else %}<span>Sin sede</span>{% endif %}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-5 py-4 align-middle">
-                                {% if funcionario.is_active %}
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Activo</span>
-                                {% else %}
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-rose-700"><span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>Inactivo</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-5 py-4 align-middle">
-                                {% if funcionario.is_verified %}
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700"><i data-lucide="badge-check" class="h-3 w-3"></i>Verificado</span>
-                                {% else %}
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500"><i data-lucide="circle-minus" class="h-3 w-3"></i>Pendiente</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-5 py-4 align-middle">
-                                <span class="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500">{% if funcionario.axentra_profile and funcionario.axentra_profile.role %}{{ funcionario.axentra_profile.role }}{% elif funcionario.is_superuser %}Root{% elif funcionario.is_staff %}Staff{% else %}User{% endif %}</span>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-6 py-16">
-                                <div class="mx-auto max-w-md text-center">
-                                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-400"><i data-lucide="users-round" class="h-5 w-5"></i></div>
-                                    <h3 class="mt-4 text-sm font-black uppercase tracking-tight text-gray-950">Sin funcionarios encontrados</h3>
-                                    <p class="mt-2 text-[11px] font-bold uppercase tracking-wider leading-relaxed text-gray-400">Ajuste los filtros de búsqueda o registre un nuevo funcionario institucional.</p>
-                                </div>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="grid grid-cols-1 gap-3 lg:hidden">
-        {% for funcionario in funcionarios %}
-            {% url 'accounts:funcionario_detail' funcionario.id as detail_url %}
-            <a href="{{ detail_url }}" hx-get="{{ detail_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-push-url="true" class="group rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm transition hover:bg-slate-50 active:scale-[0.99]">
-                <div class="flex items-start gap-3">
-                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white text-xs font-black uppercase shadow-sm">{{ funcionario.email|slice:":1"|upper }}</div>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <h3 class="truncate text-sm font-black uppercase tracking-tight text-gray-950 group-hover:text-indigo-700">{{ funcionario.full_name|default:funcionario.email }}</h3>
-                                <p class="mt-1 truncate text-[10px] font-bold lowercase tracking-wide text-gray-400">{{ funcionario.email }}</p>
-                            </div>
-                            <i data-lucide="chevron-right" class="mt-0.5 h-4 w-4 shrink-0 text-gray-300"></i>
-                        </div>
-                        <div class="mt-4 grid grid-cols-2 gap-2">
-                            <div class="rounded-xl border border-gray-100 bg-gray-50 p-2">
-                                <div class="text-[8px] font-black uppercase tracking-widest text-gray-400">Dependencia</div>
-                                <div class="mt-1 truncate text-[10px] font-black uppercase text-gray-700">{% if funcionario.axentra_profile and funcionario.axentra_profile.dependencia %}{{ funcionario.axentra_profile.dependencia.nombre }}{% else %}Sin dependencia{% endif %}</div>
-                            </div>
-                            <div class="rounded-xl border border-gray-100 bg-gray-50 p-2">
-                                <div class="text-[8px] font-black uppercase tracking-widest text-gray-400">Sede</div>
-                                <div class="mt-1 truncate text-[10px] font-black uppercase text-gray-700">{% if funcionario.axentra_profile and funcionario.axentra_profile.sede %}{{ funcionario.axentra_profile.sede.nombre }}{% else %}Sin sede{% endif %}</div>
-                            </div>
-                        </div>
-                        <div class="mt-3 flex flex-wrap items-center gap-2">
-                            {% if funcionario.is_active %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Activo</span>
-                            {% else %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-rose-50 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-rose-700"><span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>Inactivo</span>
-                            {% endif %}
-                            {% if funcionario.is_verified %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-blue-700"><i data-lucide="badge-check" class="h-3 w-3"></i>Verificado</span>
-                            {% else %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-gray-500"><i data-lucide="circle-minus" class="h-3 w-3"></i>Pendiente</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </a>
-        {% empty %}
-            <div class="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-400"><i data-lucide="users-round" class="h-5 w-5"></i></div>
-                <h3 class="mt-4 text-sm font-black uppercase tracking-tight text-gray-950">Sin funcionarios encontrados</h3>
-                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider leading-relaxed text-gray-400">Ajuste los filtros de búsqueda o registre un nuevo funcionario institucional.</p>
+
+<div id="funcionario-workspace" class="w-full space-y-5 font-mono text-left select-none animate-fade-in">
+    {% url 'accounts:funcionario_list' as action_url %}
+    {% url 'accounts:funcionario_create' as create_url %}
+
+    <header class="rounded-2xl border border-gray-200/80 bg-white px-5 py-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-start gap-3 min-w-0">
+            <div class="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
+                <i data-lucide="users" class="h-5 w-5"></i>
             </div>
-        {% endfor %}
-    </div>
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700">
+                        Accounts
+                    </span>
+                    <span class="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
+                        Padrón Activo
+                    </span>
+                </div>
+                <h1 class="mt-2 text-xl font-black text-gray-950 uppercase tracking-tight leading-none">
+                    Plantilla de Personal
+                </h1>
+                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
+                    Control institucional de funcionarios, adscripción estructural y cuentas de acceso
+                </p>
+            </div>
+        </div>
+
+        {% if request.axentra_is_root or "can_create_user" in request.axentra_permissions_list %}
+            <a href="{{ create_url }}" hx-get="{{ create_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-gray-900 active:scale-95">
+                <i data-lucide="user-plus" class="h-4 w-4 text-gray-400"></i>
+                <span>Nuevo Registro</span>
+            </a>
+        {% endif %}
+    </header>
+
+    <form method="GET" action="{{ action_url }}" class="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm" hx-get="{{ action_url }}" hx-target="#funcionario-results" hx-swap="innerHTML" hx-include="[name='q'], [name='sede'], [name='dependencia']">
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <div class="relative w-full">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
+                    <i data-lucide="search" class="h-4 w-4"></i>
+                </span>
+                <input type="text" name="q" value="{{ current_q|default:'' }}" placeholder="Buscar funcionario..." autocomplete="off" class="w-full rounded-xl border border-gray-200 bg-gray-50/70 py-2.5 pl-9 pr-3 text-xs font-mono font-medium normal-case text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-gray-950 focus:bg-white" hx-get="{{ action_url }}" hx-trigger="keyup changed delay:350ms, search" hx-target="#funcionario-results" hx-swap="innerHTML" hx-include="[name='q'], [name='sede'], [name='dependencia']">
+            </div>
+
+            <div class="relative w-full">
+                <select name="sede" class="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/70 py-2.5 pl-3 pr-9 text-xs font-mono font-bold uppercase text-gray-600 outline-none transition-all cursor-pointer focus:border-gray-950 focus:bg-white" hx-get="{{ action_url }}" hx-trigger="change" hx-target="#funcionario-results" hx-swap="innerHTML" hx-include="[name='q'], [name='sede'], [name='dependencia']">
+                    <option value="all">Sedes Totales</option>
+                    {% for sd in sedes %}
+                        <option value="{{ sd.id }}" {% if current_sede == sd.id|stringformat:"s" %}selected{% endif %}>{{ sd.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
+                    <i data-lucide="map-pin" class="h-3.5 w-3.5"></i>
+                </span>
+            </div>
+
+            <div class="relative w-full">
+                <select name="dependencia" class="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/70 py-2.5 pl-3 pr-9 text-xs font-mono font-bold uppercase text-gray-600 outline-none transition-all cursor-pointer focus:border-gray-950 focus:bg-white" hx-get="{{ action_url }}" hx-trigger="change" hx-target="#funcionario-results" hx-swap="innerHTML" hx-include="[name='q'], [name='sede'], [name='dependencia']">
+                    <option value="all">Dependencias Totales</option>
+                    {% for dep in dependencias %}
+                        <option value="{{ dep.id }}" {% if current_dep == dep.id|stringformat:"s" %}selected{% endif %}>{{ dep.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
+                    <i data-lucide="building-2" class="h-3.5 w-3.5"></i>
+                </span>
+            </div>
+        </div>
+    </form>
+
+    <section id="funcionario-results" class="w-full">
+        {% include "accounts/htmx/funcionario_results.html" %}
+    </section>
 </div>
-<script>if (typeof lucide !== "undefined") { lucide.createIcons(); }</script>
+
+<script>
+    if (typeof lucide !== "undefined") { lucide.createIcons(); }
+</script>
