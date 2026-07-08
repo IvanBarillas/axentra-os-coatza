@@ -1,172 +1,292 @@
 # apps/shared/context_processors.py
-import logging
-from django.utils import timezone
 
-# Conectamos con el Singleton, la matriz en BD y el Manifiesto Maestro de Gobernanza
+import logging
+
 from apps.security.models import TenantConfig, UserAppRole
-from apps.security.permissions import SecurityPermissions
 from apps.shared.apps_config import AppIdentifier
 from apps.shared.manifest_registry import AxentraOSRegistry
 from apps.security.services.permission_loader import get_user_permissions_for_app
-from apps.shared.utils.telemetry import AxentraRadar  
+from apps.shared.utils.telemetry import AxentraRadar
 
 logger = logging.getLogger(__name__)
 
+
+def _normalizar_module_identifier(module_identifier) -> str:
+    if hasattr(module_identifier, "value"):
+        return str(module_identifier.value).strip().lower()
+    return str(module_identifier).strip().lower()
+
+
+def _usuario_es_root(request) -> bool:
+    profile = getattr(request.user, "axentra_profile", None)
+    return bool(
+        getattr(request.user, "is_superuser", False)
+        or getattr(request.user, "is_manager", False)
+        or getattr(profile, "is_root_admin", False)
+    )
+
+
+def _usuario_dado_de_baja(user) -> bool:
+    return bool(getattr(user, "is_deleted", False))
+
+
+def _normalizar_sidebar_item(item):
+    """
+    Soporta SIDEBAR_MENU viejo y nuevo.
+
+    Viejo:
+        ["users", "Usuarios", "accounts:funcionario_list", 1, "can_view_list"]
+
+    Nuevo:
+        {
+            "icon": "users",
+            "name": "Usuarios",
+            "url": "accounts:funcionario_list",
+            "order": 1,
+            "permission": "can_view_list",
+        }
+    """
+    if isinstance(item, dict):
+        return {
+            "icon": item.get("icon", "circle"),
+            "name": item.get("name") or item.get("title") or "Sin título",
+            "url": item.get("url") or item.get("url_name"),
+            "order": item.get("order", 99),
+            "permission": item.get("permission"),
+        }
+
+    try:
+        icon, name, url, order, permission = item
+        return {
+            "icon": icon,
+            "name": name,
+            "url": url,
+            "order": order,
+            "permission": permission,
+        }
+    except Exception:
+        return None
+
+
+def _tiene_permiso_fino(permisos, lista_llaves, modulo_activo, permiso_req) -> bool:
+    if not permiso_req:
+        return True
+
+    llave_compuesta = f"{modulo_activo}__{permiso_req}"
+
+    return bool(
+        permisos.get(permiso_req, False)
+        or permisos.get(llave_compuesta, False)
+        or permiso_req in lista_llaves
+        or llave_compuesta in lista_llaves
+    )
+
+
+def _filtrar_sidebar_menu(request, modulo_activo, menu_crudo):
+    es_root = _usuario_es_root(request)
+    menu_filtrado = []
+
+    if es_root:
+        for raw_item in menu_crudo:
+            item = _normalizar_sidebar_item(raw_item)
+            if not item:
+                continue
+
+            menu_filtrado.append({
+                "icon": item["icon"],
+                "name": item["name"],
+                "url": item["url"],
+                "order": item["order"],
+                "permission": item.get("permission"),
+            })
+
+        menu_filtrado.sort(key=lambda item: item["order"])
+        return menu_filtrado
+
+    permisos = get_user_permissions_for_app(request.user, modulo_activo)
+    lista_llaves = permisos.get("permissions_list", []) or []
+
+    for raw_item in menu_crudo:
+        item = _normalizar_sidebar_item(raw_item)
+        if not item:
+            continue
+
+        permiso_req = item.get("permission")
+
+        if _tiene_permiso_fino(
+            permisos=permisos,
+            lista_llaves=lista_llaves,
+            modulo_activo=modulo_activo,
+            permiso_req=permiso_req,
+        ):
+            menu_filtrado.append({
+                "icon": item["icon"],
+                "name": item["name"],
+                "url": item["url"],
+                "order": item["order"],
+                "permission": permiso_req,
+            })
+
+    menu_filtrado.sort(key=lambda item: item["order"])
+    return menu_filtrado
+
+
 def global_tenant_settings(request):
     """
-    Inyecta los activos de marca e identidad legal del Ayuntamiento 
-    a absolutamente todos los HTML del ecosistema web.
+    Inyecta activos de marca e identidad legal a todos los templates.
     """
     try:
-        config = TenantConfig.objects.first()
+        config = TenantConfig.objects.filter(is_deleted=False).first()
+
         if not config:
-            # Inicializador seguro de contingencia (Pattern Singleton Blinder)
             config = TenantConfig.objects.create(
-                app_name='Axentra OS',
-                entidad_nombre='Axentra Infraestructure',
-                siglas='AXN'
+                app_name="Axentra OS",
+                entidad_nombre="Axentra Infrastructure",
+                siglas="AXN",
+                is_active=True,
+                is_deleted=False,
             )
-        return {'tenant': config}
+
+        return {"tenant": config}
+
     except Exception as e:
         logger.error(f"Error en global_tenant_settings: {e}")
-        return {'tenant': None}
+        return {"tenant": None}
 
 
 def user_module_permissions(request):
     """
-    Calcula, inyecta y audita las aplicaciones autorizadas 
-    del funcionario para alimentar las tarjetas dinámicas del Launcher.
+    Inyecta módulos autorizados para el launcher y sidebar global.
     """
-    context = {'allowed_modules': [], 'is_global_admin': False}
-    
+    context = {
+        "allowed_modules": [],
+        "is_global_admin": False,
+    }
+
     if not request.user.is_authenticated:
         return context
-        
-    is_manager = getattr(request.user, 'is_manager', False)
-    profile = getattr(request.user, 'axentra_profile', None)
-    is_root = getattr(profile, 'is_root_admin', False) if profile else False
-    
-    # 👑 COMPUERTA A: CAPA ADMINISTRADORA DE CONTINGENCIA (BYPASS SUPREMO)
-    if is_manager or is_root or request.user.is_superuser:
-        slugs_totales = [choice[0] for choice in AppIdentifier.get_choices()]
-        
-        # ✨ TELEMETRÍA EN 1 LÍNEA: Bypass de nivel supremo administrado
+
+    if _usuario_dado_de_baja(request.user):
+        return context
+
+    if _usuario_es_root(request):
+        slugs_totales = [
+            choice[0]
+            for choice in AppIdentifier.get_choices()
+        ]
+
         AxentraRadar.imprimir_auditoria(
             componente="user_module_permissions",
             request=request,
             titulo="Bypass de Nivel Maestro Detectado",
             icono="👑",
             extra_data={
-                "Estado Privilegios": f"SUPERUSER={request.user.is_superuser} | MANAGER={is_manager} | ROOT_ADMIN={is_root}",
-                "Módulos Forzados Globales": slugs_totales
-            }
+                "Estado Privilegios": (
+                    f"SUPERUSER={request.user.is_superuser} | "
+                    f"MANAGER={getattr(request.user, 'is_manager', False)} | "
+                    f"ROOT_ADMIN={_usuario_es_root(request)}"
+                ),
+                "Módulos Forzados Globales": slugs_totales,
+            },
         )
-        
+
         return {
-            'is_global_admin': True, 
-            'allowed_modules': slugs_totales
+            "is_global_admin": True,
+            "allowed_modules": slugs_totales,
         }
 
-    # 📡 COMPUERTA B: FLUJO ORDINARIO (CONSULTA DE MATRIZ DE PERMISOS EN POSTGRES)
-    roles_activos = UserAppRole.objects.filter(
-        user=request.user,
-        is_active=True,
-        app__is_active=True
-    ).select_related('app')
-    
-    allowed_slugs = [role.app.slug for role in roles_activos]
+    roles_activos = (
+        UserAppRole.objects
+        .select_related("app")
+        .filter(
+            user=request.user,
+            is_active=True,
+            is_deleted=False,
+            app__is_active=True,
+            app__is_deleted=False,
+        )
+    )
 
-    # ✨ TELEMETRÍA EN 1 LÍNEA: Análisis de extracción y lectura JSONField
+    allowed_slugs = [
+        role.app.slug
+        for role in roles_activos
+    ]
+
     AxentraRadar.imprimir_auditoria(
         componente="user_module_permissions",
         request=request,
         titulo="Radar Perimetral de Launcher",
         icono="🔍",
         extra_data={
-            "Celdas Localizadas en BD": len(roles_activos),
+            "Celdas Localizadas en BD": roles_activos.count(),
             "Slugs Despachados al DOM": allowed_slugs,
-            "Análisis de Permisos": [f"App: '{r.app.slug}' | Rol: '{r.role}' | Llaves: {r.permissions_list}" for r in roles_activos] if roles_activos.exists() else "⚠️ ADVERTENCIA: 0 aplicativos para este ID."
-        }
+            "Análisis de Permisos": [
+                f"App: '{role.app.slug}' | Rol: '{role.role}' | Llaves: {role.permissions_list}"
+                for role in roles_activos
+            ] if roles_activos.exists() else "⚠️ ADVERTENCIA: 0 aplicativos para este ID.",
+        },
     )
 
     return {
-        'is_global_admin': False,
-        'allowed_modules': allowed_slugs
+        "is_global_admin": False,
+        "allowed_modules": allowed_slugs,
     }
 
 
 def menu_dinamico_processor(request):
     """
-    🧠 PROCESADOR DE ENTORNO CONTEXTUAL (HYPER-REACTIVE SIDEBAR)
-    Sincroniza y expone las variables calculadas por el decorador hacia el motor del DOM.
-    Determina automáticamente si se debe pintar el Sidebar 2 (sidebar_secundario).
+    Expone menú contextual calculado por el decorador o reconstruido por fallback.
+
+    Importante:
+    - No fuerza sidebar secundario en pantallas directas.
+    - Si una vista necesita sidebar contextual, debe enviar show_module_sidebar=True.
+    - Este processor sólo expone menu_actual/sidebar_menu para compatibilidad.
     """
-    # 1. Estado base por defecto: sin menú y sidebar secundario apagado (False)
     context = {
-        'menu_actual': [], 
-        'modulo_actual': 'launcher', 
-        'sidebar_menu': [],
-        'sidebar_secundario': False  
+        "menu_actual": [],
+        "modulo_actual": "launcher",
+        "sidebar_menu": [],
+        "sidebar_secundario": False,
     }
 
     if not request.user.is_authenticated:
         return context
 
-    # 📡 EXTRACTOR DE METADATOS DEL DECORATOR GATE
-    modulo_activo = getattr(request, 'axentra_active_module', None)
-    
-    if not modulo_activo and request.resolver_match:
+    if _usuario_dado_de_baja(request.user):
+        return context
+
+    modulo_activo = getattr(request, "axentra_active_module", None)
+
+    if not modulo_activo and getattr(request, "resolver_match", None):
         modulo_activo = request.resolver_match.namespace
 
-    if not modulo_activo or modulo_activo == 'launcher':
+    modulo_activo = _normalizar_module_identifier(modulo_activo or "launcher")
+
+    if not modulo_activo or modulo_activo == "launcher":
         return context
 
-    context['modulo_actual'] = modulo_activo
+    context["modulo_actual"] = modulo_activo
 
-    # 🟢 CASO A: DESACOPLADO DESDE RAM (EL DECORADOR YA FILTRÓ EL MENÚ)
-    if hasattr(request, 'axentra_sidebar_menu'):
-        menu_final = request.axentra_sidebar_menu
-        context['menu_actual'] = menu_final
-        context['sidebar_menu'] = menu_final
-        
-        # Si el menú calculado en RAM tiene items, encendemos el sidebar secundario
-        context['sidebar_secundario'] = len(menu_final) > 0 # ◄── Cálculo automático
+    if hasattr(request, "axentra_sidebar_menu"):
+        menu_final = request.axentra_sidebar_menu or []
+        context["menu_actual"] = menu_final
+        context["sidebar_menu"] = menu_final
+        context["sidebar_secundario"] = False
         return context
 
-    # 🛰️ CASO B: FALLBACK LAYER (F5 o ingreso por URL limpia sin pasar por el decorador)
-    manifesto_modulo = AxentraOSRegistry.get_manifest_by_slug(modulo_activo)
-    if not manifesto_modulo or not hasattr(manifesto_modulo, 'SIDEBAR_MENU'):
+    manifiesto_modulo = AxentraOSRegistry.get_manifest_by_slug(modulo_activo)
+
+    if not manifiesto_modulo or not hasattr(manifiesto_modulo, "SIDEBAR_MENU"):
         return context
 
-    menu_maestro_crudo = manifesto_modulo.SIDEBAR_MENU
-    es_root = (
-        request.user.is_superuser or 
-        getattr(request.user, 'is_manager', False) or 
-        getattr(getattr(request.user, 'axentra_profile', None), 'is_root_admin', False)
+    menu_filtrado = _filtrar_sidebar_menu(
+        request=request,
+        modulo_activo=modulo_activo,
+        menu_crudo=manifiesto_modulo.SIDEBAR_MENU,
     )
-    menu_filtrado = []
-    
-    if es_root:
-        for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
-            menu_filtrado.append({
-                'icon': icono, 'name': nombre, 'url': url_name, 'order': orden
-            })
-    else:
-        permisos = get_user_permissions_for_app(request.user, modulo_activo)
-        lista_llaves_reales = permisos.get('permissions_list', [])
 
-        for icono, nombre, url_name, orden, permiso_req in menu_maestro_crudo:
-            llave_compuesta = f"{modulo_activo}__{permiso_req}"
-            if permisos.get(permiso_req, False) or permisos.get(llave_compuesta, False) or permiso_req in lista_llaves_reales or llave_compuesta in lista_llaves_reales:
-                menu_filtrado.append({
-                    'icon': icono, 'name': nombre, 'url': url_name, 'order': orden
-                })
+    context["menu_actual"] = menu_filtrado
+    context["sidebar_menu"] = menu_filtrado
+    context["sidebar_secundario"] = False
 
-    menu_filtrado.sort(key=lambda x: x['order'])
-    
-    context['menu_actual'] = menu_filtrado
-    context['sidebar_menu'] = menu_filtrado
-    
-    # Si el fallback reconstruyó un menú con elementos, activamos el sidebar secundario
-    context['sidebar_secundario'] = len(menu_filtrado) > 0 # ◄── Cálculo automático
     return context

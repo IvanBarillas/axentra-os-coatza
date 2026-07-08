@@ -24,14 +24,7 @@ class SecurityPermissions:
         'viewer': ['has_access_module'],
     }
 
-    ROLE_WEIGHTS = {
-        'owner': 100,
-        'admin': 80,
-        'cyber_auditor': 70,
-        'editor': 60,
-        'reviewer': 40,
-        'viewer': 20,
-    }
+    ROLE_WEIGHTS = {'owner': 100, 'admin': 80, 'cyber_auditor': 70, 'editor': 60, 'reviewer': 40, 'viewer': 20}
 
     SIDEBAR_MENU = [
         ["layout-dashboard", "Panel Administrativo", "security:control_panel", 1, "has_access_module"],
@@ -43,19 +36,11 @@ class SecurityPermissions:
     CAPABILITIES = {
         'flag_alfa': {
             'label': "🛠️ [Security] ¿Es Dependencia Proveedora de Seguridad?",
-            'help_text': (
-                "EFECTO EN SISTEMA: Al activar esta casilla, el personal adscrito a esta dirección "
-                "será elegible para aparecer en el combo box de 'Alta de Perfil Técnico' (Comisionar Ingeniero). "
-                "Úselo exclusivamente para la Dirección de Tecnologías, Innovación o Soporte de Sistemas."
-            )
+            'help_text': "EFECTO EN SISTEMA: Al activar esta casilla, el personal adscrito a esta dirección será elegible para aparecer en el combo box de 'Alta de Perfil Técnico' (Comisionar Ingeniero). Úselo exclusivamente para la Dirección de Tecnologías, Innovación o Soporte de Sistemas."
         },
         'flag_beta': {
             'label': "📋 [Security] ¿Es Dependencia Consumidora Estricta (Solo Reportes)?",
-            'help_text': (
-                "EFECTO EN SISTEMA: Indica que esta área solo puede levantar reportes y visualizar sus propios folios. "
-                "El sistema aislará sus combo boxes para que al crear un ticket, solo puedan seleccionar "
-                "las Sedes y Áreas Físicas que pertenezcan formalmente a su propia dirección."
-            )
+            'help_text': "EFECTO EN SISTEMA: Indica que esta área solo puede levantar reportes y visualizar sus propios folios. El sistema aislará sus combo boxes para que al crear un ticket, solo puedan seleccionar las Sedes y Áreas Físicas que pertenezcan formalmente a su propia dirección."
         }
     }
 
@@ -66,7 +51,6 @@ class SecurityPermissions:
 class AccountsPermissions:
     APP_CODE = AppIdentifier.ACCOUNTS
 
-    # 🔒 MATRIZ PERIMETRAL DE PERMISOS (HARDENED RBP)
     PERMISSIONS = {
         'has_access_module': 'Permite el ingreso general a la Estación de Control de Personal.',
         'can_view_analytics': 'Permite auditar reportes de densidad laboral, gráficas de personal y KPIs de nómina.',
@@ -77,7 +61,6 @@ class AccountsPermissions:
         'can_delete_user': 'Acción Crítica: Permite aplicar bajas del sistema.',
     }
 
-    # 🗺️ MAPEO DE ROLES INSTITUCIONALES
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password', 'can_delete_user'],
         'director_rh': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password'],
@@ -87,52 +70,17 @@ class AccountsPermissions:
         'viewer': ['has_access_module'],
     }
 
-    # ⚖️ PESOS MÉTRICOS DE JERARQUÍA
-    ROLE_WEIGHTS = {
-        'owner': 100,
-        'director_rh': 85,
-        'oficial_rh': 65,
-        'editor': 60,
-        'reviewer': 45,
-        'viewer': 20,
-    }
+    ROLE_WEIGHTS = {'owner': 100, 'director_rh': 85, 'oficial_rh': 65, 'editor': 60, 'reviewer': 45, 'viewer': 20}
 
-    # Pantallas directas del módulo. Por ahora, como Usuarios no usa sidebar,
-    # puedes dejar esto sólo para futuras pantallas globales de Accounts.
     SIDEBAR_MENU = [
         ["users", "Listado de Empleados", "accounts:funcionario_list", 1, "can_view_list"],
         ["bar-chart-3", "Dashboard Analítico", "accounts:analytics", 6, "can_view_analytics"],
     ]
 
-    # Menú contextual del expediente de un funcionario.
     FUNCIONARIO_DETAIL_MENU = [
-        {
-            "icon": "fingerprint",
-            "title": "Ficha de Identidad",
-            "url_name": "accounts:funcionario_sub_identidad",
-            "order": 1,
-            "permission": "can_edit_user",
-            "provider": "accounts",
-            "stub": False,
-        },
-        {
-            "icon": "laptop-2",
-            "title": "Hardware Asignado",
-            "url_name": "accounts:funcionario_sub_hardware",
-            "order": 2,
-            "permission": "can_edit_user",
-            "provider": "assets",
-            "stub": True,
-        },
-        {
-            "icon": "smartphone",
-            "title": "Línea y Telefonía",
-            "url_name": "accounts:funcionario_sub_telefonia",
-            "order": 3,
-            "permission": "can_edit_user",
-            "provider": "telefonia",
-            "stub": True,
-        },
+        {"icon": "fingerprint", "title": "Ficha de Identidad", "url_name": "accounts:funcionario_sub_identidad", "order": 1, "permission": "can_edit_user", "provider": "accounts", "stub": False},
+        {"icon": "laptop-2", "title": "Hardware Asignado", "url_name": "accounts:funcionario_sub_hardware", "order": 2, "permission": "can_edit_user", "provider": "assets", "stub": True},
+        {"icon": "smartphone", "title": "Línea y Telefonía", "url_name": "accounts:funcionario_sub_telefonia", "order": 3, "permission": "can_edit_user", "provider": "telefonia", "stub": True},
     ]
 
 
@@ -158,14 +106,7 @@ class OrganigramaPermissions:
         'viewer': ['has_access_module'],
     }
 
-    ROLE_WEIGHTS = {
-        'owner': 100,
-        'admin': 80,
-        'planeador_urbano': 65,
-        'editor': 60,
-        'reviewer': 40,
-        'viewer': 20,
-    }
+    ROLE_WEIGHTS = {'owner': 100, 'admin': 80, 'planeador_urbano': 65, 'editor': 60, 'reviewer': 40, 'viewer': 20}
 
     SIDEBAR_MENU = [
         ["layout-dashboard", "Panel Administrativo", "organigrama:control_panel", 1, "has_access_module"],

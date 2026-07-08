@@ -1,99 +1,195 @@
 # apps/shared/dependency_capabilities.py
+
 import logging
-from django.db import models
-from apps.shared.apps_config import AppIdentifier
 
 try:
     from apps.security.models.organigrama import AppDependencyCapability
 except ImportError:
     from apps.security.models import AppDependencyCapability
 
-logger = logging.getLogger('axentra.security')
+logger = logging.getLogger("axentra.security")
+
 
 class AxentraCapabilityOrchestrator:
     """
-    💎 ORQUESTADOR MAESTRO DE CAPACIDADES DEPARTAMENTALES (AXENTRA OS CORE)
-    
-    Centraliza las reglas de negocio distributivas para la federación de dependencias.
-    Soporta de forma nativa escenarios híbridos donde un nodo orgánico posee
-    facultades duales (ALFA y BETA en simultáneo) para el mismo aplicativo satélite.
+    Orquestador maestro de capacidades departamentales de Axentra OS.
+
+    Evalúa qué facultades tiene la dependencia del usuario dentro de una app.
+
+    Modelo actual:
+    - can_operate
+    - can_supervise
+    - can_authorize
+
+    Compatibilidad temporal:
+    - es_alfa  -> can_operate
+    - es_beta  -> can_supervise
+    - es_hibrido -> dos o más capacidades activas
     """
+
+    @staticmethod
+    def _normalizar_app_slug(app_slug) -> str:
+        if hasattr(app_slug, "value"):
+            return str(app_slug.value).strip().lower()
+        return str(app_slug).strip().lower()
+
+    @staticmethod
+    def _resolver_perfil(user):
+        return (
+            getattr(user, "axentra_profile", None)
+            or getattr(user, "funcionario_profile", None)
+        )
+
+    @staticmethod
+    def _resolver_area(perfil):
+        if not perfil:
+            return None
+        return (
+            getattr(perfil, "area", None)
+            or getattr(perfil, "area_operativa", None)
+        )
+
+    @staticmethod
+    def _usuario_es_root(user, perfil=None) -> bool:
+        return bool(
+            getattr(user, "is_superuser", False)
+            or getattr(user, "is_manager", False)
+            or getattr(perfil, "is_root_admin", False)
+        )
+
+    @staticmethod
+    def _usuario_dado_de_baja(user) -> bool:
+        return bool(getattr(user, "is_deleted", False))
 
     @staticmethod
     def obtener_estatus_capacidad(user, app_slug: str) -> dict:
         """
-        Analiza el árbol orgánico del usuario y dictamina su matriz transaccional.
-        
-        Soporta la coexistencia de capacidades (es_alfa=True y es_beta=True).
+        Analiza el árbol orgánico del usuario y dictamina sus capacidades
+        departamentales para una app.
+
+        Retorna una estructura estable para vistas, servicios y templates.
         """
+        app_slug = AxentraCapabilityOrchestrator._normalizar_app_slug(app_slug)
+
         resultado = {
             "tiene_acceso": False,
+            "can_operate": False,
+            "can_supervise": False,
+            "can_authorize": False,
             "es_alfa": False,
             "es_beta": False,
-            "es_hibrido": False,  # ✨ Nueva bandera táctica para identificar el estado "Ambos"
+            "es_hibrido": False,
             "dependencia": None,
-            "error_codigo": None
+            "capacidad": None,
+            "app_slug": app_slug,
+            "error_codigo": None,
         }
 
-        # 🛑 COMPUERTA 0: Control de Autenticación Base
         if not user or not user.is_authenticated:
             resultado["error_codigo"] = "ANONYMOUS_USER"
             return resultado
 
-        # 👑 COMPUERTA A: BYPASS MAESTRO PARA ADMINISTRADORES GLOBAL / IMMUNITY ROL
-        perfil = getattr(user, 'axentra_profile', None) or getattr(user, 'funcionario_profile', None)
-        is_root = (
-            user.is_superuser or 
-            getattr(user, 'is_manager', False) or 
-            (perfil and getattr(perfil, 'is_root_admin', False))
-        )
-
-        if is_root:
-            resultado["tiene_acceso"] = True
-            resultado["es_alfa"] = True
-            resultado["es_beta"] = True  # El Administrador Maestro es inherentemente ambos
-            resultado["es_hibrido"] = True
-            if perfil:
-                area = getattr(perfil, 'area', None) or getattr(perfil, 'area_operativa', None)
-                if area and hasattr(area, 'dependencia'):
-                    resultado["dependencia"] = area.dependencia
+        if AxentraCapabilityOrchestrator._usuario_dado_de_baja(user):
+            resultado["error_codigo"] = "USER_SOFT_DELETED"
             return resultado
 
-        # 🏢 COMPUERTA B: EXTRACCIÓN SEGURO DEL NODO ORGÁNICO
+        perfil = AxentraCapabilityOrchestrator._resolver_perfil(user)
+        is_root = AxentraCapabilityOrchestrator._usuario_es_root(user, perfil)
+
+        if is_root:
+            resultado.update({
+                "tiene_acceso": True,
+                "can_operate": True,
+                "can_supervise": True,
+                "can_authorize": True,
+                "es_alfa": True,
+                "es_beta": True,
+                "es_hibrido": True,
+            })
+
+            area = AxentraCapabilityOrchestrator._resolver_area(perfil)
+            if area and getattr(area, "dependencia", None):
+                resultado["dependencia"] = area.dependencia
+
+            return resultado
+
         if not perfil:
             resultado["error_codigo"] = "MISSING_PROFILE"
             return resultado
 
-        area = getattr(perfil, 'area', None) or getattr(perfil, 'area_operativa', None)
-        if not area or not getattr(area, 'dependencia', None):
+        area = AxentraCapabilityOrchestrator._resolver_area(perfil)
+        if not area or not getattr(area, "dependencia", None):
             resultado["error_codigo"] = "MISSING_ORGANIZATION_NODE"
             return resultado
 
         dependencia = area.dependencia
         resultado["dependencia"] = dependencia
 
-        # 🛰️ COMPUERTA C: CONSULTA ALINEADA AL SLUG DE APPIDENTIFIER
         try:
-            capacidad = AppDependencyCapability.objects.select_related('app').get(
-                dependencia=dependencia,
-                app__slug=app_slug.strip().lower()
+            capacidad = (
+                AppDependencyCapability.objects
+                .select_related("app", "dependencia")
+                .get(
+                    dependencia=dependencia,
+                    app__slug=app_slug,
+                    app__is_active=True,
+                    app__is_deleted=False,
+                    is_active=True,
+                    is_deleted=False,
+                )
             )
         except AppDependencyCapability.DoesNotExist:
             resultado["error_codigo"] = f"NO_CAPABILITY_REGISTERED_FOR_{app_slug.upper()}"
             return resultado
+        except AppDependencyCapability.MultipleObjectsReturned:
+            logger.error(
+                "Capacidades duplicadas detectadas para dependencia=%s app=%s",
+                dependencia.id,
+                app_slug,
+            )
+            resultado["error_codigo"] = "DUPLICATED_CAPABILITY_MATRIX"
+            return resultado
 
-        # 📊 COMPUERTA D: EVALUACIÓN MULTI-MODAL (SOPORTA AMBOS SIMULTÁNEAMENTE)
-        resultado["es_alfa"] = capacidad.flag_alfa
-        resultado["es_beta"] = capacidad.flag_beta
-        
-        # Activamos el flag de estado híbrido si ambos campos están marcados en la base de datos
-        if capacidad.flag_alfa and capacidad.flag_beta:
-            resultado["es_hibrido"] = True
-        
-        # El acceso es válido si cuenta con al menos una capacidad activa
-        if capacidad.flag_alfa or capacidad.flag_beta:
-            resultado["tiene_acceso"] = True
-        else:
+        resultado["capacidad"] = capacidad
+        resultado["can_operate"] = bool(capacidad.can_operate)
+        resultado["can_supervise"] = bool(capacidad.can_supervise)
+        resultado["can_authorize"] = bool(capacidad.can_authorize)
+
+        capacidades_activas = [
+            resultado["can_operate"],
+            resultado["can_supervise"],
+            resultado["can_authorize"],
+        ]
+
+        resultado["tiene_acceso"] = any(capacidades_activas)
+        resultado["es_hibrido"] = sum(1 for valor in capacidades_activas if valor) >= 2
+
+        # Compatibilidad temporal con lógica anterior alfa/beta.
+        resultado["es_alfa"] = resultado["can_operate"]
+        resultado["es_beta"] = resultado["can_supervise"]
+
+        if not resultado["tiene_acceso"]:
             resultado["error_codigo"] = "CAPABILITIES_DISABLED"
 
         return resultado
+
+    @staticmethod
+    def dependencia_puede_operar(user, app_slug: str) -> bool:
+        return AxentraCapabilityOrchestrator.obtener_estatus_capacidad(
+            user,
+            app_slug,
+        ).get("can_operate", False)
+
+    @staticmethod
+    def dependencia_puede_supervisar(user, app_slug: str) -> bool:
+        return AxentraCapabilityOrchestrator.obtener_estatus_capacidad(
+            user,
+            app_slug,
+        ).get("can_supervise", False)
+
+    @staticmethod
+    def dependencia_puede_autorizar(user, app_slug: str) -> bool:
+        return AxentraCapabilityOrchestrator.obtener_estatus_capacidad(
+            user,
+            app_slug,
+        ).get("can_authorize", False)

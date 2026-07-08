@@ -18,18 +18,27 @@ class AppModule(AxentraBaseModel):
     def __str__(self): return self.name
 
 class UserAppRole(AxentraBaseModel):
-    """Matriz corporativa dinámica con overrides quirúrgicos vía JSONField."""
-    class Roles(models.TextChoices):
-        OWNER = "owner", "👑 Dueño / Director General (Acceso Total)"
-        ADMIN = "admin", "🔒 Administrador de Módulo"
-        EDITOR = "editor", "📝 Editor / Operador / Capturista"
+    """Matriz dinámica de membresías por app con roles declarados por manifiesto."""
+
+    class ReservedRoles(models.TextChoices):
+        OWNER = "owner", "👑 Dueño / Director General"
+        ADMIN = "admin", "🔒 Administrador"
+        EDITOR = "editor", "📝 Editor / Operador"
         REVIEWER = "reviewer", "👁️ Revisor / Auditor"
         VIEWER = "viewer", "👤 Solo Lectura"
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="roles", verbose_name="Funcionario Público")
     app = models.ForeignKey(AppModule, on_delete=models.CASCADE, related_name="roles", verbose_name="Módulo Autorizado")
-    role = models.CharField("Rol Asignado en el Módulo", max_length=20, choices=Roles.choices, default=Roles.VIEWER)
-    permissions_list = models.JSONField("Lista de Permisos Finos (JSON Overrides)", default=list, blank=True, help_text="Clonación atómica de privilegios para permitir overrides individuales.")
+    
+    role = models.CharField(
+        "Rol Funcional en el Módulo", max_length=50, default=ReservedRoles.VIEWER, db_index=True,
+        help_text="Rol declarado en el permissions.py del módulo. Ej: owner, admin, director_rh, sma_manager."
+    )
+    
+    permissions_list = models.JSONField(
+        "Lista de Permisos Finos", default=list, blank=True,
+        help_text="Snapshot de permisos finos derivados del rol funcional."
+    )
 
     class Meta:
         db_table = "axentra_sec_user_roles"
@@ -37,12 +46,14 @@ class UserAppRole(AxentraBaseModel):
         verbose_name_plural = "Permisos de Aplicaciones"
         constraints = [models.UniqueConstraint(fields=["user", "app"], name="uq_user_app_role")]
 
-    def __str__(self): return f"{self.user.email} ➡️ {self.app.name} ({self.get_role_display()})"
+    def __str__(self):
+        return f"{self.user.email} ➡️ {self.app.name} ({self.role})"
 
     def has_fine_permission(self, permission_string: str) -> bool:
-        """Determina si la credencial requerida está activa en el pool."""
-        if not self.is_active or self.is_deleted: return False
-        if self.role == self.Roles.OWNER: return True
+        if not self.is_active or self.is_deleted:
+            return False
+        if self.role == self.ReservedRoles.OWNER:
+            return True
         return permission_string in (self.permissions_list or [])
 
 class TenantConfig(AxentraBaseModel):

@@ -1,211 +1,177 @@
 # apps/security/admin.py
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from pydantic import json
 from apps.security.forms import CustomUserCreationForm, CustomUserChangeForm
-from django.utils.safestring import mark_safe
-
-# Importamos todos nuestros modelos unificados de forma limpia
 from apps.security.models import (
-    User, UserProfile, Sede, Dependencia, 
-    AreaOperativa, AppDependencyCapability, 
-    AppModule, UserAppRole, TenantConfig, SecurityAuditLog
+    User, UserProfile, Sede, Dependencia, AreaOperativa,
+    AppDependencyCapability, AppModule, UserAppRole, TenantConfig, SecurityAuditLog
 )
 
 # =========================================================================
-# 👤 BLOQUE 1: IDENTIDAD DIGITAL Y CUENTAS (EXTENSIÓN DE USER)
+# 🧬 MIXIN BASE PARA ENTIDADES AXENTRA
+# =========================================================================
+class AxentraBaseAdminMixin:
+    """Mixin administrativo para modelos que heredan de AxentraBaseModel."""
+    readonly_fields = ("id", "created_at", "updated_at")
+    base_state_fields = ("is_active", "is_deleted", "deleted_at")
+    base_audit_fields = ("id", "created_at", "updated_at")
+
+# =========================================================================
+# 👤 BLOQUE 1: IDENTIDAD DIGITAL Y CUENTAS
 # =========================================================================
 class UserProfileInline(admin.StackedInline):
-    # 🟢 CORRECCIÓN: Apunta al related_name 'axentra_profile' corregido en tus modelos
     model = UserProfile
-    extra = 1
-    can_delete = True  # Paso libre total para borrar perfiles desde la ficha del usuario
+    extra = 0
+    can_delete = True
+    fields = ("user", "area", "puesto", "telefono_oficina", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at")
 
 @admin.register(User)
 class AxentraUserAdmin(BaseUserAdmin):
-    """Administrador blindado adaptado al esquema funcional por Email."""
-    
-    # Inyección de formularios limpios (Anula los rígidos de Django con username)
+    """Administrador adaptado al esquema funcional por email."""
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
-    
-    list_display = ('email', 'first_name', 'last_name', 'is_manager', 'is_staff', 'is_active', 'created_at')
-    list_filter = ('is_manager', 'is_staff', 'is_active')
-    ordering = ('-created_at',)
+    list_display = ("email", "first_name", "last_name", "is_manager", "is_staff", "is_active", "is_deleted", "created_at", "updated_at")
+    list_filter = ("is_manager", "is_staff", "is_superuser", "is_active", "is_deleted", "must_change_password", "is_email_verified", "created_at")
+    search_fields = ("email", "first_name", "last_name", "phone")
+    ordering = ("-created_at",)
     inlines = (UserProfileInline,)
-    search_fields = ('email', 'first_name', 'last_name')
     filter_horizontal = ()
-    
+    readonly_fields = ("id", "last_login", "date_joined", "created_at", "updated_at")
     fieldsets = (
-        ('Credenciales de Identidad', {'fields': ('email', 'password')}),
-        ('Información Personal', {'fields': ('first_name', 'last_name', 'phone')}),
-        ('Gobernanza y Privilegios', {'fields': ('is_manager', 'is_staff', 'is_active', 'must_change_password', 'is_email_verified')}),
+        ("Credenciales de Identidad", {"fields": ("id", "email", "password")}),
+        ("Información Personal", {"fields": ("first_name", "last_name", "phone")}),
+        ("Gobernanza y Privilegios", {"fields": ("is_manager", "is_staff", "is_superuser", "groups", "user_permissions")}),
+        ("Estado Operativo", {"fields": ("is_active", "is_deleted", "deleted_at", "must_change_password", "is_email_verified")}),
+        ("Trazabilidad", {"fields": ("last_login", "date_joined", "created_at", "updated_at")}),
     )
-
     add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('email', 'password', 'first_name', 'last_name'),
-        }),
+        ("Alta de Funcionario", {"classes": ("wide",), "fields": ("email", "password", "first_name", "last_name", "phone", "is_manager", "is_staff", "is_active", "must_change_password", "is_email_verified")}),
     )
 
     def get_form(self, request, obj=None, **kwargs):
-        """Si es alta, usa el add_form limpio; si es edición, delega al padre sin verificar usernames."""
-        if obj is None:
-            return self.add_form
+        if obj is None: return self.add_form
         return super(BaseUserAdmin, self).get_form(request, obj, **kwargs)
 
+@admin.register(UserProfile)
+class UserProfileAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("user", "puesto", "dependencia_resuelta", "sede_resuelta", "area", "is_active", "is_deleted", "updated_at")
+    list_filter = ("is_active", "is_deleted", "area__dependencia", "area__sede_fisica", "created_at", "updated_at")
+    search_fields = ("user__email", "user__first_name", "user__last_name", "puesto", "telefono_oficina", "area__nombre", "area__dependencia__nombre", "area__sede_fisica__nombre")
+    autocomplete_fields = ("user", "area")
+    fields = ("id", "user", "area", "puesto", "telefono_oficina", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields
+
+    def dependencia_resuelta(self, obj): return obj.dependencia.nombre if obj.dependencia else "Sin dependencia"
+    dependencia_resuelta.short_description = "Dependencia"
+
+    def sede_resuelta(self, obj): return obj.sede.nombre if obj.sede else "Sin sede"
+    sede_resuelta.short_description = "Sede"
 
 # =========================================================================
-# 🏛️ BLOQUE 2: TOPOLOGÍA GUBERNAMENTAL (ORGANIGRAMA FISCO-JERÁRQUICO)
+# 🏛️ BLOQUE 2: TOPOLOGÍA GUBERNAMENTAL
 # =========================================================================
-@admin.register(Sede)
-class SedeAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'direccion', 'encargado_sede', 'is_active')
-    search_fields = ('nombre', 'direccion')
-    list_filter = ('is_active',)
-
-
 class AreaOperativaInline(admin.TabularInline):
-    """Permite ver, crear y remover Oficinas a una Dependencia directamente."""
+    """Permite ver y crear áreas operativas dentro de una dependencia."""
     model = AreaOperativa
-    extra = 1
+    extra = 0
+    fields = ("nombre", "sede_fisica", "slug", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = ("slug", "created_at", "updated_at")
+    autocomplete_fields = ("sede_fisica",)
 
+@admin.register(Sede)
+class SedeAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("nombre", "direccion", "encargado_sede", "is_active", "is_deleted", "created_at", "updated_at", "deleted_at")
+    list_filter = ("is_active", "is_deleted", "created_at", "updated_at")
+    search_fields = ("nombre", "direccion", "encargado_sede__email", "encargado_sede__first_name", "encargado_sede__last_name")
+    autocomplete_fields = ("encargado_sede",)
+    fields = ("id", "nombre", "direccion", "encargado_sede", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields
 
 @admin.register(Dependencia)
-class DependenciaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'slug', 'encargado_departamento', 'is_active', 'is_deleted')
-    search_fields = ('nombre',)
-    list_filter = ('is_active', 'is_deleted')
-    inlines = [AreaOperativaInline]
-
+class DependenciaAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("nombre", "slug", "encargado_departamento", "is_active", "is_deleted", "created_at", "updated_at", "deleted_at")
+    list_filter = ("is_active", "is_deleted", "created_at", "updated_at")
+    search_fields = ("nombre", "slug", "encargado_departamento__email", "encargado_departamento__first_name", "encargado_departamento__last_name")
+    autocomplete_fields = ("encargado_departamento",)
+    fields = ("id", "nombre", "slug", "encargado_departamento", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = ("id", "slug", "created_at", "updated_at")
+    inlines = (AreaOperativaInline,)
 
 @admin.register(AreaOperativa)
-class AreaOperativaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'dependencia', 'sede_link', 'is_active', 'is_deleted')
-    search_fields = ('nombre', 'dependencia__nombre', 'sede_fisica__nombre')
-    list_filter = ('is_active', 'is_deleted')
+class AreaOperativaAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("nombre", "dependencia", "sede_link", "slug", "is_active", "is_deleted", "created_at", "updated_at", "deleted_at")
+    list_filter = ("is_active", "is_deleted", "dependencia", "sede_fisica", "created_at", "updated_at")
+    search_fields = ("nombre", "slug", "dependencia__nombre", "sede_fisica__nombre")
+    autocomplete_fields = ("dependencia", "sede_fisica")
+    fields = ("id", "nombre", "slug", "dependencia", "sede_fisica", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = ("id", "slug", "created_at", "updated_at")
 
-    # 🟢 SANEADO: Limpieza de nombres spanglish por variables nativas del ORM
-    def sede_link(self, obj):
-        return obj.sede_fisica.nombre
+    def sede_link(self, obj): return obj.sede_fisica.nombre if obj.sede_fisica else "Sin sede"
     sede_link.short_description = "Sede Física"
 
-
 @admin.register(AppDependencyCapability)
-class AppDependencyCapabilityAdmin(admin.ModelAdmin):
-    list_display = ('dependencia', 'app', 'flag_alfa', 'flag_beta', 'created_at')
-    list_filter = ('app', 'flag_alfa', 'flag_beta')
-    search_fields = ('dependencia__nombre', 'app__name')
-
+class AppDependencyCapabilityAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("dependencia", "app", "can_operate", "can_supervise", "can_authorize", "is_active", "is_deleted", "created_at", "updated_at", "deleted_at")
+    list_filter = ("app", "can_operate", "can_supervise", "can_authorize", "is_active", "is_deleted", "created_at", "updated_at")
+    search_fields = ("dependencia__nombre", "app__name", "app__slug")
+    autocomplete_fields = ("dependencia", "app")
+    fields = ("id", "app", "dependencia", "can_operate", "can_supervise", "can_authorize", "custom_settings", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields
 
 # =========================================================================
 # 🛡️ BLOQUE 3: MATRICES, PERÍMETROS Y SINGLETON CONFIG
 # =========================================================================
 @admin.register(AppModule)
-class AppModuleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'is_active')
-    search_fields = ('name', 'slug')
-    list_filter = ('is_active',)
-
+class AppModuleAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("name", "slug", "is_active", "is_deleted", "created_at", "updated_at", "deleted_at")
+    list_filter = ("is_active", "is_deleted", "created_at", "updated_at")
+    search_fields = ("name", "slug", "description")
+    fields = ("id", "name", "slug", "description", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields
 
 @admin.register(UserAppRole)
-class UserAppRoleAdmin(admin.ModelAdmin):
-    list_display = ('user_email', 'app_name', 'role', 'is_active', 'created_at')
-    list_filter = ('role', 'is_active', 'app')
-    search_fields = ('user__email', 'app__name')
-    fields = ('user', 'app', 'role', 'permissions_list', 'is_active')
+class UserAppRoleAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("user_email", "app_name", "role", "is_active", "is_deleted", "created_at", "updated_at", "deleted_at")
+    list_filter = ("role", "is_active", "is_deleted", "app", "created_at", "updated_at")
+    search_fields = ("user__email", "user__first_name", "user__last_name", "app__name", "app__slug")
+    autocomplete_fields = ("user", "app")
+    fields = ("id", "user", "app", "role", "permissions_list", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields
 
-    def user_email(self, obj):
-        return obj.user.email
+    def user_email(self, obj): return obj.user.email if obj.user else "Sin usuario"
     user_email.short_description = "Funcionario"
 
-    def app_name(self, obj):
-        return obj.app.name
+    def app_name(self, obj): return obj.app.name if obj.app else "Sin módulo"
     app_name.short_description = "Módulo"
 
-
 @admin.register(TenantConfig)
-class TenantConfigAdmin(admin.ModelAdmin):
-    """Administrador Singleton sin bloqueos para control total del dueño."""
-    list_display = ('entidad_nombre', 'siglas', 'app_name', 'rfc')
-    
-    # 🟢 REMOVIDOS LOS BLOQUEOS: Ahora puedes agregar o borrar configuraciones a tu antojo
-    pass
-
+class TenantConfigAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = ("entidad_nombre", "siglas", "app_name", "rfc", "is_active", "is_deleted", "created_at", "updated_at", "deleted_at")
+    list_filter = ("is_active", "is_deleted", "created_at", "updated_at")
+    search_fields = ("app_name", "entidad_nombre", "siglas", "rfc", "direccion_oficial")
+    fields = ("id", "app_name", "entidad_nombre", "siglas", "direccion_oficial", "rfc", "logo_light", "logo_dark", "primary_color_class", "is_active", "is_deleted", "deleted_at", "created_at", "updated_at")
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields
 
 # =========================================================================
-# 🛰️ BLOQUE 4: BITÁCORA FORENSE E HISTORIAL INMUTABLE (LOGS)
+# 🛰️ BLOQUE 4: BITÁCORA FORENSE E HISTORIAL INMUTABLE
 # =========================================================================
 @admin.register(SecurityAuditLog)
 class SecurityAuditLogAdmin(admin.ModelAdmin):
-    # Grilla de listado general
-    list_display = (
-        'created_at', 
-        'level_status', 
-        'app_namespace', 
-        'action_type',        
-        'module_component',
-        'operator_email', 
-        'target_email', 
-        'action_name', 
-        'search_target', 
-        'ip_address'
-    )
-    
-    # Filtros laterales de búsqueda rápida
-    list_filter = ('app_namespace', 'action_type', 'module_component', 'level_status', 'created_at')
-    
-    # Buscador superior en texto plano indexado
-    search_fields = (
-        'operator_user__email', 
-        'target_user__email', 
-        'action_type', 
-        'module_component', 
-        'search_target', 
-        'ip_address'
-    )
-    
-    ordering = ('-created_at',)
-    
-    # 🟢 SANEADO: Estructura limpia de la vista detallada usando las columnas nativas del modelo.
-    # Cambiamos tu método 'telemetria_json_pretty' por 'payload_json' directo de la base de datos.
-    fields = (
-        'id', 
-        'created_at', 
-        'level_status', 
-        'app_namespace', 
-        'operator_user', 
-        'target_user', 
-        'action_name', 
-        'search_target', 
-        'target_scope', 
-        'ip_address', 
-        'user_agent', 
-        'payload_json'  # ◄── El JSON directo de Postgres sin intermediarios
-    )
-    
-    # Todos los campos en modo lectura para garantizar que no haya alteraciones accidentales
-    readonly_fields = (
-        'id', 
-        'created_at', 
-        'level_status',
-        'app_namespace', 
-        'operator_user', 
-        'target_user', 
-        'action_name', 
-        'search_target', 
-        'target_scope', 
-        'ip_address', 
-        'user_agent', 
-        'payload_json'  # ◄── Visualización pura sin interferencia de HTML/CSS
-    )
+    """Caja negra forense inmutable."""
+    list_display = ("created_at", "level_status", "app_namespace", "action_type", "module_component", "operator_email", "target_email", "action_name", "search_target", "ip_address")
+    list_filter = ("app_namespace", "action_type", "module_component", "level_status", "created_at")
+    search_fields = ("operator_user__email", "target_user__email", "action_type", "module_component", "action_name", "search_target", "target_scope", "ip_address")
+    ordering = ("-created_at",)
+    fields = ("id", "created_at", "level_status", "app_namespace", "action_type", "module_component", "operator_user", "target_user", "action_name", "search_target", "target_scope", "ip_address", "user_agent", "payload_json")
+    readonly_fields = fields
 
-    # Métodos de resolución rápidos para las columnas del listado general
-    def operator_email(self, obj):
-        return obj.operator_user.email if obj.operator_user else "SISTEMA"
+    def has_add_permission(self, request): return False
+    def has_change_permission(self, request, obj=None): return True
+    def has_delete_permission(self, request, obj=None): return False
+
+    def operator_email(self, obj): return obj.operator_user.email if obj.operator_user else "SISTEMA"
     operator_email.short_description = "Operador"
 
-    def target_email(self, obj):
-        return obj.target_user.email if obj.target_user else "GLOBAL / SISTEMA"
+    def target_email(self, obj): return obj.target_user.email if obj.target_user else "GLOBAL / SISTEMA"
     target_email.short_description = "Funcionario Destino"
