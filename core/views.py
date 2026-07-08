@@ -52,11 +52,16 @@ def index_hub_view(request):
 
 def intro_portal_view(request):
     """
-    Renderiza la compuerta externa de bienvenida (Landing Portal) de Axentra OS.
+    Renderiza la compuerta externa de bienvenida de Axentra OS.
+
+    Tipo de pantalla:
+    - Es pública.
+    - No pertenece a una app interna.
+    - No usa shell interno.
+    - No usa workbench.
+    - Si el usuario ya está autenticado, lo envía al hub interno.
     """
-    # Si el operador ya tiene una sesión activa en el navegador,
-    # lo saltamos de forma automática al launcher interno.
     if request.user.is_authenticated:
-        return redirect('index_hub')
-        
-    return render(request, "index.html")
+        return redirect("index_hub")
+
+    return render(request, "public/index.html")

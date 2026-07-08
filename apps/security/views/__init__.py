@@ -2,7 +2,7 @@
 
 # 👤 PILAR 1: GESTIÓN DE EXPEDIENTES Y PERSONAL (ACCOUNTS)
 from .accounts_views import (
-    accounts_dashboard_view,     
+    accounts_analytics_view,     
     funcionario_list_view, 
     funcionario_create_view, 
     funcionario_editar_view, 
@@ -48,7 +48,7 @@ from .security_views import (
 # Exposición oficial para los enrutadores de URLs de Axentra OS
 __all__ = [
     # Accounts
-    'accounts_dashboard_view',
+    'accounts_analytics_view',
     'funcionario_list_view', 
     'funcionario_detail_view',
     'funcionario_create_view', 

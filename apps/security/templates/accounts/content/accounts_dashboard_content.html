@@ -1,0 +1,506 @@
+{% load axentra_ui %}
+
+<div
+    id="accounts-dashboard-workspace"
+    class="w-full space-y-6 animate-fade-in select-none"
+>
+
+    <!-- ===================================================== -->
+    <!-- PAGE HEADER                                          -->
+    <!-- ===================================================== -->
+
+    <header
+        class="
+            rounded-2xl
+            border
+            border-gray-200/80
+            bg-white
+            px-5
+            py-4
+            shadow-sm
+            flex
+            flex-col
+            gap-4
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+        "
+    >
+
+        <div class="flex items-start gap-3 min-w-0">
+
+            <div
+                class="
+                    hidden
+                    sm:flex
+                    h-11
+                    w-11
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-slate-950
+                    text-white
+                    shadow-sm
+                "
+            >
+                <i data-lucide="bar-chart-3" class="h-5 w-5"></i>
+            </div>
+
+            <div class="min-w-0">
+
+                <div class="flex flex-wrap items-center gap-2">
+
+                    <span
+                        class="
+                            inline-flex
+                            items-center
+                            rounded-md
+                            border
+                            border-indigo-100
+                            bg-indigo-50
+                            px-2
+                            py-0.5
+                            text-[9px]
+                            font-black
+                            uppercase
+                            tracking-[0.18em]
+                            text-indigo-700
+                            font-mono
+                        "
+                    >
+                        Accounts
+                    </span>
+
+                    <span
+                        class="
+                            inline-flex
+                            items-center
+                            rounded-md
+                            border
+                            border-emerald-100
+                            bg-emerald-50
+                            px-2
+                            py-0.5
+                            text-[9px]
+                            font-black
+                            uppercase
+                            tracking-[0.18em]
+                            text-emerald-700
+                            font-mono
+                        "
+                    >
+                        Consola Analítica
+                    </span>
+
+                </div>
+
+                <h1
+                    class="
+                        mt-2
+                        text-xl
+                        font-black
+                        text-gray-950
+                        uppercase
+                        tracking-tight
+                        leading-none
+                        font-mono
+                    "
+                >
+                    Analítica de Personal
+                </h1>
+
+                <p
+                    class="
+                        mt-2
+                        text-[11px]
+                        font-bold
+                        uppercase
+                        tracking-wider
+                        text-gray-400
+                        leading-relaxed
+                        font-mono
+                    "
+                >
+                    Métricas de capital humano, cuentas operativas y ritmo histórico de altas
+                </p>
+
+            </div>
+
+        </div>
+
+        {% url 'accounts:funcionario_list' as funcionario_list_url %}
+
+        <a
+            href="{{ funcionario_list_url }}"
+            hx-get="{{ funcionario_list_url }}"
+            hx-target="#workbench"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="
+                inline-flex
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                border
+                border-gray-200
+                bg-white
+                px-4
+                py-2.5
+                text-xs
+                font-black
+                uppercase
+                tracking-wider
+                text-gray-600
+                shadow-sm
+                transition-all
+                hover:bg-gray-50
+                hover:text-gray-950
+                active:scale-95
+                font-mono
+            "
+        >
+            <i data-lucide="users" class="h-4 w-4 text-gray-400"></i>
+            <span>Ver Usuarios</span>
+        </a>
+
+    </header>
+
+    <!-- ===================================================== -->
+    <!-- KPI CARDS                                            -->
+    <!-- ===================================================== -->
+
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+        {% stats_card label="Total Registros" value=total_funcionarios icon="users" subtext="Funcionarios totales" value_color="slate-950" hover_color="slate-600" bg_icon="bg-gray-50" %}
+
+        {% stats_card label="Cuentas Activas" value=funcionarios_activos icon="user-check" hover_color="emerald-600" value_color="emerald-600" subtext="Con acceso operativo" subtext_highlight=True bg_icon="bg-emerald-50/60" %}
+
+        {% stats_card label="Inhabilitados" value=funcionarios_baja icon="user-x" hover_color="red-600" value_color="red-600" subtext="Bajas de resguardo" bg_icon="bg-red-50/60" %}
+
+        {% stats_card label="Staff Directivo" value=total_managers icon="shield" hover_color="purple-600" value_color="slate-950" subtext="Managers Globales" subtext_highlight=True bg_icon="bg-purple-50/60" %}
+
+    </section>
+
+    <!-- ===================================================== -->
+    <!-- CHARTS                                               -->
+    <!-- ===================================================== -->
+
+    <section class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+
+        <!-- ALTAS CHART -->
+        <article
+            class="
+                rounded-2xl
+                border
+                border-gray-200/80
+                bg-white
+                p-5
+                shadow-sm
+                xl:col-span-2
+                flex
+                flex-col
+                min-h-[420px]
+            "
+        >
+
+            <div class="border-b border-gray-100 pb-3">
+
+                <h2
+                    class="
+                        flex
+                        items-center
+                        gap-2
+                        text-sm
+                        font-black
+                        uppercase
+                        tracking-tight
+                        text-gray-950
+                        font-mono
+                    "
+                >
+                    <i data-lucide="trending-up" class="h-4 w-4 text-slate-700"></i>
+                    <span>Ritmo de Incorporación Digital</span>
+                </h2>
+
+                <p
+                    class="
+                        mt-1
+                        text-[10px]
+                        font-bold
+                        uppercase
+                        tracking-wider
+                        text-gray-400
+                        font-mono
+                    "
+                >
+                    Tendencia cronológica de cuentas creadas en ciclos recientes
+                </p>
+
+            </div>
+
+            <div
+                class="
+                    mt-5
+                    flex-1
+                    min-h-0
+                    rounded-2xl
+                    border
+                    border-slate-100
+                    bg-gray-50/40
+                    p-3
+                    shadow-sm
+                    relative
+                "
+            >
+                <canvas id="chartRitmoAltas"></canvas>
+            </div>
+
+        </article>
+
+        <!-- ESTATUS CHART -->
+        <article
+            class="
+                rounded-2xl
+                border
+                border-gray-200/80
+                bg-white
+                p-5
+                shadow-sm
+                flex
+                flex-col
+                min-h-[420px]
+            "
+        >
+
+            <div class="border-b border-gray-100 pb-3">
+
+                <h2
+                    class="
+                        flex
+                        items-center
+                        gap-2
+                        text-sm
+                        font-black
+                        uppercase
+                        tracking-tight
+                        text-gray-950
+                        font-mono
+                    "
+                >
+                    <i data-lucide="pie-chart" class="h-4 w-4 text-slate-700"></i>
+                    <span>Estatus General de Cuentas</span>
+                </h2>
+
+                <p
+                    class="
+                        mt-1
+                        text-[10px]
+                        font-bold
+                        uppercase
+                        tracking-wider
+                        text-gray-400
+                        font-mono
+                    "
+                >
+                    Proporción de personal activo contra inhabilitado
+                </p>
+
+            </div>
+
+            <div
+                class="
+                    mt-5
+                    flex-1
+                    min-h-0
+                    rounded-2xl
+                    border
+                    border-slate-100
+                    bg-gray-50/40
+                    p-3
+                    shadow-sm
+                    relative
+                "
+            >
+                <canvas id="chartEstatusCuentas"></canvas>
+            </div>
+
+            <div
+                class="
+                    mt-4
+                    rounded-xl
+                    border
+                    border-gray-100
+                    bg-gray-50
+                    p-3
+                    text-left
+                    font-mono
+                    text-[9px]
+                    font-bold
+                    uppercase
+                    tracking-wide
+                    leading-relaxed
+                    text-gray-500
+                "
+            >
+                <strong class="mb-0.5 block text-gray-950 tracking-tight">
+                    // Nota de resguardo:
+                </strong>
+                El personal inhabilitado se congela mediante baja lógica para preservar trazabilidad e inmutabilidad de auditorías previas.
+            </div>
+
+        </article>
+
+    </section>
+
+</div>
+
+<!-- ===================================================== -->
+<!-- CHART BOOTSTRAP                                      -->
+<!-- ===================================================== -->
+
+<script>
+    (function () {
+        function bootAccountsDashboardCharts() {
+            const chartAltasEl = document.getElementById("chartRitmoAltas");
+            const chartEstatusEl = document.getElementById("chartEstatusCuentas");
+
+            if (!chartAltasEl || !chartEstatusEl || typeof Chart === "undefined") {
+                return;
+            }
+
+            if (chartAltasEl.dataset.chartBooted === "true") {
+                return;
+            }
+
+            chartAltasEl.dataset.chartBooted = "true";
+            chartEstatusEl.dataset.chartBooted = "true";
+
+            const mesesLabels = [];
+            const mesesValores = [];
+
+            {% for alta in cronologia_altas %}
+                mesesLabels.push("{{ alta.mes }}");
+                mesesValores.push({{ alta.cantidad }});
+            {% endfor %}
+
+            const activosCount = {{ funcionarios_activos|default:0 }};
+            const bajasCount = {{ funcionarios_baja|default:0 }};
+            const isMobile = window.innerWidth < 768;
+
+            Chart.defaults.font.family = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+            Chart.defaults.font.size = isMobile ? 8 : 9;
+            Chart.defaults.font.weight = "bold";
+            Chart.defaults.color = "#64748b";
+
+            const ctxAltas = chartAltasEl.getContext("2d");
+
+            new Chart(ctxAltas, {
+                type: "line",
+                data: {
+                    labels: mesesLabels.length ? mesesLabels : ["Ene", "Feb", "Mar", "Abr", "May", "Jun"],
+                    datasets: [{
+                        label: "Altas en Plataforma",
+                        data: mesesValores.length ? mesesValores : [0, 0, 0, 0, 0, 0],
+                        borderColor: "#0f172a",
+                        backgroundColor: "rgba(15, 23, 42, 0.03)",
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: "#0f172a",
+                        pointRadius: isMobile ? 2 : 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: "#0f172a",
+                            padding: 10,
+                            cornerRadius: 8,
+                            titleFont: {
+                                size: 10,
+                                weight: "black"
+                            },
+                            bodyFont: {
+                                size: 10
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#475569"
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: "#f1f5f9",
+                                drawTicks: false
+                            },
+                            ticks: {
+                                color: "#475569",
+                                stepSize: 1
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            const ctxEstatus = chartEstatusEl.getContext("2d");
+
+            new Chart(ctxEstatus, {
+                type: "doughnut",
+                data: {
+                    labels: ["Activos", "Inhabilitados"],
+                    datasets: [{
+                        data: [activosCount, bajasCount],
+                        backgroundColor: ["#10b981", "#ef4444"],
+                        borderWidth: 2,
+                        borderColor: "#ffffff",
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                boxWidth: 8,
+                                padding: isMobile ? 6 : 10,
+                                usePointStyle: true,
+                                font: {
+                                    size: isMobile ? 8 : 9
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: "#0f172a",
+                            padding: 10,
+                            cornerRadius: 8,
+                            displayColors: false
+                        }
+                    },
+                    cutout: isMobile ? "75%" : "70%"
+                }
+            });
+
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        }
+
+        bootAccountsDashboardCharts();
+    })();
+</script>

@@ -101,15 +101,39 @@ class AccountsPermissions:
     # puedes dejar esto sólo para futuras pantallas globales de Accounts.
     SIDEBAR_MENU = [
         ["users", "Listado de Empleados", "accounts:funcionario_list", 1, "can_view_list"],
-        ["bar-chart-3", "Dashboard Analítico", "accounts:dashboard", 6, "can_view_analytics"],
+        ["bar-chart-3", "Dashboard Analítico", "accounts:analytics", 6, "can_view_analytics"],
     ]
 
     # Menú contextual del expediente de un funcionario.
     FUNCIONARIO_DETAIL_MENU = [
-    ["fingerprint", "Ficha de Identidad", "accounts:funcionario_sub_identidad", 1, "can_edit_user"],
-    ["laptop-2", "Hardware Asignado", "accounts:funcionario_sub_hardware", 2, "can_edit_user"],
-    ["smartphone", "Línea y Telefonía", "accounts:funcionario_sub_telefonia", 3, "can_edit_user"],
-]
+        {
+            "icon": "fingerprint",
+            "title": "Ficha de Identidad",
+            "url_name": "accounts:funcionario_sub_identidad",
+            "order": 1,
+            "permission": "can_edit_user",
+            "provider": "accounts",
+            "stub": False,
+        },
+        {
+            "icon": "laptop-2",
+            "title": "Hardware Asignado",
+            "url_name": "accounts:funcionario_sub_hardware",
+            "order": 2,
+            "permission": "can_edit_user",
+            "provider": "assets",
+            "stub": True,
+        },
+        {
+            "icon": "smartphone",
+            "title": "Línea y Telefonía",
+            "url_name": "accounts:funcionario_sub_telefonia",
+            "order": 3,
+            "permission": "can_edit_user",
+            "provider": "telefonia",
+            "stub": True,
+        },
+    ]
 
 
 # =========================================================================

@@ -31,22 +31,48 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 @login_required
-@axentra_gate_enforcer(module_identifier="accounts", required_fine_permission="can_view_analytics")
-def accounts_dashboard_view(request):
-    """Consola Analítica de Personal."""
+@axentra_gate_enforcer(
+    module_identifier=AppIdentifier.ACCOUNTS,
+    required_fine_permission="can_view_analytics",
+)
+def accounts_analytics_view(request):
+    """📊 CONSOLA ANALÍTICA DE PERSONAL (Métricas y Cronología de Altas)"""
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    # Aislamiento de lógica analítica pesada mediante selectores
     context = AccountsDashboardSelectors.obtener_metricas_plantilla()
-    context['cronologia_altas'] = AccountsDashboardSelectors.obtener_cronologia_altas()
-    
-    # 📡 CONTROL PERIMETRAL DE HTMX (Evita duplicar layouts exteriores en llamadas asíncronas)
-    es_htmx = request.headers.get('HX-Request') == 'true' or request.headers.get('hx-request') == 'true'
-    context['base_template'] = "layouts/blank_layout.html" if es_htmx else "layouts/dashboard_layout.html"
-    
-    # 👑 LA JUGADA MAESTRA: Tu bandera de control arquitectónico
-    context['sidebar_secundario'] = True 
-    context['modulo_actual'] = request.axentra_active_module.upper() # Inyectado por tu decorador
-    context['menu_actual'] = request.axentra_sidebar_menu          # Inyectado por tu decorador
-    
-    return render(request, 'accounts/dashboard/accounts_dashboard.html', context)
+    context["cronologia_altas"] = AccountsDashboardSelectors.obtener_cronologia_altas()
+
+    context.update({
+        "modulo_actual": AppIdentifier.ACCOUNTS,
+        "show_module_sidebar": False,  
+    })
+
+    # 📊 Registro Forense y Telemetría en el Radar
+    AxentraRadar.imprimir_auditoria(
+        componente="accounts_dashboard",
+        request=request,
+        titulo="Acceso a consola analítica de personal",
+        icono="📊",
+        extra_data={
+            "¿Es HTMX?": is_htmx,
+            "HX-Target": target_htmx if target_htmx else "F5 / URL directa",
+            "Sidebar Secundario": context["show_module_sidebar"],
+        },
+    )
+
+    if is_htmx:
+        if target_htmx == "workbench":
+            return render(request, "accounts/workbench/accounts_dashboard_workbench.html", context)
+        
+        if target_htmx == "page-content":
+            return render(request, "accounts/content/accounts_dashboard_content.html", context)
+        
+        # 🟢 Fallback preventivo: si es HTMX pero el target varía, renderizamos el fragmento de contenido básico
+        return render(request, "accounts/content/accounts_dashboard_content.html", context)
+
+    return render(request, "accounts/pages/accounts_dashboard.html", context)
 
 
 # =========================================================================
@@ -178,15 +204,7 @@ def funcionario_list_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_detail_view(request, pk: uuid.UUID):
-    """
-    👤 EXPEDIENTE CONTEXTUAL DE FUNCIONARIO
-
-    Tipo de pantalla:
-    - Pertenece a ACCOUNTS.
-    - Sí usa sidebar secundario.
-    - El sidebar secundario es contextual al funcionario.
-    - La vista inicial del contenido es Ficha de Identidad.
-    """
+    """👤 EXPEDIENTE CONTEXTUAL DE FUNCIONARIO (Workspace Principal)"""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
@@ -195,10 +213,17 @@ def funcionario_detail_view(request, pk: uuid.UUID):
     perfil = getattr(funcionario, "axentra_profile", None)
 
     raw_menu = AccountsPermissions.FUNCIONARIO_DETAIL_MENU
-
     detail_menu = []
 
-    for icon, title, url_name, order, required_perm in raw_menu:
+    # Detectamos dinámicamente qué sub-vista se está solicitando o dejamos la de identidad por defecto
+    current_sub_view = request.GET.get("sub_view", "accounts:funcionario_sub_identidad")
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
         tiene_permiso = (
             request.axentra_is_root
             or required_perm in getattr(request, "axentra_permissions_list", [])
@@ -207,11 +232,14 @@ def funcionario_detail_view(request, pk: uuid.UUID):
 
         if tiene_permiso:
             detail_menu.append({
-                "icon": icon,
-                "title": title,
+                "icon": item.get("icon", "circle"),
+                "title": item.get("title", "Sin título"),
                 "href": reverse(url_name, args=[funcionario.id]),
-                "order": order,
-                "active": url_name == "accounts:funcionario_sub_identidad",
+                "order": item.get("order", 99),
+                "provider": item.get("provider", AppIdentifier.ACCOUNTS),
+                "stub": item.get("stub", False),
+                # 🟢 Dinámico: Evalúa cuál está activa en la petición real
+                "active": url_name == current_sub_view,
             })
 
     detail_menu.sort(key=lambda item: item["order"])
@@ -221,12 +249,11 @@ def funcionario_detail_view(request, pk: uuid.UUID):
         "perfil": perfil,
         "current_funcionario": funcionario,
         "detail_menu": detail_menu,
-
-        # Contrato Axentra
         "modulo_actual": AppIdentifier.ACCOUNTS,
         "show_module_sidebar": True,
     }
 
+    # 🧬 Radar Forense Axentra
     AxentraRadar.imprimir_auditoria(
         componente="accounts_view",
         request=request,
@@ -239,21 +266,14 @@ def funcionario_detail_view(request, pk: uuid.UUID):
             "HX-Target": target_htmx if target_htmx else "F5 / URL directa",
             "Sidebar Contextual": True,
             "Items Contextuales": len(detail_menu),
+            "Providers": ", ".join(sorted({item["provider"] for item in detail_menu})) if detail_menu else "Sin providers",
         },
     )
 
     if is_htmx and target_htmx == "workbench":
-        return render(
-            request,
-            "accounts/workbench/funcionario_detail_workbench.html",
-            context,
-        )
+        return render(request, "accounts/workbench/funcionario_detail_workbench.html", context)
 
-    return render(
-        request,
-        "accounts/pages/funcionario_detail.html",
-        context,
-    )
+    return render(request, "accounts/pages/funcionario_detail.html", context)
     
     
 
