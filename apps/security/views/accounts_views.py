@@ -154,7 +154,7 @@ def funcionario_list_view(request):
     if is_htmx and target_htmx == "page-content":
         return render(
             request,
-            "accounts/pages/funcionario_list_content.html",
+            "accounts/content/funcionario_list_content.html",
             context,
         )
 
@@ -163,7 +163,7 @@ def funcionario_list_view(request):
     if is_htmx and target_htmx == "funcionario-results":
         return render(
             request,
-            "accounts/htmx/funcionario_hibrido_partial.html",
+            "accounts/htmx/funcionario_results.html",
             context,
         )
 
@@ -362,13 +362,13 @@ def funcionario_create_view(request):
     if is_htmx and target_htmx == "page-content":
         return render(
             request,
-            "accounts/forms/funcionario_create_form_content.html",
+            "accounts/content/funcionario_create_form_content.html",
             context,
         )
 
     return render(
         request,
-        "accounts/forms/funcionario_form.html",
+        "accounts/pages/funcionario_create.html",
         context,
     )
 
@@ -508,13 +508,13 @@ def funcionario_editar_view(request, pk: uuid.UUID):
     if is_htmx and target_htmx == "page-content":
         return render(
             request,
-            "accounts/forms/funcionario_update_form_content.html",
+            "accounts/content/funcionario_update_form_content.html",
             context,
         )
 
     return render(
         request,
-        "accounts/forms/funcionario_update_form.html",
+        "accounts/pages/funcionario_update.html",
         context,
     )
 
@@ -630,13 +630,13 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
     if is_htmx and target_htmx == "page-content":
         return render(
             request,
-            "accounts/forms/funcionario_password_form_content.html",
+            "accounts/content/funcionario_password_form_content.html",
             context,
         )
 
     return render(
         request,
-        "accounts/forms/funcionario_password_form.html",
+        "accounts/pages/funcionario_password.html",
         context,
     )
 

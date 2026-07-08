@@ -12,14 +12,14 @@
                 </tr>
             </thead>
             <tbody id="tbody-funcionarios" class="divide-y divide-gray-100 text-xs text-gray-700">
-                {% include 'accounts/htmx/funcionario_table_partial.html' %}
+                {% include 'accounts/htmx/funcionario_table.html' %}
             </tbody>
         </table>
     </div>
 </div>
 
 <div id="funcionario-mobile-container" class="block md:hidden space-y-3 w-full">
-    {% include 'accounts/htmx/funcionario_cards_partial.html' %}
+    {% include 'accounts/htmx/funcionario_cards.html' %}
 </div>
 
 <script>
