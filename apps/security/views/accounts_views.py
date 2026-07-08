@@ -31,10 +31,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 @login_required
-@axentra_gate_enforcer(
-    module_identifier=AppIdentifier.ACCOUNTS,
-    required_fine_permission="can_view_analytics",
-)
+@axentra_gate_enforcer(module_identifier=AppIdentifier.ACCOUNTS, required_fine_permission="can_view_analytics")
 def accounts_analytics_view(request):
     """📊 CONSOLA ANALÍTICA DE PERSONAL (Métricas y Cronología de Altas)"""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
@@ -43,7 +40,6 @@ def accounts_analytics_view(request):
     # Aislamiento de lógica analítica pesada mediante selectores
     context = AccountsDashboardSelectors.obtener_metricas_plantilla()
     context["cronologia_altas"] = AccountsDashboardSelectors.obtener_cronologia_altas()
-
     context.update({
         "modulo_actual": AppIdentifier.ACCOUNTS,
         "show_module_sidebar": False,  
@@ -65,11 +61,7 @@ def accounts_analytics_view(request):
     if is_htmx:
         if target_htmx == "workbench":
             return render(request, "accounts/workbench/accounts_dashboard_workbench.html", context)
-        
-        if target_htmx == "page-content":
-            return render(request, "accounts/content/accounts_dashboard_content.html", context)
-        
-        # 🟢 Fallback preventivo: si es HTMX pero el target varía, renderizamos el fragmento de contenido básico
+        # page-content o fallback preventivo (cualquier otro target HTMX)
         return render(request, "accounts/content/accounts_dashboard_content.html", context)
 
     return render(request, "accounts/pages/accounts_dashboard.html", context)
