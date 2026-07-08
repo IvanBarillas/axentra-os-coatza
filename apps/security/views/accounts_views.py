@@ -10,7 +10,9 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.contrib.auth.forms import SetPasswordForm
 
+from apps.security.models.audit import SecurityAuditLog
 from apps.security.permissions import AccountsPermissions
+from apps.security.utils.forensic_auditor import ForensicAuditor
 from apps.shared.apps_config import AppIdentifier
 from apps.security.decorators import axentra_gate_enforcer
 from apps.security.models import User, UserProfile
@@ -641,87 +643,178 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission='can_delete_user')
+@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_delete_user")
 def funcionario_soft_delete_view(request, pk: uuid.UUID):
-    """Baja lógica forense (Soft-Delete) adaptada a desvanecimiento reactivo HTMX."""
-    if str(pk) == str(request.user.id):
-        if request.headers.get('HX-Request'):
-            return HttpResponse(status=403, content="Operación denegada sobre su propia sesión.")
-        messages.error(request, "Operación denegada: No puede aplicar una baja sobre su propia sesión.")
-        return redirect('accounts:funcionario_list')
+    """
+    🗑️ BAJA LÓGICA FORENSE DE FUNCIONARIO
 
-    # 🟢 CABLEADO FORENSE: Pasamos el 'request' como primer parámetro
-    exito, mensaje = FuncionarioService.tramitar_baja_institucional(
-        request=request, 
-        pk=pk, 
-        operador_email=request.user.email
+    Tipo de acción:
+    - Acción crítica.
+    - Se ejecuta desde el expediente del funcionario.
+    - Después de aplicar la baja, regresa al listado.
+    """
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    if str(pk) == str(request.user.id):
+        if is_htmx:
+            return HttpResponse(
+                status=403,
+                content="Operación denegada sobre su propia sesión.",
+            )
+
+        messages.error(
+            request,
+            "Operación denegada: No puede aplicar una baja sobre su propia sesión.",
+        )
+
+        return redirect("accounts:funcionario_detail", pk=pk)
+
+    funcionario = get_object_or_404(User, id=pk)
+
+    AxentraRadar.imprimir_auditoria(
+        componente="accounts_view",
+        request=request,
+        titulo="Solicitud de baja lógica institucional",
+        icono="🗑️",
+        extra_data={
+            "Funcionario Target": funcionario.email,
+            "Funcionario ID": str(funcionario.id),
+            "Operador": request.user.email,
+            "¿Es HTMX?": is_htmx,
+            "HX-Target": target_htmx if target_htmx else "NINGUNO",
+        },
     )
-    
-    if request.headers.get('HX-Request') or request.headers.get('hx-request'):
-        return HttpResponse(status=200, content="")
+
+    exito, mensaje = FuncionarioService.tramitar_baja_institucional(
+        request=request,
+        pk=pk,
+        operador_email=request.user.email,
+    )
 
     if exito:
         messages.warning(request, mensaje)
     else:
         messages.error(request, mensaje)
-    return redirect('accounts:funcionario_list')
+
+    if is_htmx:
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = reverse("accounts:funcionario_list")
+        return response
+
+    return redirect("accounts:funcionario_list")
 
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission='can_edit_user')
+@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_toggle_status_view(request, pk: uuid.UUID):
-    """Alternador AJAX de estatus operativo (is_active) con inyector forense manual."""
+    """
+    🟢 ALTERNADOR DE ESTATUS OPERATIVO
+
+    Compatibilidad:
+    - Si viene desde expediente con hx-target="#page-content":
+      devuelve sub_identidad.html completo.
+    - Si viene desde un badge compacto con hx-target="this":
+      devuelve badge_toggle_activo_inactivo.html.
+    """
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
     if str(pk) == str(request.user.id):
-        return HttpResponse(status=403, content="Bloqueo de seguridad: Auto-congelación denegada.")
-        
+        return HttpResponse(
+            status=403,
+            content="Bloqueo de seguridad: Auto-congelación denegada.",
+        )
+
     funcionario = get_object_or_404(User, id=pk)
-    
-    # Previene mutación de cuentas lógicamente borradas
+
     if funcionario.is_deleted:
-        return HttpResponse(status=400, content="No se puede conmutar el estatus de un usuario dado de baja.")
-        
+        return HttpResponse(
+            status=400,
+            content="No se puede conmutar el estatus de un usuario dado de baja.",
+        )
+
     estado_anterior = funcionario.is_active
+
     funcionario.is_active = not funcionario.is_active
-    funcionario.save()
-    
-    # 🪐 LOG MANUAL EN CALIENTE DESDE LA VISTA AUXILIAR
-    from apps.security.utils.forensic_auditor import ForensicAuditor
-    from apps.security.models.audit import SecurityAuditLog
-    
+    funcionario.save(update_fields=["is_active"])
+
     ForensicAuditor.registrar_evento(
         request=request,
         action_type=SecurityAuditLog.ActionTypes.UPDATE,
         module_component="MATRIZ_PERMISOS",
         action_name="TOGGLE_STATUS_FUNCIONARIO",
-        target_scope=f"Conmutación de estatus de cuenta para {funcionario.email} (Estado final: {funcionario.is_active}).",
-        level=SecurityAuditLog.Levels.INFO if funcionario.is_active else SecurityAuditLog.Levels.CRITICAL,
+        target_scope=(
+            f"Conmutación de estatus de cuenta para {funcionario.email} "
+            f"(Estado final: {funcionario.is_active})."
+        ),
+        level=(
+            SecurityAuditLog.Levels.INFO
+            if funcionario.is_active
+            else SecurityAuditLog.Levels.CRITICAL
+        ),
         target_user=funcionario,
         search_target=funcionario.id,
-        payload={'is_active_before': estado_anterior, 'is_active_after': funcionario.is_active}
+        payload={
+            "is_active_before": estado_anterior,
+            "is_active_after": funcionario.is_active,
+        },
     )
-    
-    # 🟢 CORRECCIÓN DE INTERFAZ: Si es HTMX, mandamos un disparador para actualizar la celda o re-renderizamos el badge
-    if request.headers.get('HX-Request') or request.headers.get('hx-request'):
-        # Retorna el componente del Badge con el nuevo estado sin tumbar la tabla
-        return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
-            'is_active': funcionario.is_active,
-            'toggle_url': reverse('accounts:funcionario_toggle_status', args=[funcionario.id])
-        })
-        
-    return redirect('accounts:funcionario_list')
 
+    AxentraRadar.imprimir_auditoria(
+        componente="accounts_view",
+        request=request,
+        titulo="Conmutación de estatus de funcionario",
+        icono="🟢" if funcionario.is_active else "⚫",
+        extra_data={
+            "Funcionario": funcionario.email,
+            "Funcionario ID": str(funcionario.id),
+            "Estado Anterior": "ACTIVO" if estado_anterior else "INACTIVO",
+            "Estado Nuevo": "ACTIVO" if funcionario.is_active else "INACTIVO",
+            "¿Es HTMX?": is_htmx,
+            "HX-Target": target_htmx if target_htmx else "NINGUNO",
+        },
+    )
 
+    perfil = getattr(funcionario, "axentra_profile", None)
 
-def funcionario_detail_360_view(request, pk):
-    """🏛️ CABINA CONTEXTUAL 360°: Inicializa el chasis del doble sidebar para un usuario específico."""
-    funcionario = get_object_or_404(User, id=pk)
-    
-    context = {
-        'funcionario': funcionario,
-        'modulo_actual': 'admin',  # Mantiene expandido el menú de administración en el Sidebar 1
-    }
-    return render(request, "contextual/funcionario_detail_360.html", context)
+    # Caso nuevo: llamado desde sub_identidad.html
+    if is_htmx and target_htmx == "page-content":
+        response = render(
+            request,
+            "accounts/contextual/partials/sub_identidad.html",
+            {
+                "funcionario": funcionario,
+                "perfil": perfil,
+                "modulo_actual": AppIdentifier.ACCOUNTS,
+                "show_module_sidebar": True,
+            },
+        )
+
+        response["HX-Push-Url"] = reverse(
+            "accounts:funcionario_detail",
+            args=[funcionario.id],
+        )
+
+        return response
+
+    # Caso viejo: badge compacto, por si todavía lo usas en alguna tabla
+    if is_htmx:
+        return render(
+            request,
+            "common/tags/badge_toggle_activo_inactivo.html",
+            {
+                "is_active": funcionario.is_active,
+                "toggle_url": reverse(
+                    "accounts:funcionario_toggle_status",
+                    args=[funcionario.id],
+                ),
+            },
+        )
+
+    return redirect("accounts:funcionario_detail", pk=pk)
+
 
 
 @login_required
