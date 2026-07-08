@@ -1,9 +1,9 @@
-<nav class="bg-white/80 backdrop-blur-md shadow-2xs border-b border-gray-200/80 sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 py-3 select-none">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
+<nav class="bg-white shadow-2xs border-b border-gray-200/80 sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 py-3 select-none">
+    <div class="w-full flex justify-between items-center">
         
+        <!-- 🏛️ ISOTIPO Y MARCA DEL TENANT -->
         <div class="flex items-center gap-4">
-
-            <a href="{% url 'launcher_home' %}" class="text-xl font-bold text-gray-950 flex items-center gap-3 tracking-tight transition-opacity hover:opacity-90">
+            <a href="{% url 'index_hub' %}" class="text-xl font-bold text-gray-950 flex items-center gap-3 tracking-tight transition-opacity hover:opacity-90">
                 {% if tenant.logo_light %}
                     <img src="{{ tenant.logo_light }}" alt="Escudo Oficial" class="w-7 h-7 object-contain">
                 {% else %}
@@ -12,15 +12,17 @@
                     </div>
                 {% endif %}
                 <div class="leading-none select-none">
-                    <span class="font-extrabold uppercase tracking-tight text-gray-950">{{ tenant.app_name|default:"Axentra" }}</span><span class="text-blue-600 font-light font-mono ml-0.5">OS</span>
+                    <span class="font-extrabold uppercase tracking-tight text-gray-950">{{ tenant.app_name|default:"Axentra" }}</span><span class="text-indigo-600 font-light font-mono ml-0.5">OS</span>
                 </div>
             </a>
         </div>
 
-        <div class="flex items-center gap-3 sm:gap-5">
+        <!-- ⚙️ ACCIONES PERIMETRALES DE SESIÓN -->
+        <div class="flex items-center gap-3 sm:gap-4">
             
             {% if request.user.is_authenticated %}
                 
+                <!-- Acceso al Panel de Control Django (Bypass Seguro de Staff) -->
                 {% if request.user.is_staff or request.user.is_superuser %}
                     <a href="/axentra-core-secret-portal-manager-wsl/" 
                        target="_blank" 
@@ -29,12 +31,15 @@
                     </a>
                 {% endif %}
                 
-                <a href="{% url 'launcher_home' %}" 
-                   class="hidden md:inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono hover:text-gray-950 transition duration-150">
-                    <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Mis Aplicaciones
+                <!-- Retorno directo al Hub General -->
+                <a href="{% url 'index_hub' %}" 
+                   class="hidden md:inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono hover:text-gray-950 transition duration-150"
+                   title="Volver a la Estación Central">
+                    <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Estación Central
                 </a>
 
-                <div class="flex items-center bg-gray-50/80 border border-gray-200 rounded-xl px-2.5 sm:px-3 py-1.5 gap-1.5 sm:gap-2 shadow-3xs font-mono">
+                <!-- Credencial Homologada del Operador en Turno -->
+                <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-2.5 sm:px-3 py-1.5 gap-1.5 sm:gap-2 shadow-4xs font-mono">
                     <span class="text-[7px] sm:text-[8px] text-gray-400 font-black uppercase tracking-widest border-r border-gray-200 pr-1.5 sm:pr-2">
                         {% if request.user.is_manager %}MGR{% else %}OPR{% endif %}
                     </span>
@@ -43,7 +48,8 @@
                     </span>
                 </div>
 
-                <form action="{% url 'accounts:logout' %}" method="post" class="border-l border-gray-200/80 pl-2 sm:pl-3.5 flex items-center">
+                <!-- Botón Hermético de Salida -->
+                <form action="{% url 'accounts:logout' %}" method="post" class="border-l border-gray-200/80 pl-2 sm:pl-3 flex items-center">
                     {% csrf_token %}
                     <button type="submit" 
                             class="text-gray-400 hover:text-red-600 transition duration-150 p-1.5 rounded-xl hover:bg-red-50 cursor-pointer flex items-center justify-center group" 
@@ -53,6 +59,7 @@
                 </form>
 
             {% else %}
+                <!-- Acceso alterno (Anónimo) -->
                 <a href="{% url 'accounts:login' %}" 
                    class="text-xs font-bold uppercase tracking-widest text-gray-600 hover:text-blue-600 transition font-mono flex items-center gap-1.5">
                     <i data-lucide="log-in" class="w-4 h-4"></i> Entrar
@@ -62,3 +69,9 @@
         </div>
     </div>
 </nav>
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>

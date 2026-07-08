@@ -1,0 +1,9 @@
+{# templates/navigation/module_group.html #}
+
+<button type="button" @click="openMenu = openMenu === '{{ group_id }}' ? '' : '{{ group_id }}'" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-slate-400 hover:text-slate-100 hover:bg-slate-900/60 transition-all cursor-pointer outline-none">
+    <span class="flex items-center gap-2.5">
+        <i data-lucide="{{ icon|default:'circle' }}" class="w-4 h-4 text-slate-400"></i>
+        {{ title }}
+    </span>
+    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200" :class="openMenu === '{{ group_id }}' ? 'rotate-180 text-slate-300' : ''"></i>
+</button>

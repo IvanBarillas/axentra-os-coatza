@@ -1,0 +1,52 @@
+{# templates/navigation/global_sidebar_menu.html #}
+
+<nav id="global-sidebar-menu" class="h-full overflow-y-auto px-5 py-4 space-y-2 font-mono text-left scrollbar-thin scrollbar-thumb-slate-800" x-data="{ openMenu: '{{ modulo_actual|default:"admin" }}' }">
+    {# ADMINISTRACIÓN #}
+    {% if is_global_admin or 'security' in allowed_modules or 'accounts' in allowed_modules or 'organigrama' in allowed_modules %}
+    <div class="space-y-1">
+        {% include "navigation/module_group.html" with group_id="admin" title="Administración" icon="sliders" %}
+        <div x-show="openMenu === 'admin'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+            {% if is_global_admin or 'security' in allowed_modules %}
+                {% include "navigation/module_item.html" with title="Ciberseguridad" icon="shield-check" href="#" %}
+            {% endif %}
+            {% if is_global_admin or 'accounts' in allowed_modules %}
+                {% url 'accounts:funcionario_list' as accounts_url %}
+                {% include "navigation/module_item.html" with title="Usuarios" icon="users" href=accounts_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
+            {% endif %}
+            {% if is_global_admin or 'organigrama' in allowed_modules %}
+                {% include "navigation/module_item.html" with title="Matriz Orgánica" icon="git-fork" href="#" %}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ASISTENCIA TI #}
+    {% if is_global_admin or 'helpdesk' in allowed_modules %}
+    <div class="space-y-1">
+        {% include "navigation/module_group.html" with group_id="helpdesk" title="Asistencia TI" icon="headset" %}
+        <div x-show="openMenu === 'helpdesk'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+            {% include "navigation/module_item.html" with title="Mesa de Control" icon="ticket" href="#" %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# INFRAESTRUCTURA #}
+    {% if is_global_admin or 'assets' in allowed_modules %}
+    <div class="space-y-1">
+        {% include "navigation/module_group.html" with group_id="assets" title="Infraestructura" icon="package" %}
+        <div x-show="openMenu === 'assets'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+            {% include "navigation/module_item.html" with title="Padrón Hardware" icon="monitor" href="#" %}
+            {% include "navigation/module_item.html" with title="Voz y Extensiones" icon="phone" href="#" %}
+            {% include "navigation/module_item.html" with title="Redes Wi-Fi / SSID" icon="wifi" href="#" %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# TERRITORIO #}
+    <div class="space-y-1">
+        {% include "navigation/module_group.html" with group_id="territory" title="Territorio" icon="map" %}
+        <div x-show="openMenu === 'territory'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+            {% include "navigation/module_item.html" with title="Sedes e Inmuebles" icon="map-pin" href="#" %}
+        </div>
+    </div>
+</nav>

@@ -99,48 +99,41 @@ def menu_dinamico_processor(request):
     """
     🧠 PROCESADOR DE ENTORNO CONTEXTUAL (HYPER-REACTIVE SIDEBAR)
     Sincroniza y expone las variables calculadas por el decorador hacia el motor del DOM.
-    Asegura que el Sidebar 1 estático mantenga su openMenu e iluminación activos.
+    Determina automáticamente si se debe pintar el Sidebar 2 (sidebar_secundario).
     """
-    context = {'menu_actual': [], 'modulo_actual': 'launcher', 'sidebar_menu': []}
+    # 1. Estado base por defecto: sin menú y sidebar secundario apagado (False)
+    context = {
+        'menu_actual': [], 
+        'modulo_actual': 'launcher', 
+        'sidebar_menu': [],
+        'sidebar_secundario': False  
+    }
 
     if not request.user.is_authenticated:
         return context
 
-    # 📡 CAPA 1: EXTRACTOR DE METADATOS DEL DECORATOR GATE (VELOCIDAD CERO 0 MS)
-    # Tu decorador inyecta 'request.axentra_active_module'. Si existe, lo usamos como ley suprema.
+    # 📡 EXTRACTOR DE METADATOS DEL DECORATOR GATE
     modulo_activo = getattr(request, 'axentra_active_module', None)
     
-    # Fallback: Si la vista no lleva decorador, lo intentamos leer del namespace de la URL
     if not modulo_activo and request.resolver_match:
         modulo_activo = request.resolver_match.namespace
 
-    # Si definitivamente estamos en la raíz del launcher o no hay módulo, retornamos seguro
     if not modulo_activo or modulo_activo == 'launcher':
         return context
 
-    # Seteamos el módulo activo de inmediato en el contexto para Alpine.js y Tailwind v4
     context['modulo_actual'] = modulo_activo
 
-    # 🟢 CASO A: OPTIMIZACIÓN DESACOPLADA DESDE RAM (EL DECORADOR YA ARMÓ EL MENÚ)
+    # 🟢 CASO A: DESACOPLADO DESDE RAM (EL DECORADOR YA FILTRÓ EL MENÚ)
     if hasattr(request, 'axentra_sidebar_menu'):
-        context['menu_actual'] = request.axentra_sidebar_menu
-        context['sidebar_menu'] = request.axentra_sidebar_menu
-
-        # ✨ TELEMETRÍA EN 1 LÍNEA: Mitigación a velocidad cero (0 ms)
-        AxentraRadar.imprimir_auditoria(
-            componente="menu_dinamico_processor",
-            request=request,
-            titulo="Maestro de Navegación Desacoplado (RAM LAYER)",
-            icono="🖥️",
-            extra_data={
-                "Módulo Namespace": modulo_activo.upper(),
-                "Enlaces Resueltos en RAM": len(context['menu_actual']),
-                "Rendimiento Telemetría": "Sincronización del Sidebar 1 acoplada a memoria RAM."
-            }
-        )
+        menu_final = request.axentra_sidebar_menu
+        context['menu_actual'] = menu_final
+        context['sidebar_menu'] = menu_final
+        
+        # Si el menú calculado en RAM tiene items, encendemos el sidebar secundario
+        context['sidebar_secundario'] = len(menu_final) > 0 # ◄── Cálculo automático
         return context
 
-    # 🛰️ CASO B: FALLBACK LAYER (Si ingresan por una URL limpia o F5 sin pasar por el flujo interno)
+    # 🛰️ CASO B: FALLBACK LAYER (F5 o ingreso por URL limpia sin pasar por el decorador)
     manifesto_modulo = AxentraOSRegistry.get_manifest_by_slug(modulo_activo)
     if not manifesto_modulo or not hasattr(manifesto_modulo, 'SIDEBAR_MENU'):
         return context
@@ -173,4 +166,7 @@ def menu_dinamico_processor(request):
     
     context['menu_actual'] = menu_filtrado
     context['sidebar_menu'] = menu_filtrado
+    
+    # Si el fallback reconstruyó un menú con elementos, activamos el sidebar secundario
+    context['sidebar_secundario'] = len(menu_filtrado) > 0 # ◄── Cálculo automático
     return context

@@ -5,7 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from decouple import config
 
-from core.views import intro_portal_view, launcher_home_view
+from core.views import intro_portal_view, index_hub_view
 
 ADMIN_PATH = config('ADMIN_SECRET_PATH', default='axentra-core-secret-portal-manager-wsl/')
 
@@ -17,7 +17,7 @@ urlpatterns = [
     path('', intro_portal_view, name='intro_portal'),
 
     # ──► 3. Selector Autónomo de Aplicaciones (El Launcher)
-    path('launcher/', launcher_home_view, name='launcher_home'),
+    path('index/', index_hub_view, name='index_hub'),
 
     # ==========================================================================
     # 📡 INTERCONEXIÓN DEL PAQUETE MODULAR DE RUTAS (UN SOLA APP EN DISCO)

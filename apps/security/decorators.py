@@ -39,7 +39,7 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
                 if request.headers.get('HX-Request'):
                     return HttpResponseForbidden("Acceso Denegado: Módulo satélite no autorizado en matriz JSON.")
                 messages.error(request, f"⚠️ Acceso Denegado al módulo [{module_identifier.upper()}].")
-                return redirect('launcher_home')
+                return redirect('index_hub')
 
             # 4. COMPUERTA 2: Validación de Credencial Fina (Si la vista exige un token específico)
             if required_fine_permission and not is_root:
@@ -48,7 +48,7 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
                     if request.headers.get('HX-Request'):
                         return HttpResponseForbidden(f"Acceso Denegado: Requiere la credencial [{required_fine_permission}].")
                     messages.error(request, f"⚠️ Restricción perimetral: Requiere el token [{required_fine_permission}].")
-                    return redirect('launcher_home')
+                    return redirect('index_hub')
 
             # Sembrado atómico en el Request para consumo de controladores y vistas de plantillas secundarias
             request.axentra_permissions = permisos

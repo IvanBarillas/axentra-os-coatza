@@ -1,37 +1,56 @@
-<div class="space-y-4 animate-fade-in font-mono text-left">
-    <div class="border-b border-gray-100 pb-3">
-        <h3 class="text-sm font-black text-gray-900 uppercase tracking-tight">Equipos en Resguardo Físico</h3>
-        <p class="text-[10px] font-bold text-gray-400 uppercase mt-0.5">Inventario de hardware activo vinculado al expediente en CMDB.</p>
+<div class="w-full max-w-[1200px] mx-auto space-y-4 animate-fade-in font-mono text-left select-none">
+
+    <div class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm">
+
+        <div class="border-b border-gray-100 pb-3">
+            <h3 class="text-sm font-black text-gray-900 uppercase tracking-tight">
+                Equipos en Resguardo Físico
+            </h3>
+            <p class="text-[10px] font-bold text-gray-400 uppercase mt-0.5">
+                Inventario de hardware activo vinculado al expediente en CMDB.
+            </p>
+        </div>
+
+        <div class="mt-4 overflow-x-auto border border-gray-100 rounded-xl">
+            <table class="w-full text-left border-collapse text-[11px]">
+                <thead>
+                    <tr class="bg-slate-50 text-gray-500 uppercase tracking-wider border-b border-gray-100 font-black">
+                        <th class="py-3 px-4">Código Inventario</th>
+                        <th class="py-3 px-4">Descripción de Activo</th>
+                        <th class="py-3 px-4">Categoría</th>
+                        <th class="py-3 px-4">Estatus Operativo</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-gray-100 text-gray-700 font-bold">
+                    {% for activo in activos %}
+                        <tr class="hover:bg-slate-50/60 transition-colors">
+                            <td class="py-3 px-4 font-black text-indigo-600">
+                                {{ activo.codigo_inventario }}
+                            </td>
+                            <td class="py-3 px-4 uppercase">
+                                {{ activo.nombre }}
+                            </td>
+                            <td class="py-3 px-4">
+                                <span class="px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
+                                    {{ activo.categoria }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-emerald-600 uppercase text-[10px]">
+                                {{ activo.estado }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest bg-slate-50/30">
+                                No hay activos físicos asignados a este funcionario.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
     </div>
 
-    <div class="overflow-x-auto border border-gray-100 rounded-xl">
-        <table class="w-full text-left border-collapse text-[11px]">
-            <thead>
-                <tr class="bg-slate-50 text-gray-500 uppercase tracking-wider border-b border-gray-100 font-black">
-                    <th class="py-3 px-4">Código Inventario</th>
-                    <th class="py-3 px-4">Descripción de Activo</th>
-                    <th class="py-3 px-4">Categoría</th>
-                    <th class="py-3 px-4">Estatus Operativo</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 text-gray-700 font-bold">
-                {% for activo in activos %}
-                <tr class="hover:bg-slate-50/60 transition-colors">
-                    <td class="py-3 px-4 font-black text-indigo-600">{{ activo.codigo_inventario }}</td>
-                    <td class="py-3 px-4 uppercase">{{ activo.nombre }}</td>
-                    <td class="py-3 px-4"><span class="px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">{{ activo.categoria }}</span></td>
-                    <td class="py-3 px-4 text-emerald-600 uppercase text-[10px]">{{ activo.estado }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="py-8 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest bg-slate-50/30">
-                        ⚠️ No hay activos físicos asignados a este funcionario.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
 </div>
-
-<script>if (typeof lucide !== 'undefined') { lucide.createIcons(); }</script>

@@ -1,0 +1,56 @@
+<!-- templates/partials/_app_sidebar.html -->
+<aside class="w-full lg:w-60 shrink-0 bg-white border border-gray-200/80 rounded-2xl p-3 flex flex-col justify-between shadow-4xs font-mono select-none animate-fade-in">
+    <div class="space-y-3">
+        
+        <!-- Encabezado Polimórfico de la Aplicación -->
+        <div class="px-2 py-1.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
+            <span class="text-xs font-black text-slate-700 uppercase tracking-tight truncate">
+                {% if sidebar_sub_title %}{{ sidebar_sub_title }}{% else %}Menú Aplicación{% endif %}
+            </span>
+            <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50/60 px-1.5 py-0.5 rounded-md uppercase">
+                {{ modulo_actual }}
+            </span>
+        </div>
+
+        <nav class="space-y-1 text-xs font-bold uppercase tracking-tight">
+            <!-- 🪐 LA JUGADA MAESTRA: ¿Traemos un menú contextual específico de la vista? -->
+            {% if sidebar_context_template %}
+                
+                <!-- Si la vista define 'sidebar_context_template', renderiza ese parcial a medida -->
+                {% include sidebar_context_template %}
+                
+            {% else %}
+            
+                <!-- MODO ESTÁNDAR: Renderizado dinámico universal para CUALQUIER App del ecosistema -->
+                {% for boton in menu_actual %}
+                    <a href="{% url boton.url %}" 
+                       hx-get="{% url boton.url %}" 
+                       hx-target="#main-content-target"
+                       hx-push-url="true"
+                       class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all text-left outline-none group
+                              {% if request.resolver_match.url_name == boton.url|slice:'9:' or request.resolver_match.url_name == 'funcionario_list' and boton.name == 'Padrón de Empleados' or request.resolver_match.url_name == 'accounts_dashboard' and boton.name == 'Dashboard Analítico' %}
+                                  text-indigo-600 bg-indigo-50/50 border-transparent
+                              {% else %}
+                                  border border-transparent text-gray-600 hover:bg-slate-50 hover:text-gray-900
+                              {% endif %}">
+                        <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-4 h-4 shrink-0 text-gray-400 group-hover:text-indigo-500"></i> 
+                        <span class="truncate">{{ boton.name }}</span>
+                    </a>
+                {% endfor %}
+                
+            {% endif %}
+        </nav>
+    </div>
+
+    <!-- Footer del Sidebar 2 -->
+    <div class="mt-4 pt-2 border-t border-gray-100">
+        {% if sidebar_back_url %}
+            <a href="{% url sidebar_back_url %}" hx-get="{% url sidebar_back_url %}" hx-target="#main-content-target"
+               class="w-full flex items-center justify-center gap-1.5 py-1.5 border border-gray-200 rounded-xl text-[10px] font-black uppercase text-gray-500 hover:bg-slate-50 transition cursor-pointer">
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver
+            </a>
+        {% else %}
+            <div class="text-[9px] font-bold text-gray-400 tracking-wider text-center uppercase">{{ modulo_actual }} // CORE</div>
+        {% endif %}
+    </div>
+</aside>

@@ -1,0 +1,23 @@
+{# ========================================================== #}
+{# GLOBAL SIDEBAR · FOOTER                                    #}
+{# Responsabilidad: Mostrar el usuario autenticado.           #}
+{# ========================================================== #}
+
+<footer class="shrink-0 border-t border-slate-900 p-5">
+    {% if request.user.is_authenticated %}
+    <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
+            {{ request.user.email|slice:":1"|upper }}
+        </div>
+
+        <div class="min-w-0 flex-1">
+            <div class="truncate text-sm font-black text-slate-100 leading-tight">
+                {{ request.user.first_name|default:"Servidor Público" }}
+            </div>
+            <div class="truncate mt-0.5 text-[10px] font-mono font-bold lowercase tracking-wide text-slate-500">
+                {{ request.user.email }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</footer>

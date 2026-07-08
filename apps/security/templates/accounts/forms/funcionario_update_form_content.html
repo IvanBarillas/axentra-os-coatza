@@ -1,0 +1,87 @@
+{% load axentra_ui %}{% url 'accounts:funcionario_update' funcionario.id as update_url %}{% url 'accounts:funcionario_detail' funcionario.id as detail_url %}{% url 'accounts:funcionario_sub_identidad' funcionario.id as identidad_url %}
+<div id="funcionario-update-workspace" class="w-full max-w-[1200px] mx-auto space-y-5 animate-fade-in select-none">
+    <header class="rounded-2xl border border-gray-200/80 bg-white px-5 py-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-start gap-3 min-w-0">
+            <div class="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
+                <i data-lucide="user-check" class="h-5 w-5"></i>
+            </div>
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">Accounts</span>
+                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-600 font-mono">Ficha de Personal</span>
+                </div>
+                <h1 class="mt-2 text-xl font-black text-gray-950 uppercase tracking-tight leading-none font-mono">{{ funcionario.full_name|upper }}</h1>
+                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono">Expediente maestro, identidad central y control de adscripción</p>
+            </div>
+        </div>
+        <a href="{{ detail_url }}" hx-get="{{ identidad_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="{{ detail_url }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-wider text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-950 active:scale-95 font-mono">
+            <i data-lucide="arrow-left" class="h-4 w-4 text-gray-400"></i><span>Volver a identidad</span>
+        </a>
+    </header>
+    <form method="POST" action="{{ update_url }}" hx-post="{{ update_url }}" hx-target="#page-content" hx-swap="innerHTML" class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm space-y-7 font-mono text-xs uppercase tracking-wide">
+        {% csrf_token %}
+        {% if form_user.non_field_errors %}
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-[11px] font-bold text-red-700 normal-case">{{ form_user.non_field_errors.0 }}</div>
+        {% endif %}
+        {% if form_profile.non_field_errors %}
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-[11px] font-bold text-red-700 normal-case">{{ form_profile.non_field_errors.0 }}</div>
+        {% endif %}
+        <section class="space-y-4">
+            <header class="flex items-center gap-2 border-b border-gray-100 pb-2 text-[10px] font-black tracking-widest text-slate-400">
+                <i data-lucide="user-check" class="h-4 w-4 text-slate-400"></i><span>1. Identidad del Funcionario</span>
+            </header>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="space-y-1.5">
+                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">Correo Electrónico Institucional</label>
+                    <div class="text-sm font-sans font-medium">{{ form_user.email }}</div>
+                    {% if form_user.email.errors %}<span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">{{ form_user.email.errors.0 }}</span>{% endif %}
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">Teléfono de Contacto</label>
+                    <div class="text-sm font-sans font-medium">{{ form_user.phone }}</div>
+                    {% if form_user.phone.errors %}<span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">{{ form_user.phone.errors.0 }}</span>{% endif %}
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">Nombre(s)</label>
+                    <div class="text-sm font-sans font-medium">{{ form_user.first_name }}</div>
+                    {% if form_user.first_name.errors %}<span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">{{ form_user.first_name.errors.0 }}</span>{% endif %}
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">Apellidos</label>
+                    <div class="text-sm font-sans font-medium">{{ form_user.last_name }}</div>
+                    {% if form_user.last_name.errors %}<span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">{{ form_user.last_name.errors.0 }}</span>{% endif %}
+                </div>
+            </div>
+        </section>
+        <section class="space-y-4">
+            <header class="flex items-center gap-2 border-b border-gray-100 pb-2 text-[10px] font-black tracking-widest text-slate-400">
+                <i data-lucide="map-pin" class="h-4 w-4 text-slate-400"></i><span>2. Control de Adscripción y Cargo</span>
+            </header>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="space-y-1.5">
+                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">Puesto Nominal / Cargo</label>
+                    <div class="text-sm font-sans font-medium">{{ form_profile.puesto }}</div>
+                    {% if form_profile.puesto.errors %}<span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">{{ form_profile.puesto.errors.0 }}</span>{% endif %}
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">Área de Adscripción Orgánica</label>
+                    <div class="text-sm font-sans font-medium">{{ form_profile.area }}</div>
+                    {% if form_profile.area.errors %}<span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">{{ form_profile.area.errors.0 }}</span>{% endif %}
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">Extensión de Oficina</label>
+                    <div class="text-sm font-sans font-medium">{{ form_profile.telefono_oficina }}</div>
+                    {% if form_profile.telefono_oficina.errors %}<span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">{{ form_profile.telefono_oficina.errors.0 }}</span>{% endif %}
+                </div>
+            </div>
+        </section>
+        <footer class="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-end">
+            <a href="{{ detail_url }}" hx-get="{{ identidad_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="{{ detail_url }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-50 hover:text-gray-950">
+                <i data-lucide="x" class="h-4 w-4 text-gray-400"></i><span>Cancelar</span>
+            </a>
+            <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-slate-900 active:scale-95 cursor-pointer">
+                <i data-lucide="refresh-cw" class="h-4 w-4 text-slate-400"></i><span>Actualizar Ficha</span>
+            </button>
+        </footer>
+    </form>
+</div>

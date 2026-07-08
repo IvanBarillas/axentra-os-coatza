@@ -104,7 +104,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # 🛡️ CONFIGURACIÓN DE AUTENTICACIÓN Y REDIRECCIÓN CORE
 # =========================================================================
 # Destino definitivo tras un login exitoso (Apunta a tu path('launcher/', ...))
-LOGIN_REDIRECT_URL = 'launcher_home'
+LOGIN_REDIRECT_URL = 'index_hub'
 
 # Destino en caso de que un usuario intente entrar a una ruta protegida sin sesión
 LOGIN_URL = 'login'

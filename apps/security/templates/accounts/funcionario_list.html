@@ -5,194 +5,91 @@
 {% block title %}Plantilla de Personal | {{ tenant.app_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="flex flex-col lg:flex-row w-full gap-4 items-stretch animate-fade-in font-mono text-left select-none">
+<div class="w-full space-y-4 font-mono text-left select-none animate-fade-in" id="dynamic-workspace-target">
     
-    <aside class="w-full lg:w-60 shrink-0 bg-white border border-gray-200/80 rounded-2xl p-3 flex flex-col justify-between shadow-4xs">
-        <div class="space-y-3">
+    {% url 'accounts:funcionario_list' as action_url %}
+    <form method="GET" 
+          action="{{ action_url }}" 
+          class="pb-4 border-b border-gray-100 space-y-3"
+          hx-get="{{ action_url }}"
+          hx-target="#dynamic-workspace-target"
+          hx-swap="innerHTML"
+          hx-include="[name='q'], [name='sede'], [name='dependencia']"
+          hx-indicator="#loading-spinner">
+          
+        <div class="flex items-center justify-between gap-4">
+            <h2 class="text-base font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                Plantilla de Personal 
+                <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-md">Activa</span>
+            </h2>
             
-            <div class="px-2 py-1.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
-                {% if funcionario %}
-                    <span class="text-xs font-black text-slate-700 uppercase tracking-tight truncate">Expediente 360°</span>
-                    <span class="text-[10px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100 uppercase">Ficha</span>
-                {% else %}
-                    <span class="text-xs font-black text-slate-700 uppercase tracking-tight">Menú Aplicación</span>
-                    <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50/60 px-1.5 py-0.5 rounded-md uppercase">{{ modulo_actual }}</span>
-                {% endif %}
+            {% if request.axentra_is_root or "can_create_user" in request.axentra_permissions_list %}
+                <a href="{% url 'accounts:funcionario_create' %}" 
+                   hx-get="{% url 'accounts:funcionario_create' %}"
+                   hx-target="#main-content-target"
+                   class="bg-gray-950 hover:bg-gray-900 text-white font-black py-2 px-3.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all shadow-4xs flex items-center gap-1.5 transform active:scale-95 cursor-pointer">
+                    <i data-lucide="user-plus" class="w-4 h-4 text-gray-400"></i>
+                    <span>Nuevo Registro</span>
+                </a>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <div class="relative w-full">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input type="text" 
+                       name="q" 
+                       value="{{ current_q|default:'' }}" 
+                       placeholder="Buscar funcionario..." 
+                       class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-9 pr-3 py-2 text-xs font-mono font-medium text-gray-800 outline-none transition-all placeholder:text-gray-400 normal-case"
+                       hx-get="{{ action_url }}"
+                       hx-trigger="keyup changed delay:350ms, search"
+                       hx-target="#dynamic-workspace-target"
+                       hx-swap="innerHTML">
             </div>
 
-            <nav class="space-y-1 text-xs font-bold uppercase tracking-tight">
-                {% if funcionario %}
-                    <div class="p-2 mb-2 bg-slate-50/50 border border-gray-100 rounded-xl text-center">
-                        <div class="w-8 h-8 bg-slate-900 text-white rounded-lg mx-auto flex items-center justify-center font-black text-xs uppercase shadow-xs">
-                            {{ funcionario.username|slice:":2"|upper }}
-                        </div>
-                        <h4 class="text-[11px] font-black text-gray-800 uppercase tracking-tight mt-1.5 truncate">
-                            {{ funcionario.get_full_name|default:funcionario.username }}
-                        </h4>
-                    </div>
-
-                    <button hx-get="{% url 'accounts:funcionario_sub_identidad' funcionario.id %}" hx-target="#dynamic-workspace-target"
-                            class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all text-left cursor-pointer text-indigo-600 bg-indigo-50/50 border-transparent outline-none">
-                        <i data-lucide="user" class="w-4 h-4 shrink-0"></i> <span>User / Identidad</span>
-                    </button>
-
-                    <button hx-get="{% url 'accounts:funcionario_sub_hardware' funcionario.id %}" hx-target="#dynamic-workspace-target"
-                            class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-transparent text-gray-600 hover:bg-slate-50 hover:text-gray-900 text-left transition-all cursor-pointer outline-none">
-                        <i data-lucide="monitor" class="w-4 h-4 shrink-0"></i> <span>Hardware</span>
-                    </button>
-
-                    <button hx-get="{% url 'accounts:funcionario_sub_telefonia' funcionario.id %}" hx-target="#dynamic-workspace-target"
-                            class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-transparent text-gray-600 hover:bg-slate-50 hover:text-gray-900 text-left transition-all cursor-pointer outline-none">
-                        <i data-lucide="phone" class="w-4 h-4 shrink-0"></i> <span>Extensiones</span>
-                    </button>
-
-                    <button class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-transparent text-gray-400 opacity-60 text-left cursor-not-allowed outline-none">
-                        <i data-lucide="key" class="w-4 h-4 shrink-0"></i> <span>Licenses</span>
-                    </button>
-
-                    <button class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-transparent text-gray-400 opacity-60 text-left cursor-not-allowed outline-none">
-                        <i data-lucide="package" class="w-4 h-4 shrink-0"></i> <span>Consumibles</span>
-                    </button>
-
-                    <button class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-transparent text-gray-400 opacity-60 text-left cursor-not-allowed outline-none">
-                        <i data-lucide="ticket" class="w-4 h-4 shrink-0"></i> <span>Tickets</span>
-                    </button>
-
-                    <button class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-transparent text-gray-400 opacity-60 text-left cursor-not-allowed outline-none">
-                        <i data-lucide="history" class="w-4 h-4 shrink-0"></i> <span>Historial</span>
-                    </button>
-
-                    <a href="{% url 'accounts:funcionario_password' funcionario.id %}" hx-get="{% url 'accounts:funcionario_password' funcionario.id %}" hx-target="#dynamic-workspace-target"
-                       class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-transparent text-gray-600 hover:bg-slate-50 hover:text-gray-900 text-left transition-all block">
-                        <i data-lucide="settings" class="w-4 h-4 shrink-0 text-gray-400"></i> <span>Settings</span>
-                    </a>
-
-                {% else %}
-                    {% for boton in menu_actual %}
-                        <a href="{% url boton.url %}" 
-                           hx-get="{% url boton.url %}" 
-                           hx-target="#main-content-target"
-                           hx-push-url="true"
-                           class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all text-left outline-none group
-                                  {% if request.resolver_match.url_name == boton.url|slice:'9:' or request.resolver_match.url_name == 'funcionario_list' and boton.name == 'Padrón de Empleados' %}
-                                      text-indigo-600 bg-indigo-50/50 border-transparent
-                                  {% else %}
-                                      border border-transparent text-gray-600 hover:bg-slate-50 hover:text-gray-900
-                                  {% endif %}">
-                            <i data-lucide="{{ boton.icon|default:'circle' }}" class="w-4 h-4 shrink-0 {% if request.resolver_match.url_name == 'funcionario_list' and boton.name == 'Padrón de Empleados' %}text-indigo-500{% else %}text-gray-400 group-hover:text-gray-700{% endif %}"></i> 
-                            <span class="truncate">{{ boton.name }}</span>
-                        </a>
+            <div class="relative w-full">
+                <select name="sede" 
+                        class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-9 py-2 text-xs font-mono font-bold text-gray-600 outline-none transition-all cursor-pointer appearance-none uppercase"
+                        hx-get="{{ action_url }}"
+                        hx-trigger="change"
+                        hx-target="#dynamic-workspace-target"
+                        hx-swap="innerHTML">
+                    <option value="all">Sedes Totales</option>
+                    {% for sd in sedes %}
+                        <option value="{{ sd.id }}" {% if current_sede == sd.id|stringformat:"s" %}selected{% endif %}>{{ sd.nombre }}</option>
                     {% endfor %}
-                {% endif %}
-            </nav>
+                </select>
+                <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 pointer-events-none">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                </span>
+            </div>
+
+            <div class="relative w-full">
+                <select name="dependencia" 
+                        class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-9 py-2 text-xs font-mono font-bold text-gray-600 outline-none transition-all cursor-pointer appearance-none uppercase"
+                        hx-get="{{ action_url }}"
+                        hx-trigger="change"
+                        hx-target="#dynamic-workspace-target"
+                        hx-swap="innerHTML">
+                    <option value="all">Dependencias Totales</option>
+                    {% for dep in dependencias %}
+                        <option value="{{ dep.id }}" {% if current_dep == dep.id|stringformat:"s" %}selected{% endif %}>{{ dep.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 pointer-events-none">
+                    <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+                </span>
+            </div>
         </div>
+    </form>
 
-        <div class="mt-4 pt-2 border-t border-gray-100">
-            {% if funcionario %}
-                <a href="{% url 'accounts:funcionario_list' %}" 
-                   hx-get="{% url 'accounts:funcionario_list' %}" 
-                   hx-target="#main-content-target"
-                   class="w-full flex items-center justify-center gap-1.5 py-1.5 border border-gray-200 rounded-xl text-[10px] font-black uppercase text-gray-500 hover:bg-slate-50 transition cursor-pointer">
-                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver a Lista
-                </a>
-            {% else %}
-                <div class="text-[9px] font-bold text-gray-400 tracking-wider text-center uppercase">{{ modulo_actual }} // CORE</div>
-            {% endif %}
-        </div>
-    </aside>
-
-    <div class="flex-1 w-full bg-white border border-gray-200/80 rounded-2xl p-5 shadow-4xs flex flex-col justify-between">
-        <div class="w-full space-y-4" id="dynamic-workspace-target">
-            
-            {% if funcionario %}
-                {% include "contextual/partials/sub_identidad.html" %}
-            {% else %}
-                {% url 'accounts:funcionario_list' as action_url %}
-                <form method="GET" 
-                      action="{{ action_url }}" 
-                      class="pb-4 border-b border-gray-100 space-y-3"
-                      hx-get="{{ action_url }}"
-                      hx-target="#dynamic-workspace-target"
-                      hx-swap="innerHTML"
-                      hx-include="[name='q'], [name='sede'], [name='dependencia']"
-                      hx-indicator="#loading-spinner">
-                      
-                    <div class="flex items-center justify-between gap-4">
-                        <h2 class="text-base font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                            Plantilla de Personal 
-                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-md">Activa</span>
-                        </h2>
-                        
-                        {% if request.axentra_is_root or "can_create_user" in request.axentra_permissions_list %}
-                            <a href="{% url 'accounts:funcionario_create' %}" 
-                               hx-get="{% url 'accounts:funcionario_create' %}"
-                               hx-target="#main-content-target"
-                               class="bg-gray-950 hover:bg-gray-900 text-white font-black py-2 px-3.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all shadow-4xs flex items-center gap-1.5 transform active:scale-95 cursor-pointer">
-                                <i data-lucide="user-plus" class="w-4 h-4 text-gray-400"></i>
-                                <span>Nuevo Registro</span>
-                            </a>
-                        {% endif %}
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                        <div class="relative w-full">
-                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
-                                <i data-lucide="search" class="w-4 h-4"></i>
-                            </span>
-                            <input type="text" 
-                                   name="q" 
-                                   value="{{ current_q|default:'' }}" 
-                                   placeholder="Buscar funcionario..." 
-                                   class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-9 pr-3 py-2 text-xs font-mono font-medium text-gray-800 outline-none transition-all placeholder:text-gray-400 normal-case"
-                                   hx-get="{{ action_url }}"
-                                   hx-trigger="keyup changed delay:350ms, search"
-                                   hx-target="#dynamic-workspace-target"
-                                   hx-swap="innerHTML">
-                        </div>
-
-                        <div class="relative w-full">
-                            <select name="sede" 
-                                    class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-9 py-2 text-xs font-mono font-bold text-gray-600 outline-none transition-all cursor-pointer appearance-none uppercase"
-                                    hx-get="{{ action_url }}"
-                                    hx-trigger="change"
-                                    hx-target="#dynamic-workspace-target"
-                                    hx-swap="innerHTML">
-                                <option value="all">Sedes Totales</option>
-                                {% for sd in sedes %}
-                                    <option value="{{ sd.id }}" {% if current_sede == sd.id|stringformat:"s" %}selected{% endif %}>{{ sd.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                            <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 pointer-events-none">
-                                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-                            </span>
-                        </div>
-
-                        <div class="relative w-full">
-                            <select name="dependencia" 
-                                    class="w-full bg-gray-50/60 border border-gray-200 focus:border-gray-950 focus:bg-white rounded-xl pl-3 pr-9 py-2 text-xs font-mono font-bold text-gray-600 outline-none transition-all cursor-pointer appearance-none uppercase"
-                                    hx-get="{{ action_url }}"
-                                    hx-trigger="change"
-                                    hx-target="#dynamic-workspace-target"
-                                    hx-swap="innerHTML">
-                                <option value="all">Dependencias Totales</option>
-                                {% for dep in dependencias %}
-                                    <option value="{{ dep.id }}" {% if current_dep == dep.id|stringformat:"s" %}selected{% endif %}>{{ dep.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                            <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 pointer-events-none">
-                                <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
-                            </span>
-                        </div>
-                    </div>
-                </form>
-
-                <div class="w-full pt-1">
-                    {% include 'accounts/htmx/funcionario_hibrido_partial.html' %}
-                </div>
-            {% endif %}
-
-        </div>
+    <div class="w-full pt-1">
+        {% include 'accounts/htmx/funcionario_hibrido_partial.html' %}
     </div>
+
 </div>
 
 <script>

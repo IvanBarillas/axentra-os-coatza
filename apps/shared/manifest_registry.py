@@ -51,19 +51,3 @@ class AxentraOSRegistry:
     def get_manifest_by_slug(cls, app_code: str):
         return cls.get_all_manifests().get(app_code)
 
-    @classmethod
-    def get_launcher_cards(cls, allowed_app_identifiers: list, is_root: bool = False) -> dict:
-        cards_bucket = {'core_apps': [], 'satellite_apps': []}
-        all_manifests = cls.get_all_manifests()
-        
-        for app_code, manifest in all_manifests.items():
-            if is_root or app_code in allowed_app_identifiers:
-                if hasattr(manifest, 'LAUNCHER_CARD'):
-                    card_data = manifest.LAUNCHER_CARD.copy()
-                    card_data['app_code'] = app_code
-                    
-                    if card_data.get('is_core', False):
-                        cards_bucket['core_apps'].append(card_data)
-                    else:
-                        cards_bucket['satellite_apps'].append(card_data)
-        return cards_bucket

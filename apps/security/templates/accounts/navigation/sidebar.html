@@ -1,0 +1,31 @@
+{% load axentra_ui %}
+
+<div class="w-full p-3 flex flex-col justify-between font-mono animate-fade-in">
+    <div class="space-y-3">
+        <div class="px-2 py-1.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
+            <span class="text-xs font-black text-slate-700 uppercase tracking-tight">Módulo Activo</span>
+            <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50/60 px-1.5 py-0.5 rounded-md uppercase tracking-wide">Accounts</span>
+        </div>
+
+        <nav class="space-y-1 text-xs font-bold uppercase tracking-tight">
+            {% for boton in menu_actual %}
+                {% define_url_context boton request current_funcionario as target_url %}
+                {% define_view_name boton as view_name %}
+                {% define_button_icon boton as icon_name %}
+                {% define_button_text boton as display_name %}
+
+                {% if target_url %}
+                    <a href="{{ target_url }}" hx-get="{{ target_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" 
+                       class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all text-left outline-none group {% if request.resolver_match.view_name == view_name or request.resolver_match.url_name in view_name %}text-indigo-600 bg-indigo-50/50 border-transparent{% else %}border-transparent text-gray-600 hover:bg-slate-50 hover:text-gray-900{% endif %}">
+                        <i data-lucide="{{ icon_name|default:'circle' }}" class="w-4 h-4 shrink-0"></i>
+                        <span class="truncate">{{ display_name }}</span>
+                    </a>
+                {% endif %}
+            {% endfor %}
+        </nav>
+    </div>
+
+    <div class="text-[9px] font-bold text-gray-400 text-center uppercase tracking-wider pt-4">
+        ACCOUNTS // APP NODE
+    </div>
+</div>

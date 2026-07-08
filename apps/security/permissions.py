@@ -1,3 +1,4 @@
+# apps/account/permission.py
 from apps.shared.apps_config import AppIdentifier
 
 # =========================================================================
@@ -5,18 +6,6 @@ from apps.shared.apps_config import AppIdentifier
 # =========================================================================
 class SecurityPermissions:
     APP_CODE = AppIdentifier.SECURITY
-
-    LAUNCHER_CARD = {
-        'title': 'Ciberseguridad & Control Global',
-        'description': 'Consola táctica de gobernanza. Gestión atómica de llaves JSON, monitoreo forense de bitácoras e identidad legal de la entidad.',
-        'icon': 'shield-check',
-        'button_text': 'Permisos y Auditoria',       
-        'badge_text': 'Core Security',
-        'hover_color': 'hover:border-blue-600',
-        'text_hover_color': 'group-hover:text-blue-600',
-        'url_name': 'security:control_panel',
-        'is_core': True,
-    }
 
     PERMISSIONS = {
         'has_access_module': 'Permite el ingreso general a la Estación de Control de Ciberseguridad.',
@@ -77,21 +66,10 @@ class SecurityPermissions:
 class AccountsPermissions:
     APP_CODE = AppIdentifier.ACCOUNTS
 
-    LAUNCHER_CARD = {
-        'title': 'Plantilla de Personal',
-        'description': 'CRUD de alta densidad para la gestión de expedientes, captura de datos duros y movimientos de los funcionarios públicos.',
-        'icon': 'users',
-        'button_text': 'Usuarios y Perfiles',
-        'badge_text': 'Cuentas',
-        'hover_color': 'hover:border-slate-400',
-        'text_hover_color': 'group-hover:text-slate-700',
-        'url_name': 'accounts:control_panel',
-        'is_core': True,
-    }
-
+    # 🔒 MATRIZ PERIMETRAL DE PERMISOS (HARDENED RBP)
     PERMISSIONS = {
         'has_access_module': 'Permite el ingreso general a la Estación de Control de Personal.',
-        'can_view_analytics': 'Permite auditar reportes de densidad laboral, gráficas de personal y KPIs de nómina en el Dashboard.',
+        'can_view_analytics': 'Permite auditar reportes de densidad laboral, gráficas de personal y KPIs de nómina.',
         'can_view_list': 'Permite consultar el padrón institucional de expedientes laborales.',
         'can_create_user': 'Acción Operativa: Permite dar de alta nuevos funcionarios.',
         'can_edit_user': 'Acción Operativa: Permite modificar la ficha de identidad laboral.',
@@ -99,6 +77,7 @@ class AccountsPermissions:
         'can_delete_user': 'Acción Crítica: Permite aplicar bajas del sistema.',
     }
 
+    # 🗺️ MAPEO DE ROLES INSTITUCIONALES
     ROLE_MAPPING = {
         'owner': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password', 'can_delete_user'],
         'director_rh': ['has_access_module', 'can_view_analytics', 'can_view_list', 'can_create_user', 'can_edit_user', 'can_change_password'],
@@ -108,6 +87,7 @@ class AccountsPermissions:
         'viewer': ['has_access_module'],
     }
 
+    # ⚖️ PESOS MÉTRICOS DE JERARQUÍA
     ROLE_WEIGHTS = {
         'owner': 100,
         'director_rh': 85,
@@ -117,12 +97,19 @@ class AccountsPermissions:
         'viewer': 20,
     }
 
+    # Pantallas directas del módulo. Por ahora, como Usuarios no usa sidebar,
+    # puedes dejar esto sólo para futuras pantallas globales de Accounts.
     SIDEBAR_MENU = [
-        ["layout-dashboard", "Panel Administrativo", "accounts:control_panel", 1, "has_access_module"],
-        ["users", "Padrón de Empleados", "accounts:funcionario_list", 2, "can_view_list"],
-        ["user-plus", "Alta de Servidor", "accounts:funcionario_create", 3, "can_create_user"],
-        ["bar-chart-3", "Dashboard Analítico", "accounts:dashboard", 4, "can_view_analytics"],
+        ["users", "Listado de Empleados", "accounts:funcionario_list", 1, "can_view_list"],
+        ["bar-chart-3", "Dashboard Analítico", "accounts:dashboard", 6, "can_view_analytics"],
     ]
+
+    # Menú contextual del expediente de un funcionario.
+    FUNCIONARIO_DETAIL_MENU = [
+    ["fingerprint", "Ficha de Identidad", "accounts:funcionario_sub_identidad", 1, "can_edit_user"],
+    ["laptop-2", "Hardware Asignado", "accounts:funcionario_sub_hardware", 2, "can_edit_user"],
+    ["smartphone", "Línea y Telefonía", "accounts:funcionario_sub_telefonia", 3, "can_edit_user"],
+]
 
 
 # =========================================================================
@@ -130,18 +117,6 @@ class AccountsPermissions:
 # =========================================================================
 class OrganigramaPermissions:
     APP_CODE = AppIdentifier.ORGANIGRAMA
-
-    LAUNCHER_CARD = {
-        'title': 'Estructura Orgánica',
-        'description': 'Modelado de Direcciones Generales, Oficinas Internas, Departamentos y control geográfico de Sedes físicas del Ayuntamiento.',
-        'icon': 'git-fork',
-        "button_text": "Estructura Organica",
-        'badge_text': 'Estructura',
-        'hover_color': 'hover:border-blue-600',
-        'text_hover_color': 'group-hover:text-blue-600',
-        'url_name': 'organigrama:control_panel', 
-        'is_core': True,
-    }
 
     PERMISSIONS = {
         'has_access_module': 'Permite el ingreso general a la Estación de Control y consultar el catálogo básico.',

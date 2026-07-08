@@ -2,13 +2,12 @@
 
 # 👤 PILAR 1: GESTIÓN DE EXPEDIENTES Y PERSONAL (ACCOUNTS)
 from .accounts_views import (
-    accounts_control_panel_view,  
     accounts_dashboard_view,     
     funcionario_list_view, 
     funcionario_create_view, 
     funcionario_editar_view, 
     funcionario_cambiar_password_view, 
-    funcionario_soft_delete_view,
+    funcionario_soft_delete_view,funcionario_detail_view,
     # ENDPOINTS DE COCHERA HTMX (SIDEBAR 2)
     funcionario_sub_identidad_view, funcionario_sub_hardware_view, funcionario_sub_telefonia_view
 )
@@ -49,9 +48,9 @@ from .security_views import (
 # Exposición oficial para los enrutadores de URLs de Axentra OS
 __all__ = [
     # Accounts
-    'accounts_control_panel_view',
     'accounts_dashboard_view',
     'funcionario_list_view', 
+    'funcionario_detail_view',
     'funcionario_create_view', 
     'funcionario_editar_view', 
     'funcionario_cambiar_password_view', 

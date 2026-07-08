@@ -1,3 +1,4 @@
+# apps/shared/dependency_capabilities.py
 import logging
 from django.db import models
 from apps.shared.apps_config import AppIdentifier

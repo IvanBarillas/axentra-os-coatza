@@ -1,0 +1,10 @@
+{% load static %}
+<aside id="global-sidebar" class="hidden lg:flex lg:w-72 shrink-0 flex-col bg-slate-950 border-r border-slate-900 text-slate-200 select-none overflow-hidden">
+    {% include "navigation/global_sidebar_brand.html" %}
+
+    <div class="flex-1 min-h-0 overflow-hidden">
+        {% include "navigation/global_sidebar_menu.html" %}
+    </div>
+
+    {% include "navigation/global_sidebar_footer.html" %}
+</aside>

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load axentra_ui %}
+
+{% block content %}
+<div class="flex-1 flex flex-col h-full overflow-hidden relative">
+    
+    <div class="h-16 w-full z-40 shrink-0 bg-white border-b border-gray-200/60">
+        {% include "partials/_navbar.html" %}
+    </div>
+
+    <div class="flex-1 flex w-full overflow-hidden relative" id="dynamic-chasis-target">
+        <div class="flex-1 overflow-y-auto bg-slate-50/50 w-full relative flex flex-col justify-between">
+            <main class="flex-1 w-full px-4 sm:px-6 lg:px-10 pt-6 pb-24 lg:pb-8">
+                <div class="max-w-[1600px] w-full mx-auto" id="main-content-target">
+                    {% block fullscreen_content %}{% endblock %}
+                </div>
+            </main>
+            
+            <footer class="w-full shrink-0 border-t border-gray-200/60 bg-white z-10">
+                {% include "partials/_footer.html" %}
+            </footer>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

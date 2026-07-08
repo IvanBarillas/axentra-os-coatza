@@ -1,0 +1,154 @@
+{% load axentra_ui %}
+{% url 'accounts:funcionario_update' funcionario.id as update_url %}
+{% url 'accounts:funcionario_password' funcionario.id as password_url %}
+{% url 'accounts:funcionario_toggle_status' funcionario.id as toggle_status_url %}
+{% url 'accounts:funcionario_delete' funcionario.id as delete_url %}
+
+<div class="w-full max-w-[1200px] mx-auto space-y-5 animate-fade-in font-mono text-left select-none">
+    <!-- HEADER -->
+    <header class="rounded-2xl border border-gray-200/80 bg-white px-5 py-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-start gap-3 min-w-0">
+            <div class="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
+                <i data-lucide="fingerprint" class="h-5 w-5"></i>
+            </div>
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700">Accounts</span>
+                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">Ficha de Identidad</span>
+                </div>
+                <h1 class="mt-2 text-xl font-black text-gray-950 uppercase tracking-tight leading-none">{{ funcionario.full_name|default:funcionario.email|upper }}</h1>
+                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">Expediente maestro, identidad institucional y adscripción laboral</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            {% if request.axentra_is_root or "can_edit_user" in request.axentra_permissions_list %}
+                <a href="{{ update_url }}" hx-get="{{ update_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-wider text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-950 active:scale-95">
+                    <i data-lucide="edit-3" class="h-4 w-4 text-gray-400"></i>
+                    <span>Editar</span>
+                </a>
+            {% endif %}
+            {% if request.axentra_is_root or "can_change_password" in request.axentra_permissions_list %}
+                <a href="{{ password_url }}" hx-get="{{ password_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-gray-900 active:scale-95">
+                    <i data-lucide="key-round" class="h-4 w-4 text-gray-400"></i>
+                    <span>Password</span>
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- RESUMEN IDENTIDAD -->
+    <section class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        <!-- PROFILE CARD -->
+        <article class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm xl:col-span-1">
+            <div class="flex flex-col items-center text-center">
+                <div class="h-20 w-20 rounded-2xl bg-slate-950 text-white flex items-center justify-center text-2xl font-black uppercase shadow-sm">{{ funcionario.email|slice:":1"|upper }}</div>
+                <h2 class="mt-4 text-base font-black uppercase tracking-tight text-gray-950">{{ funcionario.full_name|default:funcionario.email }}</h2>
+                <p class="mt-1 text-[11px] font-bold lowercase tracking-wide text-gray-400">{{ funcionario.email }}</p>
+                
+                <div class="mt-4 flex flex-wrap justify-center gap-2">
+                    {% if funcionario.is_active %}
+                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">Cuenta Activa</span>
+                    {% else %}
+                        <span class="rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700">Cuenta Inactiva</span>
+                    {% endif %}
+
+                    {% if funcionario.is_superuser %}
+                        <span class="rounded-md border border-red-100 bg-red-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-700">Root</span>
+                    {% elif funcionario.is_manager %}
+                        <span class="rounded-md border border-purple-100 bg-purple-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-purple-700">Manager</span>
+                    {% else %}
+                        <span class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-600">Operator</span>
+                    {% endif %}
+                </div>
+
+                {% if request.axentra_is_root or "can_edit_user" in request.axentra_permissions_list %}
+                    <form method="POST" action="{{ toggle_status_url }}" hx-post="{{ toggle_status_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-confirm="{% if funcionario.is_active %}¿Deseas desactivar esta cuenta institucional?{% else %}¿Deseas activar esta cuenta institucional?{% endif %}" class="mt-5 w-full">
+                        {% csrf_token %}
+                        {% if funcionario.is_active %}
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-rose-700 transition hover:bg-rose-100 active:scale-95">
+                                <i data-lucide="user-x" class="h-4 w-4"></i>
+                                <span>Desactivar Cuenta</span>
+                            </button>
+                        {% else %}
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
+                                <i data-lucide="user-check" class="h-4 w-4"></i>
+                                <span>Activar Cuenta</span>
+                            </button>
+                        {% endif %}
+                    </form>
+                {% endif %}
+            </div>
+        </article>
+
+        <!-- DATA GRID -->
+        <article class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm xl:col-span-2">
+            <div class="border-b border-gray-100 pb-3">
+                <h3 class="text-sm font-black uppercase tracking-tight text-gray-950">Datos Generales</h3>
+                <p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Información base del usuario institucional</p>
+            </div>
+            <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Nombre</div>
+                    <div class="mt-1 text-sm font-black text-gray-950">{{ funcionario.first_name|default:"Sin nombre registrado" }}</div>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Apellidos</div>
+                    <div class="mt-1 text-sm font-black text-gray-950">{{ funcionario.last_name|default:"Sin apellidos registrados" }}</div>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Correo Institucional</div>
+                    <div class="mt-1 text-sm font-bold lowercase text-gray-950">{{ funcionario.email }}</div>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Teléfono</div>
+                    <div class="mt-1 text-sm font-bold text-gray-950">{{ funcionario.phone|default:"Sin teléfono registrado" }}</div>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <!-- ADSCRIPCIÓN -->
+    <section class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm">
+        <div class="border-b border-gray-100 pb-3">
+            <h3 class="text-sm font-black uppercase tracking-tight text-gray-950">Adscripción Estructural</h3>
+            <p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Ubicación orgánica dentro de la institución</p>
+        </div>
+        <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
+                <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Puesto</div>
+                <div class="mt-1 text-sm font-black uppercase text-gray-950">{{ perfil.puesto|default:"Sin puesto registrado" }}</div>
+            </div>
+            <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
+                <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Área</div>
+                <div class="mt-1 text-sm font-black uppercase text-gray-950">{{ perfil.area|default:"Sin área asignada" }}</div>
+            </div>
+            <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
+                <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Extensión Oficina</div>
+                <div class="mt-1 text-sm font-black uppercase text-gray-950">{{ perfil.telefono_oficina|default:"Sin extensión" }}</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ZONA CRÍTICA -->
+    {% if request.axentra_is_root or "can_delete_user" in request.axentra_permissions_list %}
+        <section class="rounded-2xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 text-rose-700">
+                        <i data-lucide="shield-alert" class="h-4 w-4"></i>
+                        <h3 class="text-sm font-black uppercase tracking-tight">Zona Crítica</h3>
+                    </div>
+                    <p class="mt-1 text-[10px] font-bold uppercase tracking-wider text-rose-700/70">Las acciones de esta sección alteran el ciclo de vida institucional del funcionario.</p>
+                </div>
+                <form method="POST" action="{{ delete_url }}" hx-post="{{ delete_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-confirm="Confirmar Lockdown: ¿Está seguro de aplicar la baja lógica institucional? Se revocarán todos los accesos.">
+                    {% csrf_token %}
+                    <button type="submit" class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95">
+                        <i data-lucide="trash-2" class="h-4 w-4 text-rose-100"></i>
+                        <span>Aplicar Baja Lógica</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+    {% endif %}
+</div>
