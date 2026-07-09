@@ -5,16 +5,17 @@
     {% if is_global_admin or 'security' in allowed_modules or 'accounts' in allowed_modules or 'organigrama' in allowed_modules %}
     <div class="space-y-1">
         {% include "navigation/module_group.html" with group_id="admin" title="Administración" icon="sliders" %}
-        <div x-show="openMenu === 'admin'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
-            {% if is_global_admin or 'security' in allowed_modules %}
-                {% include "navigation/module_item.html" with title="Ciberseguridad" icon="shield-check" href="#" %}
+        <div x-show="openMenu === 'admin'" x-cloak class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+            {% if is_global_admin or 'organigrama' in allowed_modules %}
+                {% url 'organigrama:sede_list' as organigrama_url %}
+                {% include "navigation/module_item.html" with title="Organización" icon="git-fork" href=organigrama_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
             {% endif %}
             {% if is_global_admin or 'accounts' in allowed_modules %}
                 {% url 'accounts:funcionario_list' as accounts_url %}
                 {% include "navigation/module_item.html" with title="Usuarios" icon="users" href=accounts_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
             {% endif %}
-            {% if is_global_admin or 'organigrama' in allowed_modules %}
-                {% include "navigation/module_item.html" with title="Matriz Orgánica" icon="git-fork" href="#" %}
+            {% if is_global_admin or 'security' in allowed_modules %}
+                {% include "navigation/module_item.html" with title="Ciberseguridad" icon="shield-check" href="#" %}
             {% endif %}
         </div>
     </div>
@@ -24,7 +25,7 @@
     {% if is_global_admin or 'helpdesk' in allowed_modules %}
     <div class="space-y-1">
         {% include "navigation/module_group.html" with group_id="helpdesk" title="Asistencia TI" icon="headset" %}
-        <div x-show="openMenu === 'helpdesk'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+        <div x-show="openMenu === 'helpdesk'" x-cloak class="ml-4 pl-3 border-l border-slate-800 space-y-1">
             {% include "navigation/module_item.html" with title="Mesa de Control" icon="ticket" href="#" %}
         </div>
     </div>
@@ -34,7 +35,7 @@
     {% if is_global_admin or 'assets' in allowed_modules %}
     <div class="space-y-1">
         {% include "navigation/module_group.html" with group_id="assets" title="Infraestructura" icon="package" %}
-        <div x-show="openMenu === 'assets'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+        <div x-show="openMenu === 'assets'" x-cloak class="ml-4 pl-3 border-l border-slate-800 space-y-1">
             {% include "navigation/module_item.html" with title="Padrón Hardware" icon="monitor" href="#" %}
             {% include "navigation/module_item.html" with title="Voz y Extensiones" icon="phone" href="#" %}
             {% include "navigation/module_item.html" with title="Redes Wi-Fi / SSID" icon="wifi" href="#" %}
@@ -45,7 +46,7 @@
     {# TERRITORIO #}
     <div class="space-y-1">
         {% include "navigation/module_group.html" with group_id="territory" title="Territorio" icon="map" %}
-        <div x-show="openMenu === 'territory'" x-collapse class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+        <div x-show="openMenu === 'territory'" x-cloak class="ml-4 pl-3 border-l border-slate-800 space-y-1">
             {% include "navigation/module_item.html" with title="Sedes e Inmuebles" icon="map-pin" href="#" %}
         </div>
     </div>

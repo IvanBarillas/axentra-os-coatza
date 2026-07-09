@@ -14,14 +14,21 @@ from .accounts_views import (
 
 # 🏛️ PILAR 2: TOPOLOGÍA GUBERNAMENTAL (ORGANIGRAMA)
 from .organigrama_views import (
-    organigrama_control_view,     
     organigrama_dashboard_view,   
     estructura_list_view, 
     sede_list_view, 
     sede_create_view, 
     sede_update_view,             
     sede_soft_delete_view,        
-    sede_toggle_status_view, 
+    sede_toggle_status_view,
+    
+    # 🗂️ Expediente Contextual de Sede
+    sede_detail_view,
+    sede_sub_identidad_view,
+    sede_sub_dependencias_view,
+    sede_sub_areas_view,
+    sede_sub_funcionarios_view,
+     
     dependencia_create_view, 
     dependencia_update_view,      
     dependencia_soft_delete_view, 
@@ -59,14 +66,21 @@ __all__ = [
     'funcionario_sub_identidad_view', 'funcionario_sub_hardware_view', 'funcionario_sub_telefonia_view',
     
     # Organigrama
-    'organigrama_control_view',
     'organigrama_dashboard_view',
     'estructura_list_view', 
     'sede_list_view', 
     'sede_create_view', 
     'sede_update_view',
     'sede_soft_delete_view',
-    'sede_toggle_status_view', 
+    'sede_toggle_status_view',
+    
+    # 🗂️ Expediente Contextual de Sede
+    'sede_detail_view',
+    'sede_sub_identidad_view',
+    'sede_sub_dependencias_view',
+    'sede_sub_areas_view',
+    'sede_sub_funcionarios_view',
+     
     'dependencia_create_view', 
     'dependencia_update_view',
     'dependencia_soft_delete_view',

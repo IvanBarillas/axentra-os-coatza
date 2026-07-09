@@ -114,3 +114,30 @@ class OrganigramaPermissions:
         ["git-fork", "Dependencias y áreas", "organigrama:estructura_list", 3, "has_access_module"],
         ["bar-chart-3", "Dashboard Analítico", "organigrama:dashboard", 4, "can_view_analytics"],
     ]
+    
+    SEDE_DETAIL_MENU = [
+        {
+            "icon": "fingerprint", "title": "Ficha de Sede", "url_name": "organigrama:sede_sub_identidad",
+            "order": 1, "permission": "can_manage_infrastructure", "provider": "organigrama", "stub": False,
+        },
+        {
+            "icon": "building-2", "title": "Dependencias Presentes", "url_name": "organigrama:sede_sub_dependencias",
+            "order": 2, "permission": "can_manage_infrastructure", "provider": "organigrama", "stub": False,
+        },
+        {
+            "icon": "layout-grid", "title": "Áreas Operativas", "url_name": "organigrama:sede_sub_areas",
+            "order": 3, "permission": "can_manage_infrastructure", "provider": "organigrama", "stub": False,
+        },
+        {
+            "icon": "users", "title": "Funcionarios en Sede", "url_name": "organigrama:sede_sub_funcionarios",
+            "order": 4, "permission": "can_manage_infrastructure", "provider": "accounts", "stub": False,
+        },
+        {
+            "icon": "package", "title": "Activos Instalados", "url_name": "#",
+            "order": 5, "permission": "can_manage_infrastructure", "provider": "assets", "stub": True,
+        },
+        {
+            "icon": "ticket", "title": "Tickets de Sede", "url_name": "#",
+            "order": 6, "permission": "can_manage_infrastructure", "provider": "helpdesk", "stub": True,
+        },
+    ]

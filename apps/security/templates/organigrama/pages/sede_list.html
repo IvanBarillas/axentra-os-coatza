@@ -1,0 +1,9 @@
+{% extends "shell/workbench.html" %}
+
+{% block title %}
+Sedes e Inmuebles | {{ tenant.app_name }}
+{% endblock %}
+
+{% block page_content %}
+    {% include "organigrama/content/sede_list_content.html" %}
+{% endblock %}

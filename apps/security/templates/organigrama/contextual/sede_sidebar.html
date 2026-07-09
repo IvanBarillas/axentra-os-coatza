@@ -1,0 +1,102 @@
+<aside class="w-full h-full flex flex-col bg-white">
+
+    <div class="p-5 border-b border-gray-100">
+        <div class="flex items-start gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+            </div>
+
+            <div class="min-w-0">
+                <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    Expediente de Sede
+                </p>
+                <h2 class="text-sm font-black text-gray-950 leading-tight truncate">
+                    {{ sede.nombre }}
+                </h2>
+                <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide truncate">
+                    {{ sede.direccion|default:"Dirección no registrada" }}
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2">
+            <div class="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                <div class="text-[9px] uppercase font-black tracking-widest text-gray-400 font-mono">
+                    Estado
+                </div>
+                <div class="mt-1 text-[11px] font-black uppercase font-mono {% if sede.is_active %}text-emerald-700{% else %}text-rose-700{% endif %}">
+                    {% if sede.is_active %}Activa{% else %}Inactiva{% endif %}
+                </div>
+            </div>
+
+            <div class="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                <div class="text-[9px] uppercase font-black tracking-widest text-gray-400 font-mono">
+                    Áreas
+                </div>
+                <div class="mt-1 text-[11px] font-black uppercase font-mono text-gray-950">
+                    {{ areas|length }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto p-3 space-y-1">
+        {% for item in detail_menu %}
+            {% if item.stub %}
+                <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-400 bg-gray-50/60 border border-dashed border-gray-200 cursor-not-allowed">
+                    <i data-lucide="{{ item.icon }}" class="w-4 h-4 shrink-0"></i>
+                    <span class="truncate flex-1 text-[11px] font-black uppercase tracking-wider font-mono">
+                        {{ item.title }}
+                    </span>
+                    <span class="text-[8px] font-black uppercase tracking-widest bg-white border border-gray-200 rounded px-1.5 py-0.5">
+                        Stub
+                    </span>
+                </div>
+            {% else %}
+                <a
+                    href="{{ item.href }}"
+                    hx-get="{{ item.href }}"
+                    hx-target="#page-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition group {% if item.active %}bg-gray-950 text-white{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-950{% endif %}"
+                >
+                    <i data-lucide="{{ item.icon }}" class="w-4 h-4 shrink-0 {% if item.active %}text-white{% else %}text-gray-400 group-hover:text-gray-700{% endif %}"></i>
+                    <span class="truncate flex-1 text-[11px] font-black uppercase tracking-wider font-mono">
+                        {{ item.title }}
+                    </span>
+                </a>
+            {% endif %}
+
+            {% if item.provider and item.provider != "organigrama" %}
+                <div class="pl-9 pr-2 -mt-0.5 mb-1">
+                    <span class="text-[8px] font-black uppercase tracking-widest text-gray-300 font-mono">
+                        provider::{{ item.provider }}
+                    </span>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </nav>
+
+    <div class="p-3 border-t border-gray-100">
+        {% url 'organigrama:sede_list' as sede_list_url %}
+        <a
+            href="{{ sede_list_url }}"
+            hx-get="{{ sede_list_url }}"
+            hx-target="#workbench"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition font-mono"
+        >
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Volver a Sedes
+        </a>
+    </div>
+
+</aside>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+</script>

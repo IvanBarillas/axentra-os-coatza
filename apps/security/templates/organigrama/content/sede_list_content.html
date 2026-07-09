@@ -1,0 +1,100 @@
+{% load axentra_ui %}
+
+<div class="w-full space-y-5 animate-fade-in select-none">
+
+    <section class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden">
+
+        <div class="px-5 sm:px-6 lg:px-7 py-5 border-b border-gray-100 bg-linear-to-r from-amber-50/40 via-white to-white">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+                <div class="min-w-0">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700 font-mono">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                        Territorio Municipal
+                    </div>
+
+                    <h1 class="mt-3 text-xl sm:text-2xl lg:text-3xl font-black text-gray-950 tracking-tight">
+                        Sedes e Inmuebles
+                    </h1>
+
+                    <p class="mt-1 max-w-3xl text-sm text-gray-500 leading-relaxed">
+                        Control físico, administrativo y geográfico de palacios municipales, anexos corporativos y módulos de atención.
+                    </p>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    {% url 'organigrama:estructura_list' as estructura_url %}
+                    <a
+                        href="{{ estructura_url }}"
+                        hx-get="{{ estructura_url }}"
+                        hx-target="#workbench"
+                        hx-swap="innerHTML"
+                        hx-push-url="true"
+                        class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition font-mono"
+                    >
+                        <i data-lucide="git-fork" class="w-4 h-4"></i>
+                        Estructura
+                    </a>
+
+                    {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list or "organigrama__can_manage_infrastructure" in request.axentra_permissions_list %}
+                        <a
+                            href="{% url 'organigrama:sede_create' %}"
+                            hx-get="{% url 'organigrama:sede_create' %}"
+                            hx-target="#page-content"
+                            hx-swap="innerHTML"
+                            hx-push-url="true"
+                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:bg-gray-900 transition font-mono shadow-sm active:scale-95"
+                        >
+                            <i data-lucide="plus" class="w-4 h-4 text-gray-400"></i>
+                            Registrar Sede
+                        </a>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+
+        <div class="px-5 sm:px-6 lg:px-7 py-4 bg-white">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                        Total Sedes
+                    </div>
+                    <div class="mt-1 text-2xl font-black text-gray-950 font-mono">
+                        {{ sedes|length }}
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                        Módulo
+                    </div>
+                    <div class="mt-1 text-sm font-black text-gray-950 uppercase font-mono">
+                        Organigrama
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                        Vista
+                    </div>
+                    <div class="mt-1 text-sm font-black text-gray-950 uppercase font-mono">
+                        Inventario físico
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <section id="sede-results">
+        {% include "organigrama/htmx/sede_cards.html" %}
+    </section>
+
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+</script>

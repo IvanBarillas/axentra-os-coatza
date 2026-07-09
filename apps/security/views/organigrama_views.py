@@ -11,6 +11,8 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.db import transaction
 
+from apps.security.models.accounts import UserProfile
+from apps.security.permissions import OrganigramaPermissions
 from apps.shared.apps_config import AppIdentifier
 from apps.security.decorators import axentra_gate_enforcer
 from apps.security.models.organigrama import Sede, Dependencia, AreaOperativa
@@ -28,11 +30,6 @@ logger = logging.getLogger(__name__)
 # 📊 PILAR 1: CUADROS DE MANDO Y REJILLAS PRINCIPALES (ANALYTICS & CONTROL)
 # =========================================================================
 
-@login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
-def organigrama_control_view(request):
-    """Panel Administrativo General: Enrutador táctico de alta velocidad sin carga analítica."""
-    return render(request, 'organigrama/control_panel.html')
 
 
 @login_required
@@ -127,71 +124,150 @@ def estructura_list_view(request):
 # =========================================================================
 # 🏛️ PILAR 2: GESTIÓN GEOGRÁFICA (SEDES E INMUEBLES MUNICIPALES)
 # =========================================================================
-
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_list_view(request):
     """Inventario geográfico físico de palacios y anexos municipales."""
-    return render(request, 'organigrama/sede_list.html', {'sedes': SedeSelectors.listar_todas()})
 
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    sedes = SedeSelectors.listar_todas()
+
+    context = {
+        "sedes": sedes,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": False,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(request, "organigrama/workbench/sede_list_workbench.html", context)
+
+    if is_htmx and target_htmx == "page-content":
+        return render(request, "organigrama/content/sede_list_content.html", context)
+
+    if is_htmx and target_htmx == "sede-results":
+        return render(request, "organigrama/htmx/sede_cards.html", context)
+
+    return render(request, "organigrama/pages/sede_list.html", context)
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_create_view(request):
     """Aprovisionamiento de nuevos inmuebles institucionales."""
-    if request.method == 'POST':
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    if request.method == "POST":
         form = SedeForm(request.POST)
+        
         if form.is_valid():
             exito, sede, errores = OrganigramaService.crear_sede(request, form.cleaned_data)
-            if exito: return redirect('organigrama:sede_list')
-            form.add_error(None, errores.get('server_error', ['Error de persistencia'])[0])
+            
+            if exito:
+                if is_htmx:
+                    context_list = {
+                        "sedes": SedeSelectors.listar_todas(),
+                        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+                        "show_module_sidebar": False,
+                    }
+                    response = render(request, "organigrama/content/sede_list_content.html", context_list)
+                    response["HX-Push-Url"] = reverse("organigrama:sede_list")
+                    return response
+                return redirect("organigrama:sede_list")
+                
+            form.add_error(None, errores.get("server_error", ["Error de persistencia"])[0])
     else:
         form = SedeForm()
-    return render(request, 'organigrama/forms/sede_form.html', {'form': form, 'action': 'create'})
 
+    context = {
+        "form": form,
+        "action": "create",
+        "sede": None,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": False,
+    }
+
+    if is_htmx and target_htmx == "page-content":
+        return render(request, "organigrama/content/sede_form_content.html", context)
+
+    return render(request, "organigrama/pages/sede_form.html", context)
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_update_view(request, pk: uuid.UUID):
     """Modificación de metadatos geográficos de un inmueble."""
-    sede_instancia = get_object_or_404(Sede, pk=pk)
-    if request.method == 'POST':
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    sede_instancia = get_object_or_404(Sede, pk=pk, is_deleted=False)
+
+    if request.method == "POST":
         form = SedeForm(request.POST, instance=sede_instancia)
+        
         if form.is_valid():
             exito, errores = OrganigramaService.actualizar_sede(request, sede_instancia, form.cleaned_data)
-            if exito: return redirect('organigrama:sede_list')
-            form.add_error(None, errores.get('server_error', ['Fallo de actualización'])[0])
+            
+            if exito:
+                if is_htmx:
+                    context_list = {
+                        "sedes": SedeSelectors.listar_todas(),
+                        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+                        "show_module_sidebar": False,
+                    }
+                    response = render(request, "organigrama/content/sede_list_content.html", context_list)
+                    response["HX-Push-Url"] = reverse("organigrama:sede_list")
+                    return response
+                return redirect("organigrama:sede_list")
+                
+            form.add_error(None, errores.get("server_error", ["Fallo de actualización"])[0])
     else:
         form = SedeForm(instance=sede_instancia)
-    return render(request, 'organigrama/forms/sede_form.html', {'form': form, 'action': 'update', 'sede': sede_instancia})
 
+    context = {
+        "form": form,
+        "action": "update",
+        "sede": sede_instancia,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": False,
+    }
+
+    if is_htmx and target_htmx == "page-content":
+        return render(request, "organigrama/content/sede_form_content.html", context)
+
+    return render(request, "organigrama/pages/sede_form.html", context)
 
 @require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_soft_delete_view(request, pk: uuid.UUID):
-    """Baja lógica asíncrona de una sede física mitigando redirecciones de página."""
-    sede_instancia = get_object_or_404(Sede, pk=pk)
-    OrganigramaService.eliminar_sede(request, sede_instancia)
+    """Baja lógica asíncrona de una sede física."""
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    sede_instancia = get_object_or_404(Sede, pk=pk, is_deleted=False)
     
-    if request.headers.get('HX-Request'):
+    OrganigramaService.eliminar_sede(request, sede_instancia)
+
+    if is_htmx:
         return HttpResponse(status=200, content="")
-    return redirect('organigrama:sede_list')
+
+    return redirect("organigrama:sede_list")
 
 
 @require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_toggle_status_view(request, pk: uuid.UUID):
-    """Alternador AJAX de estatus operativo de Sedes físicas con registro forense manual."""
-    sede = get_object_or_404(Sede, pk=pk)
+    """Alternador HTMX de estatus operativo de sedes físicas."""
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    sede = get_object_or_404(Sede, pk=pk, is_deleted=False)
     estado_anterior = sede.is_active
-    
+
     with transaction.atomic():
         sede.is_active = not sede.is_active
-        sede.save()
-        
-    # 🪐 AUDITORÍA MANUAL DE INTERRUPTOR DIRECTO
+        sede.save(update_fields=["is_active", "updated_at"])
+
     ForensicAuditor.registrar_evento(
         request=request,
         action_type=SecurityAuditLog.ActionTypes.UPDATE,
@@ -199,16 +275,162 @@ def sede_toggle_status_view(request, pk: uuid.UUID):
         action_name="TOGGLE_STATUS_SEDE_FISICA",
         target_scope=f"Actualización del estado operativo para el inmueble {sede.nombre} (Activo final: {sede.is_active}).",
         level=SecurityAuditLog.Levels.INFO,
-        search_target=sede.id,
-        payload={'anterior': estado_anterior, 'nuevo': sede.is_active}
+        search_target=str(sede.id),
+        payload={
+            "anterior": estado_anterior,
+            "nuevo": sede.is_active,
+            "sede_id": str(sede.id),
+            "sede_nombre": sede.nombre,
+        },
     )
-    
-    return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
-        'is_active': sede.is_active,
-        'toggle_url': reverse('organigrama:sede_toggle_status', args=[sede.id])
+
+    if is_htmx:
+        context = {
+            "is_active": sede.is_active,
+            "toggle_url": reverse("organigrama:sede_toggle_status", args=[sede.id]),
+        }
+        return render(request, "common/tags/badge_toggle_activo_inactivo.html", context)
+
+    return redirect("organigrama:sede_list")
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def sede_detail_view(request, pk: uuid.UUID):
+    """Expediente contextual de una sede física."""
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    sede = get_object_or_404(
+        Sede.objects.prefetch_related("areas__dependencia"),
+        pk=pk,
+        is_deleted=False,
+    )
+
+    raw_menu = OrganigramaPermissions.SEDE_DETAIL_MENU
+    detail_menu = []
+
+    current_sub_view = request.GET.get(
+        "sub_view",
+        "organigrama:sede_sub_identidad",
+    )
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+        tiene_permiso = (
+            request.axentra_is_root
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+        if url_name != "#":
+            href = reverse(url_name, args=[sede.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
+    areas = sede.areas.filter(is_deleted=False).select_related("dependencia").order_by("nombre")
+
+    context = {
+        "sede": sede,
+        "areas": areas,
+        "detail_menu": detail_menu,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(request, "organigrama/workbench/sede_detail_workbench.html", context)
+
+    return render(request, "organigrama/pages/sede_detail.html", context)
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def sede_sub_identidad_view(request, pk: uuid.UUID):
+    sede = get_object_or_404(Sede, pk=pk, is_deleted=False)
+    areas = sede.areas.filter(is_deleted=False).select_related("dependencia").order_by("nombre")
+
+    return render(request, "organigrama/contextual/partials/sede_identidad.html", {
+        "sede": sede,
+        "areas": areas,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
     })
 
 
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def sede_sub_dependencias_view(request, pk: uuid.UUID):
+    sede = get_object_or_404(Sede, pk=pk, is_deleted=False)
+
+    dependencias = (
+        Dependencia.objects
+        .filter(areas__sede_fisica=sede, is_deleted=False)
+        .distinct()
+        .order_by("nombre")
+    )
+
+    return render(request, "organigrama/contextual/partials/sede_dependencias.html", {
+        "sede": sede,
+        "dependencias": dependencias,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+    })
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def sede_sub_areas_view(request, pk: uuid.UUID):
+    sede = get_object_or_404(Sede, pk=pk, is_deleted=False)
+
+    areas = (
+        AreaOperativa.objects
+        .filter(sede_fisica=sede, is_deleted=False)
+        .select_related("dependencia")
+        .order_by("dependencia__nombre", "nombre")
+    )
+
+    return render(request, "organigrama/contextual/partials/sede_areas.html", {
+        "sede": sede,
+        "areas": areas,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+    })
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def sede_sub_funcionarios_view(request, pk: uuid.UUID):
+    sede = get_object_or_404(Sede, pk=pk, is_deleted=False)
+
+    funcionarios = (
+        UserProfile.objects
+        .filter(area__sede_fisica=sede, user__is_deleted=False)
+        .select_related("user", "area", "area__dependencia")
+        .order_by("user__first_name", "user__last_name")
+    )
+
+    return render(request, "organigrama/contextual/partials/sede_funcionarios.html", {
+        "sede": sede,
+        "funcionarios": funcionarios,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+    })
+    
 # =========================================================================
 # 🏛️ PILAR 3: RAMOS ESTRUCTURALES (DEPENDENCIAS / DIRECCIONES GENERALES)
 # =========================================================================

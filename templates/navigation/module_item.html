@@ -1,59 +1,19 @@
 {# templates/navigation/module_item.html #}
 
-<a
-    href="{{ href|default:'#' }}"
-
+<a href="{{ href|default:'#' }}"
     {% if hx_target %}
         hx-get="{{ href }}"
         hx-target="{{ hx_target }}"
         hx-swap="{{ hx_swap|default:'innerHTML' }}"
     {% endif %}
-
     {% if hx_push_url %}
         hx-push-url="{{ hx_push_url }}"
     {% endif %}
-
-    class="
-        flex
-        items-center
-        gap-2.5
-        px-3
-        py-2
-        rounded-lg
-        text-[11px]
-        font-bold
-        uppercase
-        tracking-tight
-        transition-all
-        group
-        border
-        border-transparent
-
-        {% if active %}
-            bg-slate-900
-            text-indigo-400
-        {% else %}
-            text-slate-400
-            hover:bg-slate-900
-            hover:text-indigo-400
-        {% endif %}
-    "
+    class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-tight transition-all group border border-transparent {% if active %}bg-slate-900 text-indigo-400{% else %}text-slate-400 hover:bg-slate-900 hover:text-indigo-400{% endif %}"
 >
-    <i
-        data-lucide="{{ icon|default:'circle' }}"
-        class="
-            w-3.5
-            h-3.5
-            shrink-0
-
-            {% if active %}
-                text-indigo-400
-            {% else %}
-                text-slate-500
-                group-hover:text-indigo-400
-            {% endif %}
-        "
-    ></i>
+    <i data-lucide="{{ icon|default:'circle' }}"
+       class="w-3.5 h-3.5 shrink-0 {% if active %}text-indigo-400{% else %}text-slate-500 group-hover:text-indigo-400{% endif %}">
+    </i>
 
     <span class="truncate">
         {{ title }}

@@ -2,7 +2,6 @@
 
 <!DOCTYPE html>
 <html lang="es" class="h-full scroll-smooth bg-gray-50 text-[14px] md:text-[15px] lg:text-[16px]">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,7 +11,6 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap');
-
         @theme {
             --ax-primary: #0a192f;
             --ax-secondary: #1e3a8a;
@@ -22,176 +20,92 @@
             --ax-danger: #dc2626;
             --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
         }
-
-        [x-cloak] {
-            display: none !important;
-        }
-
-        .animate-fade-in {
-            animation: fadeIn .25s ease;
-        }
-
+        [x-cloak] { display: none !important; }
+        .animate-fade-in { animation: fadeIn .25s ease; }
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(2px);
-            }
-
-            to {
-                opacity: 1;
-                transform: none;
-            }
+            from { opacity: 0; transform: translateY(2px); }
+            to { opacity: 1; transform: none; }
         }
     </style>
-
     {% block extra_css %}{% endblock %}
 </head>
 
-<body
-    class="h-full bg-gray-50 font-sans antialiased"
-    hx-headers='{"X-CSRFToken":"{{ csrf_token }}"}'
-    x-data="axentraConfirmModal()"
-    @keydown.escape.window="closeConfirm()"
+<body class="h-full bg-gray-50 font-sans antialiased"
+      hx-headers='{"X-CSRFToken":"{{ csrf_token }}"}'
+      x-data="axentraConfirmModal()"
+      @keydown.escape.window="closeConfirm()"
 >
-
-    <!-- ===================================================== -->
-    <!-- APP SHELL                                            -->
-    <!-- ===================================================== -->
-
     <div id="app-shell" class="flex h-screen overflow-hidden">
-
         {% include "navigation/global_sidebar.html" %}
 
         <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
-
             {% include "partials/navbar.html" %}
 
             <main id="workbench" class="flex-1 overflow-hidden">
                 {% block workbench %}{% endblock %}
             </main>
-
         </div>
-
     </div>
-
-    <!-- ===================================================== -->
-    <!-- GLOBAL ROOTS                                         -->
-    <!-- ===================================================== -->
 
     <div id="modal-root"></div>
     <div id="drawer-root"></div>
     <div id="toast-root"></div>
     <div id="overlay-root"></div>
 
-    <!-- ===================================================== -->
-    <!-- AXENTRA CONFIRM MODAL                                -->
-    <!-- ===================================================== -->
-
-    <div
-        x-show="confirmOpen"
-        x-cloak
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs font-mono text-[11px]"
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
+    <div x-show="confirmOpen"
+         x-cloak
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs font-mono text-[11px]"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
     >
-
-        <div
-            @click.away="closeConfirm()"
-            class="bg-white rounded-[24px] border border-gray-200 shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-6"
-        >
-
+        <div @click.away="closeConfirm()" class="bg-white rounded-[24px] border border-gray-200 shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-6">
             <div class="flex items-start gap-4">
-
-                <div
-                    class="p-3 rounded-2xl shrink-0"
-                    :class="confirmIconBg"
-                >
-                    <i
-                        :data-lucide="confirmIcon"
-                        class="w-5 h-5"
-                        :class="confirmIconColor"
-                    ></i>
+                <div class="p-3 rounded-2xl shrink-0" :class="confirmIconBg">
+                    <i :data-lucide="confirmIcon" class="w-5 h-5" :class="confirmIconColor"></i>
                 </div>
 
                 <div class="space-y-1 min-w-0">
-
-                    <h3
-                        class="text-sm font-black text-gray-950 uppercase tracking-tight"
-                        x-text="confirmTitle"
-                    ></h3>
-
-                    <p
-                        class="text-gray-400 font-bold uppercase text-[10px] tracking-wide mt-1 leading-relaxed"
-                        x-text="confirmText"
-                    ></p>
-
+                    <h3 class="text-sm font-black text-gray-950 uppercase tracking-tight" x-text="confirmTitle"></h3>
+                    <p class="text-gray-400 font-bold uppercase text-[10px] tracking-wide mt-1 leading-relaxed" x-text="confirmText"></p>
                 </div>
-
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
-
-                <button
-                    @click="closeConfirm()"
-                    type="button"
-                    class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-black py-2.5 px-4 rounded-xl uppercase tracking-wider transition cursor-pointer"
-                >
+                <button @click="closeConfirm()" type="button" class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-black py-2.5 px-4 rounded-xl uppercase tracking-wider transition cursor-pointer">
                     <span x-text="confirmCancelText"></span>
                 </button>
-
-                <button
-                    @click="executeConfirm()"
-                    type="button"
-                    class="font-black py-2.5 px-4 rounded-xl uppercase tracking-wider transition cursor-pointer shadow-sm"
-                    :class="confirmButtonClass"
-                >
+                <button @click="executeConfirm()" type="button" class="font-black py-2.5 px-4 rounded-xl uppercase tracking-wider transition cursor-pointer shadow-sm" :class="confirmButtonClass">
                     <span x-text="confirmActionText"></span>
                 </button>
-
             </div>
-
         </div>
-
     </div>
-
-    <!-- ===================================================== -->
-    <!-- VENDOR SCRIPTS                                       -->
-    <!-- ===================================================== -->
 
     <script src="{% static 'js/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/alpine.min.js' %}" defer></script>
     <script src="{% static 'js/lucide.min.js' %}"></script>
     <script src="{% static 'js/chart.umd.js' %}" defer></script>
 
-    <!-- ===================================================== -->
-    <!-- AXENTRA GLOBAL JS                                    -->
-    <!-- ===================================================== -->
-
     <script>
         function bootIcons() {
-            if (window.lucide) {
-                lucide.createIcons();
-            }
+            if (window.lucide) { lucide.createIcons(); }
         }
 
         function axentraConfirmModal() {
             return {
                 confirmOpen: false,
-
                 confirmTitle: "Confirmar acción",
                 confirmText: "¿Deseas continuar?",
                 confirmIcon: "shield-alert",
                 confirmIconBg: "bg-amber-50",
                 confirmIconColor: "text-amber-700",
                 confirmButtonClass: "bg-gray-950 hover:bg-gray-900 text-white",
-
                 confirmActionText: "Confirmar",
                 confirmCancelText: "Cancelar",
-
                 pendingConfirmRequest: null,
 
                 openConfirm(payload) {
@@ -204,53 +118,35 @@
                     this.confirmActionText = payload.actionText || "Confirmar";
                     this.confirmCancelText = payload.cancelText || "Cancelar";
                     this.pendingConfirmRequest = payload.issueRequest || null;
-
                     this.confirmOpen = true;
 
-                    this.$nextTick(() => {
-                        bootIcons();
-                    });
+                    this.$nextTick(() => { bootIcons(); });
                 },
-
                 closeConfirm() {
                     this.confirmOpen = false;
                     this.pendingConfirmRequest = null;
                 },
-
                 executeConfirm() {
-                    if (this.pendingConfirmRequest) {
-                        this.pendingConfirmRequest(true);
-                    }
-
+                    if (this.pendingConfirmRequest) { this.pendingConfirmRequest(true); }
                     this.closeConfirm();
                 }
             }
         }
 
         document.addEventListener("DOMContentLoaded", bootIcons);
-
         document.body.addEventListener("htmx:afterSwap", bootIcons);
         document.body.addEventListener("htmx:historyRestore", bootIcons);
 
         // HTMX GLOBAL EVENTS
-        document.body.addEventListener("htmx:beforeRequest", function () {
-            document.body.classList.add("cursor-progress");
-        });
-
-        document.body.addEventListener("htmx:afterRequest", function () {
-            document.body.classList.remove("cursor-progress");
-        });
+        document.body.addEventListener("htmx:beforeRequest", function () { document.body.classList.add("cursor-progress"); });
+        document.body.addEventListener("htmx:afterRequest", function () { document.body.classList.remove("cursor-progress"); });
 
         // AXENTRA CONFIRM MODAL OVER HTMX
         document.body.addEventListener("htmx:confirm", function (event) {
-            if (!event.detail.question) {
-                return;
-            }
-
+            if (!event.detail.question) { return; }
             event.preventDefault();
 
             const element = event.detail.elt;
-
             window.dispatchEvent(new CustomEvent("axentra:confirm", {
                 detail: {
                     title: element.getAttribute("data-confirm-title") || "Confirmar acción",
@@ -267,23 +163,14 @@
         });
 
         window.addEventListener("axentra:confirm", function (event) {
-            if (
-                document.body._x_dataStack &&
-                document.body._x_dataStack.length > 0 &&
-                document.body._x_dataStack[0].openConfirm
-            ) {
+            if (document.body._x_dataStack && document.body._x_dataStack.length > 0 && document.body._x_dataStack[0].openConfirm) {
                 document.body._x_dataStack[0].openConfirm(event.detail);
             }
         });
 
-        // APPLICATION EVENTS
-        document.body.addEventListener("moduleChanged", function (e) {
-            console.log("Module:", e.detail);
-        });
+        document.body.addEventListener("moduleChanged", function (e) { console.log("Module:", e.detail); });
     </script>
 
     {% block extra_js %}{% endblock %}
-
 </body>
-
 </html>

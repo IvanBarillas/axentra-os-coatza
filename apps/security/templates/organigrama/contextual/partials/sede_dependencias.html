@@ -1,0 +1,32 @@
+<div class="w-full space-y-5 animate-fade-in">
+    <section class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs p-5 sm:p-6 lg:p-7">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-10 h-10 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500">
+                <i data-lucide="building-2" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">Sede</p>
+                <h2 class="text-lg font-black text-gray-950">Dependencias presentes en {{ sede.nombre }}</h2>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            {% for dependencia in dependencias %}
+                <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-black text-gray-950">{{ dependencia.nombre }}</p>
+                        <p class="text-[10px] font-mono uppercase tracking-widest text-gray-400">{{ dependencia.slug }}</p>
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-sm text-gray-400">No hay dependencias registradas en esta sede.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+</script>
