@@ -1,0 +1,178 @@
+{% load axentra_ui %}
+
+<div class="w-full space-y-6 animate-fade-in select-none" x-data="{ dependenciaSeleccionada: null, buscarQuery: '' }">
+
+    <section class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden">
+        <div class="px-5 sm:px-6 lg:px-7 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50/40 via-white to-white">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 font-mono">
+                        <i data-lucide="git-fork" class="w-3.5 h-3.5"></i> Administración Central
+                    </div>
+                    <h1 class="mt-3 text-xl sm:text-2xl lg:text-3xl font-black text-gray-950 tracking-tight">Estructura Orgánica</h1>
+                    <p class="mt-1 max-w-3xl text-sm text-gray-500 leading-relaxed">
+                        Mesa maestra para construir sedes físicas, dependencias administrativas y áreas operativas del Ayuntamiento.
+                    </p>
+                </div>
+
+                {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list or "organigrama__can_manage_infrastructure" in request.axentra_permissions_list %}
+                    <div class="flex flex-col sm:flex-row gap-2 sm:items-center font-mono text-[10px]">
+                        <a href="{% url 'organigrama:sede_create' %}" hx-get="{% url 'organigrama:sede_create' %}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-3 font-black uppercase tracking-widest text-white hover:bg-gray-900 transition shadow-sm active:scale-95">
+                            <i data-lucide="map-pin" class="w-4 h-4 text-gray-400"></i> Registrar Sede
+                        </a>
+                        <a href="{% url 'organigrama:dependencia_create' %}" hx-get="{% url 'organigrama:dependencia_create' %}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 font-black uppercase tracking-widest text-gray-600 hover:text-gray-950 hover:border-gray-300 transition">
+                            <i data-lucide="building-2" class="w-4 h-4 text-gray-400"></i> Registrar Dependencia
+                        </a>
+                        <a href="{% url 'organigrama:area_create' %}" hx-get="{% url 'organigrama:area_create' %}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 transition">
+                            <i data-lucide="layout-grid" class="w-4 h-4 text-indigo-500"></i> Registrar Área
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="px-5 sm:px-6 lg:px-7 py-4 bg-white">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <a href="{% url 'organigrama:sede_list' %}" hx-get="{% url 'organigrama:sede_list' %}" hx-target="#workbench" hx-swap="innerHTML" hx-push-url="true" class="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 hover:bg-white hover:border-indigo-300 hover:shadow-sm transition group">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700 font-mono">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Sedes Físicas
+                            </div>
+                            <div class="mt-1 text-2xl font-black text-gray-950 font-mono">{{ total_sedes }}</div>
+                            <p class="mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide font-mono">Ver inventario territorial</p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-white border border-indigo-100 flex items-center justify-center text-indigo-500 group-hover:text-indigo-700 group-hover:border-indigo-300 transition shrink-0">
+                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="#contenedor-dependencias" class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 hover:bg-white hover:border-gray-300 hover:shadow-sm transition group">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-gray-700 font-mono">
+                                <i data-lucide="building-2" class="w-3.5 h-3.5"></i> Dependencias
+                            </div>
+                            <div class="mt-1 text-2xl font-black text-gray-950 font-mono">{{ total_dependencias }}</div>
+                            <p class="mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide font-mono">Ver direcciones y unidades</p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-gray-700 group-hover:border-gray-300 transition shrink-0">
+                            <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="#contenedor-areas" class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 hover:bg-white hover:border-indigo-200 hover:shadow-sm transition group">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-indigo-700 font-mono">
+                                <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Áreas Operativas
+                            </div>
+                            <div class="mt-1 text-2xl font-black text-gray-950 font-mono">{{ total_areas }}</div>
+                            <p class="mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide font-mono">Ver oficinas por dependencia</p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-indigo-700 group-hover:border-indigo-300 transition shrink-0">
+                            <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="mt-4 flex flex-col sm:flex-row gap-2 font-mono text-[10px]">
+                <a href="{% url 'organigrama:sede_list' %}" hx-get="{% url 'organigrama:sede_list' %}" hx-target="#workbench" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 transition">
+                    <i data-lucide="map" class="w-4 h-4"></i> Ver Sedes
+                </a>
+                <a href="#contenedor-dependencias" class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition">
+                    <i data-lucide="building-2" class="w-4 h-4"></i> Ver Dependencias
+                </a>
+                <a href="#contenedor-areas" class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i> Ver Áreas
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
+
+        <div id="contenedor-dependencias" class="lg:col-span-5 bg-white rounded-[28px] border border-gray-200/80 shadow-3xs p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-[0.15em] font-mono px-1">Dependencias</h3>
+                <span class="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono">{{ total_dependencias }} Nodos</span>
+            </div>
+
+            <div class="relative w-full font-mono text-[11px]">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                </span>
+                <input type="text" x-model="buscarQuery" placeholder="Filtrar dependencia..." class="w-full bg-gray-50 text-gray-900 placeholder-gray-400 border border-gray-200/80 rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:border-gray-950 focus:bg-white transition uppercase tracking-wide">
+                <span x-show="buscarQuery.length > 0" @click="buscarQuery = ''" class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-gray-400 hover:text-gray-950" x-cloak>
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </span>
+            </div>
+
+            <div class="max-h-[600px] overflow-y-auto pr-2 space-y-2">
+                {% for dep in dependencias %}
+                    <div id="dependencia-node-{{ dep.id }}" class="w-full p-4 rounded-2xl transition-all duration-200 flex items-center justify-between border" x-show="buscarQuery === '' || '{{ dep.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase()) || '{{ dep.slug }}'.toUpperCase().includes(buscarQuery.toUpperCase())" :class="dependenciaSeleccionada === '{{ dep.id }}' ? 'bg-gray-950 border-gray-900 shadow-sm' : 'bg-white border-gray-100 hover:bg-gray-50/50'">
+                        <div hx-get="{% url 'organigrama:estructura_areas_ajax' dep.id %}" hx-target="#contenedor-areas" hx-indicator="#loading-indicator" @click="dependenciaSeleccionada = '{{ dep.id }}'" class="min-w-0 pr-4 cursor-pointer flex-grow select-none">
+                            <div class="font-black text-sm tracking-tight font-mono uppercase truncate" :class="dependenciaSeleccionada === '{{ dep.id }}' ? 'text-white' : 'text-indigo-600 hover:text-indigo-800'">
+                                {{ dep.nombre }}
+                            </div>
+                            <div class="text-[10px] font-mono mt-1 uppercase tracking-wider flex items-center gap-2">
+                                <span class="font-bold bg-gray-50 border border-gray-200 px-1 py-0.5 rounded text-gray-600">{{ dep.slug }}</span>
+                                {% if dep.encargado_departamento_name %}
+                                    <span class="text-gray-300">•</span>
+                                    <span class="truncate" :class="dependenciaSeleccionada === '{{ dep.id }}' ? 'text-gray-400' : 'text-gray-500'">{{ dep.encargado_departamento_name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0" @click.stop>
+                            {% url 'organigrama:dependencia_toggle_status' dep.id as toggle_url %}
+                            {% badge_toggle dep.is_active toggle_url %}
+
+                            {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list or "organigrama__can_manage_infrastructure" in request.axentra_permissions_list %}
+                                <a href="{% url 'organigrama:dependencia_update' dep.id %}" hx-get="{% url 'organigrama:dependencia_update' dep.id %}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="p-1.5 bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-950 rounded-lg transition shadow-3xs cursor-pointer flex items-center justify-center" title="Editar Dependencia">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                </a>
+                                <button type="button" id="btn-del-dep-{{ dep.id }}" hx-post="{% url 'organigrama:dependencia_delete' dep.id %}" hx-confirm="¿Está seguro de aplicar la baja lógica a la dependencia '{{ dep.nombre }}'? Se archivarán sus áreas operativas adscritas." hx-target="#dependencia-node-{{ dep.id }}" hx-swap="outerHTML swap:0.3s" data-confirm-title="Alerta Estructural Core" data-confirm-icon="shield-alert" data-confirm-icon-bg="bg-red-50" data-confirm-icon-color="text-red-600" data-confirm-button-class="bg-red-600 hover:bg-red-700 text-white" data-confirm-action="Confirmar Baja" data-confirm-cancel="Cancelar" class="p-1.5 bg-gray-50 border border-gray-200 text-gray-400 hover:bg-red-600 hover:text-white rounded-lg transition shadow-3xs cursor-pointer flex items-center justify-center" title="Eliminar Dependencia">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="text-center py-16 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 font-mono text-[10px] text-gray-400 uppercase tracking-widest">
+                        <i data-lucide="building-2" class="w-8 h-8 mx-auto mb-2 text-gray-300 stroke-1"></i> // Sin dependencias en el catálogo
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="contenedor-areas" class="lg:col-span-7 bg-white rounded-[28px] border border-gray-200/80 shadow-3xs p-5 min-h-[460px] max-h-[688px] overflow-y-auto relative flex flex-col">
+            <div id="loading-indicator" class="htmx-indicator htmx-request:flex hidden absolute inset-0 bg-white/80 backdrop-blur-xs z-50 flex-col items-center justify-center rounded-[28px] transition-all duration-300">
+                <div class="flex flex-col items-center gap-2">
+                    <div class="w-6 h-6 border-3 border-gray-950 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-[9px] font-bold text-gray-950 uppercase tracking-widest font-mono">Consultando Base...</span>
+                </div>
+            </div>
+
+            <div class="h-full flex flex-col justify-center flex-grow">
+                <div class="h-full flex flex-col items-center justify-center text-center py-16 font-mono text-gray-400">
+                    <div class="w-14 h-14 bg-gray-50 text-gray-500 rounded-2xl flex items-center justify-center mb-4 border border-gray-200 shadow-inner">
+                        <i data-lucide="git-fork" class="w-6 h-6 text-gray-300 stroke-1 animate-pulse"></i>
+                    </div>
+                    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Visor de Áreas Operativas</h4>
+                    <p class="text-[10px] text-gray-400 mt-1 max-w-xs leading-relaxed uppercase">
+                        // Seleccione una dependencia del panel izquierdo para desplegar sus áreas internas y sedes físicas asignadas.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </section>
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") { lucide.createIcons(); }
+</script>

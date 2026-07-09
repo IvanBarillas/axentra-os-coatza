@@ -112,13 +112,50 @@ def organigrama_dashboard_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def estructura_list_view(request):
-    """Mesa interactiva principal de la estructura orgánica gubernamental."""
-    try:
-        dependencias_lista = Dependencia.objects.filter(is_deleted=False).prefetch_related('areas__sede_fisica')
-    except Exception:
-        dependencias_lista = DependenciaSelectors.listar_activas()
+    """Hub principal de estructura orgánica gubernamental."""
 
-    return render(request, 'organigrama/estructura_list.html', {'dependencias': dependencias_lista})
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    dependencias = (
+        Dependencia.objects
+        .filter(is_deleted=False)
+        .prefetch_related("areas__sede_fisica")
+        .order_by("nombre")
+    )
+
+    sedes = (
+        Sede.objects
+        .filter(is_deleted=False)
+        .prefetch_related("areas")
+        .order_by("nombre")
+    )
+
+    areas = (
+        AreaOperativa.objects
+        .filter(is_deleted=False)
+        .select_related("dependencia", "sede_fisica")
+        .order_by("dependencia__nombre", "nombre")
+    )
+
+    context = {
+        "dependencias": dependencias,
+        "sedes": sedes,
+        "areas": areas,
+        "total_dependencias": dependencias.count(),
+        "total_sedes": sedes.count(),
+        "total_areas": areas.count(),
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": False,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(request, "organigrama/workbench/estructura_list_workbench.html", context)
+
+    if is_htmx and target_htmx == "page-content":
+        return render(request, "organigrama/content/estructura_list_content.html", context)
+
+    return render(request, "organigrama/pages/estructura_list.html", context)
 
 
 # =========================================================================

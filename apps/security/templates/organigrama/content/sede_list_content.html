@@ -24,6 +24,7 @@
 
                 <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
                     {% url 'organigrama:estructura_list' as estructura_url %}
+
                     <a
                         href="{{ estructura_url }}"
                         hx-get="{{ estructura_url }}"
@@ -33,22 +34,8 @@
                         class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition font-mono"
                     >
                         <i data-lucide="git-fork" class="w-4 h-4"></i>
-                        Estructura
+                        Volver a Estructura
                     </a>
-
-                    {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list or "organigrama__can_manage_infrastructure" in request.axentra_permissions_list %}
-                        <a
-                            href="{% url 'organigrama:sede_create' %}"
-                            hx-get="{% url 'organigrama:sede_create' %}"
-                            hx-target="#page-content"
-                            hx-swap="innerHTML"
-                            hx-push-url="true"
-                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:bg-gray-900 transition font-mono shadow-sm active:scale-95"
-                        >
-                            <i data-lucide="plus" class="w-4 h-4 text-gray-400"></i>
-                            Registrar Sede
-                        </a>
-                    {% endif %}
                 </div>
 
             </div>

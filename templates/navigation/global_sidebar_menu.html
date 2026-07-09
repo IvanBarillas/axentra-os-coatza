@@ -7,7 +7,7 @@
         {% include "navigation/module_group.html" with group_id="admin" title="Administración" icon="sliders" %}
         <div x-show="openMenu === 'admin'" x-cloak class="ml-4 pl-3 border-l border-slate-800 space-y-1">
             {% if is_global_admin or 'organigrama' in allowed_modules %}
-                {% url 'organigrama:sede_list' as organigrama_url %}
+                {% url 'organigrama:estructura_list' as organigrama_url %}
                 {% include "navigation/module_item.html" with title="Organización" icon="git-fork" href=organigrama_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
             {% endif %}
             {% if is_global_admin or 'accounts' in allowed_modules %}

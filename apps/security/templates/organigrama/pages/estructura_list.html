@@ -1,0 +1,9 @@
+{% extends "shell/workbench.html" %}
+
+{% block title %}
+Estructura Orgánica | {{ tenant.app_name }}
+{% endblock %}
+
+{% block page_content %}
+    {% include "organigrama/content/estructura_list_content.html" %}
+{% endblock %}
