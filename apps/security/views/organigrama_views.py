@@ -21,6 +21,7 @@ from apps.security.selectors.organigrama_selectors import SedeSelectors, Depende
 from apps.security.services.organigrama_services import OrganigramaService
 from apps.security.forms import SedeForm, DependenciaForm, AreaOperativaForm
 from apps.security.utils.forensic_auditor import ForensicAuditor
+from django.contrib import messages
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -202,18 +203,23 @@ def sede_create_view(request):
             exito, sede, errores = OrganigramaService.crear_sede(request, form.cleaned_data)
             
             if exito:
+                messages.success(request, f"Sede '{sede.nombre}' registrada correctamente.")
+                context_list = {
+                    "sedes": SedeSelectors.listar_todas(),
+                    "modulo_actual": AppIdentifier.ORGANIGRAMA,
+                    "show_module_sidebar": False,
+                }
                 if is_htmx:
-                    context_list = {
-                        "sedes": SedeSelectors.listar_todas(),
-                        "modulo_actual": AppIdentifier.ORGANIGRAMA,
-                        "show_module_sidebar": False,
-                    }
-                    response = render(request, "organigrama/content/sede_list_content.html", context_list)
+                    response = render(request, "organigrama/htmx/sede_list_with_messages.html", context_list)
                     response["HX-Push-Url"] = reverse("organigrama:sede_list")
                     return response
                 return redirect("organigrama:sede_list")
-                
-            form.add_error(None, errores.get("server_error", ["Error de persistencia"])[0])
+
+            error_msg = errores.get("server_error", ["Error de persistencia"])[0]
+            messages.error(request, error_msg)
+            form.add_error(None, error_msg)
+        else:
+            messages.error(request, "Revisa los campos del formulario antes de guardar la sede.")
     else:
         form = SedeForm()
 
@@ -246,18 +252,23 @@ def sede_update_view(request, pk: uuid.UUID):
             exito, errores = OrganigramaService.actualizar_sede(request, sede_instancia, form.cleaned_data)
             
             if exito:
+                messages.success(request, f"Sede '{sede_instancia.nombre}' actualizada correctamente.")
+                context_list = {
+                    "sedes": SedeSelectors.listar_todas(),
+                    "modulo_actual": AppIdentifier.ORGANIGRAMA,
+                    "show_module_sidebar": False,
+                }
                 if is_htmx:
-                    context_list = {
-                        "sedes": SedeSelectors.listar_todas(),
-                        "modulo_actual": AppIdentifier.ORGANIGRAMA,
-                        "show_module_sidebar": False,
-                    }
-                    response = render(request, "organigrama/content/sede_list_content.html", context_list)
+                    response = render(request, "organigrama/htmx/sede_list_with_messages.html", context_list)
                     response["HX-Push-Url"] = reverse("organigrama:sede_list")
                     return response
                 return redirect("organigrama:sede_list")
-                
-            form.add_error(None, errores.get("server_error", ["Fallo de actualización"])[0])
+
+            error_msg = errores.get("server_error", ["Fallo de actualización"])[0]
+            messages.error(request, error_msg)
+            form.add_error(None, error_msg)
+        else:
+            messages.error(request, "Revisa los campos del formulario antes de actualizar la sede.")
     else:
         form = SedeForm(instance=sede_instancia)
 
@@ -279,14 +290,32 @@ def sede_update_view(request, pk: uuid.UUID):
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_soft_delete_view(request, pk: uuid.UUID):
     """Baja lógica asíncrona de una sede física."""
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
 
-    sede_instancia = get_object_or_404(Sede, pk=pk, is_deleted=False)
-    
-    OrganigramaService.eliminar_sede(request, sede_instancia)
+    sede_instancia = get_object_or_404(
+        Sede,
+        pk=pk,
+        is_deleted=False,
+    )
+
+    nombre_sede = sede_instancia.nombre
+
+    OrganigramaService.eliminar_sede(
+        request,
+        sede_instancia,
+    )
+
+    messages.warning(
+        request,
+        f"Sede '{nombre_sede}' enviada a baja lógica correctamente.",
+    )
 
     if is_htmx:
-        return HttpResponse(status=200, content="")
+        return render(
+            request,
+            "partials/empty_with_messages.html",
+        )
 
     return redirect("organigrama:sede_list")
 
@@ -296,9 +325,15 @@ def sede_soft_delete_view(request, pk: uuid.UUID):
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_toggle_status_view(request, pk: uuid.UUID):
     """Alternador HTMX de estatus operativo de sedes físicas."""
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
 
-    sede = get_object_or_404(Sede, pk=pk, is_deleted=False)
+    sede = get_object_or_404(
+        Sede,
+        pk=pk,
+        is_deleted=False,
+    )
+
     estado_anterior = sede.is_active
 
     with transaction.atomic():
@@ -310,7 +345,10 @@ def sede_toggle_status_view(request, pk: uuid.UUID):
         action_type=SecurityAuditLog.ActionTypes.UPDATE,
         module_component="SEDES_INFRAESTRUCTURA",
         action_name="TOGGLE_STATUS_SEDE_FISICA",
-        target_scope=f"Actualización del estado operativo para el inmueble {sede.nombre} (Activo final: {sede.is_active}).",
+        target_scope=(
+            f"Actualización del estado operativo para el inmueble {sede.nombre} "
+            f"(Activo final: {sede.is_active})."
+        ),
         level=SecurityAuditLog.Levels.INFO,
         search_target=str(sede.id),
         payload={
@@ -321,14 +359,32 @@ def sede_toggle_status_view(request, pk: uuid.UUID):
         },
     )
 
+    if sede.is_active:
+        messages.success(
+            request,
+            f"Sede '{sede.nombre}' activada correctamente.",
+        )
+    else:
+        messages.warning(
+            request,
+            f"Sede '{sede.nombre}' marcada como inactiva.",
+        )
+
+    context = {
+        "is_active": sede.is_active,
+        "toggle_url": reverse("organigrama:sede_toggle_status", args=[sede.id]),
+    }
+
     if is_htmx:
-        context = {
-            "is_active": sede.is_active,
-            "toggle_url": reverse("organigrama:sede_toggle_status", args=[sede.id]),
-        }
-        return render(request, "common/tags/badge_toggle_activo_inactivo.html", context)
+        return render(
+            request,
+            "common/tags/badge_toggle_with_messages.html",
+            context,
+        )
 
     return redirect("organigrama:sede_list")
+
+
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")

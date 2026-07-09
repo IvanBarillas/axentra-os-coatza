@@ -28,7 +28,7 @@
             </p>
         </div>
 
-        {% url 'organigrama:sede_list' as sede_list_url %}
+        {% url 'organigrama:estructura_list' as sede_list_url %}
         <a
             href="{{ sede_list_url }}"
             hx-get="{{ sede_list_url }}"
@@ -38,7 +38,7 @@
             class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
         >
             <i data-lucide="arrow-left" class="w-4 h-4 text-gray-400"></i>
-            <span>Volver a Inventario</span>
+            <span>Volver a Estructura</span>
         </a>
 
     </div>
@@ -166,7 +166,7 @@
 
         <div class="flex flex-col sm:flex-row items-center justify-end gap-3 font-mono text-[10px] w-full">
 
-            {% url 'organigrama:sede_list' as sede_list_url %}
+            {% url 'organigrama:estructura_list' as sede_list_url %}
             <a
                 href="{{ sede_list_url }}"
                 hx-get="{{ sede_list_url }}"

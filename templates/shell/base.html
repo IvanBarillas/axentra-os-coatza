@@ -52,6 +52,8 @@
     <div id="toast-root"></div>
     <div id="overlay-root"></div>
 
+    {% include "partials/messages.html" %}
+
     <div x-show="confirmOpen"
          x-cloak
          class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs font-mono text-[11px]"
