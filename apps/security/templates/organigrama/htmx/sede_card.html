@@ -1,108 +1,149 @@
 {% load axentra_ui %}
 
-<div id="sede-card-{{ sede.id }}" class="bg-white p-4 md:p-6 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs flex flex-col justify-between gap-4 md:gap-6 hover:border-gray-950/20 hover:shadow-md transition-all duration-200 group">
-    <div class="flex items-center justify-between gap-3 w-full">
+<article
+    id="sede-card-{{ sede.id }}"
+    class="group relative bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden hover:border-indigo-200 hover:shadow-sm transition"
+>
 
-        <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div class="p-2.5 bg-gray-50 border border-gray-200/60 rounded-xl text-gray-950 shrink-0 shadow-3xs group-hover:bg-gray-950 group-hover:text-white transition-colors duration-200">
-                <i data-lucide="map" class="w-4 h-4"></i>
+    <!-- ===================================================== -->
+    <!-- HEADER / IDENTIDAD                                   -->
+    <!-- ===================================================== -->
+
+    <div class="p-5 sm:p-6">
+
+        <div class="flex items-start gap-4">
+
+            <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
             </div>
 
-            <div class="min-w-0 flex-1 text-left">
-                <a href="{% url 'organigrama:sede_detail' sede.id %}"
-                   hx-get="{% url 'organigrama:sede_detail' sede.id %}"
-                   hx-target="#workbench"
-                   hx-swap="innerHTML"
-                   hx-push-url="true"
-                   class="inline-flex items-center gap-2 max-w-full font-black text-sm text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight truncate leading-tight transition group/link"
+            <div class="min-w-0 flex-1">
+
+                <a
+                    href="{% url 'organigrama:sede_detail' sede.id %}"
+                    hx-get="{% url 'organigrama:sede_detail' sede.id %}"
+                    hx-target="#workbench"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    class="block text-sm font-black text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight leading-snug truncate"
                 >
-                    <span class="truncate">{{ sede.nombre }}</span>
-                    <i data-lucide="external-link" class="w-3.5 h-3.5 text-indigo-400 group-hover/link:text-indigo-600 shrink-0 transition"></i>
+                    {{ sede.nombre }}
+                    <i data-lucide="external-link" class="inline-block w-3.5 h-3.5 ml-1 text-indigo-400 group-hover:text-indigo-600 transition"></i>
                 </a>
 
-                <p class="text-[10px] text-gray-400 font-bold font-mono mt-1 uppercase tracking-wide leading-none truncate md:normal-case md:font-sans md:line-clamp-1" title="{{ sede.direccion }}">
-                    {{ sede.direccion|default:"// Dirección omitida" }}
+                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono leading-relaxed line-clamp-2">
+                    {{ sede.direccion|default:"Sin dirección física registrada" }}
                 </p>
 
-                <div class="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
-                    <i data-lucide="folder-open" class="w-3.5 h-3.5 text-gray-300"></i>
-                    <span>Abrir expediente de sede</span>
-                </div>
-
-                <div class="mt-3 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-widest">
-                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 font-black text-gray-500">
-                        <i data-lucide="layout-grid" class="w-3 h-3 text-gray-400"></i> {{ sede.total_areas|default:0 }} Áreas
-                    </span>
-                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 font-black text-gray-500">
-                        <i data-lucide="building-2" class="w-3 h-3 text-gray-400"></i> {{ sede.total_dependencias|default:0 }} Dependencias
-                    </span>
-                </div>
-
-                {% if not sede.is_active and sede.total_areas|default:0 > 0 %}
-                    <div class="mt-3 rounded-2xl border border-amber-200 bg-amber-50/70 px-3 py-2.5 flex items-start gap-2 text-left">
-                        <i data-lucide="triangle-alert" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
-                        <div class="min-w-0">
-                            <p class="text-[10px] font-black uppercase tracking-widest text-amber-800 font-mono leading-tight">Sede inactiva con operación vinculada</p>
-                            <p class="mt-1 text-[10px] text-amber-700/80 font-bold leading-snug">
-                                Existen áreas o dependencias relacionadas. Reubique o revise la operation antes de aplicar baja lógica.
-                            </p>
-                        </div>
-                    </div>
-                {% endif %}
             </div>
+
         </div>
 
-        <div id="status-node-{{ sede.id }}" class="shrink-0 scale-90 md:scale-100">
-            {% url 'organigrama:sede_toggle_status' sede.id as url_toggle %}
-            {% badge_toggle sede.is_active url_toggle %}
-        </div>
+        <!-- ===================================================== -->
+        <!-- BADGES INFORMATIVOS                                  -->
+        <!-- ===================================================== -->
 
-    </div>
+        <div class="mt-4 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-widest">
 
-    <div class="pt-3 md:pt-4 border-t border-gray-100/80 flex items-center justify-between text-[10px] font-mono uppercase tracking-wide">
-        <div class="flex items-center gap-2">
-            {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list or "organigrama__can_manage_infrastructure" in request.axentra_permissions_list %}
-                <a href="{% url 'organigrama:sede_update' sede.id %}"
-                   hx-get="{% url 'organigrama:sede_update' sede.id %}"
-                   hx-target="#page-content"
-                   hx-swap="innerHTML"
-                   hx-push-url="true"
-                   class="p-2 bg-gray-50/80 hover:bg-gray-950 border border-gray-200 text-gray-400 hover:text-white rounded-lg transition shadow-3xs flex items-center justify-center cursor-pointer transform active:scale-95"
-                   title="Editar Parámetros"
-                >
-                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                </a>
-
-                <button type="button"
-                        id="btn-delete-{{ sede.id }}"
-                        hx-post="{% url 'organigrama:sede_delete' sede.id %}"
-                        hx-confirm="¿Está seguro de aplicar la baja lógica a la sede '{{ sede.nombre }}'? Se validará que no tenga áreas operativas activas vinculadas."
-                        hx-target="#sede-card-{{ sede.id }}"
-                        hx-swap="outerHTML swap:0.3s"
-                        data-confirm-title="Alerta de Infraestructura"
-                        data-confirm-icon="shield-alert"
-                        data-confirm-icon-bg="bg-red-50"
-                        data-confirm-icon-color="text-red-600"
-                        data-confirm-button-class="bg-red-600 hover:bg-red-700 text-white"
-                        data-confirm-action="Confirmar Baja"
-                        data-confirm-cancel="Cancelar"
-                        class="p-2 bg-gray-50/80 hover:bg-red-600 border border-gray-200 text-gray-400 hover:text-white rounded-lg transition shadow-3xs flex items-center justify-center cursor-pointer transform active:scale-95"
-                        title="Eliminar Inmueble del Mapa"
-                >
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                </button>
-            {% endif %}
-        </div>
-
-        <div class="flex items-center gap-1.5 text-gray-400 font-bold">
-            <span class="hidden sm:inline">Nodo:</span>
-            <span class="text-gray-900 font-black text-[9px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200 tracking-normal">
-                {{ sede.id|stringformat:".8s" }}...
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 font-black text-gray-500">
+                <i data-lucide="building-2" class="w-3 h-3 text-gray-400"></i>
+                Inmueble
             </span>
+
+            {% if sede.is_active %}
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-black text-emerald-700">
+                    <i data-lucide="circle-check" class="w-3 h-3"></i>
+                    Activa
+                </span>
+            {% else %}
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 font-black text-rose-700">
+                    <i data-lucide="circle-x" class="w-3 h-3"></i>
+                    Inactiva
+                </span>
+            {% endif %}
+
         </div>
+
+        <!-- ===================================================== -->
+        <!-- MÉTRICAS                                             -->
+        <!-- ===================================================== -->
+
+        <div class="mt-5 grid grid-cols-2 gap-3">
+
+            <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-3">
+                <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    Áreas
+                </p>
+
+                <p class="mt-1 text-xl font-black text-gray-950 font-mono">
+                    {{ sede.total_areas|default:0 }}
+                </p>
+            </div>
+
+            <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-3">
+                <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    Dependencias
+                </p>
+
+                <p class="mt-1 text-xl font-black text-gray-950 font-mono">
+                    {{ sede.total_dependencias|default:0 }}
+                </p>
+            </div>
+
+        </div>
+
+        {% if not sede.is_active and sede.total_areas %}
+            <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 px-3 py-2.5 flex items-start gap-2 text-left">
+                <i data-lucide="triangle-alert" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+
+                <div class="min-w-0">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-amber-800 font-mono leading-tight">
+                        Inactiva con operación vinculada
+                    </p>
+
+                    <p class="mt-1 text-[10px] text-amber-700/80 font-bold leading-snug">
+                        Tiene áreas relacionadas. La administración se realiza desde el expediente.
+                    </p>
+                </div>
+            </div>
+        {% endif %}
+
     </div>
-</div>
+
+    <!-- ===================================================== -->
+    <!-- FOOTER DE NAVEGACIÓN                                 -->
+    <!-- ===================================================== -->
+
+    <div class="px-5 sm:px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3">
+
+        <div class="min-w-0">
+            <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                Nodo
+            </p>
+
+            <p class="mt-0.5 text-[10px] font-black text-gray-500 font-mono truncate max-w-[180px]">
+                {{ sede.id }}
+            </p>
+        </div>
+
+        <a
+            href="{% url 'organigrama:sede_detail' sede.id %}"
+            hx-get="{% url 'organigrama:sede_detail' sede.id %}"
+            hx-target="#workbench"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-indigo-700 hover:border-indigo-200 transition font-mono shrink-0"
+        >
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            Expediente
+        </a>
+
+    </div>
+
+</article>
 
 <script>
-    if (typeof lucide !== "undefined") { lucide.createIcons(); }
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
 </script>

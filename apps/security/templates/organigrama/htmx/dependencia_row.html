@@ -21,7 +21,16 @@
             <div class="min-w-0">
 
                 <h3 class="text-sm font-black text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight truncate">
-                    {{ dep.nombre }}
+                    <a
+    href="{% url 'organigrama:dependencia_detail' dep.id %}"
+    hx-get="{% url 'organigrama:dependencia_detail' dep.id %}"
+    hx-target="#workbench"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    class="text-sm font-black text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight truncate block"
+>
+    {{ dep.nombre }}
+</a>
                 </h3>
 
                 <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-wide font-mono truncate">

@@ -239,7 +239,7 @@ def sede_create_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_update_view(request, pk: uuid.UUID):
-    """Modificación de metadatos geográficos de un inmueble."""
+    """Modificación contextual de metadatos geográficos de una sede."""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
@@ -247,22 +247,36 @@ def sede_update_view(request, pk: uuid.UUID):
 
     if request.method == "POST":
         form = SedeForm(request.POST, instance=sede_instancia)
-        
+
         if form.is_valid():
             exito, errores = OrganigramaService.actualizar_sede(request, sede_instancia, form.cleaned_data)
-            
+
             if exito:
                 messages.success(request, f"Sede '{sede_instancia.nombre}' actualizada correctamente.")
-                context_list = {
-                    "sedes": SedeSelectors.listar_todas(),
+                
+                areas = (
+                    AreaOperativa.objects.filter(sede_fisica=sede_instancia, is_deleted=False)
+                    .select_related("dependencia")
+                    .order_by("dependencia__nombre", "nombre")
+                )
+                dependencias = (
+                    Dependencia.objects.filter(areas__sede_fisica=sede_instancia, areas__is_deleted=False, is_deleted=False)
+                    .distinct()
+                    .order_by("nombre")
+                )
+                context_detail = {
+                    "sede": sede_instancia,
+                    "areas": areas,
+                    "dependencias": dependencias,
+                    "total_areas": areas.count(),
+                    "total_dependencias": dependencias.count(),
                     "modulo_actual": AppIdentifier.ORGANIGRAMA,
-                    "show_module_sidebar": False,
+                    "show_module_sidebar": True,
                 }
-                if is_htmx:
-                    response = render(request, "organigrama/htmx/sede_list_with_messages.html", context_list)
-                    response["HX-Push-Url"] = reverse("organigrama:sede_list")
-                    return response
-                return redirect("organigrama:sede_list")
+
+                if is_htmx and target_htmx == "page-content":
+                    return render(request, "organigrama/htmx/sede_identidad_with_messages.html", context_detail)
+                return redirect("organigrama:sede_detail", pk=sede_instancia.id)
 
             error_msg = errores.get("server_error", ["Fallo de actualización"])[0]
             messages.error(request, error_msg)
@@ -272,109 +286,295 @@ def sede_update_view(request, pk: uuid.UUID):
     else:
         form = SedeForm(instance=sede_instancia)
 
-    context = {
-        "form": form,
-        "action": "update",
-        "sede": sede_instancia,
-        "modulo_actual": AppIdentifier.ORGANIGRAMA,
-        "show_module_sidebar": False,
-    }
+        return render_sede_contextual_subview(
+        request=request,
+        sede=sede_instancia,
+        partial_template="organigrama/content/sede_form_content.html",
+        current_sub_view="organigrama:sede_sub_identidad",
+        extra_context={
+            "form": form,
+            "action": "update",
+            "sede": sede_instancia,
+            "back_label": "Volver a Ficha de Sede",
+            "back_target": "#page-content",
+        },
+    )
 
-    if is_htmx and target_htmx == "page-content":
-        return render(request, "organigrama/content/sede_form_content.html", context)
-
-    return render(request, "organigrama/pages/sede_form.html", context)
 
 @require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_soft_delete_view(request, pk: uuid.UUID):
     """Baja lógica protegida de una sede física."""
-    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
 
-    sede_instancia = get_object_or_404(Sede, pk=pk, is_deleted=False)
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    sede_instancia = get_object_or_404(
+        Sede,
+        pk=pk,
+        is_deleted=False,
+    )
+
     nombre_sede = sede_instancia.nombre
 
-    exito, errores = OrganigramaService.eliminar_sede(request, sede_instancia)
+    exito, errores = OrganigramaService.eliminar_sede(
+        request,
+        sede_instancia,
+    )
 
     if exito:
-        messages.warning(request, f"Sede '{nombre_sede}' enviada a baja lógica correctamente.")
-        if is_htmx:
-            return render(request, "partials/empty_with_messages.html")
-        return redirect("organigrama:sede_list")
+        messages.warning(
+            request,
+            f"Sede '{nombre_sede}' enviada a baja lógica correctamente.",
+        )
 
-    error_msg = errores.get("server_error", ["No fue posible dar de baja la sede."])[0]
-    messages.error(request, error_msg)
+        sedes = SedeSelectors.listar_todas()
 
-    if is_htmx:
-        context = {
-            "sede": sede_instancia,
+        context_list = {
+            "sedes": sedes,
+            "total_sedes": sedes.count(),
             "modulo_actual": AppIdentifier.ORGANIGRAMA,
             "show_module_sidebar": False,
         }
-        return render(request, "organigrama/htmx/sede_card_with_messages.html", context)
 
-    return redirect("organigrama:sede_list")
+        if is_htmx:
+            return render(
+                request,
+                "organigrama/htmx/sede_list_with_messages.html",
+                context_list,
+            )
+
+        return redirect("organigrama:sede_list")
+
+    error_msg = errores.get(
+        "server_error",
+        ["No fue posible dar de baja la sede."],
+    )[0]
+
+    messages.error(request, error_msg)
+
+    areas = (
+        AreaOperativa.objects
+        .filter(
+            sede_fisica=sede_instancia,
+            is_deleted=False,
+        )
+        .select_related("dependencia")
+        .order_by("dependencia__nombre", "nombre")
+    )
+
+    dependencias = (
+        Dependencia.objects
+        .filter(
+            areas__sede_fisica=sede_instancia,
+            areas__is_deleted=False,
+            is_deleted=False,
+        )
+        .distinct()
+        .order_by("nombre")
+    )
+
+    raw_menu = OrganigramaPermissions.SEDE_DETAIL_MENU
+    detail_menu = []
+
+    current_sub_view = "organigrama:sede_sub_identidad"
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+
+        tiene_permiso = (
+            getattr(request, "axentra_is_root", False)
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+
+        if url_name != "#":
+            href = reverse(url_name, args=[sede_instancia.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
+    context_detail = {
+        "sede": sede_instancia,
+        "areas": areas,
+        "dependencias": dependencias,
+        "total_areas": areas.count(),
+        "total_dependencias": dependencias.count(),
+        "detail_menu": detail_menu,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "organigrama/workbench/sede_detail_workbench_with_messages.html",
+            context_detail,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/htmx/sede_identidad_with_messages.html",
+            context_detail,
+        )
+
+    return redirect("organigrama:sede_detail", pk=sede_instancia.id)
+
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def sede_toggle_status_view(request, pk: uuid.UUID):
-    """Alternador HTMX de estatus operativo de sedes físicas."""
+    """
+    Alternador protegido de estado operativo para sedes.
+
+    Regla Axentra:
+    Inactivar una sede no apaga áreas operativas.
+    No se modifican dependencias automáticamente.
+    """
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
 
-    sede = get_object_or_404(Sede, pk=pk, is_deleted=False)
-    estado_anterior = sede.is_active
-
-    areas_vinculadas = AreaOperativa.objects.filter(sede_fisica=sede, is_deleted=False).count()
-    dependencias_vinculadas = Dependencia.objects.filter(areas__sede_fisica=sede, areas__is_deleted=False, is_deleted=False).distinct().count()
-
-    with transaction.atomic():
-        sede.is_active = not sede.is_active
-        sede.save(update_fields=["is_active", "updated_at"])
-
-    nivel_auditoria = SecurityAuditLog.Levels.INFO
-
-    if sede.is_active:
-        messages.success(request, f"Sede '{sede.nombre}' activada correctamente.")
-    else:
-        if areas_vinculadas > 0:
-            messages.warning(
-                request,
-                f"Sede '{sede.nombre}' marcada como inactiva. Tiene {areas_vinculadas} área(s) operativa(s) y {dependencias_vinculadas} dependencia(s) vinculada(s). Las áreas no fueron apagadas automáticamente."
-            )
-        else:
-            messages.warning(request, f"Sede '{sede.nombre}' marcada como inactiva.")
-
-    ForensicAuditor.registrar_evento(
-        request=request,
-        action_type=SecurityAuditLog.ActionTypes.UPDATE,
-        module_component="SEDES_INFRAESTRUCTURA",
-        action_name="TOGGLE_STATUS_SEDE_FISICA",
-        target_scope=f"Actualización del estado operativo para el inmueble {sede.nombre}. Activo anterior: {estado_anterior}. Activo final: {sede.is_active}.",
-        level=nivel_auditoria,
-        search_target=str(sede.id),
-        payload={
-            "anterior": estado_anterior,
-            "nuevo": sede.is_active,
-            "sede_id": str(sede.id),
-            "sede_nombre": sede.nombre,
-            "areas_vinculadas": areas_vinculadas,
-            "dependencias_vinculadas": dependencias_vinculadas,
-            "cascade_applied": False,
-            "policy": "La inactivación de sede no apaga dependencias ni áreas automáticamente.",
-        },
+    sede_instancia = get_object_or_404(
+        Sede,
+        pk=pk,
+        is_deleted=False,
     )
 
+    estado_anterior = sede_instancia.is_active
+
+    areas = (
+        AreaOperativa.objects
+        .filter(
+            sede_fisica=sede_instancia,
+            is_deleted=False,
+        )
+        .select_related("dependencia")
+        .order_by("dependencia__nombre", "nombre")
+    )
+
+    dependencias = (
+        Dependencia.objects
+        .filter(
+            areas__sede_fisica=sede_instancia,
+            areas__is_deleted=False,
+            is_deleted=False,
+        )
+        .distinct()
+        .order_by("nombre")
+    )
+
+    total_areas = areas.count()
+    total_dependencias = dependencias.count()
+
+    with transaction.atomic():
+        sede_instancia.is_active = not sede_instancia.is_active
+        sede_instancia.save(
+            update_fields=[
+                "is_active",
+                "updated_at",
+            ]
+        )
+
+        ForensicAuditor.registrar_evento(
+            request=request,
+            action_type=SecurityAuditLog.ActionTypes.UPDATE,
+            module_component="SEDES_INFRAESTRUCTURA",
+            action_name="TOGGLE_STATUS_SEDE_PROTEGIDO",
+            target_scope=(
+                f"Actualización protegida del estado operativo para la sede "
+                f"{sede_instancia.nombre}. "
+                f"Activo anterior: {estado_anterior}. "
+                f"Activo final: {sede_instancia.is_active}. "
+                "No se modificaron áreas ni dependencias vinculadas."
+            ),
+            level=SecurityAuditLog.Levels.INFO,
+            search_target=str(sede_instancia.id),
+            payload={
+                "sede_id": str(sede_instancia.id),
+                "sede_nombre": sede_instancia.nombre,
+                "estado_anterior": estado_anterior,
+                "estado_nuevo": sede_instancia.is_active,
+                "areas_activas": total_areas,
+                "dependencias_vinculadas": total_dependencias,
+                "cascade_applied": False,
+            },
+        )
+
+    if sede_instancia.is_active:
+        messages.success(
+            request,
+            f"Sede '{sede_instancia.nombre}' activada correctamente.",
+        )
+    else:
+        if total_areas > 0:
+            messages.warning(
+                request,
+                (
+                    f"Sede '{sede_instancia.nombre}' inactivada. "
+                    f"Tiene {total_areas} área(s) operativa(s) vinculada(s) "
+                    f"y {total_dependencias} dependencia(s) presente(s). "
+                    "Las áreas no fueron apagadas automáticamente."
+                ),
+            )
+        else:
+            messages.warning(
+                request,
+                f"Sede '{sede_instancia.nombre}' inactivada correctamente.",
+            )
+
     context = {
-        "is_active": sede.is_active,
-        "toggle_url": reverse("organigrama:sede_toggle_status", args=[sede.id]),
+        "sede": sede_instancia,
+        "areas": areas,
+        "dependencias": dependencias,
+        "total_areas": total_areas,
+        "total_dependencias": total_dependencias,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
     }
 
-    if is_htmx:
-        return render(request, "common/tags/badge_toggle_with_messages.html", context)
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/htmx/sede_identidad_with_messages.html",
+            context,
+        )
 
-    return redirect("organigrama:sede_list")
+    if is_htmx:
+        return render(
+            request,
+            "common/tags/badge_toggle_with_messages.html",
+            {
+                "is_active": sede_instancia.is_active,
+                "toggle_url": reverse(
+                    "organigrama:sede_toggle_status",
+                    args=[sede_instancia.id],
+                ),
+            },
+        )
+
+    return redirect("organigrama:sede_detail", pk=sede_instancia.id)
 
 
 @login_required
@@ -1169,6 +1369,357 @@ def dependencia_toggle_status_view(request, pk: uuid.UUID):
         },
     )
 
+def render_dependencia_contextual_subview(
+    request,
+    dependencia: Dependencia,
+    partial_template: str,
+    current_sub_view: str,
+    extra_context: dict | None = None,
+):
+    """
+    Render inteligente para subvistas del expediente contextual de dependencia.
+
+    HTMX:
+        devuelve sólo el partial para reemplazar #page-content.
+
+    Normal/F5:
+        devuelve página completa con shell + sidebar secundario + partial.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    areas_base = (
+        AreaOperativa.objects
+        .filter(
+            dependencia=dependencia,
+            is_deleted=False,
+        )
+        .select_related("sede_fisica")
+        .order_by("sede_fisica__nombre", "nombre")
+    )
+
+    sedes_base = (
+        Sede.objects
+        .filter(
+            areas__dependencia=dependencia,
+            areas__is_deleted=False,
+            is_deleted=False,
+        )
+        .distinct()
+        .order_by("nombre")
+    )
+
+    raw_menu = OrganigramaPermissions.DEPENDENCIA_DETAIL_MENU
+    detail_menu = []
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+
+        tiene_permiso = (
+            getattr(request, "axentra_is_root", False)
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+
+        if url_name != "#":
+            href = reverse(url_name, args=[dependencia.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
+    context = {
+        "dependencia": dependencia,
+        "areas": areas_base,
+        "sedes": sedes_base,
+        "total_areas": areas_base.count(),
+        "total_sedes": sedes_base.count(),
+        "detail_menu": detail_menu,
+        "partial_template": partial_template,
+        "current_sub_view": current_sub_view,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if extra_context:
+        context.update(extra_context)
+
+    if is_htmx:
+        return render(
+            request,
+            partial_template,
+            context,
+        )
+
+    return render(
+        request,
+        "organigrama/pages/dependencia_subpage.html",
+        context,
+    )
+    
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def dependencia_detail_view(request, pk: uuid.UUID):
+    """Expediente contextual de una dependencia administrativa."""
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    dependencia = get_object_or_404(
+        Dependencia,
+        pk=pk,
+        is_deleted=False,
+    )
+
+    areas = (
+        AreaOperativa.objects
+        .filter(
+            dependencia=dependencia,
+            is_deleted=False,
+        )
+        .select_related("sede_fisica")
+        .order_by("sede_fisica__nombre", "nombre")
+    )
+
+    sedes = (
+        Sede.objects
+        .filter(
+            areas__dependencia=dependencia,
+            areas__is_deleted=False,
+            is_deleted=False,
+        )
+        .distinct()
+        .order_by("nombre")
+    )
+
+    raw_menu = OrganigramaPermissions.DEPENDENCIA_DETAIL_MENU
+    detail_menu = []
+
+    current_sub_view = request.GET.get(
+        "sub_view",
+        "organigrama:dependencia_sub_identidad",
+    )
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+
+        tiene_permiso = (
+            getattr(request, "axentra_is_root", False)
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+
+        if url_name != "#":
+            href = reverse(url_name, args=[dependencia.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
+    context = {
+        "dependencia": dependencia,
+        "areas": areas,
+        "sedes": sedes,
+        "total_areas": areas.count(),
+        "total_sedes": sedes.count(),
+        "detail_menu": detail_menu,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "organigrama/workbench/dependencia_detail_workbench.html",
+            context,
+        )
+
+    return render(
+        request,
+        "organigrama/pages/dependencia_detail.html",
+        context,
+    )
+    
+    
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def dependencia_sub_identidad_view(request, pk: uuid.UUID):
+    """Subvista de identidad del expediente contextual de dependencia."""
+
+    dependencia = get_object_or_404(
+        Dependencia,
+        pk=pk,
+        is_deleted=False,
+    )
+
+    return render_dependencia_contextual_subview(
+        request=request,
+        dependencia=dependencia,
+        partial_template="organigrama/contextual/partials/dependencia_identidad.html",
+        current_sub_view="organigrama:dependencia_sub_identidad",
+    )
+    
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def dependencia_sub_areas_view(request, pk: uuid.UUID):
+    """Subvista de áreas operativas adscritas a una dependencia."""
+
+    dependencia = get_object_or_404(
+        Dependencia,
+        pk=pk,
+        is_deleted=False,
+    )
+
+    areas = (
+        AreaOperativa.objects
+        .filter(
+            dependencia=dependencia,
+            is_deleted=False,
+        )
+        .select_related(
+            "sede_fisica",
+            "dependencia",
+        )
+        .order_by(
+            "sede_fisica__nombre",
+            "nombre",
+        )
+    )
+
+    return render_dependencia_contextual_subview(
+        request=request,
+        dependencia=dependencia,
+        partial_template="organigrama/contextual/partials/dependencia_areas.html",
+        current_sub_view="organigrama:dependencia_sub_areas",
+        extra_context={
+            "areas": areas,
+            "total_areas": areas.count(),
+        },
+    )
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def dependencia_sub_sedes_view(request, pk: uuid.UUID):
+    """Subvista de sedes donde opera una dependencia."""
+
+    dependencia = get_object_or_404(
+        Dependencia,
+        pk=pk,
+        is_deleted=False,
+    )
+
+    sedes = (
+        Sede.objects
+        .filter(
+            areas__dependencia=dependencia,
+            areas__is_deleted=False,
+            is_deleted=False,
+        )
+        .annotate(
+            total_areas=Count(
+                "areas",
+                filter=Q(
+                    areas__dependencia=dependencia,
+                    areas__is_deleted=False,
+                ),
+                distinct=True,
+            ),
+        )
+        .distinct()
+        .order_by("nombre")
+    )
+
+    return render_dependencia_contextual_subview(
+        request=request,
+        dependencia=dependencia,
+        partial_template="organigrama/contextual/partials/dependencia_sedes.html",
+        current_sub_view="organigrama:dependencia_sub_sedes",
+        extra_context={
+            "sedes": sedes,
+            "total_sedes": sedes.count(),
+        },
+    )
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def dependencia_sub_funcionarios_view(request, pk: uuid.UUID):
+    """Subvista de funcionarios adscritos a una dependencia."""
+
+    dependencia = get_object_or_404(
+        Dependencia,
+        pk=pk,
+        is_deleted=False,
+    )
+
+    funcionarios = (
+        UserProfile.objects
+        .filter(
+            area__dependencia=dependencia,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+        )
+    )
+
+    return render_dependencia_contextual_subview(
+        request=request,
+        dependencia=dependencia,
+        partial_template="organigrama/contextual/partials/dependencia_funcionarios.html",
+        current_sub_view="organigrama:dependencia_sub_funcionarios",
+        extra_context={
+            "funcionarios": funcionarios,
+            "total_funcionarios": funcionarios.count(),
+        },
+    )
+    
+
+  
 
 # =========================================================================
 # 📍 PILAR 4: SUB-FRAGMENTACIÓN (ÁREAS OPERATIVAS Y OFICINAS INTERNAS)

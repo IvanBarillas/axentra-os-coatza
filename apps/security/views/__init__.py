@@ -34,6 +34,13 @@ from .organigrama_views import (
     dependencia_update_view,      
     dependencia_soft_delete_view, 
     dependencia_toggle_status_view, 
+    
+    dependencia_detail_view,
+    dependencia_sub_identidad_view,
+    dependencia_sub_areas_view,
+    dependencia_sub_sedes_view,
+    dependencia_sub_funcionarios_view,
+
     area_create_view, 
     area_update_view,             
     area_soft_delete_view,        
@@ -82,11 +89,18 @@ __all__ = [
     'sede_sub_areas_view',
     'sede_sub_funcionarios_view',
      
-     'dependencia_list_view',
+    'dependencia_list_view',
     'dependencia_create_view', 
     'dependencia_update_view',
     'dependencia_soft_delete_view',
     'dependencia_toggle_status_view',
+    
+    'dependencia_detail_view',
+    'dependencia_sub_identidad_view',
+    'dependencia_sub_areas_view',
+    'dependencia_sub_sedes_view',
+    'dependencia_sub_funcionarios_view',
+    
     'area_create_view', 
     'area_update_view',
     'area_soft_delete_view',

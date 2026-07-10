@@ -139,5 +139,62 @@ class OrganigramaPermissions:
         {
             "icon": "ticket", "title": "Tickets de Sede", "url_name": "#",
             "order": 6, "permission": "can_manage_infrastructure", "provider": "helpdesk", "stub": True,
-        },
+        },   
     ]
+    
+    DEPENDENCIA_DETAIL_MENU = [
+            {
+                "icon": "fingerprint",
+                "title": "Ficha de Dependencia",
+                "url_name": "organigrama:dependencia_sub_identidad",
+                "permission": "can_manage_infrastructure",
+                "order": 10,
+                "provider": "organigrama",
+                "stub": False,
+            },
+            {
+                "icon": "layout-grid",
+                "title": "Áreas Operativas",
+                "url_name": "organigrama:dependencia_sub_areas",
+                "permission": "can_manage_infrastructure",
+                "order": 20,
+                "provider": "organigrama",
+                "stub": False,
+            },
+            {
+                "icon": "map-pin",
+                "title": "Sedes donde Opera",
+                "url_name": "organigrama:dependencia_sub_sedes",
+                "permission": "can_manage_infrastructure",
+                "order": 30,
+                "provider": "organigrama",
+                "stub": False,
+            },
+            {
+                "icon": "users",
+                "title": "Funcionarios Adscritos",
+                "url_name": "organigrama:dependencia_sub_funcionarios",
+                "permission": "can_manage_infrastructure",
+                "order": 40,
+                "provider": "organigrama",
+                "stub": False,
+            },
+            {
+                "icon": "package",
+                "title": "Activos Asignados",
+                "url_name": "#",
+                "permission": "can_manage_infrastructure",
+                "order": 80,
+                "provider": "assets",
+                "stub": True,
+            },
+            {
+                "icon": "ticket",
+                "title": "Tickets de Dependencia",
+                "url_name": "#",
+                "permission": "can_manage_infrastructure",
+                "order": 90,
+                "provider": "helpdesk",
+                "stub": True,
+            },
+        ]

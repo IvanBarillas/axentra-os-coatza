@@ -1,0 +1,13 @@
+{% extends "shell/workbench.html" %}
+
+{% block title %}
+Expediente de Dependencia: {{ dependencia.nombre }} | {{ tenant.app_name }}
+{% endblock %}
+
+{% block module_sidebar %}
+    {% include "organigrama/contextual/dependencia_sidebar.html" %}
+{% endblock %}
+
+{% block page_content %}
+    {% include "organigrama/contextual/partials/dependencia_identidad.html" %}
+{% endblock %}
