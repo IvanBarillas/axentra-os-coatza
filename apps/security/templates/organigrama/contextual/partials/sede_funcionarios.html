@@ -85,9 +85,16 @@
                             </div>
 
                             <div class="min-w-0">
-                                <h3 class="text-sm font-black text-gray-950 uppercase font-mono tracking-tight truncate">
-                                    {{ funcionario.user.first_name }} {{ funcionario.user.last_name }}
-                                </h3>
+                                <a
+    href="{% url 'accounts:funcionario_detail' funcionario.user.id %}"
+    hx-get="{% url 'accounts:funcionario_detail' funcionario.user.id %}"
+    hx-target="#workbench"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    class="block text-sm font-black text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight truncate"
+>
+    {{ funcionario.user.get_full_name|default:funcionario.user.email }}
+</a>
 
                                 <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
                                     {{ funcionario.user.email|default:"sin correo institucional" }}
@@ -109,8 +116,22 @@
                             </div>
 
                         </div>
-
+                    <div class="flex items-center justify-end gap-2 shrink-0">
+    <a
+        href="{% url 'accounts:funcionario_detail' funcionario.user.id %}"
+        hx-get="{% url 'accounts:funcionario_detail' funcionario.user.id %}"
+        hx-target="#workbench"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-indigo-700 hover:border-indigo-200 transition font-mono"
+    >
+        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+        Abrir Expediente
+    </a>
+</div>
                     </div>
+
+
                 </article>
             {% empty %}
 

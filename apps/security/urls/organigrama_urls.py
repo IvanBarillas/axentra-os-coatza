@@ -43,7 +43,7 @@ urls_organigrama = [
     # 🗺️ Inmuebles y Territorio Municipal (Sedes)
     path('sedes/', sede_list_view, name='sede_list'),
     path('sedes/nueva/', sede_create_view, name='sede_create'),
-    path('sedes/editar/<uuid:pk>/', sede_update_view, name='sede_update'),
+    path("sedes/editar/<uuid:pk>/", sede_update_view, name="sede_update"),
     path('sedes/eliminar/<uuid:pk>/', sede_soft_delete_view, name='sede_delete'), 
     path('sedes/estado/<uuid:pk>/', sede_toggle_status_view, name='sede_toggle_status'),
     

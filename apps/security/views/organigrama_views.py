@@ -240,6 +240,7 @@ def sede_create_view(request):
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_update_view(request, pk: uuid.UUID):
     """Modificación contextual de metadatos geográficos de una sede."""
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
@@ -249,21 +250,39 @@ def sede_update_view(request, pk: uuid.UUID):
         form = SedeForm(request.POST, instance=sede_instancia)
 
         if form.is_valid():
-            exito, errores = OrganigramaService.actualizar_sede(request, sede_instancia, form.cleaned_data)
+            exito, errores = OrganigramaService.actualizar_sede(
+                request,
+                sede_instancia,
+                form.cleaned_data,
+            )
 
             if exito:
-                messages.success(request, f"Sede '{sede_instancia.nombre}' actualizada correctamente.")
-                
+                messages.success(
+                    request,
+                    f"Sede '{sede_instancia.nombre}' actualizada correctamente.",
+                )
+
                 areas = (
-                    AreaOperativa.objects.filter(sede_fisica=sede_instancia, is_deleted=False)
+                    AreaOperativa.objects
+                    .filter(
+                        sede_fisica=sede_instancia,
+                        is_deleted=False,
+                    )
                     .select_related("dependencia")
                     .order_by("dependencia__nombre", "nombre")
                 )
+
                 dependencias = (
-                    Dependencia.objects.filter(areas__sede_fisica=sede_instancia, areas__is_deleted=False, is_deleted=False)
+                    Dependencia.objects
+                    .filter(
+                        areas__sede_fisica=sede_instancia,
+                        areas__is_deleted=False,
+                        is_deleted=False,
+                    )
                     .distinct()
                     .order_by("nombre")
                 )
+
                 context_detail = {
                     "sede": sede_instancia,
                     "areas": areas,
@@ -275,18 +294,28 @@ def sede_update_view(request, pk: uuid.UUID):
                 }
 
                 if is_htmx and target_htmx == "page-content":
-                    return render(request, "organigrama/htmx/sede_identidad_with_messages.html", context_detail)
+                    return render(
+                        request,
+                        "organigrama/htmx/sede_identidad_with_messages.html",
+                        context_detail,
+                    )
+
                 return redirect("organigrama:sede_detail", pk=sede_instancia.id)
 
             error_msg = errores.get("server_error", ["Fallo de actualización"])[0]
             messages.error(request, error_msg)
             form.add_error(None, error_msg)
+
         else:
-            messages.error(request, "Revisa los campos del formulario antes de actualizar la sede.")
+            messages.error(
+                request,
+                "Revisa los campos del formulario antes de actualizar la sede.",
+            )
+
     else:
         form = SedeForm(instance=sede_instancia)
 
-        return render_sede_contextual_subview(
+    return render_sede_contextual_subview(
         request=request,
         sede=sede_instancia,
         partial_template="organigrama/content/sede_form_content.html",
@@ -1063,7 +1092,7 @@ def dependencia_create_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_update_view(request, pk: uuid.UUID):
-    """Modificación de nomenclatura y titular de dependencias administrativas."""
+    """Modificación contextual de nomenclatura y titular de dependencia."""
 
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
@@ -1099,46 +1128,45 @@ def dependencia_update_view(request, pk: uuid.UUID):
                     f"Dependencia '{dep_instancia.nombre}' actualizada correctamente.",
                 )
 
-                dependencias = (
-                    Dependencia.objects
-                    .filter(is_deleted=False)
-                    .annotate(
-                        total_areas=Count(
-                            "areas",
-                            filter=Q(areas__is_deleted=False),
-                            distinct=True,
-                        ),
-                        total_sedes=Count(
-                            "areas__sede_fisica",
-                            filter=Q(
-                                areas__is_deleted=False,
-                                areas__sede_fisica__is_deleted=False,
-                            ),
-                            distinct=True,
-                        ),
+                areas = (
+                    AreaOperativa.objects
+                    .filter(dependencia=dep_instancia, is_deleted=False)
+                    .select_related("sede_fisica")
+                    .order_by("sede_fisica__nombre", "nombre")
+                )
+
+                sedes = (
+                    Sede.objects
+                    .filter(
+                        areas__dependencia=dep_instancia,
+                        areas__is_deleted=False,
+                        is_deleted=False,
                     )
+                    .distinct()
                     .order_by("nombre")
                 )
 
-                context_list = {
-                    "dependencias": dependencias,
-                    "total_dependencias": dependencias.count(),
-                    "dependencias_activas": dependencias.filter(is_active=True).count(),
-                    "dependencias_inactivas": dependencias.filter(is_active=False).count(),
+                context_detail = {
+                    "dependencia": dep_instancia,
+                    "areas": areas,
+                    "sedes": sedes,
+                    "total_areas": areas.count(),
+                    "total_sedes": sedes.count(),
                     "modulo_actual": AppIdentifier.ORGANIGRAMA,
-                    "show_module_sidebar": False,
+                    "show_module_sidebar": True,
                 }
 
-                if is_htmx:
-                    response = render(
+                if is_htmx and target_htmx == "page-content":
+                    return render(
                         request,
-                        "organigrama/htmx/dependencia_list_with_messages.html",
-                        context_list,
+                        "organigrama/htmx/dependencia_identidad_with_messages.html",
+                        context_detail,
                     )
-                    response["HX-Push-Url"] = reverse("organigrama:dependencia_list")
-                    return response
 
-                return redirect("organigrama:dependencia_list")
+                return redirect(
+                    "organigrama:dependencia_detail",
+                    pk=dep_instancia.id,
+                )
 
             error_msg = errores.get(
                 "server_error",
@@ -1157,25 +1185,18 @@ def dependencia_update_view(request, pk: uuid.UUID):
     else:
         form = DependenciaForm(instance=dep_instancia)
 
-    context = {
-        "form": form,
-        "action": "update",
-        "dependencia": dep_instancia,
-        "modulo_actual": AppIdentifier.ORGANIGRAMA,
-        "show_module_sidebar": False,
-    }
-
-    if is_htmx and target_htmx == "page-content":
-        return render(
-            request,
-            "organigrama/content/dependencia_form_content.html",
-            context,
-        )
-
-    return render(
-        request,
-        "organigrama/pages/dependencia_form.html",
-        context,
+    return render_dependencia_contextual_subview(
+        request=request,
+        dependencia=dep_instancia,
+        partial_template="organigrama/content/dependencia_form_content.html",
+        current_sub_view="organigrama:dependencia_sub_identidad",
+        extra_context={
+            "form": form,
+            "action": "update",
+            "dependencia": dep_instancia,
+            "back_label": "Volver a Ficha de Dependencia",
+            "back_target": "#page-content",
+        },
     )
     
 
@@ -1188,12 +1209,15 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
     """Baja lógica protegida de una dependencia administrativa."""
 
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
 
     dep_instancia = get_object_or_404(
         Dependencia,
         pk=pk,
         is_deleted=False,
     )
+
+    nombre_dependencia = dep_instancia.nombre
 
     exito, errores = OrganigramaService.eliminar_dependencia(
         request,
@@ -1203,29 +1227,12 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
     if exito:
         messages.warning(
             request,
-            f"Dependencia '{dep_instancia.nombre}' dada de baja correctamente.",
+            f"Dependencia '{nombre_dependencia}' enviada a baja lógica correctamente.",
         )
 
-        if is_htmx:
-            return render(
-                request,
-                "partials/empty_with_messages.html",
-                {},
-            )
-
-        return redirect("organigrama:dependencia_list")
-
-    error_msg = errores.get(
-        "server_error",
-        ["No fue posible dar de baja la dependencia."],
-    )[0]
-
-    messages.error(request, error_msg)
-
-    if is_htmx:
-        dep_instancia = (
+        dependencias = (
             Dependencia.objects
-            .filter(pk=pk, is_deleted=False)
+            .filter(is_deleted=False)
             .annotate(
                 total_areas=Count(
                     "areas",
@@ -1241,19 +1248,86 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
                     distinct=True,
                 ),
             )
-            .first()
+            .order_by("nombre")
         )
 
+        context_list = {
+            "dependencias": dependencias,
+            "total_dependencias": dependencias.count(),
+            "dependencias_activas": dependencias.filter(is_active=True).count(),
+            "dependencias_inactivas": dependencias.filter(is_active=False).count(),
+            "modulo_actual": AppIdentifier.ORGANIGRAMA,
+            "show_module_sidebar": False,
+        }
+
+        if is_htmx:
+            response = render(
+                request,
+                "organigrama/htmx/dependencia_list_with_messages.html",
+                context_list,
+            )
+            response["HX-Push-Url"] = reverse("organigrama:dependencia_list")
+            return response
+
+        return redirect("organigrama:dependencia_list")
+
+    error_msg = errores.get(
+        "server_error",
+        ["No fue posible dar de baja la dependencia."],
+    )[0]
+
+    messages.error(request, error_msg)
+
+    areas = (
+        AreaOperativa.objects
+        .filter(
+            dependencia=dep_instancia,
+            is_deleted=False,
+        )
+        .select_related("sede_fisica")
+        .order_by("sede_fisica__nombre", "nombre")
+    )
+
+    sedes = (
+        Sede.objects
+        .filter(
+            areas__dependencia=dep_instancia,
+            areas__is_deleted=False,
+            is_deleted=False,
+        )
+        .distinct()
+        .order_by("nombre")
+    )
+
+    context_detail = {
+        "dependencia": dep_instancia,
+        "areas": areas,
+        "sedes": sedes,
+        "total_areas": areas.count(),
+        "total_sedes": sedes.count(),
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "workbench":
         return render(
             request,
-            "organigrama/htmx/dependencia_row_with_messages.html",
-            {
-                "dep": dep_instancia,
-            },
+            "organigrama/workbench/dependencia_detail_workbench_with_messages.html",
+            context_detail,
         )
 
-    return redirect("organigrama:dependencia_list")
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/htmx/dependencia_identidad_with_messages.html",
+            context_detail,
+        )
 
+    return redirect(
+        "organigrama:dependencia_detail",
+        pk=dep_instancia.id,
+    )
+    
 
 @require_POST
 @login_required
@@ -1267,6 +1341,9 @@ def dependencia_toggle_status_view(request, pk: uuid.UUID):
     La operación vinculada debe revisarse explícitamente desde Áreas Operativas.
     """
 
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
     dep_instancia = get_object_or_404(
         Dependencia,
         pk=pk,
@@ -1275,16 +1352,17 @@ def dependencia_toggle_status_view(request, pk: uuid.UUID):
 
     estado_anterior = dep_instancia.is_active
 
-    areas_activas = (
+    areas = (
         AreaOperativa.objects
         .filter(
             dependencia=dep_instancia,
             is_deleted=False,
         )
-        .count()
+        .select_related("sede_fisica")
+        .order_by("sede_fisica__nombre", "nombre")
     )
 
-    sedes_vinculadas = (
+    sedes = (
         Sede.objects
         .filter(
             areas__dependencia=dep_instancia,
@@ -1292,8 +1370,11 @@ def dependencia_toggle_status_view(request, pk: uuid.UUID):
             is_deleted=False,
         )
         .distinct()
-        .count()
+        .order_by("nombre")
     )
+
+    total_areas = areas.count()
+    total_sedes = sedes.count()
 
     with transaction.atomic():
         dep_instancia.is_active = not dep_instancia.is_active
@@ -1323,8 +1404,8 @@ def dependencia_toggle_status_view(request, pk: uuid.UUID):
                 "dependencia_nombre": dep_instancia.nombre,
                 "estado_anterior": estado_anterior,
                 "estado_nuevo": dep_instancia.is_active,
-                "areas_activas": areas_activas,
-                "sedes_vinculadas": sedes_vinculadas,
+                "areas_activas": total_areas,
+                "sedes_vinculadas": total_sedes,
                 "cascade_applied": False,
             },
         )
@@ -1335,13 +1416,13 @@ def dependencia_toggle_status_view(request, pk: uuid.UUID):
             f"Dependencia '{dep_instancia.nombre}' activada correctamente.",
         )
     else:
-        if areas_activas > 0:
+        if total_areas > 0:
             messages.warning(
                 request,
                 (
                     f"Dependencia '{dep_instancia.nombre}' inactivada. "
-                    f"Tiene {areas_activas} área(s) operativa(s) vinculada(s) "
-                    f"en {sedes_vinculadas} sede(s). "
+                    f"Tiene {total_areas} área(s) operativa(s) vinculada(s) "
+                    f"en {total_sedes} sede(s). "
                     "Las áreas no fueron apagadas automáticamente."
                 ),
             )
@@ -1354,20 +1435,38 @@ def dependencia_toggle_status_view(request, pk: uuid.UUID):
     logger.info(
         f"🛰️ AUDITORÍA: Toggle protegido aplicado sobre Dependencia ID=[{dep_instancia.id}] "
         f"Estado=[{estado_anterior} -> {dep_instancia.is_active}] "
-        f"Áreas=[{areas_activas}] Sedes=[{sedes_vinculadas}]"
+        f"Áreas=[{total_areas}] Sedes=[{total_sedes}]"
     )
 
-    return render(
-        request,
-        "common/tags/badge_toggle_with_messages.html",
-        {
-            "is_active": dep_instancia.is_active,
-            "toggle_url": reverse(
-                "organigrama:dependencia_toggle_status",
-                args=[dep_instancia.id],
-            ),
-        },
+    context_detail = {
+        "dependencia": dep_instancia,
+        "areas": areas,
+        "sedes": sedes,
+        "total_areas": total_areas,
+        "total_sedes": total_sedes,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/htmx/dependencia_identidad_with_messages.html",
+            context_detail,
+        )
+
+    if is_htmx:
+        return render(
+            request,
+            "organigrama/htmx/dependencia_identidad_with_messages.html",
+            context_detail,
+        )
+
+    return redirect(
+        "organigrama:dependencia_detail",
+        pk=dep_instancia.id,
     )
+
 
 def render_dependencia_contextual_subview(
     request,
