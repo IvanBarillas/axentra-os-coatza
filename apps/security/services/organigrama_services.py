@@ -1,5 +1,6 @@
 # apps/security/services/organigrama_services.py
 import logging
+from django.utils import timezone
 import uuid
 import sys
 import os
@@ -301,48 +302,149 @@ class OrganigramaService:
     # 🗑️ BAJAS LÓGICAS CON INTERPOLACIÓN EN CASCADA (SOFT DELETE)
     # =========================================================================
     @staticmethod
-    def eliminar_sede(request, sede_instancia: Sede) -> None:
-        """Baja lógica de instancia: Desactiva el inmueble congelando dependientes."""
+    def eliminar_sede(request, sede_instancia: Sede) -> tuple[bool, dict]:
+        """
+        Baja lógica protegida de sede física.
+
+        Regla Axentra:
+        Una sede sólo puede darse de baja si no tiene áreas operativas vivas.
+        Las dependencias no se apagan al borrar una sede; las áreas deben reubicarse
+        o darse de baja explícitamente antes de eliminar el inmueble.
+        """
+        areas_activas = AreaOperativa.objects.filter(sede_fisica=sede_instancia, is_deleted=False).count()
+        dependencias_vinculadas = Dependencia.objects.filter(areas__sede_fisica=sede_instancia, areas__is_deleted=False, is_deleted=False).distinct().count()
+
+        if areas_activas > 0:
+            return False, {
+                "server_error": [
+                    f"No se puede dar de baja la sede '{sede_instancia.nombre}' porque tiene {areas_activas} área(s) operativa(s) vinculada(s) y {dependencias_vinculadas} dependencia(s) presente(s). Primero reubica o da de baja esas áreas."
+                ]
+            }
+
         with transaction.atomic():
             sede_instancia.is_deleted = True
             sede_instancia.is_active = False
-            sede_instancia.save()
-            AreaOperativa.objects.filter(sede_fisica=sede_instancia).update(is_active=False)
             
-        # 🪐 REGISTRO EN BITÁCORA CRÍTICA
-        ForensicAuditor.registrar_evento(
-            request=request,
-            action_type=SecurityAuditLog.ActionTypes.DELETE,
-            module_component="SEDES_INFRAESTRUCTURA",
-            action_name="SOFT_DELETE_SEDE_INFRAESTRUCTURA",
-            target_scope=f"Baja perimetral del inmueble {sede_instancia.nombre}. Sus celdas adscritas se inactivaron.",
-            level=SecurityAuditLog.Levels.CRITICAL,
-            search_target=sede_instancia.id,
-            payload={'is_deleted': True, 'is_active': False}
-        )
-        logger.warning(f"⚠️ AUDITORÍA: Soft-Delete aplicado sobre Sede Física ID=[{sede_instancia.id}].")
+            campos = ["is_deleted", "is_active", "updated_at"]
+            if hasattr(sede_instancia, "deleted_at"):
+                sede_instancia.deleted_at = timezone.now()
+                campos.append("deleted_at")
+                
+            sede_instancia.save(update_fields=campos)
+
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.DELETE,
+                module_component="SEDES_INFRAESTRUCTURA",
+                action_name="SOFT_DELETE_SEDE_INFRAESTRUCTURA",
+                target_scope=f"Baja lógica protegida del inmueble {sede_instancia.nombre}. No existían áreas operativas vivas vinculadas al momento de la baja.",
+                level=SecurityAuditLog.Levels.CRITICAL,
+                search_target=str(sede_instancia.id),
+                payload={
+                    "sede_id": str(sede_instancia.id),
+                    "sede_nombre": sede_instancia.nombre,
+                    "is_deleted": True,
+                    "is_active": False,
+                    "areas_activas": areas_activas,
+                    "dependencias_vinculadas": dependencias_vinculadas,
+                },
+            )
+
+        logger.warning(f"⚠️ AUDITORÍA: Soft-Delete protegido aplicado sobre Sede Física ID=[{sede_instancia.id}].")
+        return True, {}
 
     @staticmethod
-    def eliminar_dependencia(request, dep_instancia: Dependencia) -> None:
-        """Baja lógica de dirección superior con barrido en cascada atómica."""
+    def eliminar_dependencia(request, dep_instancia: Dependencia) -> tuple[bool, dict]:
+        """
+        Baja lógica protegida de dependencia administrativa.
+
+        Regla Axentra:
+        Una dependencia sólo puede darse de baja si no tiene áreas operativas vivas.
+        Las áreas no se apagan ni se eliminan automáticamente; deben reubicarse
+        o darse de baja explícitamente antes de eliminar la dependencia.
+        """
+
+        areas_activas = (
+            AreaOperativa.objects
+            .filter(
+                dependencia=dep_instancia,
+                is_deleted=False,
+            )
+            .count()
+        )
+
+        sedes_vinculadas = (
+            Sede.objects
+            .filter(
+                areas__dependencia=dep_instancia,
+                areas__is_deleted=False,
+                is_deleted=False,
+            )
+            .distinct()
+            .count()
+        )
+
+        if areas_activas > 0:
+            return False, {
+                "server_error": [
+                    (
+                        f"No se puede dar de baja la dependencia '{dep_instancia.nombre}' "
+                        f"porque tiene {areas_activas} área(s) operativa(s) vinculada(s) "
+                        f"en {sedes_vinculadas} sede(s). "
+                        "Primero reubica o da de baja esas áreas."
+                    )
+                ]
+            }
+
         with transaction.atomic():
             dep_instancia.is_active = False
             dep_instancia.is_deleted = True
-            dep_instancia.save()
-            dep_instancia.areas.update(is_active=False, is_deleted=True)
-            
-        # 🪐 REGISTRO EN BITÁCORA CRÍTICA
-        ForensicAuditor.registrar_evento(
-            request=request,
-            action_type=SecurityAuditLog.ActionTypes.DELETE,
-            module_component="DEPENDENCIAS_RAIZ",
-            action_name="SOFT_DELETE_RAMA_DEPENDENCIAL",
-            target_scope=f"Baja lógica atómica de la Dirección: {dep_instancia.nombre}. Sus sub-oficinas inferiores fueron destruidas.",
-            level=SecurityAuditLog.Levels.CRITICAL,
-            search_target=dep_instancia.id,
-            payload={'dependencia_eliminada': dep_instancia.nombre}
+
+            if hasattr(dep_instancia, "deleted_at"):
+                dep_instancia.deleted_at = timezone.now()
+                dep_instancia.save(
+                    update_fields=[
+                        "is_active",
+                        "is_deleted",
+                        "deleted_at",
+                        "updated_at",
+                    ]
+                )
+            else:
+                dep_instancia.save(
+                    update_fields=[
+                        "is_active",
+                        "is_deleted",
+                        "updated_at",
+                    ]
+                )
+
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.DELETE,
+                module_component="DEPENDENCIAS_RAIZ",
+                action_name="SOFT_DELETE_DEPENDENCIA_PROTEGIDA",
+                target_scope=(
+                    f"Baja lógica protegida de la dependencia {dep_instancia.nombre}. "
+                    "No existían áreas operativas vivas vinculadas al momento de la baja."
+                ),
+                level=SecurityAuditLog.Levels.CRITICAL,
+                search_target=str(dep_instancia.id),
+                payload={
+                    "dependencia_id": str(dep_instancia.id),
+                    "dependencia_nombre": dep_instancia.nombre,
+                    "is_active": False,
+                    "is_deleted": True,
+                    "areas_activas": areas_activas,
+                    "sedes_vinculadas": sedes_vinculadas,
+                },
+            )
+
+        logger.warning(
+            f"⚠️ AUDITORÍA: Soft-Delete protegido aplicado sobre Dependencia ID=[{dep_instancia.id}]."
         )
-        logger.warning(f"⚠️ AUDITORÍA: Soft-Delete con barrido en cascada aplicado en Dependencia ID=[{dep_instancia.id}].")
+
+        return True, {}
 
     @staticmethod
     def eliminar_area(request, area_instancia: AreaOperativa) -> None:

@@ -28,7 +28,8 @@ from .organigrama_views import (
     sede_sub_dependencias_view,
     sede_sub_areas_view,
     sede_sub_funcionarios_view,
-     
+    
+    dependencia_list_view,
     dependencia_create_view, 
     dependencia_update_view,      
     dependencia_soft_delete_view, 
@@ -81,6 +82,7 @@ __all__ = [
     'sede_sub_areas_view',
     'sede_sub_funcionarios_view',
      
+     'dependencia_list_view',
     'dependencia_create_view', 
     'dependencia_update_view',
     'dependencia_soft_delete_view',

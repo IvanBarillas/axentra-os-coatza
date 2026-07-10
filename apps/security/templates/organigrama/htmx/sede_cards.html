@@ -1,98 +1,16 @@
-{% load axentra_ui %}
-
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
     {% for sede in sedes %}
-        <div id="sede-card-{{ sede.id }}" class="bg-white p-4 md:p-6 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs flex flex-col justify-between gap-4 md:gap-6 hover:border-gray-950/20 hover:shadow-md transition-all duration-200 group">
-            
-            <div class="flex items-center justify-between gap-3 w-full">
-                <div class="flex items-center gap-3 min-w-0 flex-1">
-                    <div class="p-2.5 bg-gray-50 border border-gray-200/60 rounded-xl text-gray-950 shrink-0 shadow-3xs group-hover:bg-gray-950 group-hover:text-white transition-colors duration-200">
-                        <i data-lucide="map" class="w-4 h-4"></i>
-                    </div>
-
-                    <div class="min-w-0 flex-1 text-left">
-                        <a href="{% url 'organigrama:sede_detail' sede.id %}"
-                        hx-get="{% url 'organigrama:sede_detail' sede.id %}"
-                        hx-target="#workbench"
-                        hx-swap="innerHTML"
-                        hx-push-url="true"
-                        class="inline-flex items-center gap-2 max-w-full font-black text-sm text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight truncate leading-tight transition group/link"
-                        >
-                            <span class="truncate">
-                                {{ sede.nombre }}
-                            </span>
-                            <i data-lucide="external-link" 
-                            class="w-3.5 h-3.5 text-indigo-400 group-hover/link:text-indigo-600 shrink-0 transition">
-                            </i>
-                        </a>
-
-                        <p class="text-[10px] text-gray-400 font-bold font-mono mt-1 uppercase tracking-wide leading-none truncate md:normal-case md:font-sans md:line-clamp-1" title="{{ sede.direccion }}">
-                            {{ sede.direccion|default:"// Dirección omitida" }}
-                        </p>
-
-                        <div class="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
-                            <i data-lucide="folder-open" class="w-3.5 h-3.5 text-gray-300"></i>
-                            <span>Abrir expediente de sede</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="status-node-{{ sede.id }}" class="shrink-0 scale-90 md:scale-100">
-                    {% url 'organigrama:sede_toggle_status' sede.id as url_toggle %}
-                    {% badge_toggle sede.is_active url_toggle %}
-                </div>
-            </div>
-
-            <div class="pt-3 md:pt-4 border-t border-gray-100/80 flex items-center justify-between text-[10px] font-mono uppercase tracking-wide">
-                <div class="flex items-center gap-2">
-                    {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list or "organigrama__can_manage_infrastructure" in request.axentra_permissions_list %}
-                        <a href="{% url 'organigrama:sede_update' sede.id %}"
-                           hx-get="{% url 'organigrama:sede_update' sede.id %}"
-                           hx-target="#page-content"
-                           hx-swap="innerHTML"
-                           hx-push-url="true"
-                           class="p-2 bg-gray-50/80 hover:bg-gray-950 border border-gray-200 text-gray-400 hover:text-white rounded-lg transition shadow-3xs flex items-center justify-center cursor-pointer transform active:scale-95"
-                           title="Editar Parámetros">
-                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                        </a>
-
-                        <button
-                            type="button"
-                            id="btn-delete-{{ sede.id }}"
-                            hx-post="{% url 'organigrama:sede_delete' sede.id %}"
-                            hx-confirm="¿Está seguro de aplicar la baja lógica a la sede '{{ sede.nombre }}'? Se congelará temporalmente la visibilidad de sus oficinas adscritas."
-                            hx-target="#sede-card-{{ sede.id }}"
-                            hx-swap="outerHTML swap:0.3s"
-                            data-confirm-title="Alerta de Infraestructura"
-                            data-confirm-icon="shield-alert"
-                            data-confirm-icon-bg="bg-red-50"
-                            data-confirm-icon-color="text-red-600"
-                            data-confirm-button-class="bg-red-600 hover:bg-red-700 text-white"
-                            data-confirm-action="Confirmar Baja"
-                            data-confirm-cancel="Cancelar"
-                            class="p-2 bg-gray-50/80 hover:bg-red-600 border border-gray-200 text-gray-400 hover:text-white rounded-lg transition shadow-3xs flex items-center justify-center cursor-pointer transform active:scale-95"
-                            title="Eliminar Inmueble del Mapa"
-                        >
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        </button>
-                    {% endif %}
-                </div>
-
-                <div class="flex items-center gap-1.5 text-gray-400 font-bold">
-                    <span class="hidden sm:inline">Nodo:</span>
-                    <span class="text-gray-900 font-black text-[9px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200 tracking-normal">
-                        {{ sede.id|stringformat:".8s" }}...
-                    </span>
-                </div>
-            </div>
-
-        </div>
+        {% include "organigrama/htmx/sede_card.html" %}
     {% empty %}
         <div class="col-span-full text-center py-16 bg-white border border-gray-200 rounded-[24px] md:rounded-[32px] p-6 max-w-md mx-auto shadow-3xs font-mono">
             <div class="w-12 h-12 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3 text-gray-400">
                 <i data-lucide="map" class="w-5 h-5 stroke-1"></i>
             </div>
-            <span class="text-xs font-black text-gray-950 uppercase tracking-widest block">// MAPA DE SEDES VACÍO</span>
+
+            <span class="text-xs font-black text-gray-950 uppercase tracking-widest block">
+                // MAPA DE SEDES VACÍO
+            </span>
+
             <p class="text-[11px] text-gray-400 font-medium mt-1 uppercase leading-relaxed">
                 No se localizan inmuebles o palacios municipales registrados en la base de datos perimetral.
             </p>
@@ -101,5 +19,7 @@
 </div>
 
 <script>
-    if (typeof lucide !== "undefined") { lucide.createIcons(); }
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
 </script>

@@ -2,11 +2,17 @@
 
 <div class="w-full space-y-5 animate-fade-in">
 
+    <!-- ===================================================== -->
+    <!-- FICHA EJECUTIVA DE SEDE                              -->
+    <!-- ===================================================== -->
+
     <section class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden">
 
         <div class="px-5 sm:px-6 lg:px-7 py-5 border-b border-gray-100 bg-linear-to-r from-amber-50/40 via-white to-white">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+
                 <div class="min-w-0">
+
                     <div class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700 font-mono">
                         <i data-lucide="fingerprint" class="w-3.5 h-3.5"></i>
                         Ficha de Sede
@@ -19,9 +25,40 @@
                     <p class="mt-1 max-w-3xl text-sm text-gray-500 leading-relaxed">
                         {{ sede.direccion|default:"Esta sede todavía no tiene dirección física registrada." }}
                     </p>
+
+                    <div class="mt-4 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-widest">
+
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 font-black text-gray-500">
+                            <i data-lucide="map-pin" class="w-3 h-3 text-gray-400"></i>
+                            Inmueble Institucional
+                        </span>
+
+                        <span class="inline-flex items-center gap-1.5 rounded-full border {% if sede.is_active %}border-emerald-200 bg-emerald-50 text-emerald-700{% else %}border-rose-200 bg-rose-50 text-rose-700{% endif %} px-2.5 py-1 font-black">
+                            {% if sede.is_active %}
+                                <i data-lucide="circle-check" class="w-3 h-3"></i>
+                                Activa
+                            {% else %}
+                                <i data-lucide="circle-x" class="w-3 h-3"></i>
+                                Inactiva
+                            {% endif %}
+                        </span>
+
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-black text-indigo-700">
+                            <i data-lucide="layout-grid" class="w-3 h-3"></i>
+                            {{ total_areas|default:areas|length }} Áreas
+                        </span>
+
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 font-black text-gray-500">
+                            <i data-lucide="building-2" class="w-3 h-3 text-gray-400"></i>
+                            {{ total_dependencias|default:0 }} Dependencias
+                        </span>
+
+                    </div>
+
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-2">
+                <div class="flex flex-col sm:flex-row gap-2 shrink-0">
+
                     <a
                         href="{% url 'organigrama:sede_update' sede.id %}"
                         hx-get="{% url 'organigrama:sede_update' sede.id %}"
@@ -34,32 +71,192 @@
                         Editar
                     </a>
 
-                    <div id="status-node-sede-detail-{{ sede.id }}">
+                    <div id="status-node-sede-detail-{{ sede.id }}" class="flex items-center">
                         {% url 'organigrama:sede_toggle_status' sede.id as url_toggle %}
                         {% badge_toggle sede.is_active url_toggle %}
                     </div>
+
                 </div>
+
             </div>
         </div>
 
-        <div class="p-5 sm:p-6 lg:p-7 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- ===================================================== -->
+        <!-- ALERTA OPERATIVA                                     -->
+        <!-- ===================================================== -->
+
+        {% if not sede.is_active and total_areas|default:areas|length > 0 %}
+            <div class="mx-5 sm:mx-6 lg:mx-7 mt-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 flex items-start gap-3">
+
+                <div class="w-10 h-10 rounded-xl bg-white border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                    <i data-lucide="triangle-alert" class="w-5 h-5"></i>
+                </div>
+
+                <div class="min-w-0">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-amber-900 font-mono">
+                        Sede inactiva con operación vinculada
+                    </h3>
+
+                    <p class="mt-1 text-sm text-amber-800/80 leading-relaxed">
+                        Esta sede está marcada como inactiva, pero todavía tiene
+                        <strong>{{ total_areas|default:areas|length }}</strong> área(s) operativa(s)
+                        y <strong>{{ total_dependencias|default:0 }}</strong> dependencia(s) relacionada(s).
+                        Las áreas no fueron apagadas automáticamente; deben reubicarse o revisarse antes de una baja lógica.
+                    </p>
+                </div>
+
+            </div>
+        {% endif %}
+
+        <!-- ===================================================== -->
+        <!-- MÉTRICAS DE IDENTIDAD                                -->
+        <!-- ===================================================== -->
+
+        <div class="p-5 sm:p-6 lg:p-7 grid grid-cols-1 md:grid-cols-4 gap-4">
+
             <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">Estado</p>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    Estado
+                </p>
+
                 <p class="mt-1 text-sm font-black uppercase font-mono {% if sede.is_active %}text-emerald-700{% else %}text-rose-700{% endif %}">
                     {% if sede.is_active %}Activa{% else %}Inactiva{% endif %}
+                </p>
+
+                <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide">
+                    Operación física
                 </p>
             </div>
 
             <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">Áreas Operativas</p>
-                <p class="mt-1 text-2xl font-black text-gray-950 font-mono">{{ areas|length }}</p>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    Áreas Operativas
+                </p>
+
+                <p class="mt-1 text-2xl font-black text-gray-950 font-mono">
+                    {{ total_areas|default:areas|length }}
+                </p>
+
+                <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide">
+                    Oficinas vinculadas
+                </p>
             </div>
 
             <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">Nodo</p>
-                <p class="mt-1 text-xs font-black text-gray-950 font-mono break-all">{{ sede.id }}</p>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    Dependencias
+                </p>
+
+                <p class="mt-1 text-2xl font-black text-gray-950 font-mono">
+                    {{ total_dependencias|default:0 }}
+                </p>
+
+                <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide">
+                    Autoridad presente
+                </p>
             </div>
+
+            <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    Nodo
+                </p>
+
+                <p class="mt-1 text-xs font-black text-gray-950 font-mono break-all">
+                    {{ sede.id }}
+                </p>
+
+                <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide">
+                    UUID institucional
+                </p>
+            </div>
+
         </div>
+
+    </section>
+
+    <!-- ===================================================== -->
+    <!-- ACCESOS RÁPIDOS A SUBVISTAS                          -->
+    <!-- ===================================================== -->
+
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        <a
+            href="{% url 'organigrama:sede_sub_areas' sede.id %}"
+            hx-get="{% url 'organigrama:sede_sub_areas' sede.id %}"
+            hx-target="#page-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="group bg-white border border-gray-200/80 rounded-[24px] p-5 shadow-3xs hover:border-indigo-200 hover:shadow-sm transition"
+        >
+            <div class="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <i data-lucide="layout-grid" class="w-5 h-5"></i>
+            </div>
+
+            <h3 class="mt-4 text-sm font-black text-gray-950">
+                Áreas Operativas
+            </h3>
+
+            <p class="mt-1 text-xs text-gray-500 leading-relaxed">
+                Consultar las oficinas, células o puntos operativos vinculados a esta sede.
+            </p>
+
+            <div class="mt-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 font-mono">
+                Ver {{ total_areas|default:areas|length }} área(s)
+                <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-0.5 transition"></i>
+            </div>
+        </a>
+
+        <a
+            href="{% url 'organigrama:sede_sub_dependencias' sede.id %}"
+            hx-get="{% url 'organigrama:sede_sub_dependencias' sede.id %}"
+            hx-target="#page-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="group bg-white border border-gray-200/80 rounded-[24px] p-5 shadow-3xs hover:border-indigo-200 hover:shadow-sm transition"
+        >
+            <div class="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-600">
+                <i data-lucide="building-2" class="w-5 h-5"></i>
+            </div>
+
+            <h3 class="mt-4 text-sm font-black text-gray-950">
+                Dependencias Presentes
+            </h3>
+
+            <p class="mt-1 text-xs text-gray-500 leading-relaxed">
+                Ver qué dependencias administrativas tienen operación física dentro de esta sede.
+            </p>
+
+            <div class="mt-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 font-mono">
+                Ver {{ total_dependencias|default:0 }} dependencia(s)
+                <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-0.5 transition"></i>
+            </div>
+        </a>
+
+        <a
+            href="{% url 'organigrama:sede_sub_funcionarios' sede.id %}"
+            hx-get="{% url 'organigrama:sede_sub_funcionarios' sede.id %}"
+            hx-target="#page-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="group bg-white border border-gray-200/80 rounded-[24px] p-5 shadow-3xs hover:border-indigo-200 hover:shadow-sm transition"
+        >
+            <div class="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-600">
+                <i data-lucide="users" class="w-5 h-5"></i>
+            </div>
+
+            <h3 class="mt-4 text-sm font-black text-gray-950">
+                Funcionarios en Sede
+            </h3>
+
+            <p class="mt-1 text-xs text-gray-500 leading-relaxed">
+                Revisar el personal adscrito a áreas operativas ubicadas en este inmueble.
+            </p>
+
+            <div class="mt-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 font-mono">
+                Consultar personal
+                <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-0.5 transition"></i>
+            </div>
+        </a>
 
     </section>
 

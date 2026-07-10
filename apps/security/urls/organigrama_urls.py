@@ -17,6 +17,7 @@ from apps.security.views.organigrama_views import (
     sede_sub_areas_view,
     sede_sub_funcionarios_view,
     # Dependencias
+    dependencia_list_view,
     dependencia_create_view, 
     dependencia_update_view,
     dependencia_soft_delete_view,
@@ -49,10 +50,14 @@ urls_organigrama = [
     path("sedes/<uuid:pk>/funcionarios/", sede_sub_funcionarios_view, name="sede_sub_funcionarios"),
 
     # Operaciones Transaccionales de Dependencias (Direcciones Generales)
+    path("dependencias/", dependencia_list_view, name="dependencia_list"),
     path('dependencia/nueva/', dependencia_create_view, name='dependencia_create'),
     path('dependencia/editar/<uuid:pk>/', dependencia_update_view, name='dependencia_update'),
     path('dependencia/eliminar/<uuid:pk>/', dependencia_soft_delete_view, name='dependencia_delete'),
     path('dependencia/estado/<uuid:pk>/', dependencia_toggle_status_view, name='dependencia_toggle_status'),
+    
+    # 🗂️ Expediente Contextual de Dependencia
+    
     
     # 📍 Operaciones Transaccionales de Áreas (Sub-Oficinas Internas)
     path('area/nueva/', area_create_view, name='area_create'),

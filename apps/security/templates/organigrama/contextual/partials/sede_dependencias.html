@@ -1,28 +1,150 @@
-<div class="w-full space-y-5 animate-fade-in">
-    <section class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs p-5 sm:p-6 lg:p-7">
-        <div class="flex items-center gap-3 mb-5">
-            <div class="w-10 h-10 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500">
-                <i data-lucide="building-2" class="w-5 h-5"></i>
-            </div>
-            <div>
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">Sede</p>
-                <h2 class="text-lg font-black text-gray-950">Dependencias presentes en {{ sede.nombre }}</h2>
+<div class="w-full space-y-5 animate-fade-in" x-data="{ buscarQuery: '' }">
+
+    <section class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden">
+
+        <div class="px-5 sm:px-6 lg:px-7 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50/40 via-white to-white">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+
+                <div class="min-w-0">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 font-mono">
+                        <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+                        Dependencias Presentes
+                    </div>
+
+                    <h1 class="mt-3 text-xl sm:text-2xl lg:text-3xl font-black text-gray-950 tracking-tight">
+                        Dependencias en {{ sede.nombre }}
+                    </h1>
+
+                    <p class="mt-1 max-w-3xl text-sm text-gray-500 leading-relaxed">
+                        Autoridades administrativas que tienen operación física dentro de esta sede mediante áreas operativas vinculadas.
+                    </p>
+                </div>
+
+                <div class="rounded-2xl border border-gray-100 bg-gray-50/70 px-5 py-4 min-w-[150px]">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                        Total
+                    </p>
+
+                    <p class="mt-1 text-2xl font-black text-gray-950 font-mono">
+                        {{ total_dependencias|default:0 }}
+                    </p>
+
+                    <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide">
+                        Dependencias
+                    </p>
+                </div>
+
             </div>
         </div>
 
-        <div class="space-y-2">
-            {% for dependencia in dependencias %}
-                <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 flex items-center justify-between gap-3">
-                    <div>
-                        <p class="text-sm font-black text-gray-950">{{ dependencia.nombre }}</p>
-                        <p class="text-[10px] font-mono uppercase tracking-widest text-gray-400">{{ dependencia.slug }}</p>
-                    </div>
-                </div>
-            {% empty %}
-                <p class="text-sm text-gray-400">No hay dependencias registradas en esta sede.</p>
-            {% endfor %}
+        <div class="px-5 sm:px-6 lg:px-7 py-4 border-b border-gray-100 bg-white">
+
+            <div class="relative w-full font-mono text-[11px]">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                </span>
+
+                <input
+                    type="text"
+                    x-model="buscarQuery"
+                    placeholder="Filtrar dependencia..."
+                    class="w-full bg-gray-50 text-gray-900 placeholder-gray-400 border border-gray-200/80 rounded-xl pl-9 pr-10 py-3 focus:outline-none focus:border-gray-950 focus:bg-white transition uppercase tracking-wide"
+                >
+
+                <button
+                    type="button"
+                    x-show="buscarQuery.length > 0"
+                    @click="buscarQuery = ''"
+                    class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-gray-400 hover:text-gray-950"
+                    x-cloak
+                >
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
         </div>
+
+        <div class="divide-y divide-gray-100">
+
+            {% for dependencia in dependencias %}
+                <article
+                    class="px-5 sm:px-6 lg:px-7 py-4 hover:bg-gray-50/60 transition"
+                    x-show="
+                        buscarQuery === '' ||
+                        '{{ dependencia.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase()) ||
+                        '{{ dependencia.slug }}'.toUpperCase().includes(buscarQuery.toUpperCase())
+                    "
+                >
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                        <div class="flex items-start gap-3 min-w-0">
+
+                            <div class="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                                <i data-lucide="building-2" class="w-5 h-5"></i>
+                            </div>
+
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-black text-gray-950 uppercase font-mono tracking-tight truncate">
+                                    {{ dependencia.nombre }}
+                                </h3>
+
+                                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
+                                    {{ dependencia.slug|default:"sin-slug" }}
+                                </p>
+
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 font-mono">
+                                        <i data-lucide="layout-grid" class="w-3 h-3 text-gray-400"></i>
+                                        {{ dependencia.total_areas|default:0 }} área(s)
+                                    </span>
+
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border {% if dependencia.is_active %}border-emerald-200 bg-emerald-50 text-emerald-700{% else %}border-rose-200 bg-rose-50 text-rose-700{% endif %} px-2.5 py-1 text-[10px] font-black uppercase tracking-widest font-mono">
+                                        {% if dependencia.is_active %}
+                                            <i data-lucide="circle-check" class="w-3 h-3"></i>
+                                            Activa
+                                        {% else %}
+                                            <i data-lucide="circle-x" class="w-3 h-3"></i>
+                                            Inactiva
+                                        {% endif %}
+                                    </span>
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2 shrink-0">
+                            <span class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                                Presente en sede
+                            </span>
+                        </div>
+
+                    </div>
+                </article>
+            {% empty %}
+
+                <div class="text-center py-16 bg-white p-6 max-w-md mx-auto font-mono">
+                    <div class="w-12 h-12 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3 text-gray-400">
+                        <i data-lucide="building-2" class="w-5 h-5 stroke-1"></i>
+                    </div>
+
+                    <span class="text-xs font-black text-gray-950 uppercase tracking-widest block">
+                        // SIN DEPENDENCIAS PRESENTES
+                    </span>
+
+                    <p class="text-[11px] text-gray-400 font-medium mt-1 uppercase leading-relaxed">
+                        Esta sede todavía no tiene dependencias vinculadas mediante áreas operativas.
+                    </p>
+                </div>
+
+            {% endfor %}
+
+        </div>
+
     </section>
+
 </div>
 
 <script>

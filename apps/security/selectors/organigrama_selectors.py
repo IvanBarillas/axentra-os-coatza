@@ -3,7 +3,7 @@ import uuid
 from typing import List, Dict, Any
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Q, Count
 
 from apps.security.models import Sede, Dependencia, AreaOperativa, AppDependencyCapability
 from apps.security.dtos import (
@@ -63,11 +63,20 @@ class SedeSelectors:
             is_active=sede.is_active
         )
 
-    @classmethod
-    def listar_todas(cls) -> List[SedeReadOnlyDTO]:
-        """Retorna el inventario total geográfico ordenado por nomenclatura."""
-        queryset = Sede.objects.select_related('encargado_sede').filter(is_deleted=False).order_by('nombre')
-        return [cls._mapear_a_dto(sede) for sede in queryset]
+    @staticmethod
+    def listar_todas():
+        return (
+            Sede.objects.filter(is_deleted=False)
+            .annotate(
+                total_areas=Count("areas", filter=Q(areas__is_deleted=False), distinct=True),
+                total_dependencias=Count(
+                    "areas__dependencia",
+                    filter=Q(areas__is_deleted=False, areas__dependencia__is_deleted=False),
+                    distinct=True,
+                ),
+            )
+            .order_by("nombre")
+        )
 
     @classmethod
     def obtener_por_id(cls, pk: uuid.UUID) -> SedeReadOnlyDTO:

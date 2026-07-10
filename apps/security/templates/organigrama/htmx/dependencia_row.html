@@ -1,0 +1,135 @@
+{% load axentra_ui %}
+
+<div
+    id="dependencia-row-{{ dep.id }}"
+    class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 px-5 py-4 hover:bg-gray-50/60 transition"
+    x-show="
+        buscarQuery === '' ||
+        '{{ dep.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase()) ||
+        '{{ dep.slug }}'.toUpperCase().includes(buscarQuery.toUpperCase()) ||
+        '{{ dep.encargado_departamento_name|default:'' }}'.toUpperCase().includes(buscarQuery.toUpperCase())
+    "
+>
+
+    <div class="lg:col-span-4 min-w-0">
+        <div class="flex items-start gap-3">
+
+            <div class="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                <i data-lucide="building-2" class="w-5 h-5"></i>
+            </div>
+
+            <div class="min-w-0">
+
+                <h3 class="text-sm font-black text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight truncate">
+                    {{ dep.nombre }}
+                </h3>
+
+                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-wide font-mono truncate">
+                    {{ dep.encargado_departamento_name|default:"// Responsable no asignado" }}
+                </p>
+
+                {% if dep.total_areas %}
+                    <div class="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600 font-mono">
+                        <i data-lucide="triangle-alert" class="w-3.5 h-3.5"></i>
+                        <span>Protegida por operación vinculada</span>
+                    </div>
+                {% else %}
+                    <div class="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                        <i data-lucide="folder-open" class="w-3.5 h-3.5 text-gray-300"></i>
+                        <span>Sin áreas operativas vinculadas</span>
+                    </div>
+                {% endif %}
+
+            </div>
+
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 flex lg:block items-center justify-between">
+        <span class="lg:hidden text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+            Slug
+        </span>
+
+        <span class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 font-mono">
+            {{ dep.slug|default:"sin-slug" }}
+        </span>
+    </div>
+
+    <div class="lg:col-span-2 flex lg:block items-center justify-between">
+        <span class="lg:hidden text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+            Áreas
+        </span>
+
+        <span class="text-sm font-black text-gray-950 font-mono">
+            {{ dep.total_areas|default:0 }}
+        </span>
+    </div>
+
+    <div class="lg:col-span-2 flex lg:block items-center justify-between">
+        <span class="lg:hidden text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+            Sedes
+        </span>
+
+        <span class="text-sm font-black text-gray-950 font-mono">
+            {{ dep.total_sedes|default:0 }}
+        </span>
+    </div>
+
+    <div class="lg:col-span-1 flex lg:block items-center justify-between">
+        <span class="lg:hidden text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+            Estado
+        </span>
+
+        <div id="status-node-dependencia-{{ dep.id }}">
+            {% url 'organigrama:dependencia_toggle_status' dep.id as toggle_url %}
+            {% badge_toggle dep.is_active toggle_url %}
+        </div>
+    </div>
+
+    <div class="lg:col-span-1 flex items-center justify-end gap-2">
+
+        {% if request.axentra_is_root or "can_manage_infrastructure" in request.axentra_permissions_list or "organigrama__can_manage_infrastructure" in request.axentra_permissions_list %}
+
+            <a
+                href="{% url 'organigrama:dependencia_update' dep.id %}"
+                hx-get="{% url 'organigrama:dependencia_update' dep.id %}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="p-2 bg-gray-50/80 hover:bg-gray-950 border border-gray-200 text-gray-400 hover:text-white rounded-lg transition shadow-3xs flex items-center justify-center cursor-pointer transform active:scale-95"
+                title="Editar Dependencia"
+            >
+                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            </a>
+
+            <button
+                type="button"
+                id="btn-delete-dep-{{ dep.id }}"
+                hx-post="{% url 'organigrama:dependencia_delete' dep.id %}"
+                hx-confirm="¿Está seguro de aplicar la baja lógica a la dependencia '{{ dep.nombre }}'? Se validará que no tenga áreas operativas vivas vinculadas."
+                hx-target="#dependencia-row-{{ dep.id }}"
+                hx-swap="outerHTML swap:0.3s"
+                data-confirm-title="Alerta de Dependencia"
+                data-confirm-icon="shield-alert"
+                data-confirm-icon-bg="bg-red-50"
+                data-confirm-icon-color="text-red-600"
+                data-confirm-button-class="bg-red-600 hover:bg-red-700 text-white"
+                data-confirm-action="Confirmar Baja"
+                data-confirm-cancel="Cancelar"
+                class="p-2 bg-gray-50/80 hover:bg-red-600 border border-gray-200 text-gray-400 hover:text-white rounded-lg transition shadow-3xs flex items-center justify-center cursor-pointer transform active:scale-95"
+                title="Eliminar Dependencia"
+            >
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+</script>
