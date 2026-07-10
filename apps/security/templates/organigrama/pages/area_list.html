@@ -1,0 +1,9 @@
+{% extends "shell/workbench.html" %}
+
+{% block title %}
+Áreas Operativas | {{ tenant.app_name }}
+{% endblock %}
+
+{% block page_content %}
+    {% include "organigrama/content/area_list_content.html" %}
+{% endblock %}

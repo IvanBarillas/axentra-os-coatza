@@ -1,0 +1,13 @@
+{% extends "shell/workbench.html" %}
+
+{% block title %}
+Expediente de Área: {{ area.nombre }} | {{ tenant.app_name }}
+{% endblock %}
+
+{% block module_sidebar %}
+    {% include "organigrama/contextual/area_sidebar.html" %}
+{% endblock %}
+
+{% block page_content %}
+    {% include "organigrama/contextual/partials/area_identidad.html" %}
+{% endblock %}

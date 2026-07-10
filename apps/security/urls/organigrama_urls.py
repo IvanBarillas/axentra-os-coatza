@@ -27,9 +27,15 @@ from apps.security.views.organigrama_views import (
     dependencia_sub_sedes_view,
     dependencia_sub_funcionarios_view,
     # Áreas
+    area_list_view,
     area_create_view, 
     area_update_view,
     area_soft_delete_view,
+    
+    area_detail_view,
+    area_sub_identidad_view,
+    area_sub_funcionarios_view,
+
     # HTMX
     cargar_areas_htmx_view, 
     vincular_areas_ajax_view
@@ -68,11 +74,18 @@ urls_organigrama = [
     path("dependencias/<uuid:pk>/sedes/", dependencia_sub_sedes_view, name="dependencia_sub_sedes"),
     path("dependencias/<uuid:pk>/funcionarios/", dependencia_sub_funcionarios_view, name="dependencia_sub_funcionarios"),
         
-    # 📍 Operaciones Transaccionales de Áreas (Sub-Oficinas Internas)
+    # Operaciones Transaccionales de Áreas (Sub-Oficinas Internas)
+    path("areas/", area_list_view, name="area_list"),
     path('area/nueva/', area_create_view, name='area_create'),
     path('area/editar/<uuid:pk>/', area_update_view, name='area_update'),
     path('area/eliminar/<uuid:pk>/', area_soft_delete_view, name='area_delete'),
     path('area/estado/<uuid:pk>/', area_toggle_status_view, name='area_toggle_status'),
+    
+    # 🗂️ Expediente Contextual de Areas
+    path("areas/<uuid:pk>/", area_detail_view, name="area_detail"),
+    path("areas/<uuid:pk>/identidad/", area_sub_identidad_view, name="area_sub_identidad"),
+    path("areas/<uuid:pk>/funcionarios/", area_sub_funcionarios_view, name="area_sub_funcionarios"),
+    
     
     # ⚡ Tuberías Reactivas Asíncronas (HTMX / AJAX Pipelines)
     path('ajax/cargar-areas/', cargar_areas_htmx_view, name='cargar_areas_htmx'),

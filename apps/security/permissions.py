@@ -198,3 +198,82 @@ class OrganigramaPermissions:
                 "stub": True,
             },
         ]
+    
+    AREA_DETAIL_MENU = [
+        {
+            "icon": "fingerprint",
+            "title": "Ficha de Área",
+            "url_name": "organigrama:area_sub_identidad",
+            "permission": "can_manage_infrastructure",
+            "order": 10,
+            "provider": "organigrama",
+            "stub": False,
+        },
+        {
+            "icon": "users",
+            "title": "Funcionarios Adscritos",
+            "url_name": "organigrama:area_sub_funcionarios",
+            "permission": "can_manage_infrastructure",
+            "order": 20,
+            "provider": "organigrama",
+            "stub": False,
+        },
+        {
+            "icon": "package",
+            "title": "Activos del Área",
+            "url_name": "#",
+            "permission": "can_manage_infrastructure",
+            "order": 80,
+            "provider": "assets",
+            "stub": True,
+        },
+        {
+            "icon": "ticket",
+            "title": "Tickets del Área",
+            "url_name": "#",
+            "permission": "can_manage_infrastructure",
+            "order": 90,
+            "provider": "helpdesk",
+            "stub": True,
+        },
+    ]
+    
+    AREA_DETAIL_MENU = [
+        {
+            "icon": "fingerprint",
+            "title": "Ficha de Área",
+            "url_name": "organigrama:area_sub_identidad",
+            "permission": "can_manage_infrastructure",
+            "order": 10,
+            "provider": "organigrama",
+            "stub": False,
+        },
+        {
+            "icon": "users",
+            "title": "Funcionarios Adscritos",
+            "url_name": "organigrama:area_sub_funcionarios",
+            "permission": "can_manage_infrastructure",
+            "order": 20,
+            "provider": "organigrama",
+            "stub": False,
+        },
+        {
+            "icon": "package",
+            "title": "Activos del Área",
+            "url_name": "#",
+            "permission": "can_manage_infrastructure",
+            "order": 80,
+            "provider": "assets",
+            "stub": True,
+        },
+        {
+            "icon": "ticket",
+            "title": "Tickets del Área",
+            "url_name": "#",
+            "permission": "can_manage_infrastructure",
+            "order": 90,
+            "provider": "helpdesk",
+            "stub": True,
+        },
+    ]
+    

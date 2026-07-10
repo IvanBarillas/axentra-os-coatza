@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from apps.security.dtos.organigrama_dtos import AreaOperativaInputDTO, DependenciaInputDTO
 from apps.security.models import Dependencia, AreaOperativa, Sede
+from apps.security.models.accounts import UserProfile
 from apps.security.models.audit import SecurityAuditLog
 from apps.security.utils.forensic_auditor import ForensicAuditor
 
@@ -447,22 +448,81 @@ class OrganigramaService:
         return True, {}
 
     @staticmethod
-    def eliminar_area(request, area_instancia: AreaOperativa) -> None:
-        """Baja lógica de instancia: Remueve la oficina de la matriz de adscripción."""
+    def eliminar_area(request, area_instancia: AreaOperativa) -> tuple[bool, dict]:
+        """
+        Baja lógica protegida de un área operativa.
+
+        Regla Axentra:
+        Un área no puede darse de baja si todavía tiene funcionarios adscritos.
+        Primero se deben reubicar o desasignar esos funcionarios.
+        """
+
+        funcionarios_adscritos = (
+            UserProfile.objects
+            .filter(
+                area=area_instancia,
+                user__is_deleted=False,
+            )
+            .count()
+        )
+
+        if funcionarios_adscritos > 0:
+            return False, {
+                "server_error": [
+                    (
+                        f"No se puede dar de baja el área operativa '{area_instancia.nombre}' "
+                        f"porque tiene {funcionarios_adscritos} funcionario(s) adscrito(s). "
+                        "Primero reubica o desasigna a esos funcionarios."
+                    )
+                ]
+            }
+
         with transaction.atomic():
             area_instancia.is_active = False
             area_instancia.is_deleted = True
-            area_instancia.save()
-            
-        # 🪐 REGISTRO EN BITÁCORA FORENSE
-        ForensicAuditor.registrar_evento(
-            request=request,
-            action_type=SecurityAuditLog.ActionTypes.DELETE,
-            module_component="AREAS_MATRIZ",
-            action_name="SOFT_DELETE_NODO_OPERATIVO",
-            target_scope=f"Desvinculación y congelamiento del área interna: {area_instancia.nombre}.",
-            level=SecurityAuditLog.Levels.CRITICAL,
-            search_target=area_instancia.id,
-            payload={'area_eliminada': area_instancia.nombre}
+
+            if hasattr(area_instancia, "deleted_at"):
+                area_instancia.deleted_at = timezone.now()
+                area_instancia.save(
+                    update_fields=[
+                        "is_active",
+                        "is_deleted",
+                        "deleted_at",
+                        "updated_at",
+                    ]
+                )
+            else:
+                area_instancia.save(
+                    update_fields=[
+                        "is_active",
+                        "is_deleted",
+                        "updated_at",
+                    ]
+                )
+
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.DELETE,
+                module_component="AREAS_MATRIZ",
+                action_name="SOFT_DELETE_AREA_PROTEGIDO",
+                target_scope=(
+                    f"Baja lógica protegida del área operativa: {area_instancia.nombre}. "
+                    "No existían funcionarios adscritos al momento de la baja."
+                ),
+                level=SecurityAuditLog.Levels.CRITICAL,
+                search_target=str(area_instancia.id),
+                payload={
+                    "area_id": str(area_instancia.id),
+                    "area_nombre": area_instancia.nombre,
+                    "dependencia_id": str(area_instancia.dependencia_id),
+                    "sede_fisica_id": str(area_instancia.sede_fisica_id),
+                    "funcionarios_adscritos": funcionarios_adscritos,
+                },
+            )
+
+        logger.warning(
+            f"🗑️ AUDITORÍA: Soft-Delete protegido aplicado en Área ID=[{area_instancia.id}] "
+            f"Nombre=[{area_instancia.nombre}] Funcionarios=[{funcionarios_adscritos}]"
         )
-        logger.info(f"🗑️ AUDITORÍA: Soft-Delete instantáneo aplicado en Área ID=[{area_instancia.id}].")
+
+        return True, {}

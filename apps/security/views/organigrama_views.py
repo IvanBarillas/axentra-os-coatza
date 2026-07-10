@@ -1823,88 +1823,789 @@ def dependencia_sub_funcionarios_view(request, pk: uuid.UUID):
 # =========================================================================
 # 📍 PILAR 4: SUB-FRAGMENTACIÓN (ÁREAS OPERATIVAS Y OFICINAS INTERNAS)
 # =========================================================================
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
+def area_list_view(request):
+    """Inventario administrativo de áreas operativas."""
 
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    areas = (
+        AreaOperativa.objects
+        .filter(is_deleted=False)
+        .select_related(
+            "dependencia",
+            "sede_fisica",
+        )
+        .order_by(
+            "dependencia__nombre",
+            "sede_fisica__nombre",
+            "nombre",
+        )
+    )
+
+    context = {
+        "areas": areas,
+        "total_areas": areas.count(),
+        "areas_activas": areas.filter(is_active=True).count(),
+        "areas_inactivas": areas.filter(is_active=False).count(),
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": False,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "organigrama/workbench/area_list_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/content/area_list_content.html",
+            context,
+        )
+
+    return render(
+        request,
+        "organigrama/pages/area_list.html",
+        context,
+    )
+    
+    
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_create_view(request):
-    """Aprovisionamiento de oficinas internas en pantalla completa dedicada."""
-    if request.method == 'POST':
+    """Alta de áreas operativas que vinculan dependencia administrativa con sede física."""
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    if request.method == "POST":
         form = AreaOperativaForm(request.POST)
+
         if form.is_valid():
             payload = {
-                'dependencia_id': form.cleaned_data['dependencia'].id,
-                'sede_fisica_id': form.cleaned_data['sede_fisica'].id,
-                'nombre': form.cleaned_data['nombre']
+                "dependencia_id": form.cleaned_data["dependencia"].id,
+                "sede_fisica_id": form.cleaned_data["sede_fisica"].id,
+                "nombre": form.cleaned_data["nombre"],
             }
-            exito, area, errores = OrganigramaService.crear_area(request, payload)
-            if exito: return redirect('organigrama:estructura_list')
-            form.add_error(None, errores.get('server_error', ['Fallo en adscripción'])[0])
+
+            exito, area, errores = OrganigramaService.crear_area(
+                request,
+                payload,
+            )
+
+            if exito:
+                messages.success(
+                    request,
+                    f"Área operativa '{area.nombre}' registrada correctamente.",
+                )
+
+                areas = (
+                    AreaOperativa.objects
+                    .filter(is_deleted=False)
+                    .select_related(
+                        "dependencia",
+                        "sede_fisica",
+                    )
+                    .order_by(
+                        "dependencia__nombre",
+                        "sede_fisica__nombre",
+                        "nombre",
+                    )
+                )
+
+                context_list = {
+                    "areas": areas,
+                    "total_areas": areas.count(),
+                    "areas_activas": areas.filter(is_active=True).count(),
+                    "areas_inactivas": areas.filter(is_active=False).count(),
+                    "modulo_actual": AppIdentifier.ORGANIGRAMA,
+                    "show_module_sidebar": False,
+                }
+
+                if is_htmx:
+                    response = render(
+                        request,
+                        "organigrama/htmx/area_list_with_messages.html",
+                        context_list,
+                    )
+                    response["HX-Push-Url"] = reverse("organigrama:area_list")
+                    return response
+
+                return redirect("organigrama:area_list")
+
+            error_msg = errores.get(
+                "server_error",
+                ["Fallo en adscripción"],
+            )[0]
+
+            messages.error(request, error_msg)
+            form.add_error(None, error_msg)
+
+        else:
+            messages.error(
+                request,
+                "Revisa los campos del formulario antes de guardar el área operativa.",
+            )
+
     else:
         form = AreaOperativaForm()
-        
-    return render(request, 'organigrama/forms/area_form.html', {'form': form, 'action': 'create'})
+
+    context = {
+        "form": form,
+        "action": "create",
+        "area": None,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": False,
+    }
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/htmx/area_form_with_messages.html" if request.method == "POST"
+            else "organigrama/content/area_form_content.html",
+            context,
+        )
+
+    return render(
+        request,
+        "organigrama/pages/area_form.html",
+        context,
+    )
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_update_view(request, pk: uuid.UUID):
-    """Re-adscripción de palacio físico o cambio nominativo de una sub-oficina."""
-    area_instancia = get_object_or_404(AreaOperativa, pk=pk, is_deleted=False)
-    if request.method == 'POST':
+    """Modificación contextual de un área operativa."""
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    area_instancia = get_object_or_404(
+        AreaOperativa.objects.select_related(
+            "dependencia",
+            "sede_fisica",
+        ),
+        pk=pk,
+        is_deleted=False,
+    )
+
+    if request.method == "POST":
         form = AreaOperativaForm(request.POST, instance=area_instancia)
+
         if form.is_valid():
             payload = {
-                'dependencia_id': form.cleaned_data['dependencia'].id,
-                'sede_fisica_id': form.cleaned_data['sede_fisica'].id,
-                'nombre': form.cleaned_data['nombre']
+                "dependencia_id": form.cleaned_data["dependencia"].id,
+                "sede_fisica_id": form.cleaned_data["sede_fisica"].id,
+                "nombre": form.cleaned_data["nombre"],
             }
-            exito, errores = OrganigramaService.actualizar_area(request, area_instancia, payload)
-            if exito: return redirect('organigrama:estructura_list')
-            form.add_error(None, errores.get('server_error', ['Fallo de actualización'])[0])
+
+            exito, errores = OrganigramaService.actualizar_area(
+                request,
+                area_instancia,
+                payload,
+            )
+
+            if exito:
+                messages.success(
+                    request,
+                    f"Área operativa '{area_instancia.nombre}' actualizada correctamente.",
+                )
+
+                areas = (
+                    AreaOperativa.objects
+                    .filter(is_deleted=False)
+                    .select_related(
+                        "dependencia",
+                        "sede_fisica",
+                    )
+                    .order_by(
+                        "dependencia__nombre",
+                        "sede_fisica__nombre",
+                        "nombre",
+                    )
+                )
+
+                context_list = {
+                    "areas": areas,
+                    "total_areas": areas.count(),
+                    "areas_activas": areas.filter(is_active=True).count(),
+                    "areas_inactivas": areas.filter(is_active=False).count(),
+                    "modulo_actual": AppIdentifier.ORGANIGRAMA,
+                    "show_module_sidebar": False,
+                }
+
+                if is_htmx:
+                    response = render(
+                        request,
+                        "organigrama/htmx/area_list_with_messages.html",
+                        context_list,
+                    )
+                    response["HX-Push-Url"] = reverse("organigrama:area_list")
+                    return response
+
+                return redirect("organigrama:area_list")
+
+            error_msg = errores.get(
+                "server_error",
+                ["Fallo de actualización"],
+            )[0]
+
+            messages.error(request, error_msg)
+            form.add_error(None, error_msg)
+
+        else:
+            messages.error(
+                request,
+                "Revisa los campos del formulario antes de actualizar el área operativa.",
+            )
+
     else:
         form = AreaOperativaForm(instance=area_instancia)
-    return render(request, 'organigrama/forms/area_form.html', {'form': form, 'action': 'update', 'area': area_instancia})
+
+    return render_area_contextual_subview(
+        request=request,
+        area=area_instancia,
+        partial_template="organigrama/content/area_form_content.html",
+        current_sub_view="organigrama:area_sub_identidad",
+        extra_context={
+            "form": form,
+            "action": "update",
+            "area": area_instancia,
+            "back_label": "Volver a Áreas",
+            "back_target": "#workbench",
+        },
+    )
+    
 
 
 @require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_soft_delete_view(request, pk: uuid.UUID):
-    """Desvinculación lógica asíncrona de una oficina interna."""
-    area_instancia = get_object_or_404(AreaOperativa, pk=pk)
-    OrganigramaService.eliminar_area(request, area_instancia)
-    return HttpResponse(status=200, content="")
+    """Baja lógica protegida de un área operativa."""
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    area_instancia = get_object_or_404(
+        AreaOperativa.objects.select_related(
+            "dependencia",
+            "sede_fisica",
+        ),
+        pk=pk,
+        is_deleted=False,
+    )
+
+    nombre_area = area_instancia.nombre
+
+    exito, errores = OrganigramaService.eliminar_area(
+        request,
+        area_instancia,
+    )
+
+    if exito:
+        messages.warning(
+            request,
+            f"Área operativa '{nombre_area}' enviada a baja lógica correctamente.",
+        )
+
+        areas = (
+            AreaOperativa.objects
+            .filter(is_deleted=False)
+            .select_related(
+                "dependencia",
+                "sede_fisica",
+            )
+            .order_by(
+                "dependencia__nombre",
+                "sede_fisica__nombre",
+                "nombre",
+            )
+        )
+
+        context_list = {
+            "areas": areas,
+            "total_areas": areas.count(),
+            "areas_activas": areas.filter(is_active=True).count(),
+            "areas_inactivas": areas.filter(is_active=False).count(),
+            "modulo_actual": AppIdentifier.ORGANIGRAMA,
+            "show_module_sidebar": False,
+        }
+
+        if is_htmx:
+            response = render(
+                request,
+                "organigrama/htmx/area_list_with_messages.html",
+                context_list,
+            )
+            response["HX-Push-Url"] = reverse("organigrama:area_list")
+            return response
+
+        return redirect("organigrama:area_list")
+
+    error_msg = errores.get(
+        "server_error",
+        ["No fue posible dar de baja el área operativa."],
+    )[0]
+
+    messages.error(request, error_msg)
+
+    funcionarios = (
+        UserProfile.objects
+        .filter(
+            area=area_instancia,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+        )
+    )
+
+    context_detail = {
+        "area": area_instancia,
+        "dependencia": area_instancia.dependencia,
+        "sede": area_instancia.sede_fisica,
+        "funcionarios": funcionarios,
+        "total_funcionarios": funcionarios.count(),
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "organigrama/workbench/area_detail_workbench_with_messages.html",
+            context_detail,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/htmx/area_identidad_with_messages.html",
+            context_detail,
+        )
+
+    return redirect(
+        "organigrama:area_detail",
+        pk=area_instancia.id,
+    )
+    
+
 
 
 @require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_toggle_status_view(request, pk: uuid.UUID):
-    """Invierte el estado operativo (is_active) de una oficina o departamento con inyección forense."""
-    area_instancia = get_object_or_404(AreaOperativa, pk=pk, is_deleted=False)
+    """
+    Alternador protegido de estado operativo para áreas.
+
+    Regla Axentra:
+    Inactivar un área operativa no desasigna funcionarios.
+    La adscripción de funcionarios debe revisarse explícitamente desde Accounts / Funcionarios.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    area_instancia = get_object_or_404(
+        AreaOperativa.objects.select_related(
+            "dependencia",
+            "sede_fisica",
+        ),
+        pk=pk,
+        is_deleted=False,
+    )
+
     estado_anterior = area_instancia.is_active
-    
+
+    funcionarios = (
+        UserProfile.objects
+        .filter(
+            area=area_instancia,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+        )
+    )
+
+    total_funcionarios = funcionarios.count()
+
     with transaction.atomic():
         area_instancia.is_active = not area_instancia.is_active
-        area_instancia.save()
-        
-    ForensicAuditor.registrar_evento(
-        request=request,
-        action_type=SecurityAuditLog.ActionTypes.UPDATE,
-        module_component="AREAS_MATRIZ",
-        action_name="TOGGLE_STATUS_NODO_OPERATIVO",
-        target_scope=f"Actualización del estado operativo para la sub-oficina {area_instancia.nombre} (Activo final: {area_instancia.is_active}).",
-        level=SecurityAuditLog.Levels.INFO,
-        search_target=area_instancia.id,
-        payload={'anterior': estado_anterior, 'nuevo': area_instancia.is_active}
+        area_instancia.save(
+            update_fields=[
+                "is_active",
+                "updated_at",
+            ]
+        )
+
+        ForensicAuditor.registrar_evento(
+            request=request,
+            action_type=SecurityAuditLog.ActionTypes.UPDATE,
+            module_component="AREAS_MATRIZ",
+            action_name="TOGGLE_STATUS_AREA_PROTEGIDO",
+            target_scope=(
+                f"Actualización protegida del estado operativo para el área "
+                f"{area_instancia.nombre}. "
+                f"Activo anterior: {estado_anterior}. "
+                f"Activo final: {area_instancia.is_active}. "
+                "No se modificaron funcionarios adscritos."
+            ),
+            level=SecurityAuditLog.Levels.INFO,
+            search_target=str(area_instancia.id),
+            payload={
+                "area_id": str(area_instancia.id),
+                "area_nombre": area_instancia.nombre,
+                "dependencia_id": str(area_instancia.dependencia_id),
+                "sede_fisica_id": str(area_instancia.sede_fisica_id),
+                "estado_anterior": estado_anterior,
+                "estado_nuevo": area_instancia.is_active,
+                "funcionarios_adscritos": total_funcionarios,
+                "cascade_applied": False,
+            },
+        )
+
+    if area_instancia.is_active:
+        messages.success(
+            request,
+            f"Área operativa '{area_instancia.nombre}' activada correctamente.",
+        )
+    else:
+        if total_funcionarios > 0:
+            messages.warning(
+                request,
+                (
+                    f"Área operativa '{area_instancia.nombre}' inactivada. "
+                    f"Tiene {total_funcionarios} funcionario(s) adscrito(s). "
+                    "Los funcionarios no fueron modificados automáticamente."
+                ),
+            )
+        else:
+            messages.warning(
+                request,
+                f"Área operativa '{area_instancia.nombre}' inactivada correctamente.",
+            )
+
+    logger.info(
+        f"⚡ AXENTRA OS: Toggle protegido aplicado sobre Área ID=[{area_instancia.id}] "
+        f"Estado=[{estado_anterior} -> {area_instancia.is_active}] "
+        f"Funcionarios=[{total_funcionarios}]"
+    )
+
+    context_detail = {
+        "area": area_instancia,
+        "dependencia": area_instancia.dependencia,
+        "sede": area_instancia.sede_fisica,
+        "funcionarios": funcionarios,
+        "total_funcionarios": total_funcionarios,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "organigrama/htmx/area_identidad_with_messages.html",
+            context_detail,
+        )
+
+    if is_htmx:
+        return render(
+            request,
+            "organigrama/htmx/area_identidad_with_messages.html",
+            context_detail,
+        )
+
+    return redirect(
+        "organigrama:area_detail",
+        pk=area_instancia.id,
+    )
+
+
+def render_area_contextual_subview(
+    request,
+    area: AreaOperativa,
+    partial_template: str,
+    current_sub_view: str,
+    extra_context: dict | None = None,
+):
+    """
+    Render inteligente para subvistas del expediente contextual de área.
+
+    HTMX:
+        devuelve sólo el partial para reemplazar #page-content.
+
+    Normal/F5:
+        devuelve página completa con shell + sidebar secundario + partial.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    funcionarios_base = (
+        UserProfile.objects
+        .filter(
+            area=area,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by("user__first_name", "user__last_name")
+    )
+
+    raw_menu = OrganigramaPermissions.AREA_DETAIL_MENU
+    detail_menu = []
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+
+        tiene_permiso = (
+            getattr(request, "axentra_is_root", False)
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+
+        if url_name != "#":
+            href = reverse(url_name, args=[area.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
+    context = {
+        "area": area,
+        "dependencia": area.dependencia,
+        "sede": area.sede_fisica,
+        "funcionarios": funcionarios_base,
+        "total_funcionarios": funcionarios_base.count(),
+        "detail_menu": detail_menu,
+        "partial_template": partial_template,
+        "current_sub_view": current_sub_view,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if extra_context:
+        context.update(extra_context)
+
+    if is_htmx:
+        return render(request, partial_template, context)
+
+    return render(
+        request,
+        "organigrama/pages/area_subpage.html",
+        context,
     )
     
-    logger.info(f"⚡ AXENTRA OS: Área '{area_instancia.nombre}' mutó a is_active={area_instancia.is_active}")
     
-    return render(request, 'common/tags/badge_toggle_activo_inactivo.html', {
-        'is_active': area_instancia.is_active,
-        'toggle_url': reverse('organigrama:area_toggle_status', args=[area_instancia.id])
-    })
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def area_detail_view(request, pk: uuid.UUID):
+    """Expediente contextual de un área operativa."""
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    area = get_object_or_404(
+        AreaOperativa.objects.select_related(
+            "dependencia",
+            "sede_fisica",
+        ),
+        pk=pk,
+        is_deleted=False,
+    )
+
+    funcionarios = (
+        UserProfile.objects
+        .filter(
+            area=area,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by("user__first_name", "user__last_name")
+    )
+
+    raw_menu = OrganigramaPermissions.AREA_DETAIL_MENU
+    detail_menu = []
+
+    current_sub_view = request.GET.get(
+        "sub_view",
+        "organigrama:area_sub_identidad",
+    )
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+
+        tiene_permiso = (
+            getattr(request, "axentra_is_root", False)
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+
+        if url_name != "#":
+            href = reverse(url_name, args=[area.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
+    context = {
+        "area": area,
+        "dependencia": area.dependencia,
+        "sede": area.sede_fisica,
+        "funcionarios": funcionarios,
+        "total_funcionarios": funcionarios.count(),
+        "detail_menu": detail_menu,
+        "modulo_actual": AppIdentifier.ORGANIGRAMA,
+        "show_module_sidebar": True,
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "organigrama/workbench/area_detail_workbench.html",
+            context,
+        )
+
+    return render(
+        request,
+        "organigrama/pages/area_detail.html",
+        context,
+    )
+    
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def area_sub_identidad_view(request, pk: uuid.UUID):
+    """Subvista de identidad del expediente contextual de área."""
+
+    area = get_object_or_404(
+        AreaOperativa.objects.select_related(
+            "dependencia",
+            "sede_fisica",
+        ),
+        pk=pk,
+        is_deleted=False,
+    )
+
+    return render_area_contextual_subview(
+        request=request,
+        area=area,
+        partial_template="organigrama/contextual/partials/area_identidad.html",
+        current_sub_view="organigrama:area_sub_identidad",
+    )
+    
+    
+@login_required
+@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+def area_sub_funcionarios_view(request, pk: uuid.UUID):
+    """Subvista de funcionarios adscritos a un área operativa."""
+
+    area = get_object_or_404(
+        AreaOperativa.objects.select_related(
+            "dependencia",
+            "sede_fisica",
+        ),
+        pk=pk,
+        is_deleted=False,
+    )
+
+    funcionarios = (
+        UserProfile.objects
+        .filter(
+            area=area,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by("user__first_name", "user__last_name")
+    )
+
+    return render_area_contextual_subview(
+        request=request,
+        area=area,
+        partial_template="organigrama/contextual/partials/area_funcionarios.html",
+        current_sub_view="organigrama:area_sub_funcionarios",
+        extra_context={
+            "funcionarios": funcionarios,
+            "total_funcionarios": funcionarios.count(),
+        },
+    )
+    
+    
+
+
+
+
 
 
 # =========================================================================

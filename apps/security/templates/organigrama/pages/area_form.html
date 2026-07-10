@@ -1,0 +1,13 @@
+{% extends "shell/workbench.html" %}
+
+{% block title %}
+    {% if action == "create" %}
+        Nueva Área Operativa | {{ tenant.app_name }}
+    {% else %}
+        Modificar Área Operativa | {{ tenant.app_name }}
+    {% endif %}
+{% endblock %}
+
+{% block page_content %}
+    {% include "organigrama/content/area_form_content.html" %}
+{% endblock %}

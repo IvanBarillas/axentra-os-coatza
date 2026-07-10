@@ -41,10 +41,16 @@ from .organigrama_views import (
     dependencia_sub_sedes_view,
     dependencia_sub_funcionarios_view,
 
+    area_list_view,
     area_create_view, 
     area_update_view,             
     area_soft_delete_view,        
-    area_toggle_status_view,      
+    area_toggle_status_view,
+    
+    area_detail_view,
+    area_sub_identidad_view,
+    area_sub_funcionarios_view,
+          
     cargar_areas_htmx_view, 
     vincular_areas_ajax_view
 )
@@ -101,10 +107,16 @@ __all__ = [
     'dependencia_sub_sedes_view',
     'dependencia_sub_funcionarios_view',
     
+    'area_list_view',
     'area_create_view', 
     'area_update_view',
     'area_soft_delete_view',
     'area_toggle_status_view',
+    
+    'area_detail_view',
+    'area_sub_identidad_view',
+    'area_sub_funcionarios_view',
+    
     'cargar_areas_htmx_view', 
     'vincular_areas_ajax_view',
     
