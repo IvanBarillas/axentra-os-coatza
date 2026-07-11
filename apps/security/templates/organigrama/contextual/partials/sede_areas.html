@@ -68,54 +68,75 @@
 
             {% for area in areas %}
                 <article
-                    class="px-5 sm:px-6 lg:px-7 py-4 hover:bg-gray-50/60 transition"
-                    x-show="
-                        buscarQuery === '' ||
-                        '{{ area.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase()) ||
-                        '{{ area.dependencia.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase())
-                    "
+    class="px-5 sm:px-6 lg:px-7 py-4 hover:bg-gray-50/60 transition"
+    x-show="
+        buscarQuery === '' ||
+        '{{ area.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase()) ||
+        '{{ area.dependencia.nombre }}'.toUpperCase().includes(buscarQuery.toUpperCase())
+    "
+>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+        <div class="flex items-start gap-3 min-w-0">
+
+            <div class="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                <i data-lucide="layout-grid" class="w-5 h-5"></i>
+            </div>
+
+            <div class="min-w-0">
+                <a
+                    href="{% url 'organigrama:area_detail' area.id %}"
+                    hx-get="{% url 'organigrama:area_detail' area.id %}"
+                    hx-target="#workbench"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    class="block text-sm font-black text-indigo-600 hover:text-indigo-800 uppercase font-mono tracking-tight truncate"
                 >
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {{ area.nombre }}
+                </a>
 
-                        <div class="flex items-start gap-3 min-w-0">
+                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
+                    {{ area.dependencia.nombre|default:"Dependencia no asignada" }}
+                </p>
 
-                            <div class="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                                <i data-lucide="layout-grid" class="w-5 h-5"></i>
-                            </div>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
 
-                            <div class="min-w-0">
-                                <h3 class="text-sm font-black text-gray-950 uppercase font-mono tracking-tight truncate">
-                                    {{ area.nombre }}
-                                </h3>
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 font-mono">
+                        <i data-lucide="map-pin" class="w-3 h-3 text-gray-400"></i>
+                        {{ sede.nombre }}
+                    </span>
 
-                                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
-                                    {{ area.dependencia.nombre|default:"Dependencia no asignada" }}
-                                </p>
+                    <span class="inline-flex items-center gap-1.5 rounded-full border {% if area.is_active %}border-emerald-200 bg-emerald-50 text-emerald-700{% else %}border-rose-200 bg-rose-50 text-rose-700{% endif %} px-2.5 py-1 text-[10px] font-black uppercase tracking-widest font-mono">
+                        {% if area.is_active %}
+                            <i data-lucide="circle-check" class="w-3 h-3"></i>
+                            Activa
+                        {% else %}
+                            <i data-lucide="circle-x" class="w-3 h-3"></i>
+                            Inactiva
+                        {% endif %}
+                    </span>
 
-                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                </div>
+            </div>
 
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 font-mono">
-                                        <i data-lucide="map-pin" class="w-3 h-3 text-gray-400"></i>
-                                        {{ sede.nombre }}
-                                    </span>
+        </div>
 
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border {% if area.is_active %}border-emerald-200 bg-emerald-50 text-emerald-700{% else %}border-rose-200 bg-rose-50 text-rose-700{% endif %} px-2.5 py-1 text-[10px] font-black uppercase tracking-widest font-mono">
-                                        {% if area.is_active %}
-                                            <i data-lucide="circle-check" class="w-3 h-3"></i>
-                                            Activa
-                                        {% else %}
-                                            <i data-lucide="circle-x" class="w-3 h-3"></i>
-                                            Inactiva
-                                        {% endif %}
-                                    </span>
+        <div class="flex items-center justify-end gap-2 shrink-0">
+            <a
+                href="{% url 'organigrama:area_detail' area.id %}"
+                hx-get="{% url 'organigrama:area_detail' area.id %}"
+                hx-target="#workbench"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-indigo-700 hover:border-indigo-200 transition font-mono"
+            >
+                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                Abrir Expediente
+            </a>
+        </div>
 
-                                </div>
-                            </div>
-
-                        </div>
-
-                    </div>
-                </article>
+    </div>
+</article>
             {% empty %}
 
                 <div class="text-center py-16 bg-white p-6 max-w-md mx-auto font-mono">

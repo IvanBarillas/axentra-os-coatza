@@ -1123,6 +1123,8 @@ def dependencia_update_view(request, pk: uuid.UUID):
             )
 
             if exito:
+                dep_instancia.refresh_from_db()
+
                 messages.success(
                     request,
                     f"Dependencia '{dep_instancia.nombre}' actualizada correctamente.",
@@ -1130,9 +1132,18 @@ def dependencia_update_view(request, pk: uuid.UUID):
 
                 areas = (
                     AreaOperativa.objects
-                    .filter(dependencia=dep_instancia, is_deleted=False)
-                    .select_related("sede_fisica")
-                    .order_by("sede_fisica__nombre", "nombre")
+                    .filter(
+                        dependencia=dep_instancia,
+                        is_deleted=False,
+                    )
+                    .select_related(
+                        "dependencia",
+                        "sede_fisica",
+                    )
+                    .order_by(
+                        "sede_fisica__nombre",
+                        "nombre",
+                    )
                 )
 
                 sedes = (
@@ -1146,22 +1157,60 @@ def dependencia_update_view(request, pk: uuid.UUID):
                     .order_by("nombre")
                 )
 
+                funcionarios = (
+                    UserProfile.objects
+                    .filter(
+                        area__dependencia=dep_instancia,
+                        area__is_deleted=False,
+                        user__is_deleted=False,
+                    )
+                    .select_related(
+                        "user",
+                        "area",
+                        "area__dependencia",
+                        "area__sede_fisica",
+                    )
+                    .order_by(
+                        "user__first_name",
+                        "user__last_name",
+                    )
+                )
+
                 context_detail = {
                     "dependencia": dep_instancia,
                     "areas": areas,
                     "sedes": sedes,
+                    "funcionarios": funcionarios,
                     "total_areas": areas.count(),
                     "total_sedes": sedes.count(),
+                    "total_funcionarios": funcionarios.count(),
                     "modulo_actual": AppIdentifier.ORGANIGRAMA,
                     "show_module_sidebar": True,
                 }
 
                 if is_htmx and target_htmx == "page-content":
-                    return render(
+                    response = render(
                         request,
                         "organigrama/htmx/dependencia_identidad_with_messages.html",
                         context_detail,
                     )
+                    response["HX-Push-Url"] = reverse(
+                        "organigrama:dependencia_sub_identidad",
+                        args=[dep_instancia.id],
+                    )
+                    return response
+
+                if is_htmx:
+                    response = render(
+                        request,
+                        "organigrama/htmx/dependencia_identidad_with_messages.html",
+                        context_detail,
+                    )
+                    response["HX-Push-Url"] = reverse(
+                        "organigrama:dependencia_sub_identidad",
+                        args=[dep_instancia.id],
+                    )
+                    return response
 
                 return redirect(
                     "organigrama:dependencia_detail",
@@ -1199,8 +1248,6 @@ def dependencia_update_view(request, pk: uuid.UUID):
         },
     )
     
-
-
 
 @require_POST
 @login_required
@@ -1284,8 +1331,14 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
             dependencia=dep_instancia,
             is_deleted=False,
         )
-        .select_related("sede_fisica")
-        .order_by("sede_fisica__nombre", "nombre")
+        .select_related(
+            "dependencia",
+            "sede_fisica",
+        )
+        .order_by(
+            "sede_fisica__nombre",
+            "nombre",
+        )
     )
 
     sedes = (
@@ -1299,12 +1352,72 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
         .order_by("nombre")
     )
 
+    funcionarios = (
+        UserProfile.objects
+        .filter(
+            area__dependencia=dep_instancia,
+            area__is_deleted=False,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+        )
+    )
+
+    raw_menu = OrganigramaPermissions.DEPENDENCIA_DETAIL_MENU
+    detail_menu = []
+    current_sub_view = "organigrama:dependencia_sub_identidad"
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+
+        tiene_permiso = (
+            getattr(request, "axentra_is_root", False)
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+
+        if url_name != "#":
+            href = reverse(url_name, args=[dep_instancia.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
     context_detail = {
         "dependencia": dep_instancia,
         "areas": areas,
         "sedes": sedes,
+        "funcionarios": funcionarios,
         "total_areas": areas.count(),
         "total_sedes": sedes.count(),
+        "total_funcionarios": funcionarios.count(),
+        "detail_menu": detail_menu,
         "modulo_actual": AppIdentifier.ORGANIGRAMA,
         "show_module_sidebar": True,
     }
@@ -1609,6 +1722,25 @@ def dependencia_detail_view(request, pk: uuid.UUID):
         .order_by("nombre")
     )
 
+    funcionarios = (
+        UserProfile.objects
+        .filter(
+            area__dependencia=dependencia,
+            area__is_deleted=False,
+            user__is_deleted=False,
+        )
+        .select_related(
+            "user",
+            "area",
+            "area__dependencia",
+            "area__sede_fisica",
+        )
+        .order_by(
+            "user__first_name",
+            "user__last_name",
+        )
+    )
+
     raw_menu = OrganigramaPermissions.DEPENDENCIA_DETAIL_MENU
     detail_menu = []
 
@@ -1655,8 +1787,10 @@ def dependencia_detail_view(request, pk: uuid.UUID):
         "dependencia": dependencia,
         "areas": areas,
         "sedes": sedes,
+        "funcionarios": funcionarios,
         "total_areas": areas.count(),
         "total_sedes": sedes.count(),
+        "total_funcionarios": funcionarios.count(),
         "detail_menu": detail_menu,
         "modulo_actual": AppIdentifier.ORGANIGRAMA,
         "show_module_sidebar": True,
@@ -1984,6 +2118,7 @@ def area_update_view(request, pk: uuid.UUID):
     """Modificación contextual de un área operativa."""
 
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
 
     area_instancia = get_object_or_404(
         AreaOperativa.objects.select_related(
@@ -2011,44 +2146,81 @@ def area_update_view(request, pk: uuid.UUID):
             )
 
             if exito:
+                area_instancia.refresh_from_db()
+
                 messages.success(
                     request,
                     f"Área operativa '{area_instancia.nombre}' actualizada correctamente.",
                 )
 
-                areas = (
-                    AreaOperativa.objects
-                    .filter(is_deleted=False)
+                funcionarios = (
+                    UserProfile.objects
+                    .filter(
+                        area=area_instancia,
+                        user__is_deleted=False,
+                    )
                     .select_related(
-                        "dependencia",
-                        "sede_fisica",
+                        "user",
+                        "area",
+                        "area__dependencia",
+                        "area__sede_fisica",
                     )
                     .order_by(
-                        "dependencia__nombre",
-                        "sede_fisica__nombre",
-                        "nombre",
+                        "user__first_name",
+                        "user__last_name",
                     )
                 )
 
-                context_list = {
-                    "areas": areas,
-                    "total_areas": areas.count(),
-                    "areas_activas": areas.filter(is_active=True).count(),
-                    "areas_inactivas": areas.filter(is_active=False).count(),
+                context_detail = {
+                    "area": area_instancia,
+                    "dependencia": area_instancia.dependencia,
+                    "sede": area_instancia.sede_fisica,
+                    "funcionarios": funcionarios,
+                    "total_funcionarios": funcionarios.count(),
                     "modulo_actual": AppIdentifier.ORGANIGRAMA,
-                    "show_module_sidebar": False,
+                    "show_module_sidebar": True,
                 }
+
+                if is_htmx and target_htmx == "page-content":
+                    response = render(
+                        request,
+                        "organigrama/htmx/area_identidad_with_messages.html",
+                        context_detail,
+                    )
+                    response["HX-Push-Url"] = reverse(
+                        "organigrama:area_sub_identidad",
+                        args=[area_instancia.id],
+                    )
+                    return response
+
+                if is_htmx and target_htmx == "workbench":
+                    response = render(
+                        request,
+                        "organigrama/workbench/area_detail_workbench_with_messages.html",
+                        context_detail,
+                    )
+                    response["HX-Push-Url"] = reverse(
+                        "organigrama:area_sub_identidad",
+                        args=[area_instancia.id],
+                    )
+                    return response
 
                 if is_htmx:
                     response = render(
                         request,
-                        "organigrama/htmx/area_list_with_messages.html",
-                        context_list,
+                        "organigrama/htmx/area_identidad_with_messages.html",
+                        context_detail,
                     )
-                    response["HX-Push-Url"] = reverse("organigrama:area_list")
+                    response["HX-Push-Url"] = reverse(
+                        "organigrama:area_sub_identidad",
+                        args=[area_instancia.id],
+                    )
                     return response
 
-                return redirect("organigrama:area_list")
+                return redirect(
+                    "organigrama:area_detail",
+                    pk=area_instancia.id,
+                )
 
             error_msg = errores.get(
                 "server_error",
@@ -2076,11 +2248,11 @@ def area_update_view(request, pk: uuid.UUID):
             "form": form,
             "action": "update",
             "area": area_instancia,
-            "back_label": "Volver a Áreas",
-            "back_target": "#workbench",
+            "back_label": "Volver a Ficha de Área",
+            "back_target": "#page-content",
         },
     )
-    
+
 
 
 @require_POST
@@ -2173,12 +2345,51 @@ def area_soft_delete_view(request, pk: uuid.UUID):
         )
     )
 
+    raw_menu = OrganigramaPermissions.AREA_DETAIL_MENU
+    detail_menu = []
+    current_sub_view = "organigrama:area_sub_identidad"
+
+    for item in raw_menu:
+        url_name = item.get("url_name")
+
+        if not url_name:
+            continue
+
+        required_perm = item.get("permission")
+
+        tiene_permiso = (
+            getattr(request, "axentra_is_root", False)
+            or required_perm in getattr(request, "axentra_permissions_list", [])
+            or f"{AppIdentifier.ORGANIGRAMA}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
+        )
+
+        if not tiene_permiso:
+            continue
+
+        href = "#"
+
+        if url_name != "#":
+            href = reverse(url_name, args=[area_instancia.id])
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": href,
+            "order": item.get("order", 99),
+            "provider": item.get("provider", "organigrama"),
+            "stub": item.get("stub", False),
+            "active": url_name == current_sub_view,
+        })
+
+    detail_menu.sort(key=lambda item: item["order"])
+
     context_detail = {
         "area": area_instancia,
         "dependencia": area_instancia.dependencia,
         "sede": area_instancia.sede_fisica,
         "funcionarios": funcionarios,
         "total_funcionarios": funcionarios.count(),
+        "detail_menu": detail_menu,
         "modulo_actual": AppIdentifier.ORGANIGRAMA,
         "show_module_sidebar": True,
     }
@@ -2201,7 +2412,6 @@ def area_soft_delete_view(request, pk: uuid.UUID):
         "organigrama:area_detail",
         pk=area_instancia.id,
     )
-    
 
 
 
