@@ -70,33 +70,52 @@ def accounts_analytics_view(request):
 # =========================================================================
 # 👤 PILAR UNIQUE: GESTIÓN DE EXPEDIENTES Y SERVIDORES PÚBLICOS
 # =========================================================================
+@login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_list_view(request):
     """
-    👥 CONTROLADOR DE PADRÓN DE FUNCIONARIOS
-    Tipo de pantalla:
-    - Pertenece al módulo ACCOUNTS.
-    - No usa sidebar secundario.
-    - Click desde sidebar azul reemplaza todo #workbench.
-    - Filtros internos reemplazan sólo #funcionario-results.
+    Controlador de padrón de funcionarios.
     """
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Entrada a funcionario_list_view",
-        icono="🛰️",
-        extra_data={
-            "¿Es petición HTMX?": is_htmx,
-            "HX-Target Recibido": target_htmx if target_htmx else "NINGUNO",
-            "HX-Current-URL": request.headers.get("HX-Current-URL", "N/A"),
-            "Parámetros GET (q)": request.GET.get("q", "Vacío"),
-            "Parámetros GET (sede)": request.GET.get("sede", "Vacío"),
-            "Parámetros GET (dependencia)": request.GET.get("dependencia", "Vacío"),
-        },
+    context = build_funcionario_list_context(request)
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "accounts/workbench/funcionario_list_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "accounts/content/funcionario_list_content.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "funcionario-results":
+        return render(
+            request,
+            "accounts/htmx/funcionario_results.html",
+            context,
+        )
+
+    return render(
+        request,
+        "accounts/pages/funcionario_list.html",
+        context,
     )
+
+def build_funcionario_list_context(request):
+    """
+    Construye el contexto oficial del listado de funcionarios.
+
+    Debe usarse cada vez que una acción HTMX regrese al listado,
+    por ejemplo: baja lógica, creación, filtros o regreso desde expediente.
+    """
 
     search_query = request.GET.get("q", "").strip()
     sede_id = request.GET.get("sede", "").strip()
@@ -108,56 +127,54 @@ def funcionario_list_view(request):
         dependencia_id=dependencia_id if dependencia_id.lower() not in ["all", ""] else "",
     )
 
-    if request.axentra_is_root or not getattr(request.user, "axentra_profile", None):
-        sedes = Sede.objects.filter(is_deleted=False).order_by("nombre")
-        dependencias = Dependencia.objects.filter(is_deleted=False).order_by("nombre")
+    if getattr(request, "axentra_is_root", False) or not getattr(request.user, "axentra_profile", None):
+        sedes = (
+            Sede.objects
+            .filter(is_deleted=False)
+            .order_by("nombre")
+        )
+
+        dependencias = (
+            Dependencia.objects
+            .filter(is_deleted=False)
+            .order_by("nombre")
+        )
+
     else:
         profile = request.user.axentra_profile
-        sedes = Sede.objects.filter(id=profile.sede.id, is_deleted=False) if profile.sede else Sede.objects.none()
-        dependencias = Dependencia.objects.filter(id=profile.dependencia.id, is_deleted=False) if profile.dependencia else Dependencia.objects.none()
 
-    total_funcionarios = funcionarios.count() if hasattr(funcionarios, "model") else len(funcionarios)
+        sedes = (
+            Sede.objects
+            .filter(
+                id=profile.area.sede_fisica_id,
+                is_deleted=False,
+            )
+            if getattr(profile, "area", None) and profile.area.sede_fisica_id
+            else Sede.objects.none()
+        )
 
-    context = {
+        dependencias = (
+            Dependencia.objects
+            .filter(
+                id=profile.area.dependencia_id,
+                is_deleted=False,
+            )
+            if getattr(profile, "area", None) and profile.area.dependencia_id
+            else Dependencia.objects.none()
+        )
+
+    return {
         "funcionarios": funcionarios,
         "sedes": sedes,
         "dependencias": dependencias,
         "current_q": search_query,
         "current_sede": request.GET.get("sede", ""),
         "current_dep": request.GET.get("dependencia", ""),
-        # Contrato Axentra
         "modulo_actual": AppIdentifier.ACCOUNTS,
         "show_module_sidebar": False,
     }
-
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Despacho de Región HTMX",
-        icono="📡",
-        extra_data={
-            "HX-Target": target_htmx if target_htmx else "F5 / URL directa",
-            "Módulo": context["modulo_actual"],
-            "Sidebar Secundario": context["show_module_sidebar"],
-            "Registros": total_funcionarios,
-        },
-    )
-
-    # 1. Click desde sidebar azul: reemplaza TODO el workbench, pero SIN sidebar secundario.
-    if is_htmx and target_htmx == "workbench":
-        return render(request, "accounts/workbench/funcionario_list_workbench.html", context)
-
-    # 2. Si por alguna razón se pide sólo el contenido: reemplaza únicamente #page-content.
-    if is_htmx and target_htmx == "page-content":
-        return render(request, "accounts/content/funcionario_list_content.html", context)
-
-    # 3. Filtros, búsqueda, paginación: reemplaza sólo la región interna de resultados.
-    if is_htmx and target_htmx == "funcionario-results":
-        return render(request, "accounts/htmx/funcionario_results.html", context)
-
-    # 4. F5 / URL directa: carga completa: shell + workbench, pero sin sidebar secundario.
-    return render(request, "accounts/pages/funcionario_list.html", context)
-
+    
+    
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_detail_view(request, pk: uuid.UUID):
@@ -352,39 +369,40 @@ def funcionario_create_view(request):
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_editar_view(request, pk: uuid.UUID):
-    """👤 CONTROLADOR DE EDICIÓN DE FUNCIONARIOS"""
+    """Controlador de edición de funcionarios."""
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
-    
-    usuario_instance = get_object_or_404(User, id=pk)
-    perfil_instance = get_object_or_404(UserProfile, user=usuario_instance)
 
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Entrada a funcionario_editar_view",
-        icono="📝",
-        extra_data={
-            "Método": request.method,
-            "Funcionario Target": usuario_instance.email,
-            "Funcionario ID": str(usuario_instance.id),
-            "¿Es petición HTMX?": is_htmx,
-            "HX-Target Recibido": target_htmx or "NINGUNO",
-            "HX-Current-URL": request.headers.get("HX-Current-URL", "N/A"),
-        }
+    usuario_instance = get_object_or_404(
+        User,
+        id=pk,
+    )
+
+    perfil_instance = get_object_or_404(
+        UserProfile,
+        user=usuario_instance,
     )
 
     if request.method == "POST":
         datos_saneados = request.POST.copy()
+
         if "area" in datos_saneados and not datos_saneados["area"].strip():
             datos_saneados["area"] = ""
 
-        form_user = StaffUserChangeForm(datos_saneados, instance=usuario_instance)
-        form_profile = StaffUserProfileChangeForm(datos_saneados, instance=perfil_instance)
+        form_user = StaffUserChangeForm(
+            datos_saneados,
+            instance=usuario_instance,
+        )
+
+        form_profile = StaffUserProfileChangeForm(
+            datos_saneados,
+            instance=perfil_instance,
+        )
 
         if form_user.is_valid() and form_profile.is_valid():
             area_instancia = form_profile.cleaned_data.get("area")
-            
+
             payload = {
                 "email": form_user.cleaned_data.get("email"),
                 "first_name": form_user.cleaned_data.get("first_name"),
@@ -396,62 +414,119 @@ def funcionario_editar_view(request, pk: uuid.UUID):
             }
 
             exito, usuario, errores = FuncionarioService.editar_funcionario(
-                request=request, 
-                pk=pk, 
-                post_data=payload
+                request=request,
+                pk=pk,
+                post_data=payload,
             )
 
             if exito:
-                messages.success(request, f"La ficha de {usuario.full_name} se actualizó correctamente.")
-                if is_htmx:
-                    u_ref = get_object_or_404(User, id=pk)
-                    p_ref = get_object_or_404(UserProfile, user=u_ref)
-                    
-                    response = render(request, "accounts/contextual/partials/sub_identidad.html", {
-                        "funcionario": u_ref,
-                        "perfil": p_ref,
-                        "current_funcionario": u_ref,
-                        "modulo_actual": AppIdentifier.ACCOUNTS,
-                        "show_module_sidebar": True,
-                    })
-                    response["HX-Push-Url"] = reverse("accounts:funcionario_detail", args=[pk])
-                    return response
-                return redirect("accounts:funcionario_detail", pk=pk)
-                
-            if errores:
-                form_user.add_error(None, errores.get("server_error", ["Fallo del Servidor"])[0])
-    else:
-        form_user = StaffUserChangeForm(instance=usuario_instance)
-        form_profile = StaffUserProfileChangeForm(instance=perfil_instance)
+                messages.success(
+                    request,
+                    f"La ficha de {usuario.full_name} se actualizó correctamente.",
+                )
 
-    # Construcción estructurada del menú contextual
+                if is_htmx:
+                    u_ref = get_object_or_404(
+                        User,
+                        id=pk,
+                    )
+
+                    p_ref = get_object_or_404(
+                        UserProfile,
+                        user=u_ref,
+                    )
+
+                    response = render(
+                        request,
+                        "accounts/htmx/funcionario_identidad_with_messages.html",
+                        {
+                            "funcionario": u_ref,
+                            "perfil": p_ref,
+                            "current_funcionario": u_ref,
+                            "modulo_actual": AppIdentifier.ACCOUNTS,
+                            "show_module_sidebar": True,
+                        },
+                    )
+
+                    response["HX-Push-Url"] = reverse(
+                        "accounts:funcionario_detail",
+                        args=[pk],
+                    )
+
+                    return response
+
+                return redirect(
+                    "accounts:funcionario_detail",
+                    pk=pk,
+                )
+
+            if errores:
+                error_msg = errores.get(
+                    "server_error",
+                    ["Fallo del Servidor"],
+                )[0]
+
+                messages.error(
+                    request,
+                    error_msg,
+                )
+
+                form_user.add_error(
+                    None,
+                    error_msg,
+                )
+
+        else:
+            messages.error(
+                request,
+                "Revisa los campos del formulario antes de actualizar el funcionario.",
+            )
+
+    else:
+        form_user = StaffUserChangeForm(
+            instance=usuario_instance,
+        )
+
+        form_profile = StaffUserProfileChangeForm(
+            instance=perfil_instance,
+        )
+
     raw_menu = AccountsPermissions.FUNCIONARIO_DETAIL_MENU
     detail_menu = []
-    
+
     for item in raw_menu:
         url_name = item.get("url_name")
+
         if not url_name:
             continue
 
         required_perm = item.get("permission")
+
         tiene_permiso = (
-            request.axentra_is_root
+            getattr(request, "axentra_is_root", False)
             or required_perm in getattr(request, "axentra_permissions_list", [])
             or f"{AppIdentifier.ACCOUNTS}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
         )
 
-        if tiene_permiso:
-            detail_menu.append({
-                "icon": item.get("icon", "circle"),
-                "title": item.get("title", "Sin título"),
-                "href": reverse(url_name, args=[usuario_instance.id]),
-                "order": item.get("order", 99),
-                "provider": item.get("provider", AppIdentifier.ACCOUNTS),
-                "stub": item.get("stub", False),
-                "active": url_name == "accounts:funcionario_sub_identidad",
-            })
-            
-    detail_menu.sort(key=lambda item: item["order"])
+        if not tiene_permiso:
+            continue
+
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": reverse(
+                url_name,
+                args=[usuario_instance.id],
+            ),
+            "order": item.get("order", 99),
+            "provider": item.get("provider", AppIdentifier.ACCOUNTS),
+            "stub": item.get("stub", False),
+            "active": url_name == "accounts:funcionario_sub_identidad",
+        })
+
+    detail_menu.sort(
+        key=lambda item: item["order"],
+    )
 
     context = {
         "form_user": form_user,
@@ -464,59 +539,49 @@ def funcionario_editar_view(request, pk: uuid.UUID):
         "show_module_sidebar": True,
     }
 
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Despacho de Formulario de Edición",
-        icono="📡",
-        extra_data={
-            "HX-Target": target_htmx if target_htmx else "F5 / URL directa",
-            "Módulo": context["modulo_actual"],
-            "Sidebar Contextual": context["show_module_sidebar"],
-            "Funcionario": usuario_instance.email,
-            "Items Contextuales": len(detail_menu),
-            "Providers": ", ".join(sorted({i["provider"] for i in detail_menu})) if detail_menu else "Sin providers",
-            "Errores User Form": form_user.errors.as_data() if form_user.errors else "Sin errores",
-            "Errores Profile Form": form_profile.errors.as_data() if form_profile.errors else "Sin errores",
-        },
-    )
-
     if is_htmx and target_htmx == "page-content":
-        return render(request, "accounts/content/funcionario_update_form_content.html", context)
-        
-    return render(request, "accounts/pages/funcionario_update.html", context)
+        return render(
+            request,
+            "accounts/htmx/funcionario_update_form_with_messages.html",
+            context,
+        )
+
+    return render(
+        request,
+        "accounts/pages/funcionario_update.html",
+        context,
+    )
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_change_password")
 def funcionario_cambiar_password_view(request, pk: uuid.UUID):
-    """🔐 CONTROLADOR DE ROTACIÓN ADMINISTRATIVA DE CONTRASEÑAS"""
+    """Controlador de rotación administrativa de contraseña para funcionarios."""
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
     UserModel = get_user_model()
-    usuario_instance = get_object_or_404(UserModel, id=pk)
-    perfil_instance = getattr(usuario_instance, "axentra_profile", None)
 
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Entrada a funcionario_cambiar_password_view",
-        icono="🔐",
-        extra_data={
-            "Método": request.method,
-            "Funcionario Target": usuario_instance.email,
-            "Funcionario ID": str(usuario_instance.id),
-            "¿Es petición HTMX?": is_htmx,
-            "HX-Target Recibido": target_htmx or "NINGUNO",
-            "HX-Current-URL": request.headers.get("HX-Current-URL", "N/A"),
-        }
+    usuario_instance = get_object_or_404(
+        UserModel,
+        id=pk,
+    )
+
+    perfil_instance = getattr(
+        usuario_instance,
+        "axentra_profile",
+        None,
     )
 
     if request.method == "POST":
-        form = SetPasswordForm(user=usuario_instance, data=request.POST)
+        form = SetPasswordForm(
+            user=usuario_instance,
+            data=request.POST,
+        )
 
         if form.is_valid():
             nueva_password = form.cleaned_data.get("new_password1")
+
             success = FuncionarioService.forzar_reseteo_password(
                 request=request,
                 pk=pk,
@@ -524,53 +589,99 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
             )
 
             if success:
-                messages.success(request, f"Credenciales restablecidas con éxito para {usuario_instance.full_name}.")
+                messages.success(
+                    request,
+                    f"Credenciales restablecidas con éxito para {usuario_instance.full_name}.",
+                )
+
                 if is_htmx:
-                    usuario_refrescado = get_object_or_404(UserModel, id=pk)
-                    perfil_refrescado = getattr(usuario_refrescado, "axentra_profile", None)
+                    usuario_refrescado = get_object_or_404(
+                        UserModel,
+                        id=pk,
+                    )
 
-                    response = render(request, "accounts/contextual/partials/sub_identidad.html", {
-                        "funcionario": usuario_refrescado,
-                        "perfil": perfil_refrescado,
-                        "current_funcionario": usuario_refrescado,
-                        "modulo_actual": AppIdentifier.ACCOUNTS,
-                        "show_module_sidebar": True,
-                    })
-                    response["HX-Push-Url"] = reverse("accounts:funcionario_detail", args=[pk])
+                    perfil_refrescado = getattr(
+                        usuario_refrescado,
+                        "axentra_profile",
+                        None,
+                    )
+
+                    response = render(
+                        request,
+                        "accounts/htmx/funcionario_identidad_with_messages.html",
+                        {
+                            "funcionario": usuario_refrescado,
+                            "perfil": perfil_refrescado,
+                            "current_funcionario": usuario_refrescado,
+                            "modulo_actual": AppIdentifier.ACCOUNTS,
+                            "show_module_sidebar": True,
+                        },
+                    )
+
+                    response["HX-Push-Url"] = reverse(
+                        "accounts:funcionario_detail",
+                        args=[pk],
+                    )
+
                     return response
-                return redirect("accounts:funcionario_detail", pk=pk)
 
-            messages.error(request, "No se pudo restablecer la credencial en el Core.")
+                return redirect(
+                    "accounts:funcionario_detail",
+                    pk=pk,
+                )
+
+            messages.error(
+                request,
+                "No se pudo restablecer la credencial en el Core.",
+            )
+
+        else:
+            messages.error(
+                request,
+                "Revisa los campos del formulario antes de restablecer la contraseña.",
+            )
+
     else:
-        form = SetPasswordForm(user=usuario_instance)
+        form = SetPasswordForm(
+            user=usuario_instance,
+        )
 
     raw_menu = AccountsPermissions.FUNCIONARIO_DETAIL_MENU
     detail_menu = []
 
     for item in raw_menu:
         url_name = item.get("url_name")
+
         if not url_name:
             continue
 
         required_perm = item.get("permission")
+
         tiene_permiso = (
-            request.axentra_is_root
+            getattr(request, "axentra_is_root", False)
             or required_perm in getattr(request, "axentra_permissions_list", [])
             or f"{AppIdentifier.ACCOUNTS}__{required_perm}" in getattr(request, "axentra_permissions_list", [])
         )
 
-        if tiene_permiso:
-            detail_menu.append({
-                "icon": item.get("icon", "circle"),
-                "title": item.get("title", "Sin título"),
-                "href": reverse(url_name, args=[usuario_instance.id]),
-                "order": item.get("order", 99),
-                "provider": item.get("provider", AppIdentifier.ACCOUNTS),
-                "stub": item.get("stub", False),
-                "active": url_name == "accounts:funcionario_sub_identidad",
-            })
+        if not tiene_permiso:
+            continue
 
-    detail_menu.sort(key=lambda item: item["order"])
+        detail_menu.append({
+            "icon": item.get("icon", "circle"),
+            "title": item.get("title", "Sin título"),
+            "href": reverse(
+                url_name,
+                args=[usuario_instance.id],
+            ),
+            "order": item.get("order", 99),
+            "provider": item.get("provider", AppIdentifier.ACCOUNTS),
+            "stub": item.get("stub", False),
+            "active": url_name == "accounts:funcionario_sub_identidad",
+        })
+
+    detail_menu.sort(
+        key=lambda item: item["order"],
+    )
 
     context = {
         "form": form,
@@ -582,71 +693,74 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
         "show_module_sidebar": True,
     }
 
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Despacho de Formulario de Rotación de Password",
-        icono="📡",
-        extra_data={
-            "HX-Target": target_htmx if target_htmx else "F5 / URL directa",
-            "Módulo": context["modulo_actual"],
-            "Sidebar Contextual": context["show_module_sidebar"],
-            "Funcionario": usuario_instance.email,
-            "Items Contextuales": len(detail_menu),
-            "Providers": ", ".join(sorted({i["provider"] for i in detail_menu})) if detail_menu else "Sin providers",
-            "Errores Form": form.errors.as_data() if form.errors else "Sin errores",
-        },
-    )
-
     if is_htmx and target_htmx == "page-content":
-        return render(request, "accounts/content/funcionario_password_form_content.html", context)
+        return render(
+            request,
+            "accounts/htmx/funcionario_password_form_with_messages.html",
+            context,
+        )
 
-    return render(request, "accounts/pages/funcionario_password.html", context)
-
+    return render(
+        request,
+        "accounts/pages/funcionario_password.html",
+        context,
+    )
 
 @require_POST
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_delete_user")
 def funcionario_soft_delete_view(request, pk: uuid.UUID):
     """
-    🗑️ BAJA LÓGICA FORENSE DE FUNCIONARIO
+    Baja lógica institucional de funcionario.
 
-    Tipo de acción:
-    - Acción crítica.
-    - Se ejecuta desde el expediente del funcionario.
-    - Después de aplicar la baja, regresa al listado.
+    - No permite baja sobre la propia sesión.
+    - Si es exitosa, regresa al listado oficial.
+    - En HTMX incluye messages_oob para mostrar toast sin F5.
     """
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
-    target_htmx = request.headers.get("HX-Target", "")
 
     if str(pk) == str(request.user.id):
-        if is_htmx:
-            return HttpResponse(
-                status=403,
-                content="Operación denegada sobre su propia sesión.",
-            )
-
         messages.error(
             request,
             "Operación denegada: No puede aplicar una baja sobre su propia sesión.",
         )
 
-        return redirect("accounts:funcionario_detail", pk=pk)
+        if is_htmx:
+            funcionario = get_object_or_404(
+                User,
+                id=pk,
+            )
 
-    funcionario = get_object_or_404(User, id=pk)
+            perfil = getattr(
+                funcionario,
+                "axentra_profile",
+                None,
+            )
 
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Solicitud de baja lógica institucional",
-        icono="🗑️",
-        extra_data={
-            "Funcionario Target": funcionario.email,
-            "Funcionario ID": str(funcionario.id),
-            "Operador": request.user.email,
-            "¿Es HTMX?": is_htmx,
-            "HX-Target": target_htmx if target_htmx else "NINGUNO",
-        },
+            response = render(
+                request,
+                "accounts/htmx/funcionario_identidad_with_messages.html",
+                {
+                    "funcionario": funcionario,
+                    "perfil": perfil,
+                    "current_funcionario": funcionario,
+                    "modulo_actual": AppIdentifier.ACCOUNTS,
+                    "show_module_sidebar": True,
+                },
+            )
+
+            response.status_code = 403
+            return response
+
+        return redirect(
+            "accounts:funcionario_detail",
+            pk=pk,
+        )
+
+    funcionario = get_object_or_404(
+        User,
+        id=pk,
     )
 
     exito, mensaje = FuncionarioService.tramitar_baja_institucional(
@@ -656,16 +770,34 @@ def funcionario_soft_delete_view(request, pk: uuid.UUID):
     )
 
     if exito:
-        messages.warning(request, mensaje)
+        messages.warning(
+            request,
+            mensaje,
+        )
     else:
-        messages.error(request, mensaje)
+        messages.error(
+            request,
+            mensaje,
+        )
 
     if is_htmx:
-        response = HttpResponse(status=204)
-        response["HX-Redirect"] = reverse("accounts:funcionario_list")
+        context_list = build_funcionario_list_context(request)
+
+        response = render(
+            request,
+            "accounts/htmx/funcionario_list_workbench_with_messages.html",
+            context_list,
+        )
+
+        response["HX-Push-Url"] = reverse(
+            "accounts:funcionario_list",
+        )
+
         return response
 
-    return redirect("accounts:funcionario_list")
+    return redirect(
+        "accounts:funcionario_list",
+    )
 
 
 @require_POST
@@ -673,83 +805,143 @@ def funcionario_soft_delete_view(request, pk: uuid.UUID):
 @axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_toggle_status_view(request, pk: uuid.UUID):
     """
-    🟢 ALTERNADOR DE ESTATUS OPERATIVO
+    Alternador de estatus operativo de funcionario.
 
-    Compatibilidad:
     - Si viene desde expediente con hx-target="#page-content":
-      devuelve sub_identidad.html completo.
-    - Si viene desde un badge compacto con hx-target="this":
-      devuelve badge_toggle_activo_inactivo.html.
+      devuelve la ficha de identidad completa con messages_oob.
+
+    - Si viene desde badge compacto:
+      devuelve el badge con messages_oob.
     """
+
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
+    funcionario = get_object_or_404(
+        User,
+        id=pk,
+    )
+
+    perfil = getattr(
+        funcionario,
+        "axentra_profile",
+        None,
+    )
+
     if str(pk) == str(request.user.id):
-        return HttpResponse(
-            status=403,
-            content="Bloqueo de seguridad: Auto-congelación denegada.",
+        messages.error(
+            request,
+            "Bloqueo de seguridad: no puedes cambiar el estado de tu propia cuenta.",
         )
 
-    funcionario = get_object_or_404(User, id=pk)
+        if is_htmx and target_htmx == "page-content":
+            response = render(
+                request,
+                "accounts/htmx/funcionario_identidad_with_messages.html",
+                {
+                    "funcionario": funcionario,
+                    "perfil": perfil,
+                    "current_funcionario": funcionario,
+                    "modulo_actual": AppIdentifier.ACCOUNTS,
+                    "show_module_sidebar": True,
+                },
+            )
+            response.status_code = 403
+            return response
+
+        if is_htmx:
+            response = render(
+                request,
+                "common/tags/badge_toggle_with_messages.html",
+                {
+                    "is_active": funcionario.is_active,
+                    "toggle_url": reverse(
+                        "accounts:funcionario_toggle_status",
+                        args=[funcionario.id],
+                    ),
+                },
+            )
+            response.status_code = 403
+            return response
+
+        return redirect(
+            "accounts:funcionario_detail",
+            pk=pk,
+        )
 
     if funcionario.is_deleted:
-        return HttpResponse(
-            status=400,
-            content="No se puede conmutar el estatus de un usuario dado de baja.",
+        messages.error(
+            request,
+            "No se puede cambiar el estado de un usuario dado de baja.",
         )
 
-    estado_anterior = funcionario.is_active
+        if is_htmx and target_htmx == "page-content":
+            response = render(
+                request,
+                "accounts/htmx/funcionario_identidad_with_messages.html",
+                {
+                    "funcionario": funcionario,
+                    "perfil": perfil,
+                    "current_funcionario": funcionario,
+                    "modulo_actual": AppIdentifier.ACCOUNTS,
+                    "show_module_sidebar": True,
+                },
+            )
+            response.status_code = 400
+            return response
+
+        if is_htmx:
+            response = render(
+                request,
+                "common/tags/badge_toggle_with_messages.html",
+                {
+                    "is_active": funcionario.is_active,
+                    "toggle_url": reverse(
+                        "accounts:funcionario_toggle_status",
+                        args=[funcionario.id],
+                    ),
+                },
+            )
+            response.status_code = 400
+            return response
+
+        return redirect(
+            "accounts:funcionario_detail",
+            pk=pk,
+        )
 
     funcionario.is_active = not funcionario.is_active
-    funcionario.save(update_fields=["is_active"])
-
-    ForensicAuditor.registrar_evento(
-        request=request,
-        action_type=SecurityAuditLog.ActionTypes.UPDATE,
-        module_component="MATRIZ_PERMISOS",
-        action_name="TOGGLE_STATUS_FUNCIONARIO",
-        target_scope=(
-            f"Conmutación de estatus de cuenta para {funcionario.email} "
-            f"(Estado final: {funcionario.is_active})."
-        ),
-        level=(
-            SecurityAuditLog.Levels.INFO
-            if funcionario.is_active
-            else SecurityAuditLog.Levels.CRITICAL
-        ),
-        target_user=funcionario,
-        search_target=funcionario.id,
-        payload={
-            "is_active_before": estado_anterior,
-            "is_active_after": funcionario.is_active,
-        },
+    funcionario.save(
+        update_fields=[
+            "is_active",
+        ]
     )
 
-    AxentraRadar.imprimir_auditoria(
-        componente="accounts_view",
-        request=request,
-        titulo="Conmutación de estatus de funcionario",
-        icono="🟢" if funcionario.is_active else "⚫",
-        extra_data={
-            "Funcionario": funcionario.email,
-            "Funcionario ID": str(funcionario.id),
-            "Estado Anterior": "ACTIVO" if estado_anterior else "INACTIVO",
-            "Estado Nuevo": "ACTIVO" if funcionario.is_active else "INACTIVO",
-            "¿Es HTMX?": is_htmx,
-            "HX-Target": target_htmx if target_htmx else "NINGUNO",
-        },
+    if funcionario.is_active:
+        messages.success(
+            request,
+            f"La cuenta de {funcionario.full_name} fue activada correctamente.",
+        )
+    else:
+        messages.warning(
+            request,
+            f"La cuenta de {funcionario.full_name} fue desactivada correctamente.",
+        )
+
+    perfil = getattr(
+        funcionario,
+        "axentra_profile",
+        None,
     )
 
-    perfil = getattr(funcionario, "axentra_profile", None)
-
-    # Caso nuevo: llamado desde sub_identidad.html
     if is_htmx and target_htmx == "page-content":
         response = render(
             request,
-            "accounts/contextual/partials/sub_identidad.html",
+            "accounts/htmx/funcionario_identidad_with_messages.html",
             {
                 "funcionario": funcionario,
                 "perfil": perfil,
+                "current_funcionario": funcionario,
                 "modulo_actual": AppIdentifier.ACCOUNTS,
                 "show_module_sidebar": True,
             },
@@ -762,11 +954,10 @@ def funcionario_toggle_status_view(request, pk: uuid.UUID):
 
         return response
 
-    # Caso viejo: badge compacto, por si todavía lo usas en alguna tabla
     if is_htmx:
         return render(
             request,
-            "common/tags/badge_toggle_activo_inactivo.html",
+            "common/tags/badge_toggle_with_messages.html",
             {
                 "is_active": funcionario.is_active,
                 "toggle_url": reverse(
@@ -776,7 +967,10 @@ def funcionario_toggle_status_view(request, pk: uuid.UUID):
             },
         )
 
-    return redirect("accounts:funcionario_detail", pk=pk)
+    return redirect(
+        "accounts:funcionario_detail",
+        pk=pk,
+    )
 
 
 
