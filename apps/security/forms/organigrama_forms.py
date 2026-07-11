@@ -22,17 +22,71 @@ class SedeForm(AxentraFormStylerMixin, forms.ModelForm):
 class DependenciaForm(AxentraFormStylerMixin, forms.ModelForm):
     class Meta:
         model = Dependencia
-        fields = ['nombre', 'encargado_departamento']
+        fields = ["nombre", "parent", "encargado_departamento"]
         widgets = {
-            'nombre': forms.TextInput(attrs={'placeholder': 'Ej: Dirección General de Innovación'}),
+            "nombre": forms.TextInput(attrs={"placeholder": "Ej: Dirección General de Innovación"}),
+            "parent": forms.Select(),
+            "encargado_departamento": forms.Select(),
+        }
+        labels = {
+            "nombre": "Nombre de la dependencia",
+            "parent": "Dependencia padre",
+            "encargado_departamento": "Servidor público titular",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.fields.get('encargado_departamento'):
-            self.fields['encargado_departamento'].empty_label = "--- Seleccione Servidor Público Titular (Opcional) ---"
+        instancia_actual = self.instance if self.instance and self.instance.pk else None
+        dependencias_padre = Dependencia.objects.filter(is_deleted=False).order_by("nombre")
+
+        if instancia_actual:
+            dependencias_padre = dependencias_padre.exclude(pk=instancia_actual.pk)
+            ids_descendientes = self._obtener_ids_descendientes(instancia_actual)
+            if ids_descendientes:
+                dependencias_padre = dependencias_padre.exclude(pk__in=ids_descendientes)
+
+        if self.fields.get("parent"):
+            self.fields["parent"].queryset = dependencias_padre
+            self.fields["parent"].required = False
+            self.fields["parent"].empty_label = "--- Sin dependencia padre / Nodo raíz ---"
+
+        if self.fields.get("encargado_departamento"):
+            self.fields["encargado_departamento"].required = False
+            self.fields["encargado_departamento"].empty_label = "--- Seleccione Servidor Público Titular (Opcional) ---"
+
         self.aplicar_estilos_institucionales()
 
+    def clean_parent(self):
+        parent = self.cleaned_data.get("parent")
+        if not parent:
+            return parent
+
+        if self.instance and self.instance.pk:
+            if parent.pk == self.instance.pk:
+                raise forms.ValidationError("Una dependencia no puede ser padre de sí misma.")
+            
+            if parent.pk in self._obtener_ids_descendientes(self.instance):
+                raise forms.ValidationError("No puedes asignar como padre una dependencia hija o descendiente.")
+
+        return parent
+
+    def _obtener_ids_descendientes(self, dependencia):
+        """
+        Obtiene los IDs de todas las dependencias hijas y descendientes.
+        Esto evita ciclos recursivos en la estructura del organigrama.
+        """
+        ids_descendientes = set()
+        pendientes = [dependencia.pk]
+
+        while pendientes:
+            hijos = Dependencia.objects.filter(parent_id__in=pendientes, is_deleted=False).values_list("id", flat=True)
+            nuevos_ids = set(hijos) - ids_descendientes
+            if not nuevos_ids:
+                break
+            ids_descendientes.update(nuevos_ids)
+            pendientes = list(nuevos_ids)
+
+        return ids_descendientes
 
 class AreaOperativaForm(AxentraFormStylerMixin, forms.ModelForm):
     class Meta:

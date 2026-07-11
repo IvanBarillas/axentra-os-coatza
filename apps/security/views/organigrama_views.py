@@ -982,7 +982,6 @@ def dependencia_list_view(request):
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_create_view(request):
     """Alta de dependencias administrativas institucionales."""
-
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
@@ -992,43 +991,22 @@ def dependencia_create_view(request):
         if form.is_valid():
             payload = {
                 "nombre": form.cleaned_data["nombre"],
-                "encargado_departamento_id": (
-                    form.cleaned_data["encargado_departamento"].id
-                    if form.cleaned_data.get("encargado_departamento")
-                    else None
-                ),
+                "parent_id": form.cleaned_data["parent"].id if form.cleaned_data.get("parent") else None,
+                "encargado_departamento_id": form.cleaned_data["encargado_departamento"].id if form.cleaned_data.get("encargado_departamento") else None,
             }
 
-            exito, dependencia, errores = OrganigramaService.crear_dependencia(
-                request,
-                payload,
-            )
+            exito, dependencia, errores = OrganigramaService.crear_dependencia(request, payload)
 
             if exito:
-                messages.success(
-                    request,
-                    f"Dependencia '{dependencia.nombre}' registrada correctamente.",
-                )
-
+                messages.success(request, f"Dependencia '{dependencia.nombre}' registrada correctamente.")
+                
                 dependencias = (
-                    Dependencia.objects
-                    .filter(is_deleted=False)
+                    Dependencia.objects.filter(is_deleted=False).select_related("parent")
                     .annotate(
-                        total_areas=Count(
-                            "areas",
-                            filter=Q(areas__is_deleted=False),
-                            distinct=True,
-                        ),
-                        total_sedes=Count(
-                            "areas__sede_fisica",
-                            filter=Q(
-                                areas__is_deleted=False,
-                                areas__sede_fisica__is_deleted=False,
-                            ),
-                            distinct=True,
-                        ),
-                    )
-                    .order_by("nombre")
+                        total_areas=Count("areas", filter=Q(areas__is_deleted=False), distinct=True),
+                        total_sedes=Count("areas__sede_fisica", filter=Q(areas__is_deleted=False, areas__sede_fisica__is_deleted=False), distinct=True),
+                        total_hijas=Count("children", filter=Q(children__is_deleted=False), distinct=True),
+                    ).order_by("parent__nombre", "nombre")
                 )
 
                 context_list = {
@@ -1041,26 +1019,16 @@ def dependencia_create_view(request):
                 }
 
                 if is_htmx:
-                    response = render(
-                        request,
-                        "organigrama/htmx/dependencia_list_with_messages.html",
-                        context_list,
-                    )
+                    response = render(request, "organigrama/htmx/dependencia_list_with_messages.html", context_list)
                     response["HX-Push-Url"] = reverse("organigrama:dependencia_list")
                     return response
-
                 return redirect("organigrama:dependencia_list")
 
             error_msg = errores.get("server_error", ["Fallo del Servidor"])[0]
             messages.error(request, error_msg)
             form.add_error(None, error_msg)
-
         else:
-            messages.error(
-                request,
-                "Revisa los campos del formulario antes de guardar la dependencia.",
-            )
-
+            messages.error(request, "Revisa los campos del formulario antes de guardar la dependencia.")
     else:
         form = DependenciaForm()
 
@@ -1073,35 +1041,20 @@ def dependencia_create_view(request):
     }
 
     if is_htmx and target_htmx == "page-content":
-        return render(
-            request,
-            "organigrama/htmx/dependencia_form_with_messages.html"
-            if request.method == "POST"
-            else "organigrama/content/dependencia_form_content.html",
-            context,
-        )
+        template = "organigrama/htmx/dependencia_form_with_messages.html" if request.method == "POST" else "organigrama/content/dependencia_form_content.html"
+        return render(request, template, context)
 
-    return render(
-        request,
-        "organigrama/pages/dependencia_form.html",
-        context,
-    )
-
+    return render(request, "organigrama/pages/dependencia_form.html", context)
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_update_view(request, pk: uuid.UUID):
-    """Modificación contextual de nomenclatura y titular de dependencia."""
-
+    """Modificación contextual de nomenclatura, jerarquía y titular de dependencia."""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
-    dep_instancia = get_object_or_404(
-        Dependencia,
-        pk=pk,
-        is_deleted=False,
-    )
+    dep_instancia = get_object_or_404(Dependencia.objects.select_related("parent"), pk=pk, is_deleted=False)
 
     if request.method == "POST":
         form = DependenciaForm(request.POST, instance=dep_instancia)
@@ -1109,75 +1062,26 @@ def dependencia_update_view(request, pk: uuid.UUID):
         if form.is_valid():
             payload = {
                 "nombre": form.cleaned_data["nombre"],
-                "encargado_departamento_id": (
-                    form.cleaned_data["encargado_departamento"].id
-                    if form.cleaned_data.get("encargado_departamento")
-                    else None
-                ),
+                "parent_id": form.cleaned_data["parent"].id if form.cleaned_data.get("parent") else None,
+                "encargado_departamento_id": form.cleaned_data["encargado_departamento"].id if form.cleaned_data.get("encargado_departamento") else None,
             }
 
-            exito, errores = OrganigramaService.actualizar_dependencia(
-                request,
-                dep_instancia,
-                payload,
-            )
+            exito, errores = OrganigramaService.actualizar_dependencia(request, dep_instancia, payload)
 
             if exito:
                 dep_instancia.refresh_from_db()
+                messages.success(request, f"Dependencia '{dep_instancia.nombre}' actualizada correctamente.")
 
-                messages.success(
-                    request,
-                    f"Dependencia '{dep_instancia.nombre}' actualizada correctamente.",
-                )
-
-                areas = (
-                    AreaOperativa.objects
-                    .filter(
-                        dependencia=dep_instancia,
-                        is_deleted=False,
-                    )
-                    .select_related(
-                        "dependencia",
-                        "sede_fisica",
-                    )
-                    .order_by(
-                        "sede_fisica__nombre",
-                        "nombre",
-                    )
-                )
-
-                sedes = (
-                    Sede.objects
-                    .filter(
-                        areas__dependencia=dep_instancia,
-                        areas__is_deleted=False,
-                        is_deleted=False,
-                    )
-                    .distinct()
-                    .order_by("nombre")
-                )
-
-                funcionarios = (
-                    UserProfile.objects
-                    .filter(
-                        area__dependencia=dep_instancia,
-                        area__is_deleted=False,
-                        user__is_deleted=False,
-                    )
-                    .select_related(
-                        "user",
-                        "area",
-                        "area__dependencia",
-                        "area__sede_fisica",
-                    )
-                    .order_by(
-                        "user__first_name",
-                        "user__last_name",
-                    )
-                )
+                areas = AreaOperativa.objects.filter(dependencia=dep_instancia, is_deleted=False).select_related("dependencia", "sede_fisica").order_by("sede_fisica__nombre", "nombre")
+                sedes = Sede.objects.filter(areas__dependencia=dep_instancia, areas__is_deleted=False, is_deleted=False).distinct().order_by("nombre")
+                funcionarios = UserProfile.objects.filter(area__dependencia=dep_instancia, area__is_deleted=False, user__is_deleted=False).select_related("user", "area", "area__dependencia", "area__sede_fisica").order_by("user__first_name", "user__last_name")
+                dependencias_hijas = Dependencia.objects.filter(parent=dep_instancia, is_deleted=False).annotate(total_areas=Count("areas", filter=Q(areas__is_deleted=False), distinct=True)).order_by("nombre")
 
                 context_detail = {
                     "dependencia": dep_instancia,
+                    "dependencia_padre": dep_instancia.parent,
+                    "dependencias_hijas": dependencias_hijas,
+                    "total_dependencias_hijas": dependencias_hijas.count(),
                     "areas": areas,
                     "sedes": sedes,
                     "funcionarios": funcionarios,
@@ -1188,49 +1092,17 @@ def dependencia_update_view(request, pk: uuid.UUID):
                     "show_module_sidebar": True,
                 }
 
-                if is_htmx and target_htmx == "page-content":
-                    response = render(
-                        request,
-                        "organigrama/htmx/dependencia_identidad_with_messages.html",
-                        context_detail,
-                    )
-                    response["HX-Push-Url"] = reverse(
-                        "organigrama:dependencia_sub_identidad",
-                        args=[dep_instancia.id],
-                    )
-                    return response
-
                 if is_htmx:
-                    response = render(
-                        request,
-                        "organigrama/htmx/dependencia_identidad_with_messages.html",
-                        context_detail,
-                    )
-                    response["HX-Push-Url"] = reverse(
-                        "organigrama:dependencia_sub_identidad",
-                        args=[dep_instancia.id],
-                    )
+                    response = render(request, "organigrama/htmx/dependencia_identidad_with_messages.html", context_detail)
+                    response["HX-Push-Url"] = reverse("organigrama:dependencia_sub_identidad", args=[dep_instancia.id])
                     return response
+                return redirect("organigrama:dependencia_detail", pk=dep_instancia.id)
 
-                return redirect(
-                    "organigrama:dependencia_detail",
-                    pk=dep_instancia.id,
-                )
-
-            error_msg = errores.get(
-                "server_error",
-                ["Fallo de actualización"],
-            )[0]
-
+            error_msg = errores.get("server_error", ["Fallo de actualización"])[0]
             messages.error(request, error_msg)
             form.add_error(None, error_msg)
-
         else:
-            messages.error(
-                request,
-                "Revisa los campos del formulario antes de actualizar la dependencia.",
-            )
-
+            messages.error(request, "Revisa los campos del formulario antes de actualizar la dependencia.")
     else:
         form = DependenciaForm(instance=dep_instancia)
 
@@ -1247,7 +1119,6 @@ def dependencia_update_view(request, pk: uuid.UUID):
             "back_target": "#page-content",
         },
     )
-    
 
 @require_POST
 @login_required

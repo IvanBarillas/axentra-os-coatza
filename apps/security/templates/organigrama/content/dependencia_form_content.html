@@ -14,11 +14,13 @@
             <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 leading-none">
                 Administración Central // Estructura // {% if action == "create" %}Alta{% else %}Edición{% endif %}
             </div>
+
             <h2 class="text-xl md:text-2xl font-black text-gray-950 tracking-tighter uppercase font-mono truncate leading-tight">
                 {% if action == "create" %}Registrar Dependencia{% else %}Modificar Dependencia{% endif %}
             </h2>
+
             <p class="hidden md:block text-xs text-gray-400 font-bold font-mono mt-1.5 uppercase tracking-wide leading-none">
-                // Las dependencias representan autoridad administrativa; las áreas operativas conectan esa autoridad con una sede física.
+                // Las dependencias representan autoridad administrativa; pueden organizarse jerárquicamente mediante una dependencia padre.
             </p>
         </div>
 
@@ -31,6 +33,7 @@
             class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
         >
             <i data-lucide="arrow-left" class="w-4 h-4 text-gray-400"></i>
+
             <span>
                 {% if action == "update" and dependencia %}
                     {{ back_label|default:"Volver a Ficha de Dependencia" }}
@@ -45,7 +48,7 @@
         method="POST"
         action="{{ submit_url }}"
         hx-post="{{ submit_url }}"
-        hx-target="#page-content"
+        hx-target="{% if action == 'update' and dependencia %}#page-content{% else %}#workbench{% endif %}"
         hx-swap="innerHTML"
         hx-push-url="true"
         class="space-y-6"
@@ -56,21 +59,32 @@
         {% if form.non_field_errors %}
             <div class="p-4 bg-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 text-red-950 font-mono text-[11px] uppercase tracking-wide animate-pulse">
                 <i data-lucide="shield-alert" class="w-4 h-4 text-red-600 mt-0.5 shrink-0"></i>
+
                 <div class="space-y-1 text-left">
                     <span class="font-bold block">// Inconsistencia en la Estructura:</span>
+
                     {% for error in form.non_field_errors %}
-                        <p class="text-red-800 lowercase font-sans font-medium text-xs">{{ error }}</p>
+                        <p class="text-red-800 lowercase font-sans font-medium text-xs">
+                            {{ error }}
+                        </p>
                     {% endfor %}
                 </div>
             </div>
         {% endif %}
 
         <div class="bg-white p-5 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs space-y-6">
+
             <div class="space-y-2">
-                <label for="{{ form.nombre.id_for_label }}" class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono">
+                <label
+                    for="{{ form.nombre.id_for_label }}"
+                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                >
                     Nombre Oficial del Ente Público / Dependencia
                 </label>
-                <div class="w-full">{{ form.nombre }}</div>
+
+                <div class="w-full">
+                    {{ form.nombre }}
+                </div>
 
                 {% if form.nombre.errors %}
                     {% for error in form.nombre.errors %}
@@ -87,10 +101,42 @@
             </div>
 
             <div class="space-y-2">
-                <label for="{{ form.encargado_departamento.id_for_label }}" class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono">
+                <label
+                    for="{{ form.parent.id_for_label }}"
+                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                >
+                    Dependencia Padre / Nodo Superior
+                </label>
+
+                <div class="w-full">
+                    {{ form.parent }}
+                </div>
+
+                {% if form.parent.errors %}
+                    {% for error in form.parent.errors %}
+                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                            <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
+                            <span>{{ error }}</span>
+                        </p>
+                    {% endfor %}
+                {% else %}
+                    <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                        // Campo opcional. Déjalo vacío si esta dependencia es un nodo raíz del organigrama.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="space-y-2">
+                <label
+                    for="{{ form.encargado_departamento.id_for_label }}"
+                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                >
                     Titular Responsable / Director General
                 </label>
-                <div class="w-full">{{ form.encargado_departamento }}</div>
+
+                <div class="w-full">
+                    {{ form.encargado_departamento }}
+                </div>
 
                 {% if form.encargado_departamento.errors %}
                     {% for error in form.encargado_departamento.errors %}
@@ -109,9 +155,19 @@
 
         <div class="p-4 md:p-5 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3.5 items-start text-left shadow-3xs">
             <i data-lucide="shield-check" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"></i>
+
             <p class="text-[10px] text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
                 <strong class="text-gray-950 block mb-0.5 tracking-tight">// INTEGRIDAD ORGÁNICA ACTIVA:</strong>
-                Esta dependencia no queda ligada directamente a una sede. La relación territorial se crea posteriormente mediante áreas operativas.
+                La dependencia padre define jerarquía administrativa. La relación física con sedes se crea posteriormente mediante áreas operativas.
+            </p>
+        </div>
+
+        <div class="p-4 md:p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex gap-3.5 items-start text-left shadow-3xs">
+            <i data-lucide="git-branch" class="w-4 h-4 text-indigo-500 mt-0.5 shrink-0"></i>
+
+            <p class="text-[10px] text-indigo-800/80 font-mono uppercase tracking-wide leading-relaxed">
+                <strong class="text-indigo-950 block mb-0.5 tracking-tight">// JERARQUÍA ADMINISTRATIVA:</strong>
+                Ejemplo: Obras Públicas puede ser dependencia padre de Topografía, Licencias o Desarrollo Urbano. Esta jerarquía servirá para reportes, alcance operativo y permisos por rama institucional.
             </p>
         </div>
 
@@ -124,7 +180,11 @@
                 hx-push-url="true"
                 class="w-full sm:w-auto text-center bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-black py-3 px-6 rounded-xl uppercase tracking-widest transition transform active:scale-95 cursor-pointer shadow-3xs"
             >
-                Cancelar Operación
+                {% if action == "update" and dependencia %}
+                    Cancelar Edición
+                {% else %}
+                    Cancelar Alta
+                {% endif %}
             </a>
 
             <button
@@ -132,6 +192,7 @@
                 class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gray-950 hover:bg-gray-900 text-white font-black py-3 px-6 rounded-xl uppercase tracking-widest transition transform active:scale-95 cursor-pointer shadow-sm"
             >
                 <i data-lucide="database" class="w-3.5 h-3.5 text-gray-400"></i>
+
                 <span>
                     {% if action == "update" %}
                         Actualizar Dependencia
@@ -145,5 +206,7 @@
 </div>
 
 <script>
-    if (typeof lucide !== "undefined") { lucide.createIcons(); }
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
 </script>

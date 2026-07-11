@@ -38,9 +38,11 @@ class DependenciaReadOnlyDTO(BaseModel):
     sedes_asignadas_nombres: List[str] = Field(default_factory=list)
 
 class DependenciaInputDTO(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True) # 🟢 Permite objetos nativos de Django
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     nombre: str = Field(..., min_length=3, max_length=150)
-    encargado_departamento_id: Optional[Any] = Field(None) # 🟢 Polimorfismo de entrada para Formularios
+    parent_id: Optional[Any] = Field(None, description="Dependencia padre opcional para jerarquía administrativa.")
+    encargado_departamento_id: Optional[Any] = Field(None, description="Servidor público titular opcional.")
 
 # =========================================================================
 # 🎛️ DOMINIO: AREAS OPERATIVAS (LA MATRIZ TRIPLE)

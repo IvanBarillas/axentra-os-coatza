@@ -116,82 +116,167 @@ class OrganigramaService:
     # 🏛️ OPERACIONES DE ESCRITURA: DEPENDENCIAS (DIRECCIONES GENERALES)
     # =========================================================================
     @staticmethod
-    def crear_dependencia(request, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dependencia], Optional[Dict[str, Any]]]:
-        """Inyección de una Dirección General o Secretaría validada por Pydantic DTO con bitácora forense."""
+    def crear_dependencia(
+        request,
+        payload: Dict[str, Any],
+    ) -> Tuple[bool, Optional[Dependencia], Optional[Dict[str, Any]]]:
+        """
+        Inyección de una dependencia administrativa validada por Pydantic DTO
+        con soporte de jerarquía parent y bitácora forense.
+        """
+
         try:
             input_dto = DependenciaInputDTO(**payload)
+
         except ValidationError as e:
-            return False, None, {"validation_errors": e.errors()}
+            return False, None, {
+                "validation_errors": e.errors(),
+            }
 
         try:
             with transaction.atomic():
                 nueva_dep = Dependencia.objects.create(
                     nombre=input_dto.nombre,
+                    parent_id=input_dto.parent_id,
                     encargado_departamento_id=input_dto.encargado_departamento_id,
                     is_active=True,
-                    is_deleted=False
+                    is_deleted=False,
                 )
 
-            # 🪐 PERSISTENCIA EN BITÁCORA FORENSE
-            ForensicAuditor.registrar_evento(
-                request=request,
-                action_type=SecurityAuditLog.ActionTypes.CREATE,
-                module_component="DEPENDENCIAS_RAIZ",
-                action_name="ALTA_DEPENDENCIA_ORGANICA",
-                target_scope=f"Inyección de nueva dependencia superior al organigrama: {nueva_dep.nombre}.",
-                level=SecurityAuditLog.Levels.SUCCESS,
-                search_target=nueva_dep.id,
-                payload={'nombre_dependencia': nueva_dep.nombre, 'encargado_id': str(nueva_dep.encargado_departamento_id) if nueva_dep.encargado_departamento_id else None}
+                ForensicAuditor.registrar_evento(
+                    request=request,
+                    action_type=SecurityAuditLog.ActionTypes.CREATE,
+                    module_component="DEPENDENCIAS_RAIZ",
+                    action_name="ALTA_DEPENDENCIA_ORGANICA",
+                    target_scope=(
+                        f"Alta de dependencia administrativa en organigrama: "
+                        f"{nueva_dep.nombre}."
+                    ),
+                    level=SecurityAuditLog.Levels.SUCCESS,
+                    search_target=str(nueva_dep.id),
+                    payload={
+                        "dependencia_id": str(nueva_dep.id),
+                        "nombre_dependencia": nueva_dep.nombre,
+                        "parent_id": (
+                            str(nueva_dep.parent_id)
+                            if nueva_dep.parent_id
+                            else None
+                        ),
+                        "encargado_id": (
+                            str(nueva_dep.encargado_departamento_id)
+                            if nueva_dep.encargado_departamento_id
+                            else None
+                        ),
+                        "is_root_node": nueva_dep.parent_id is None,
+                    },
+                )
+
+            logger.info(
+                f"🏛️ AXENTRA OS: Dependencia '{nueva_dep.nombre}' dada de alta exitosamente. "
+                f"Parent=[{nueva_dep.parent_id}]"
             )
 
-            logger.info(f"🏛️ AXENTRA OS: Dependencia '{nueva_dep.nombre}' dada de alta exitosamente.")
             return True, nueva_dep, None
+
         except Exception as e:
-            logger.error(f"❌ TRANSACCIÓN FALLIDA (Crear Dependencia): {str(e)}")
-            return False, None, {"server_error": [str(e)]}
+            logger.error(
+                f"❌ TRANSACCIÓN FALLIDA (Crear Dependencia): {str(e)}"
+            )
+
+            return False, None, {
+                "server_error": [str(e)],
+            }
 
     @staticmethod
-    def actualizar_dependencia(request, dep_instancia: Dependencia, payload: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
-        """Modificación estructural de nomenclatura o asignación de titulares en una dirección."""
+    def actualizar_dependencia(
+        request,
+        dep_instancia: Dependencia,
+        payload: Dict[str, Any],
+    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        """
+        Modificación estructural de nomenclatura, jerarquía o titular
+        de una dependencia administrativa.
+        """
+
         try:
             snapshot_anterior = {
-                'nombre': dep_instancia.nombre,
-                'encargado_id': str(dep_instancia.encargado_departamento_id) if dep_instancia.encargado_departamento_id else None
+                "nombre": dep_instancia.nombre,
+                "parent_id": (
+                    str(dep_instancia.parent_id)
+                    if dep_instancia.parent_id
+                    else None
+                ),
+                "encargado_id": (
+                    str(dep_instancia.encargado_departamento_id)
+                    if dep_instancia.encargado_departamento_id
+                    else None
+                ),
             }
 
             with transaction.atomic():
-                dep_instancia.nombre = payload.get('nombre')
-                dep_instancia.encargado_departamento_id = payload.get('encargado_departamento_id')
+                dep_instancia.nombre = payload.get("nombre")
+                dep_instancia.parent_id = payload.get("parent_id")
+                dep_instancia.encargado_departamento_id = payload.get(
+                    "encargado_departamento_id"
+                )
+
                 dep_instancia.save()
 
-            snapshot_nuevo = {
-                'nombre': dep_instancia.nombre,
-                'encargado_id': str(dep_instancia.encargado_departamento_id) if dep_instancia.encargado_departamento_id else None
-            }
+                dep_instancia.refresh_from_db()
 
-            payload_delta = {
-                'estado_anterior': snapshot_anterior,
-                'estado_nuevo': snapshot_nuevo,
-                'campos_alterados': [k for k, v in snapshot_anterior.items() if snapshot_nuevo[k] != v]
-            }
+                snapshot_nuevo = {
+                    "nombre": dep_instancia.nombre,
+                    "parent_id": (
+                        str(dep_instancia.parent_id)
+                        if dep_instancia.parent_id
+                        else None
+                    ),
+                    "encargado_id": (
+                        str(dep_instancia.encargado_departamento_id)
+                        if dep_instancia.encargado_departamento_id
+                        else None
+                    ),
+                }
 
-            # 🪐 INYECTOR FORENSE
-            ForensicAuditor.registrar_evento(
-                request=request,
-                action_type=SecurityAuditLog.ActionTypes.UPDATE,
-                module_component="DEPENDENCIAS_RAIZ",
-                action_name="MUTACION_ESTRUCTURAL_DEPENDENCIA",
-                target_scope=f"Modificación de nomenclatura o cambio de titular para la dependencia: {dep_instancia.nombre}.",
-                level=SecurityAuditLog.Levels.INFO,
-                search_target=dep_instancia.id,
-                payload=payload_delta
+                payload_delta = {
+                    "estado_anterior": snapshot_anterior,
+                    "estado_nuevo": snapshot_nuevo,
+                    "campos_alterados": [
+                        campo
+                        for campo, valor_anterior in snapshot_anterior.items()
+                        if snapshot_nuevo[campo] != valor_anterior
+                    ],
+                }
+
+                ForensicAuditor.registrar_evento(
+                    request=request,
+                    action_type=SecurityAuditLog.ActionTypes.UPDATE,
+                    module_component="DEPENDENCIAS_RAIZ",
+                    action_name="MUTACION_ESTRUCTURAL_DEPENDENCIA",
+                    target_scope=(
+                        f"Modificación estructural de dependencia administrativa: "
+                        f"{dep_instancia.nombre}."
+                    ),
+                    level=SecurityAuditLog.Levels.INFO,
+                    search_target=str(dep_instancia.id),
+                    payload=payload_delta,
+                )
+
+            logger.info(
+                f"🏛️ AXENTRA OS: Dependencia '{dep_instancia.nombre}' actualizada correctamente. "
+                f"Parent=[{dep_instancia.parent_id}]"
             )
 
-            logger.info(f"🏛️ AXENTRA OS: Dependencia '{dep_instancia.nombre}' actualizada correctamente.")
             return True, None
+
         except Exception as e:
-            logger.error(f"❌ TRANSACCIÓN FALLIDA (Actualizar Dependencia): {str(e)}")
-            return False, {"server_error": [str(e)]}
+            logger.error(
+                f"❌ TRANSACCIÓN FALLIDA (Actualizar Dependencia): {str(e)}"
+            )
+
+            return False, {
+                "server_error": [str(e)],
+            }
 
     # =========================================================================
     # 🎛️ OPERACIONES DE ESCRITURA: ÁREAS OPERATIVAS (OFICINAS INTERNAS)
