@@ -25,6 +25,8 @@ class Dependencia(AxentraBaseModel):
     sedes_ocupadas = models.ManyToManyField(Sede, through="security.AreaOperativa", related_name="dependencias", verbose_name="Sedes Físicas Operativas")
     encargado_departamento = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="dependencias_administrativas_a_cargo", verbose_name="Titular / Encargado de la Dependencia", null=True, blank=True, help_text="Director o Jefe de Área con facultades para gestionar su personal.")
 
+    parent = models.ForeignKey("self", null=True, blank=True, related_name="children", on_delete=models.PROTECT,)
+    
     class Meta:
         db_table = "axentra_org_dependencias"
         verbose_name = "Dependencia / Dirección"
