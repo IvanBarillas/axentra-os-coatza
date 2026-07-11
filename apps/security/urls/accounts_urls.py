@@ -9,7 +9,7 @@ from apps.security.views.accounts_views import (
     funcionario_sub_identidad_view, funcionario_sub_hardware_view, funcionario_sub_telefonia_view
     )
 
-
+ 
 urls_accounts = [
     # Autenticación Oficial de Axentra OS
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html', redirect_authenticated_user=True), name='login'),
