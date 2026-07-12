@@ -1,60 +1,108 @@
+{% load axentra_ui %}
+
 <div class="hidden md:block bg-white rounded-[32px] border border-gray-200/80 shadow-3xs overflow-hidden w-full">
     <div class="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar">
         <table class="w-full text-left border-collapse min-w-max">
             <thead>
                 <tr class="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase text-gray-400 tracking-wider font-mono sticky top-0 z-10">
-                    <th class="py-4 px-6 bg-gray-100 sticky left-0 z-30 border-r border-gray-200 shadow-3xs">Servidor Público</th>
-                    <th class="py-4 px-6 text-center bg-gray-50/90 backdrop-blur-md">Verificación</th>
+                    <th class="py-4 px-6 bg-gray-100 sticky left-0 z-30 border-r border-gray-200 shadow-3xs">
+                        Servidor Público
+                    </th>
+
+                    <th class="py-4 px-6 text-center bg-gray-50/90 backdrop-blur-md">
+                        Verificación
+                    </th>
+
                     {% for slug_app, nombre_legible in aplicaciones_sistema %}
                         <th class="py-4 px-6 text-center border-l border-gray-100 bg-gray-50/90 backdrop-blur-md font-mono">
-                            <div class="tracking-wider text-gray-800">{{ nombre_legible|upper }}</div>
-                            <div class="text-[8px] text-gray-400 font-bold lowercase tracking-normal mt-0.5">slug: {{ slug_app }}</div>
+                            <div class="tracking-wider text-gray-800">
+                                {{ nombre_legible|upper }}
+                            </div>
+
+                            <div class="text-[8px] text-gray-400 font-bold lowercase tracking-normal mt-0.5">
+                                slug: {{ slug_app }}
+                            </div>
                         </th>
                     {% endfor %}
                 </tr>
             </thead>
+
             <tbody class="divide-y divide-gray-100 text-xs font-medium text-slate-700">
                 {% for funcionario in funcionarios %}
                     <tr class="hover:bg-gray-50/40 transition duration-150 group {% if not funcionario.profile_id %} bg-red-50/20 {% endif %}">
+
                         <td class="py-4 px-6 whitespace-nowrap sticky left-0 border-r border-gray-200/60 shadow-3xs z-10 {% if not funcionario.profile_id %} bg-red-50 group-hover:bg-red-100/60 {% else %} bg-white group-hover:bg-gray-50 {% endif %} transition-colors duration-150 text-left">
-                            <div class="font-bold text-gray-950 text-sm tracking-tight uppercase font-mono">{{ funcionario.full_name }}</div>
-                            <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ funcionario.email }}</div>
+                            <div class="font-bold text-gray-950 text-sm tracking-tight uppercase font-mono">
+                                {{ funcionario.full_name }}
+                            </div>
+
+                            <div class="text-[10px] text-gray-400 font-mono mt-0.5">
+                                {{ funcionario.email }}
+                            </div>
+
                             <div class="text-[9px] mt-1 font-mono tracking-tight flex items-center gap-1 uppercase">
                                 {% if not funcionario.profile_id %}
-                                    <span class="text-red-600 font-black px-1.5 py-0.5 rounded bg-red-100/80 text-[8px] tracking-wide animate-pulse">ALERTA: SIN PERFIL ORGÁNICO</span>
+                                    <span class="text-red-600 font-black px-1.5 py-0.5 rounded bg-red-100/80 text-[8px] tracking-wide animate-pulse">
+                                        ALERTA: SIN PERFIL ORGÁNICO
+                                    </span>
                                 {% else %}
-                                    <span class="text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px] font-mono">{{ funcionario.sede_nombre }}</span>
+                                    <span class="text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px] font-mono">
+                                        {{ funcionario.sede_nombre }}
+                                    </span>
+
                                     <span class="text-gray-300">|</span>
-                                    <span class="text-gray-500 font-bold font-mono">{{ funcionario.dependencia_siglas }}</span>
+
+                                    <span class="text-gray-500 font-bold font-mono">
+                                        {{ funcionario.dependencia_siglas }}
+                                    </span>
+
                                     <span class="text-gray-300">|</span>
-                                    <span class="text-blue-600 font-black font-mono">{{ funcionario.area_nombre }}</span>
+
+                                    <span class="text-blue-600 font-black font-mono">
+                                        {{ funcionario.area_nombre }}
+                                    </span>
                                 {% endif %}
                             </div>
                         </td>
-                        
+
                         <td class="py-4 px-6 whitespace-nowrap text-center">
                             {% if funcionario.is_email_verified %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-emerald-600 text-white font-mono tracking-wider shadow-3xs">VERIFICADO</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-emerald-600 text-white font-mono tracking-wider shadow-3xs">
+                                    VERIFICADO
+                                </span>
                             {% else %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-amber-500 text-white font-mono tracking-wider animate-pulse">PENDIENTE</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-amber-500 text-white font-mono tracking-wider animate-pulse">
+                                    PENDIENTE
+                                </span>
                             {% endif %}
                         </td>
 
-                        {% for slug_app, _ in aplicaciones_sistema %}
+                        {% for slug_app, nombre_legible in aplicaciones_sistema %}
                             <td class="py-4 px-6 whitespace-nowrap text-center border-l border-gray-100">
                                 <div class="flex items-center justify-center gap-1.5">
                                     {% if funcionario.is_manager %}
-                                        <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-700 font-black px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest shadow-3xs">MASTER BYPASS</div>
+                                        <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-700 font-black px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest shadow-3xs">
+                                            MASTER BYPASS
+                                        </div>
                                     {% else %}
-                                        {% if slug_app in funcionario.accesos_modulos %}
-                                            <div class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-black px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest shadow-3xs">✓ GRANTED</div>
-                                        {% else %}
-                                            <div class="inline-flex items-center gap-1 bg-slate-50 border border-transparent text-gray-300 font-bold px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest opacity-40">✕ DENIED</div>
-                                        {% endif %}
+                                        {% with tiene_acceso=funcionario.accesos_modulos|get_item:slug_app %}
+                                            {% with rol_actual=funcionario.roles_por_modulo|get_item:slug_app %}
+                                                {% if tiene_acceso %}
+                                                    <div class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-black px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest shadow-3xs">
+                                                        {{ rol_actual|default:"GRANTED"|upper }}
+                                                    </div>
+                                                {% else %}
+                                                    <div class="inline-flex items-center gap-1 bg-slate-50 border border-transparent text-gray-300 font-bold px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest opacity-40">
+                                                        ✕ DENIED
+                                                    </div>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endwith %}
                                     {% endif %}
                                 </div>
                             </td>
                         {% endfor %}
+
                     </tr>
                 {% empty %}
                     <tr>
@@ -71,44 +119,76 @@
 <div class="block md:hidden space-y-3 w-full">
     {% for funcionario in funcionarios %}
         <div class="bg-white rounded-2xl border {% if not funcionario.profile_id %} border-red-200 bg-red-50/10 {% else %} border-gray-200/80 {% endif %} shadow-3xs overflow-hidden font-mono text-[11px] transition-all duration-200">
-            
-            <button type="button" 
-                    onclick="const target = document.getElementById('forensic-panel-{{ funcionario.id }}'); const arrow = document.getElementById('forensic-arrow-{{ funcionario.id }}'); target.classList.toggle('hidden'); arrow.classList.toggle('rotate-180');"
-                    class="w-full p-4 flex items-center justify-between gap-3 text-left focus:outline-none hover:bg-gray-50/50 transition duration-150">
+
+            <button
+                type="button"
+                onclick="const target = document.getElementById('forensic-panel-{{ funcionario.id }}'); const arrow = document.getElementById('forensic-arrow-{{ funcionario.id }}'); target.classList.toggle('hidden'); arrow.classList.toggle('rotate-180');"
+                class="w-full p-4 flex items-center justify-between gap-3 text-left focus:outline-none hover:bg-gray-50/50 transition duration-150"
+            >
                 <div class="min-w-0 flex-1">
-                    <h4 class="text-sm font-black text-gray-950 uppercase tracking-tight leading-tight truncate">{{ funcionario.full_name }}</h4>
-                    <p class="text-[10px] text-gray-400 font-bold lowercase truncate mt-0.5">({{ funcionario.email }})</p>
-                    
+                    <h4 class="text-sm font-black text-gray-950 uppercase tracking-tight leading-tight truncate">
+                        {{ funcionario.full_name }}
+                    </h4>
+
+                    <p class="text-[10px] text-gray-400 font-bold lowercase truncate mt-0.5">
+                        {{ funcionario.email }}
+                    </p>
+
                     <div class="text-[8px] mt-2 font-mono tracking-tight flex items-center gap-1 uppercase">
                         {% if not funcionario.profile_id %}
-                            <span class="text-red-600 font-black px-1 rounded bg-red-100 text-[7px] animate-pulse">ALERTA: SIN PERFIL</span>
+                            <span class="text-red-600 font-black px-1 rounded bg-red-100 text-[7px] animate-pulse">
+                                ALERTA: SIN PERFIL
+                            </span>
                         {% else %}
-                            <span class="text-emerald-700 font-bold bg-emerald-50 px-1 rounded text-[7px] border border-emerald-100">{{ funcionario.dependencia_siglas }}</span>
-                            <span class="text-blue-600 font-black px-1 rounded bg-blue-50 border border-blue-100 text-[7px] truncate max-w-[120px]">{{ funcionario.area_nombre }}</span>
+                            <span class="text-emerald-700 font-bold bg-emerald-50 px-1 rounded text-[7px] border border-emerald-100">
+                                {{ funcionario.dependencia_siglas }}
+                            </span>
+
+                            <span class="text-blue-600 font-black px-1 rounded bg-blue-50 border border-blue-100 text-[7px] truncate max-w-[120px]">
+                                {{ funcionario.area_nombre }}
+                            </span>
                         {% endif %}
                     </div>
                 </div>
-                
-                <div class="shrink-0 p-1.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 transition-transform duration-200 transform" id="forensic-arrow-{{ funcionario.id }}">
+
+                <div
+                    class="shrink-0 p-1.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 transition-transform duration-200 transform"
+                    id="forensic-arrow-{{ funcionario.id }}"
+                >
                     <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                 </div>
             </button>
 
             <div id="forensic-panel-{{ funcionario.id }}" class="hidden border-t border-gray-100 p-4 bg-gray-50/30 space-y-2 animate-fade-in">
-                <div class="text-[8px] font-black text-gray-400 uppercase tracking-widest text-left block mb-1">Tokens por Aplicativo:</div>
-                
+                <div class="text-[8px] font-black text-gray-400 uppercase tracking-widest text-left block mb-1">
+                    Tokens por Aplicativo:
+                </div>
+
                 {% for slug_app, nombre_legible in aplicaciones_sistema %}
                     <div class="flex items-center justify-between p-2 bg-white border border-gray-150 rounded-xl shadow-3xs">
-                        <span class="text-[9px] font-black text-gray-700 tracking-tight text-left">{{ nombre_legible|upper }}</span>
+                        <span class="text-[9px] font-black text-gray-700 tracking-tight text-left">
+                            {{ nombre_legible|upper }}
+                        </span>
+
                         <div>
                             {% if funcionario.is_manager %}
-                                <span class="bg-blue-50 border border-blue-100 text-blue-700 font-black px-2 py-0.5 rounded text-[8px] tracking-wider">MASTER BYPASS</span>
+                                <span class="bg-blue-50 border border-blue-100 text-blue-700 font-black px-2 py-0.5 rounded text-[8px] tracking-wider">
+                                    MASTER BYPASS
+                                </span>
                             {% else %}
-                                {% if slug_app in funcionario.accesos_modulos %}
-                                    <span class="bg-emerald-50 border border-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded text-[8px] tracking-wider">✓ GRANTED</span>
-                                {% else %}
-                                    <span class="bg-white border border-gray-100 text-gray-300 font-bold px-2 py-0.5 rounded text-[8px] tracking-wider opacity-60">✕ DENIED</span>
-                                {% endif %}
+                                {% with tiene_acceso=funcionario.accesos_modulos|get_item:slug_app %}
+                                    {% with rol_actual=funcionario.roles_por_modulo|get_item:slug_app %}
+                                        {% if tiene_acceso %}
+                                            <span class="bg-emerald-50 border border-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded text-[8px] tracking-wider">
+                                                {{ rol_actual|default:"GRANTED"|upper }}
+                                            </span>
+                                        {% else %}
+                                            <span class="bg-white border border-gray-100 text-gray-300 font-bold px-2 py-0.5 rounded text-[8px] tracking-wider opacity-60">
+                                                ✕ DENIED
+                                            </span>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endwith %}
                             {% endif %}
                         </div>
                     </div>

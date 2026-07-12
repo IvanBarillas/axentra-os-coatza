@@ -1,0 +1,276 @@
+{% load axentra_ui %}
+
+{% url 'security:control_panel' as control_url %}
+
+<div class="space-y-6 md:space-y-8 pb-24 md:pb-16 w-full animate-fade-in select-none">
+
+    <section class="rounded-2xl border border-gray-200/80 bg-white px-5 py-5 md:px-6 md:py-6 shadow-sm">
+        <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+
+            <div class="flex items-start gap-4 min-w-0">
+                <div class="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+                    <i data-lucide="lock-keyhole" class="h-5 w-5"></i>
+                </div>
+
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">
+                            Security Matrix
+                        </span>
+
+                        {% if app %}
+                            <span class="inline-flex items-center rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-blue-700 font-mono">
+                                {{ app.slug }}
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-rose-700 font-mono">
+                                Contexto inválido
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <h1 class="mt-2 text-xl md:text-2xl font-black text-gray-950 uppercase tracking-tight leading-none font-mono">
+                        {% if app %}
+                            Matriz de Permisos · {{ app.name }}
+                        {% else %}
+                            Matriz sin contexto de aplicación
+                        {% endif %}
+                    </h1>
+
+                    <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono max-w-5xl">
+                        {% if app %}
+                            Administración de roles, permisos finos JSONField, suspensión modular e inyección controlada de funcionarios para esta aplicación.
+                        {% else %}
+                            La matriz de permisos requiere una aplicación explícita. Regresa al Cockpit y selecciona una app bajo gobierno.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <a
+                href="{{ control_url }}"
+                hx-get="{{ control_url }}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-950 font-mono"
+            >
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5 text-gray-400"></i>
+                Volver al Cockpit
+            </a>
+
+        </div>
+    </section>
+
+    {% if app %}
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 items-start">
+
+            <div class="bg-white p-4 md:p-6 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-sm space-y-5 lg:col-span-1">
+
+                {% if mostrar_buscador and usuarios_potenciales %}
+                    <div class="space-y-3 animate-fade-in">
+                        <div class="text-[9px] font-black font-mono text-slate-400 uppercase tracking-widest flex items-center gap-1 border-b border-gray-100 pb-2 text-left">
+                            <i data-lucide="user-plus" class="w-3 h-3 text-slate-400"></i>
+                            <span>// Incorporar funcionario al módulo</span>
+                        </div>
+
+                        <form
+                            method="POST"
+                            action="{% url 'security:inyectar_funcionario' app.id %}"
+                            hx-post="{% url 'security:inyectar_funcionario' app.id %}"
+                            hx-target="#page-content"
+                            hx-swap="innerHTML"
+                            hx-push-url="true"
+                            class="space-y-3 font-mono text-[10px]"
+                        >
+                            {% csrf_token %}
+
+                            <div class="space-y-1.5 text-left">
+                                <label class="text-gray-400 font-black uppercase tracking-wide block px-1">
+                                    Inyectar funcionario federado
+                                </label>
+
+                                <select
+                                    name="new_user_id"
+                                    required
+                                    class="w-full bg-gray-50/60 border border-gray-200 rounded-xl py-2.5 px-3 uppercase text-gray-900 focus:outline-hidden appearance-none cursor-pointer shadow-sm font-mono text-[10px]"
+                                >
+                                    <option value="">-- Seleccionar usuario --</option>
+
+                                    {% for u in usuarios_potenciales %}
+                                        <option value="{{ u.id }}">
+                                            {{ u.first_name }} {{ u.last_name }} · {{ u.email|lower }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <select
+                                    name="initial_role"
+                                    class="bg-gray-50/60 border border-gray-200 rounded-xl py-2 px-3 uppercase text-gray-900 focus:outline-hidden cursor-pointer shadow-sm font-mono"
+                                >
+                                    {% for r_val, r_lbl in roles_choices %}
+                                        <option value="{{ r_val }}">{{ r_lbl }}</option>
+                                    {% endfor %}
+                                </select>
+
+                                <button
+                                    type="submit"
+                                    class="bg-gray-950 hover:bg-gray-900 text-white font-mono font-black py-2 px-4 rounded-xl uppercase tracking-widest transition-all transform active:scale-95 cursor-pointer shadow-xs"
+                                >
+                                    Inyectar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                {% endif %}
+
+                <div class="border-b border-gray-100 pb-3 flex justify-between items-center text-left">
+                    <div>
+                        <h4 class="text-xs font-black text-gray-950 uppercase tracking-wider font-mono">
+                            Personal Asignado
+                        </h4>
+
+                        <p class="text-[9px] text-gray-400 font-bold font-mono mt-0.5 uppercase tracking-tight">
+                            // Miembros activos en {{ app.name }}
+                        </p>
+                    </div>
+
+                    <span class="bg-gray-50 border border-gray-200 px-2 py-0.5 rounded text-slate-700 font-black font-mono text-[10px] shadow-sm">
+                        {{ personal_list|length }}
+                    </span>
+                </div>
+
+                <ul class="divide-y divide-gray-50 max-h-[320px] md:max-h-[450px] overflow-y-auto pr-1 custom-scrollbar space-y-1">
+                    {% for p in personal_list %}
+                        <li
+                            class="py-2 flex items-center justify-between gap-4 relative transition duration-150 rounded-xl p-2 {% if p.es_el_seleccionado %} bg-slate-50 border border-gray-200/60 {% else %} border border-transparent hover:bg-gray-50/40 {% endif %}"
+                            id="user-row-container-{{ p.usuario.id }}"
+                        >
+                            <a
+                                href="{% url 'security:dynamic_matrix' %}?app_slug={{ app.slug }}&user_id={{ p.usuario.id }}"
+                                hx-get="{% url 'security:dynamic_matrix' %}?app_slug={{ app.slug }}&user_id={{ p.usuario.id }}"
+                                hx-target="#panel-permisos"
+                                hx-push-url="true"
+                                class="min-w-0 flex-1 group cursor-pointer text-left block space-y-1"
+                            >
+                                <span class="flex items-center gap-2 text-xs font-black font-mono text-gray-950 uppercase group-hover:text-blue-600 transition tracking-tight">
+                                    <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition shrink-0"></i>
+                                    <span class="truncate">
+                                        {{ p.usuario.first_name }} {{ p.usuario.last_name }}
+                                    </span>
+                                </span>
+
+                                <span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-mono font-bold text-gray-400 uppercase tracking-tight">
+                                    <span class="flex items-center gap-1.5 shrink-0">
+                                        <span class="w-1.5 h-1.5 rounded-full shrink-0 {% if p.is_suspended %}bg-red-500 animate-pulse{% else %}bg-emerald-500{% endif %}"></span>
+                                        <span class="text-gray-600 font-black">
+                                            {{ p.rol_actual }}
+                                        </span>
+                                    </span>
+
+                                    <span class="text-gray-200 select-none hidden sm:inline">|</span>
+
+                                    <span class="flex items-center gap-1 text-gray-400 lowercase font-medium normal-case truncate max-w-[180px] sm:max-w-none">
+                                        <i data-lucide="mail" class="w-3 h-3 text-gray-300 shrink-0"></i>
+                                        <span class="truncate">
+                                            {{ p.usuario.email }}
+                                        </span>
+                                    </span>
+                                </span>
+                            </a>
+
+                            {% if p.usuario.id != request.user.id %}
+                                {% if request.user.is_manager or p.rol_actual|lower != 'owner' %}
+                                    <div class="flex items-center gap-1.5 shrink-0 z-20 p-0.5" id="actions-wrapper-{{ p.usuario.id }}">
+
+                                        <button
+    type="button"
+    hx-post="{% url 'security:toggle_user_modulo_active' p.usuario.id app.id %}"
+    hx-target="#page-content"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    class="p-2 rounded-xl border transition duration-150 cursor-pointer shadow-sm transform active:scale-95 {% if not p.is_suspended %} bg-emerald-50 text-emerald-600 border-emerald-200/80 hover:bg-emerald-600 hover:text-white {% else %} bg-amber-50 text-amber-600 border-amber-200/80 hover:bg-amber-600 hover:text-white {% endif %}"
+    title="Conmutar estado de cuenta"
+>
+    <i data-lucide="power" class="w-3.5 h-3.5"></i>
+</button>
+
+                                        {% if request.user.is_manager or request.user.is_superuser %}
+                                            <button
+    type="button"
+    hx-post="{% url 'security:expulsar_usuario_modulo_total' p.usuario.id app.id %}"
+    hx-target="#page-content"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-confirm="🚨 ¿EJECUTAR PURGA TOTAL? Se eliminarán permanentemente los accesos de este usuario al módulo."
+    class="p-2 rounded-xl bg-red-50 text-red-600 border border-red-200/80 hover:bg-red-600 hover:text-white transition duration-150 cursor-pointer shadow-sm transform active:scale-95"
+    title="Eliminar de la app"
+>
+    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+</button>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+
+                        </li>
+                    {% empty %}
+                        <div class="text-center py-10 font-mono text-[9px] font-bold text-gray-400 uppercase border border-dashed border-gray-200 rounded-xl">
+                            // No se registran funcionarios en la base de datos de este módulo.
+                        </div>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div id="panel-permisos" class="lg:col-span-2 w-full animate-fade-in">
+                {% include "security/partials/matrix_form_partial.html" %}
+            </div>
+
+        </section>
+
+    {% else %}
+
+        <section class="rounded-2xl border border-dashed border-rose-200 bg-white px-6 py-14 text-center shadow-sm">
+            <div class="mx-auto h-14 w-14 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center border border-rose-100">
+                <i data-lucide="shield-alert" class="w-6 h-6"></i>
+            </div>
+
+            <h2 class="mt-4 text-sm font-black uppercase tracking-tight text-gray-950 font-mono">
+                Acceso denegado a la matriz
+            </h2>
+
+            <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono max-w-md mx-auto">
+                {{ error_detalle|default:"La matriz de permisos requiere una aplicación explícita. Regresa al Cockpit de Seguridad y selecciona una app bajo gobierno." }}
+            </p>
+
+            <a
+                href="{{ control_url }}"
+                hx-get="{{ control_url }}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-slate-900 active:scale-95 font-mono"
+            >
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-slate-400"></i>
+                Ir al Cockpit
+            </a>
+        </section>
+
+    {% endif %}
+
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+
+    document.body.addEventListener("htmx:afterSwap", function() {
+        if (typeof lucide !== "undefined") {
+            lucide.createIcons();
+        }
+    });
+</script>

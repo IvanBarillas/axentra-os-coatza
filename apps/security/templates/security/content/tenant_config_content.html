@@ -1,0 +1,222 @@
+{% load axentra_ui %}
+
+{% url 'security:control_panel' as control_url %}
+{% url 'security:tenant_config' as tenant_url %}
+
+<div class="max-w-3xl mx-auto space-y-6 pb-24 md:pb-16 w-full animate-fade-in select-none">
+
+    <section class="rounded-2xl border border-gray-200/80 bg-white px-5 py-5 md:px-6 md:py-6 shadow-sm">
+        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div class="flex items-start gap-4 min-w-0">
+                <div class="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+                    <i data-lucide="building-2" class="h-5 w-5"></i>
+                </div>
+
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">
+                            Tenant Core
+                        </span>
+
+                        <span class="inline-flex items-center rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-blue-700 font-mono">
+                            Identidad Global
+                        </span>
+                    </div>
+
+                    <h1 class="mt-2 text-xl md:text-2xl font-black text-gray-950 uppercase tracking-tight leading-none font-mono">
+                        Identidad Institucional
+                    </h1>
+
+                    <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono max-w-3xl">
+                        Defina activos de marca, logotipos, colores y datos legales que serán inyectados en toda la plataforma municipal.
+                    </p>
+                </div>
+            </div>
+
+            <a
+                href="{{ control_url }}"
+                hx-get="{{ control_url }}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-950 font-mono"
+            >
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5 text-gray-400"></i>
+                Volver al Cockpit
+            </a>
+
+        </div>
+    </section>
+
+    <section class="rounded-2xl md:rounded-[32px] border border-gray-200/80 bg-white shadow-sm overflow-hidden">
+
+        <header class="px-5 py-4 md:px-6 md:py-5 border-b border-gray-100">
+            <div class="text-[9px] font-black uppercase tracking-[0.22em] text-indigo-600 font-mono">
+                Configuración Corporativa
+            </div>
+
+            <h2 class="mt-1 text-sm md:text-base font-black uppercase tracking-tight text-gray-950 font-mono">
+                Personalización y datos oficiales
+            </h2>
+        </header>
+
+        <div class="p-5 md:p-6">
+
+            {% if form.errors %}
+                <div class="mb-5 p-4 bg-red-50 border border-red-200 rounded-xl text-left font-mono space-y-1">
+                    <p class="font-black uppercase tracking-wider text-[10px] text-red-900 flex items-center gap-1 leading-none">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+                        <span>Error en parámetros globales</span>
+                    </p>
+
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <p class="text-[9px] uppercase text-red-700 font-bold mt-1">
+                                • <span class="text-red-950">{{ field }}:</span> {{ error }}
+                            </p>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form
+                method="POST"
+                action="{{ tenant_url }}"
+                enctype="multipart/form-data"
+                hx-post="{{ tenant_url }}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="space-y-5 font-mono text-[11px] text-gray-700 uppercase tracking-wide text-left"
+            >
+                {% csrf_token %}
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2 space-y-1.5">
+                        <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
+                            Nombre comercial de la plataforma
+                        </label>
+
+                        <div class="w-full [&>input]:w-full [&>input]:bg-gray-50/60 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-2.5 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all [&>input]:text-xs [&>input]:font-mono [&>input]:shadow-sm">
+                            {{ form.app_name }}
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
+                            Siglas internas
+                        </label>
+
+                        <div class="w-full [&>input]:w-full [&>input]:bg-gray-50/60 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-2.5 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all [&>input]:text-center [&>input]:text-xs [&>input]:font-mono [&>input]:shadow-sm">
+                            {{ form.siglas }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
+                        Nombre oficial del ayuntamiento / institución
+                    </label>
+
+                    <div class="w-full [&>input]:w-full [&>input]:bg-gray-50/60 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-2.5 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all [&>input]:text-xs [&>input]:font-mono [&>input]:shadow-sm">
+                        {{ form.entidad_nombre }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
+                            Registro Federal de Contribuyentes
+                        </label>
+
+                        <div class="w-full [&>input]:w-full [&>input]:bg-gray-50/60 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-2.5 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all [&>input]:text-xs [&>input]:font-mono [&>input]:shadow-sm">
+                            {{ form.rfc }}
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
+                            Color temático de acento
+                        </label>
+
+                        <div class="w-full [&>input]:w-full [&>input]:bg-gray-50/60 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-2.5 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all [&>input]:text-xs [&>input]:font-mono [&>input]:shadow-sm">
+                            {{ form.primary_color_class }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
+                        Dirección legal de la sede central
+                    </label>
+
+                    <div class="w-full [&>input]:w-full [&>input]:bg-gray-50/60 [&>input]:border [&>input]:border-gray-200 [&>input]:rounded-xl [&>input]:px-4 [&>input]:py-2.5 [&>input]:outline-none [&>input]:focus:bg-white [&>input]:focus:border-gray-950 [&>input]:transition-all [&>input]:text-xs [&>input]:font-mono [&>input]:shadow-sm">
+                        {{ form.direccion_oficial }}
+                    </div>
+                </div>
+
+                <div class="border border-dashed border-gray-200 rounded-xl md:rounded-2xl p-4 md:p-5 bg-gray-50/50 space-y-3">
+                    <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
+                        Escudo / logotipo oficial
+                    </label>
+
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        {% if config.logo_light %}
+                            <div class="w-16 h-16 bg-white border border-gray-200 rounded-xl p-2 flex items-center justify-center shadow-sm shrink-0 select-none mx-auto sm:mx-0">
+                                <img
+                                    src="{{ config.logo_light.url }}"
+                                    alt="Escudo Actual"
+                                    class="max-h-full object-contain"
+                                >
+                            </div>
+                        {% else %}
+                            <div class="w-16 h-16 border-2 border-dashed border-gray-200 bg-white rounded-xl flex items-center justify-center text-xl text-gray-300 shrink-0 select-none mx-auto sm:mx-0">
+                                🏛️
+                            </div>
+                        {% endif %}
+
+                        <div class="flex-1 w-full text-xs normal-case font-sans text-gray-500">
+                            <div class="font-mono text-[10px] md:text-[11px] text-gray-700 uppercase tracking-wide overflow-x-hidden max-w-full [&>input]:max-w-full [&>input]:text-[10px] [&>input]:cursor-pointer">
+                                {{ form.logo_light }}
+                            </div>
+
+                            <p class="text-[9px] md:text-[10px] text-gray-400 font-bold mt-2 font-mono uppercase tracking-tight leading-normal">
+                                // Se sugiere PNG transparente, cuadrado y de alta fidelidad.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-2 font-mono text-[10px] uppercase tracking-widest">
+                    <a
+                        href="{{ control_url }}"
+                        hx-get="{{ control_url }}"
+                        hx-target="#page-content"
+                        hx-swap="innerHTML"
+                        hx-push-url="true"
+                        class="sm:w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black py-3.5 px-4 rounded-xl text-center transition shadow-sm flex items-center justify-center transform active:scale-95 cursor-pointer"
+                    >
+                        Volver
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="sm:w-2/3 bg-gray-950 hover:bg-gray-900 text-white font-black py-3.5 px-4 rounded-xl shadow-sm transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                        <i data-lucide="save" class="w-4 h-4 text-gray-400"></i>
+                        <span>Guardar cambios</span>
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </section>
+
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+</script>

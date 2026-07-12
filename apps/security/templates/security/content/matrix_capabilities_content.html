@@ -1,0 +1,347 @@
+{% load axentra_ui %}
+
+{% url 'security:matrix_capabilities' as capabilities_url %}
+{% url 'security:control_panel' as control_url %}
+
+<div class="space-y-6 pb-24 md:pb-16 w-full animate-fade-in select-none">
+
+    <section class="bg-white px-5 py-5 md:px-6 md:py-6 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-sm">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+
+            <div class="flex items-start gap-4 text-left w-full lg:w-auto min-w-0">
+                <div class="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+                    <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+                </div>
+
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">
+                            Security Core
+                        </span>
+
+                        <span class="inline-flex items-center rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-blue-700 font-mono">
+                            Capacidades
+                        </span>
+                    </div>
+
+                    <h1 class="mt-2 text-xl md:text-2xl font-black text-gray-950 tracking-tight font-mono uppercase leading-none">
+                        Capacidades por Nodo Operativo
+                    </h1>
+
+                    <p class="mt-2 text-[10px] md:text-[11px] text-gray-400 font-bold font-mono uppercase tracking-wide leading-relaxed max-w-4xl">
+                        // Gobierno distribuido. Vincule dependencias y defina si pueden operar, supervisar o autorizar dentro de cada aplicación.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto shrink-0 justify-end">
+
+                <button
+                    type="button"
+                    onclick="document.getElementById('addNodeModal').classList.remove('hidden')"
+                    class="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-950 hover:bg-gray-900 text-white font-black px-5 py-3 rounded-xl text-[10px] font-mono uppercase tracking-widest transition shadow-sm transform active:scale-95 cursor-pointer"
+                >
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-gray-400"></i>
+                    <span>Vincular Dependencia</span>
+                </button>
+
+                <a
+                    href="{{ control_url }}"
+                    hx-get="{{ control_url }}"
+                    hx-target="#page-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    class="w-full sm:w-auto flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-950 border border-gray-200 font-black px-5 py-3 rounded-xl text-[10px] font-mono uppercase tracking-widest transition shadow-sm transform active:scale-95 cursor-pointer"
+                >
+                    <i data-lucide="arrow-left" class="w-4 h-4 text-gray-400"></i>
+                    <span>Cockpit</span>
+                </a>
+
+                <div class="flex items-center justify-between gap-3 bg-gray-50/60 px-3 py-2.5 rounded-xl border border-gray-200 font-mono text-[11px] shadow-sm">
+                    <label class="font-black text-gray-400 uppercase tracking-wider text-[10px]">
+                        Módulo:
+                    </label>
+
+                    <form
+                        method="GET"
+                        action="{{ capabilities_url }}"
+                        hx-get="{{ capabilities_url }}"
+                        hx-target="#page-content"
+                        hx-swap="innerHTML"
+                        hx-push-url="true"
+                        class="relative flex items-center"
+                    >
+                        <select
+                            name="app_slug"
+                            onchange="this.form.requestSubmit()"
+                            class="bg-transparent border-none text-[11px] font-black text-gray-950 focus:ring-0 p-0 pr-6 cursor-pointer uppercase outline-none font-mono"
+                        >
+                            {% for app in apps %}
+                                <option value="{{ app.slug }}" {% if app.slug == app_activa.slug %}selected{% endif %}>
+                                    {{ app.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-white p-4 md:p-5 border border-gray-200/80 rounded-2xl shadow-sm flex items-start gap-3.5 text-left">
+        <div class="p-2 bg-blue-50 border border-blue-100 rounded-xl shrink-0 flex items-center justify-center">
+            <i data-lucide="satellite" class="w-4 h-4 text-blue-600"></i>
+        </div>
+
+        <div class="font-mono text-[11px] pt-0.5">
+            <h3 class="font-black text-gray-950 uppercase tracking-widest leading-none">
+                Semántica Activa:
+                <span class="text-blue-600 font-bold">
+                    {{ app_activa.name|upper }}
+                </span>
+            </h3>
+
+            <p class="text-gray-400 mt-1 leading-normal uppercase text-[10px] font-bold">
+                // Mostrando dependencias vinculadas a este módulo y sus capacidades operativas.
+            </p>
+        </div>
+    </section>
+
+    <section class="hidden md:block bg-white border border-gray-200/80 rounded-[32px] shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-100 text-left font-mono text-[11px]">
+                <thead class="bg-gray-50/80 font-black uppercase tracking-wider text-[10px] text-gray-400">
+                    <tr>
+                        <th class="py-4 px-6 w-1/3">
+                            Dirección Registrada
+                        </th>
+
+                        <th class="py-4 px-6 text-blue-600">
+                            {{ labels.can_operate.label|upper }}
+                        </th>
+
+                        <th class="py-4 px-6 text-indigo-600">
+                            {{ labels.can_supervise.label|upper }}
+                        </th>
+
+                        <th class="py-4 px-6 text-emerald-600">
+                            {{ labels.can_authorize.label|upper }}
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-gray-100 bg-white font-medium text-gray-700">
+                    {% for cap in matriz %}
+                        <tr class="hover:bg-gray-50/40 transition duration-150">
+                            <td class="py-4 px-6 whitespace-nowrap text-left">
+                                <span class="text-xs font-bold text-gray-900 block uppercase tracking-tight">
+                                    {{ cap.dependencia.nombre }}
+                                </span>
+
+                                <span class="text-[9px] text-gray-400 font-mono">
+                                    ID Relacional: {{ cap.id }}
+                                </span>
+                            </td>
+
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <form class="inline-block">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="field" value="can_operate">
+
+                                    {% include "security/partials/capability_toggle.html" with cap=cap app_activa=app_activa field_name="can_operate" field_value=cap.can_operate color_on="bg-blue-600" %}
+                                </form>
+                            </td>
+
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <form class="inline-block">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="field" value="can_supervise">
+
+                                    {% include "security/partials/capability_toggle.html" with cap=cap app_activa=app_activa field_name="can_supervise" field_value=cap.can_supervise color_on="bg-indigo-600" %}
+                                </form>
+                            </td>
+
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <form class="inline-block">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="field" value="can_authorize">
+
+                                    {% include "security/partials/capability_toggle.html" with cap=cap app_activa=app_activa field_name="can_authorize" field_value=cap.can_authorize color_on="bg-emerald-600" %}
+                                </form>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="py-16 text-center text-gray-400 font-bold font-mono uppercase tracking-widest bg-gray-50/30">
+                                // Ninguna dependencia vinculada a este módulo actualmente
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="block md:hidden space-y-3 w-full">
+        {% for cap in matriz %}
+            <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm space-y-4 font-mono text-[11px]">
+
+                <div class="text-left border-b border-gray-50 pb-2.5">
+                    <span class="text-xs font-black text-gray-950 block uppercase tracking-tight leading-tight">
+                        {{ cap.dependencia.nombre }}
+                    </span>
+
+                    <span class="text-[9px] text-gray-400 block mt-1 font-bold">
+                        ID Relacional // {{ cap.id }}
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-0.5">
+
+                    <div class="bg-gray-50/60 p-3 rounded-xl border border-gray-100 flex flex-col justify-between items-start h-[75px] text-left">
+                        <span class="text-[8px] font-black text-blue-600 uppercase tracking-wider truncate max-w-full">
+                            {{ labels.can_operate.label|upper }}
+                        </span>
+
+                        <form class="w-full mt-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="field" value="can_operate">
+                            <input type="hidden" name="mobile" value="1">
+
+                            {% include "security/partials/capability_toggle.html" with cap=cap app_activa=app_activa field_name="can_operate" field_value=cap.can_operate color_on="bg-blue-600" mobile=True %}
+                        </form>
+                    </div>
+
+                    <div class="bg-gray-50/60 p-3 rounded-xl border border-gray-100 flex flex-col justify-between items-start h-[75px] text-left">
+                        <span class="text-[8px] font-black text-indigo-600 uppercase tracking-wider truncate max-w-full">
+                            {{ labels.can_supervise.label|upper }}
+                        </span>
+
+                        <form class="w-full mt-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="field" value="can_supervise">
+                            <input type="hidden" name="mobile" value="1">
+
+                            {% include "security/partials/capability_toggle.html" with cap=cap app_activa=app_activa field_name="can_supervise" field_value=cap.can_supervise color_on="bg-indigo-600" mobile=True %}
+                        </form>
+                    </div>
+
+                    <div class="bg-gray-50/60 p-3 rounded-xl border border-gray-100 flex flex-col justify-between items-start h-[75px] text-left">
+                        <span class="text-[8px] font-black text-emerald-600 uppercase tracking-wider truncate max-w-full">
+                            {{ labels.can_authorize.label|upper }}
+                        </span>
+
+                        <form class="w-full mt-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="field" value="can_authorize">
+                            <input type="hidden" name="mobile" value="1">
+
+                            {% include "security/partials/capability_toggle.html" with cap=cap app_activa=app_activa field_name="can_authorize" field_value=cap.can_authorize color_on="bg-emerald-600" mobile=True %}
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center py-12 bg-white border border-dashed border-gray-200 rounded-2xl font-mono text-[10px] text-gray-400 p-4 w-full uppercase tracking-wider">
+                <i data-lucide="orbit" class="w-5 h-5 mx-auto text-gray-300 mb-1"></i>
+                <span>// Ninguna dependencia vinculada a este módulo.</span>
+            </div>
+        {% endfor %}
+    </section>
+
+</div>
+
+<div id="addNodeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs overflow-y-auto">
+    <div class="bg-white rounded-2xl md:rounded-[32px] border border-gray-200 shadow-2xl max-w-xl w-full p-5 md:p-8 animate-scale-up select-none">
+
+        <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-5 text-left">
+            <h3 class="text-lg md:text-xl font-black text-gray-950 tracking-tight font-mono uppercase">
+                Vincular Nodo al Flujo
+            </h3>
+
+            <button
+                type="button"
+                onclick="document.getElementById('addNodeModal').classList.add('hidden')"
+                class="text-gray-400 hover:text-gray-900 font-black font-mono transition text-sm cursor-pointer p-1"
+            >
+                ✕
+            </button>
+        </div>
+
+        <form
+            method="POST"
+            action="{% url 'security:add_capability_node' app_activa.id %}"
+            hx-post="{% url 'security:add_capability_node' app_activa.id %}"
+            hx-target="#page-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="text-left"
+        >
+            {% csrf_token %}
+
+            <div class="space-y-3">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono block px-1">
+                    Seleccionar Dirección Municipal
+                </label>
+
+                <div class="relative w-full">
+                    <select
+                        name="dependencia_id"
+                        required
+                        class="block w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-black text-slate-700 focus:bg-white focus:border-gray-950 outline-none transition cursor-pointer font-mono uppercase shadow-sm appearance-none"
+                    >
+                        <option value="" disabled selected>
+                            -- Elija una dependencia del Ayuntamiento --
+                        </option>
+
+                        {% for dep in dependencias_disponibles %}
+                            <option value="{{ dep.id }}">
+                                {{ dep.nombre|upper }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <p class="text-[9px] text-gray-400 leading-relaxed font-mono uppercase tracking-tight block px-1">
+                    // Sólo se listan dependencias que aún no forman parte del módulo de
+                    <strong class="text-gray-600">{{ app_activa.name }}</strong>.
+                </p>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-3 font-mono text-[10px] uppercase tracking-widest">
+                <button
+                    type="button"
+                    onclick="document.getElementById('addNodeModal').classList.add('hidden')"
+                    class="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-600 font-black px-5 py-3 rounded-xl transition cursor-pointer text-center"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="w-full sm:w-auto bg-gray-950 hover:bg-gray-900 text-white font-black px-6 py-3 rounded-xl transition shadow-sm cursor-pointer transform active:scale-95 text-center"
+                >
+                    Vincular Nodo
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+
+    document.body.addEventListener("htmx:afterSwap", function(evt) {
+        if (
+            evt.detail.target.id === "page-content"
+            && typeof lucide !== "undefined"
+        ) {
+            lucide.createIcons();
+        }
+    });
+</script>

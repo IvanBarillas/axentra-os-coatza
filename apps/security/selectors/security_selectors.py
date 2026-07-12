@@ -7,12 +7,14 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from typing import List, Optional
 from django.db.models import Q
+from datetime import timedelta
 
 from apps.security.models.organigrama import AppDependencyCapability, Dependencia
 from apps.shared.apps_config import AppIdentifier
 from apps.security.models import SecurityAuditLog, UserAppRole, TenantConfig, AppModule
 from apps.security.dtos import RoleReadOnlyDTO, TenantConfigReadOnlyDTO
 from apps.security.services.permission_loader import get_app_permissions
+from apps.shared.manifest_registry import AxentraOSRegistry
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -31,52 +33,84 @@ class SecurityDashboardSelectors:
     @classmethod
     def obtener_buffer_auditoria(cls, limite: int = 50, filtros: dict = None) -> list:
         """
-        Filtra trazas con soporte cronológico extendido.
-        Preserva el ciclo diario por defecto para cuidar la memoria RAM.
+        Obtiene el buffer reciente de auditoría forense.
+
+        Regla operativa:
+        - Si el usuario manda fecha_inicio o fecha_fin, respeta el rango.
+        - Si no manda fechas, muestra las últimas 24 horas.
+        - Aplica filtros por app, acción, severidad, target y operador.
         """
-        hoy = timezone.now().date()
-        
-        # 🟢 CALIBRACIÓN CRONOLÓGICA INTELIGENTE
-        if filtros and (filtros.get('fecha_inicio') or filtros.get('fecha_fin')):
-            # Si el usuario mandó rango, inicializamos un Query vacío
-            query = Q()
-            if filtros.get('fecha_inicio'):
-                query &= Q(created_at__date__gte=filtros['fecha_inicio'])
-            if filtros.get('fecha_fin'):
-                query &= Q(created_at__date__lte=filtros['fecha_fin'])
+
+        filtros = filtros or {}
+
+        query = Q()
+
+        fecha_inicio = filtros.get("fecha_inicio")
+        fecha_fin = filtros.get("fecha_fin")
+
+        if fecha_inicio or fecha_fin:
+            if fecha_inicio:
+                query &= Q(created_at__date__gte=fecha_inicio)
+
+            if fecha_fin:
+                query &= Q(created_at__date__lte=fecha_fin)
+
         else:
-            # 🛡️ CANDADO POR DEFECTO: Si no hay fechas en el GET, se bloquea a "solo hoy"
-            query = Q(created_at__date=hoy)
-        
-        # Inyección de los demás filtros tradicionales
-        if filtros:
-            if filtros.get('app_namespace'):
-                query &= Q(app_namespace=filtros['app_namespace'])
-            if filtros.get('action_type'):
-                query &= Q(action_type=filtros['action_type'])
-            if filtros.get('level_status'):
-                query &= Q(level_status=filtros['level_status'])
-            if filtros.get('search_target'):
-                query &= Q(search_target__icontains=filtros['search_target'])
-            if filtros.get('operador'):
-                query &= Q(operator_user__email__icontains=filtros['operador'])
+            hace_24_horas = timezone.now() - timedelta(hours=24)
+            query &= Q(created_at__gte=hace_24_horas)
+
+        app_namespace = filtros.get("app_namespace")
+        action_type = filtros.get("action_type")
+        level_status = filtros.get("level_status")
+        search_target = filtros.get("search_target")
+        operador = filtros.get("operador")
+
+        if app_namespace:
+            query &= Q(
+                app_namespace=str(app_namespace).strip().lower(),
+            )
+
+        if action_type:
+            query &= Q(
+                action_type=str(action_type).strip().upper(),
+            )
+
+        if level_status:
+            query &= Q(
+                level_status=str(level_status).strip().upper(),
+            )
+
+        if search_target:
+            query &= Q(
+                search_target__icontains=str(search_target).strip(),
+            )
+
+        if operador:
+            query &= Q(
+                operator_user__email__icontains=str(operador).strip().lower(),
+            )
 
         logs_queryset = (
-            SecurityAuditLog.objects.filter(query)
-            .select_related('operator_user')
-            .order_by('-created_at')[:limite]
+            SecurityAuditLog.objects
+            .filter(query)
+            .select_related("operator_user")
+            .order_by("-created_at")[:limite]
         )
-        
-        return [{
-            "timestamp": log.created_at,
-            "tipo": log.level_status,
-            "app": log.app_namespace.upper(),
-            "verbo": log.action_type,
-            "operador": log.operator_user.email if log.operator_user else "SISTEMA",
-            "accion": log.action_name,
-            "target": log.search_target or "--",
-            "destino": log.target_scope
-        } for log in logs_queryset]
+
+        return [
+            {
+                "timestamp": log.created_at,
+                "tipo": log.level_status or "INFO",
+                "app": str(log.app_namespace or "core").upper(),
+                "verbo": log.action_type or "--",
+                "operador": log.operator_user.email if log.operator_user else "SISTEMA",
+                "accion": log.action_name or "--",
+                "target": log.search_target or "--",
+                "destino": log.target_scope or "--",
+            }
+            for log in logs_queryset
+        ]
+    
 
 class TenantConfigSelectors:
     """Extractor inmutable del Singleton institucional de marca."""
@@ -90,45 +124,97 @@ class TenantConfigSelectors:
     
     
 class CapabilitySelectors:
-    """Selector encargado de compilar el mapeo relacional de dependencias y apps con semántica dinámica."""
+    @classmethod
+    def obtener_labels_manifiesto(cls, app_slug: str) -> dict:
+        """
+        Obtiene etiquetas semánticas de capacidades desde el manifiesto de la app.
 
-    @staticmethod
-    def obtener_labels_manifiesto(app_slug: str) -> dict:
+        Si la app no define CAPABILITIES, usa labels base.
         """
-        🔍 INTROSPECCIÓN DINÁMICA: Busca la clase de permisos de la app en ejecución
-        y extrae el diccionario CAPABILITIES personalizado.
-        """
-        labels_config = {
-            'flag_alfa': {'label': "Capacidad Primaria (Alfa)", 'help_text': "Activar rol primario institucional."},
-            'flag_beta': {'label': "Capacidad Secundaria (Beta)", 'help_text': "Activar rol secundario de soporte."}
+
+        manifiesto = AxentraOSRegistry.get_manifest_by_slug(
+            app_slug,
+        )
+
+        capacidades = (
+            getattr(manifiesto, "CAPABILITIES", {}) or {}
+            if manifiesto
+            else {}
+        )
+
+        return {
+            "can_operate": capacidades.get(
+                "can_operate",
+                {
+                    "label": "Puede Operar",
+                    "help_text": "Permite que esta dependencia ejecute procesos operativos dentro del módulo.",
+                },
+            ),
+            "can_supervise": capacidades.get(
+                "can_supervise",
+                {
+                    "label": "Puede Supervisar",
+                    "help_text": "Permite que esta dependencia supervise información, estados o expedientes del módulo.",
+                },
+            ),
+            "can_authorize": capacidades.get(
+                "can_authorize",
+                {
+                    "label": "Puede Autorizar",
+                    "help_text": "Permite que esta dependencia autorice decisiones críticas o cierres dentro del módulo.",
+                },
+            ),
         }
-        try:
-            # Importa el archivo centralizado de manifiestos
-            modulo_permissions = importlib.import_module("apps.security.permissions")
-            for attr_name in dir(modulo_permissions):
-                if attr_name.endswith("Permissions") and attr_name.lower().startswith(app_slug.replace('_', '')):
-                    clase_permisos = getattr(modulo_permissions, attr_name)
-                    if hasattr(clase_permisos, 'CAPABILITIES'):
-                        labels_config = clase_permisos.CAPABILITIES
-                    break
-        except Exception:
-            pass
-        return labels_config
 
     @classmethod
     def obtener_matriz_capacidades_contexto(cls, app_activa: AppModule) -> dict:
-        """Compila los nodos reales vinculados y las dependencias remanentes disponibles."""
-        capacidades_reales = AppDependencyCapability.objects.filter(app=app_activa).select_related('dependencia')
-        deps_ya_vinculadas = capacidades_reales.values_list('dependencia_id', flat=True)
-        
-        dependencias_disponibles = (
-            Dependencia.objects.filter(is_active=True, is_deleted=False)
-            .exclude(id__in=deps_ya_vinculadas)
-            .order_by('nombre')
+        """
+        Compila el contexto de capacidades para una aplicación.
+
+        Devuelve:
+        - matriz: dependencias ya vinculadas a la app.
+        - dependencias_disponibles: dependencias activas todavía no vinculadas.
+        - labels: etiquetas semánticas para can_operate, can_supervise y can_authorize.
+        """
+
+        capacidades_reales = (
+            AppDependencyCapability.objects
+            .filter(
+                app=app_activa,
+                dependencia__is_active=True,
+                dependencia__is_deleted=False,
+            )
+            .select_related(
+                "dependencia",
+            )
+            .order_by(
+                "dependencia__nombre",
+            )
         )
-        
+
+        deps_ya_vinculadas = capacidades_reales.values_list(
+            "dependencia_id",
+            flat=True,
+        )
+
+        dependencias_disponibles = (
+            Dependencia.objects
+            .filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .exclude(
+                id__in=deps_ya_vinculadas,
+            )
+            .order_by(
+                "nombre",
+            )
+        )
+
         return {
-            'matriz': capacidades_reales,
-            'dependencias_disponibles': dependencias_disponibles,
-            'labels': cls.obtener_labels_manifiesto(app_activa.slug)
+            "matriz": capacidades_reales,
+            "dependencias_disponibles": dependencias_disponibles,
+            "labels": cls.obtener_labels_manifiesto(
+                app_activa.slug,
+            ),
         }

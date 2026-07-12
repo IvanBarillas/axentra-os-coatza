@@ -1,7 +1,15 @@
 {% if usuario_enfocado %}
 <div id="panel-permisos-derecho" class="w-full animate-fade-in">
-    <form method="POST" action="{% url 'security:guardar_llaves' app.id usuario_enfocado.usuario.id %}" class="bg-white p-4 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs space-y-5 md:space-y-6">
-        {% csrf_token %}
+    <form
+        method="POST"
+        action="{% url 'security:guardar_llaves' app.id usuario_enfocado.usuario.id %}"
+        hx-post="{% url 'security:guardar_llaves' app.id usuario_enfocado.usuario.id %}"
+        hx-target="#page-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="bg-white p-4 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs space-y-5 md:space-y-6"
+    >
+    {% csrf_token %}
         
         <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-4 gap-4 text-left">
             <div class="space-y-2 w-full sm:w-auto">

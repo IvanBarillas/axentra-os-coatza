@@ -209,3 +209,23 @@ def user_search_filter(
         "input_name": input_name,
     }
     
+# =========================================================================
+# 🧩 FILTROS UTILITARIOS
+# =========================================================================
+
+@register.filter(name="get_item")
+def get_item(dictionary, key):
+    """
+    Permite consultar diccionarios desde templates.
+
+    Uso:
+        {{ mi_diccionario|get_item:mi_llave }}
+    """
+    if not dictionary:
+        return None
+
+    try:
+        return dictionary.get(key)
+    except AttributeError:
+        return None
+    

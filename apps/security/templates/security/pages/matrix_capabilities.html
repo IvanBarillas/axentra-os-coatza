@@ -1,0 +1,13 @@
+{% extends "shell/workbench.html" %}
+
+{% block title %}
+Capacidades Institucionales | {{ tenant.app_name }}
+{% endblock %}
+
+{% block module_sidebar %}
+    {% include "security/contextual/security_sidebar.html" %}
+{% endblock %}
+
+{% block page_content %}
+    {% include "security/content/matrix_capabilities_content.html" %}
+{% endblock %}

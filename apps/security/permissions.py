@@ -34,14 +34,18 @@ class SecurityPermissions:
     ]
     
     CAPABILITIES = {
-        'flag_alfa': {
-            'label': "🛠️ [Security] ¿Es Dependencia Proveedora de Seguridad?",
-            'help_text': "EFECTO EN SISTEMA: Al activar esta casilla, el personal adscrito a esta dirección será elegible para aparecer en el combo box de 'Alta de Perfil Técnico' (Comisionar Ingeniero). Úselo exclusivamente para la Dirección de Tecnologías, Innovación o Soporte de Sistemas."
+        "can_operate": {
+            "label": "Puede Operar",
+            "help_text": "Permite que esta dependencia ejecute procesos operativos dentro del módulo.",
         },
-        'flag_beta': {
-            'label': "📋 [Security] ¿Es Dependencia Consumidora Estricta (Solo Reportes)?",
-            'help_text': "EFECTO EN SISTEMA: Indica que esta área solo puede levantar reportes y visualizar sus propios folios. El sistema aislará sus combo boxes para que al crear un ticket, solo puedan seleccionar las Sedes y Áreas Físicas que pertenezcan formalmente a su propia dirección."
-        }
+        "can_supervise": {
+            "label": "Puede Supervisar",
+            "help_text": "Permite que esta dependencia supervise información, estados o expedientes del módulo.",
+        },
+        "can_authorize": {
+            "label": "Puede Autorizar",
+            "help_text": "Permite que esta dependencia autorice decisiones críticas o cierres dentro del módulo.",
+        },
     }
 
 
@@ -82,6 +86,21 @@ class AccountsPermissions:
         {"icon": "laptop-2", "title": "Hardware Asignado", "url_name": "accounts:funcionario_sub_hardware", "order": 2, "permission": "can_edit_user", "provider": "assets", "stub": True},
         {"icon": "smartphone", "title": "Línea y Telefonía", "url_name": "accounts:funcionario_sub_telefonia", "order": 3, "permission": "can_edit_user", "provider": "telefonia", "stub": True},
     ]
+    
+    CAPABILITIES = {
+        "can_operate": {
+            "label": "Puede Operar",
+            "help_text": "Permite que esta dependencia ejecute procesos operativos dentro del módulo.",
+        },
+        "can_supervise": {
+            "label": "Puede Supervisar",
+            "help_text": "Permite que esta dependencia supervise información, estados o expedientes del módulo.",
+        },
+        "can_authorize": {
+            "label": "Puede Autorizar",
+            "help_text": "Permite que esta dependencia autorice decisiones críticas o cierres dentro del módulo.",
+        },
+    }
 
 
 # =========================================================================
@@ -238,42 +257,19 @@ class OrganigramaPermissions:
         },
     ]
     
-    AREA_DETAIL_MENU = [
-        {
-            "icon": "fingerprint",
-            "title": "Ficha de Área",
-            "url_name": "organigrama:area_sub_identidad",
-            "permission": "can_manage_infrastructure",
-            "order": 10,
-            "provider": "organigrama",
-            "stub": False,
+    CAPABILITIES = {
+        "can_operate": {
+            "label": "Puede Operar",
+            "help_text": "Permite que esta dependencia ejecute procesos operativos dentro del módulo.",
         },
-        {
-            "icon": "users",
-            "title": "Funcionarios Adscritos",
-            "url_name": "organigrama:area_sub_funcionarios",
-            "permission": "can_manage_infrastructure",
-            "order": 20,
-            "provider": "organigrama",
-            "stub": False,
+        "can_supervise": {
+            "label": "Puede Supervisar",
+            "help_text": "Permite que esta dependencia supervise información, estados o expedientes del módulo.",
         },
-        {
-            "icon": "package",
-            "title": "Activos del Área",
-            "url_name": "#",
-            "permission": "can_manage_infrastructure",
-            "order": 80,
-            "provider": "assets",
-            "stub": True,
+        "can_authorize": {
+            "label": "Puede Autorizar",
+            "help_text": "Permite que esta dependencia autorice decisiones críticas o cierres dentro del módulo.",
         },
-        {
-            "icon": "ticket",
-            "title": "Tickets del Área",
-            "url_name": "#",
-            "permission": "can_manage_infrastructure",
-            "order": 90,
-            "provider": "helpdesk",
-            "stub": True,
-        },
-    ]
+    }
     
+   

@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from apps.security.models.organigrama import AreaOperativa, Dependencia, Sede
+from apps.security.models.organigrama import AppDependencyCapability, AreaOperativa, Dependencia, Sede
 from apps.shared.apps_config import AppIdentifier
 from apps.security.decorators import axentra_gate_enforcer
 from apps.security.models import AppModule, UserAppRole, TenantConfig, SecurityAuditLog
@@ -187,399 +187,1552 @@ def security_control_panel_view(request):
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
 def security_dashboard_view(request):
     """
-    Consola Central de Ciberseguridad: Audita densidad de llaves JSONField y logs.
-    🪐 FILTRADO FORENSE EN CALIENTE: Lee parámetros GET para búsquedas e inspecciones.
+    Consola Central de Ciberseguridad.
+
+    - Vista completa: shell/workbench.
+    - Navegación interna Security: #page-content.
+    - Filtros GET: recargan la misma vista.
     """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
     filtros = {
-        'app_namespace': request.GET.get('app_namespace', '').strip().lower() or None,
-        'action_type': request.GET.get('action_type', '').strip().upper() or None,
-        'level_status': request.GET.get('level_status', '').strip().upper() or None,
-        'search_target': request.GET.get('search_target', '').strip() or None,
-        'operador': request.GET.get('operador', '').strip().lower() or None,
-        'fecha_inicio': request.GET.get('fecha_inicio', '').strip() or None,
-        'fecha_fin': request.GET.get('fecha_fin', '').strip() or None,
+        "app_namespace": request.GET.get("app_namespace", "").strip().lower() or None,
+        "action_type": request.GET.get("action_type", "").strip().upper() or None,
+        "level_status": request.GET.get("level_status", "").strip().upper() or None,
+        "search_target": request.GET.get("search_target", "").strip() or None,
+        "operador": request.GET.get("operador", "").strip().lower() or None,
+        "fecha_inicio": request.GET.get("fecha_inicio", "").strip() or None,
+        "fecha_fin": request.GET.get("fecha_fin", "").strip() or None,
     }
 
-    # Recolectamos la metadata base del firewall
     context = SecurityDashboardSelectors.obtener_metricas_firewall()
-    context['recents_audits'] = SecurityDashboardSelectors.obtener_buffer_auditoria(limite=50, filtros=filtros)
 
-    # 📊 GRÁFICA 1: Agregación de volumen de logs por App/Namespace
-    log_counts = SecurityAuditLog.objects.values('app_namespace')\
-        .annotate(total=Count('id'))\
-        .order_by('-total')[:6]
-    g_logs_labels = [item['app_namespace'].upper() for item in log_counts if item['app_namespace']]
-    g_logs_valores = [item['total'] for item in log_counts if item['app_namespace']]
-
-    # 📊 GRÁFICA 2: Agregación por severidad/nivel crítico
-    level_counts = SecurityAuditLog.objects.values('level_status')\
-        .annotate(total=Count('id'))\
-        .order_by('-total')
-    g_levels_labels = [item['level_status'] for item in level_counts if item['level_status']]
-    g_levels_valores = [item['total'] for item in level_counts if item['level_status']]
-
-    # Inyectamos catálogos y estructuras JSON seguras para Chart.js
-    context.update({
-        'apps_sistema': [choice[0] for choice in AppIdentifier.get_choices()],
-        'tipos_accion': SecurityAuditLog.ActionTypes.choices,
-        'niveles_status': SecurityAuditLog.Levels.choices,
-        'filtros_actuales': filtros,
-        
-        # Estructuras de datos serializadas para los canvas neón
-        'g_logs_labels': json.dumps(g_logs_labels),
-        'g_logs_valores': json.dumps(g_logs_valores),
-        'g_levels_labels': json.dumps(g_levels_labels),
-        'g_levels_valores': json.dumps(g_levels_valores),
-    })
-    
-    return render(request, 'security/dashboard/security_dashboard.html', context)
-
-
-@login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
-def tenant_config_view(request):
-    """SINGLETON IDENTITY ENFORCER: Gobernanza central de marca institucional."""
-    config_instancia, _ = TenantConfig.objects.get_or_create(
-        id=1, defaults={'app_name': "Axentra OS", 'entidad_nombre': "H. Ayuntamiento Constitucional", 'siglas': "AXN"}
+    context["recents_audits"] = SecurityDashboardSelectors.obtener_buffer_auditoria(
+        limite=50,
+        filtros=filtros,
     )
-    if request.method == 'POST':
-        form = TenantConfigForm(request.POST, request.FILES, instance=config_instancia)
-        if form.is_valid():
-            form.save()
-            
-            # 🪐 AUDITORÍA NORMALIZADA PARA ACTUALIZACIÓN DE MARCA INSTITUCIONAL
-            ForensicAuditor.registrar_evento(
-                request=request,
-                action_type=SecurityAuditLog.ActionTypes.UPDATE,
-                module_component="IDENTIDAD_GLOBAL",
-                action_name="RECONFIGURACION_TENANT_CORE",
-                target_scope=f"Modificación de logotipos, colores o RFC legal de la entidad.",
-                level=SecurityAuditLog.Levels.CRITICAL,
-                search_target=config_instancia.siglas
-            )
-            messages.success(request, "Los activos de marca de la institución se reconfiguraron correctamente.")
-            return redirect('security:control_panel')
-    else:
-        form = TenantConfigForm(instance=config_instancia)
-    return render(request, 'security/forms/tenant_form.html', {'form': form, 'config': config_instancia})
+
+    log_counts = (
+        SecurityAuditLog.objects
+        .values("app_namespace")
+        .annotate(total=Count("id"))
+        .order_by("-total")[:6]
+    )
+
+    g_logs_labels = [
+        item["app_namespace"].upper()
+        for item in log_counts
+        if item["app_namespace"]
+    ]
+
+    g_logs_valores = [
+        item["total"]
+        for item in log_counts
+        if item["app_namespace"]
+    ]
+
+    level_counts = (
+        SecurityAuditLog.objects
+        .values("level_status")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+
+    g_levels_labels = [
+        item["level_status"]
+        for item in level_counts
+        if item["level_status"]
+    ]
+
+    g_levels_valores = [
+        item["total"]
+        for item in level_counts
+        if item["level_status"]
+    ]
+
+    context.update({
+        "apps_sistema": [
+            choice[0]
+            for choice in AppIdentifier.get_choices()
+        ],
+        "tipos_accion": SecurityAuditLog.ActionTypes.choices,
+        "niveles_status": SecurityAuditLog.Levels.choices,
+        "filtros_actuales": filtros,
+
+        "g_logs_labels": json.dumps(g_logs_labels),
+        "g_logs_valores": json.dumps(g_logs_valores),
+        "g_levels_labels": json.dumps(g_levels_labels),
+        "g_levels_valores": json.dumps(g_levels_valores),
+
+        "modulo_actual": AppIdentifier.SECURITY,
+        "show_module_sidebar": True,
+        "current_security_view": "security:dashboard",
+    })
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "security/workbench/security_dashboard_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "security/content/security_dashboard_content.html",
+            context,
+        )
+
+    return render(
+        request,
+        "security/pages/security_dashboard.html",
+        context,
+    )
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def dynamic_permission_matrix_view(request):
-    """CONTROLADOR DE LECTURA PURO (GET): Despacha el estado de la matriz con centinela forense."""
-    app_slug = request.GET.get('app_slug', '').strip().lower()
-    
-    # 🚨 INTERCEPTOR PERIMETRAL: Si no hay firma de contexto, es manipulación manual o tampering
-    if not app_slug:
-        
-        # 🪐 AUDITORÍA FORENSE INMEDIATA: Registra la brecha de seguridad con el operador responsable
-        ForensicAuditor.registrar_evento(
-            request=request,
-            action_type=SecurityAuditLog.ActionTypes.UPDATE,  # Mapeado a tus clases transaccionales
-            module_component="MATRIX_PERIMETER",
-            action_name="URL_TAMPERING_ATTEMPT",
-            target_scope="Intento de omisión/manipulación del parámetro contextual de aplicación (app_slug) en el GET de la matriz.",
-            level=SecurityAuditLog.Levels.CRITICAL,  # Nivel crítico directo para alertar a la consola analítica
-            search_target="BYPASS_REJECTED"
+    """
+    Matriz dinámica de permisos por aplicación.
+
+    Regla:
+    - La matriz siempre requiere app_slug explícito.
+    - No existe matriz global editable sin contexto de aplicación.
+    - is_manager/root puede abrir cualquier app.
+    - owner sólo puede abrir apps donde tiene gobierno delegado.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    app_slug = request.GET.get("app_slug", "").strip().lower()
+    user_focus_id = request.GET.get("user_id")
+
+    es_platform_manager = (
+        getattr(request, "axentra_is_root", False)
+        or getattr(request.user, "is_manager", False)
+        or (
+            hasattr(request.user, "axentra_profile")
+            and getattr(request.user.axentra_profile, "is_root_admin", False)
         )
-        
-        # Despachamos el rebote responsivo en modo oscuro
-        return render(request, 'security/errors/400_missing_context.html', {
-            'error_detalle': "Bloqueo de Infraestructura: La Consola requiere una firma de aplicación explícita."
-        }, status=400)
-
-    # Flujo transaccional estándar si el contexto viene sano y firmado
-    app_module = get_object_or_404(AppModule, slug=app_slug, is_active=True)
-    user_focus_id = request.GET.get('user_id')
-    
-    is_manager_global = getattr(request.user, 'is_manager', False) or (
-        hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin
     )
 
-    context = PermissionSelectors.get_secured_matrix_data(
-        app_module=app_module, 
-        user_focus_id=user_focus_id, 
-        request_user=request.user, 
-        is_manager_global=is_manager_global
+    if es_platform_manager:
+        apps_gobernadas = list(
+            AppModule.objects
+            .filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("name")
+        )
+    else:
+        roles_owner = (
+            UserAppRole.objects
+            .filter(
+                user=request.user,
+                role=UserAppRole.ReservedRoles.OWNER,
+                is_active=True,
+                is_deleted=False,
+                app__is_active=True,
+                app__is_deleted=False,
+            )
+            .select_related("app")
+            .order_by("app__name")
+        )
+
+        apps_gobernadas = [
+            rol.app
+            for rol in roles_owner
+            if rol.app
+        ]
+
+    if not app_slug:
+        messages.error(
+            request,
+            "Acceso denegado: la matriz de permisos requiere una aplicación explícita.",
+        )
+
+        context_denied = {
+            "modulo_actual": AppIdentifier.SECURITY,
+            "show_module_sidebar": True,
+            "current_security_view": "security:dynamic_matrix",
+            "apps_gobernadas": apps_gobernadas,
+            "app": None,
+            "app_slug_actual": "",
+            "user_focus_id": None,
+            "es_platform_manager": es_platform_manager,
+            "personal_list": [],
+            "usuarios_potenciales": [],
+            "mostrar_buscador": False,
+            "roles_choices": [],
+            "role_mapping_json": "{}",
+            "roles_buscador": [],
+            "usuario_enfocado": None,
+            "error_detalle": "La matriz requiere app_slug. Regresa al Cockpit y selecciona una aplicación.",
+        }
+
+        if is_htmx and target_htmx == "workbench":
+            response = render(
+                request,
+                "security/workbench/permission_matrix_workbench.html",
+                context_denied,
+                status=403,
+            )
+            return response
+
+        if is_htmx and target_htmx == "page-content":
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context_denied,
+                status=403,
+            )
+            return response
+
+        return render(
+            request,
+            "security/pages/permission_matrix.html",
+            context_denied,
+            status=403,
+        )
+
+    app_module = get_object_or_404(
+        AppModule,
+        slug=app_slug,
+        is_active=True,
+        is_deleted=False,
     )
-    
-    context.update({
-        'app': app_module,
-        'app_slug_actual': app_module.slug,
-        'modulo_actual': app_slug,
-        'role_mapping_json': json.dumps(context.get('role_mapping', {})),
-        'roles_buscador': [rol[0] for rol in context.get('roles_choices', [])],
-    })
 
-    # Intercepción elástica de pipelines asíncronos de HTMX
-    if request.META.get('HTTP_HX_REQUEST') or request.headers.get('HX-Request'):
-        return render(request, 'security/partials/matrix_form_partial.html', context)
+    if not es_platform_manager:
+        tiene_gobierno_sobre_app = any(
+            app.id == app_module.id
+            for app in apps_gobernadas
+        )
 
-    return render(request, 'security/matrix_dynamic.html', context)
+        if not tiene_gobierno_sobre_app:
+            messages.error(
+                request,
+                "Acceso denegado: no tienes gobierno delegado sobre esta aplicación.",
+            )
+
+            context_denied = {
+                "modulo_actual": AppIdentifier.SECURITY,
+                "show_module_sidebar": True,
+                "current_security_view": "security:dynamic_matrix",
+                "apps_gobernadas": apps_gobernadas,
+                "app": None,
+                "app_slug_actual": "",
+                "user_focus_id": None,
+                "es_platform_manager": es_platform_manager,
+                "personal_list": [],
+                "usuarios_potenciales": [],
+                "mostrar_buscador": False,
+                "roles_choices": [],
+                "role_mapping_json": "{}",
+                "roles_buscador": [],
+                "usuario_enfocado": None,
+                "error_detalle": "No tienes permisos para administrar esta aplicación.",
+            }
+
+            if is_htmx and target_htmx == "page-content":
+                response = render(
+                    request,
+                    "security/htmx/permission_matrix_with_messages.html",
+                    context_denied,
+                    status=403,
+                )
+                return response
+
+            return render(
+                request,
+                "security/pages/permission_matrix.html",
+                context_denied,
+                status=403,
+            )
+
+    context = build_permission_matrix_context(
+        request=request,
+        app_module=app_module,
+        user_focus_id=user_focus_id,
+        es_platform_manager=es_platform_manager,
+    )
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "security/workbench/permission_matrix_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "security/content/permission_matrix_content.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "panel-permisos":
+        return render(
+            request,
+            "security/partials/matrix_form_partial.html",
+            context,
+        )
+
+    return render(
+        request,
+        "security/pages/permission_matrix.html",
+        context,
+    )
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def guardar_llaves_json_view(request, app_id, user_id):
-    """ADUANA DE ENTRADA: Delega la validación de jerarquía y persistencia forense al Servicio."""
-    app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
-    target_user = get_object_or_404(User, id=user_id)
-    
-    is_manager_global = getattr(request.user, 'is_manager', False) or (
-        hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin
+    """
+    Persistencia de llaves JSON/permisos finos para usuario dentro de una app.
+
+    - Normal: guarda y redirige a la matriz enfocada.
+    - HTMX: guarda, repinta la matriz con messages_oob y actualiza URL.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    app_module = get_object_or_404(
+        AppModule,
+        id=app_id,
+        is_active=True,
+        is_deleted=False,
     )
 
-    nuevo_rol = request.POST.get('role') or request.POST.get(f'role_{user_id}') or request.POST.get('nuevo_rol')
+    target_user = get_object_or_404(
+        User,
+        id=user_id,
+    )
+
+    is_manager_global = (
+        getattr(request, "axentra_is_root", False)
+        or getattr(request.user, "is_manager", False)
+        or (
+            hasattr(request.user, "axentra_profile")
+            and getattr(request.user.axentra_profile, "is_root_admin", False)
+        )
+    )
+
+    if not is_manager_global:
+        es_owner_de_app = UserAppRole.objects.filter(
+            user=request.user,
+            app=app_module,
+            role=UserAppRole.ReservedRoles.OWNER,
+            is_active=True,
+            is_deleted=False,
+        ).exists()
+
+        if not es_owner_de_app:
+            messages.error(
+                request,
+                "No tienes gobierno delegado sobre esta aplicación.",
+            )
+
+            if is_htmx:
+                context = build_permission_matrix_context(
+                    request=request,
+                    app_module=app_module,
+                    user_focus_id=target_user.id,
+                    es_platform_manager=is_manager_global,
+                )
+
+                response = render(
+                    request,
+                    "security/htmx/permission_matrix_with_messages.html",
+                    context,
+                    status=403,
+                )
+
+                response["HX-Push-Url"] = (
+                    reverse("security:dynamic_matrix")
+                    + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+                )
+
+                return response
+
+            return redirect(
+                reverse("security:dynamic_matrix")
+                + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+            )
+
+    nuevo_rol = (
+        request.POST.get("role")
+        or request.POST.get(f"role_{user_id}")
+        or request.POST.get("nuevo_rol")
+    )
+
     if not nuevo_rol:
-        messages.error(request, "⚠️ No se especificó un rol válido en la petición.")
-        return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
+        messages.error(
+            request,
+            "No se especificó un rol válido en la petición.",
+        )
 
-    llaves_encendidas = request.POST.getlist('permisos_checks') or request.POST.getlist(f'user_{user_id}') or []
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=target_user.id,
+                es_platform_manager=is_manager_global,
+            )
 
-    # 👑 CAPA DE DELEGACIÓN ABSOLUTA: El servicio se encarga de calcular deltas, validar jerarquía y auditar
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+                status=400,
+            )
+
+            response["HX-Push-Url"] = (
+                reverse("security:dynamic_matrix")
+                + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+            )
+
+            return response
+
+        return redirect(
+            reverse("security:dynamic_matrix")
+            + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+        )
+
+    llaves_encendidas = (
+        request.POST.getlist("permisos_checks")
+        or request.POST.getlist(f"user_{user_id}")
+        or []
+    )
+
     exito, mensaje = PermissionService.save_matrix_permissions(
         request=request,
         target_user=target_user,
         app_module=app_module,
         nuevo_rol=nuevo_rol,
         llaves_encendidas=llaves_encendidas,
-        is_manager_bypass=is_manager_global
+        is_manager_bypass=is_manager_global,
     )
 
     if exito:
-        messages.success(request, mensaje)
+        messages.success(
+            request,
+            mensaje,
+        )
     else:
-        messages.error(request, mensaje)
-        
-    return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
+        messages.error(
+            request,
+            mensaje,
+        )
+
+    if is_htmx:
+        context = build_permission_matrix_context(
+            request=request,
+            app_module=app_module,
+            user_focus_id=target_user.id,
+            es_platform_manager=is_manager_global,
+        )
+
+        response = render(
+            request,
+            "security/htmx/permission_matrix_with_messages.html",
+            context,
+        )
+
+        response["HX-Push-Url"] = (
+            reverse("security:dynamic_matrix")
+            + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+        )
+
+        return response
+
+    return redirect(
+        reverse("security:dynamic_matrix")
+        + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+    )
+
+def build_permission_matrix_context(
+    request,
+    app_module: AppModule | None = None,
+    user_focus_id=None,
+    es_platform_manager: bool | None = None,
+):
+    """
+    Construye el contexto oficial de la matriz de permisos.
+
+    Debe usarse por:
+    - dynamic_permission_matrix_view
+    - guardar_llaves_json_view
+    - inyectar_funcionario_view
+    - toggle_user_modulo_active_ajax_view
+    - expulsar_usuario_modulo_total_ajax_view
+    """
+
+    if es_platform_manager is None:
+        es_platform_manager = (
+            getattr(request, "axentra_is_root", False)
+            or getattr(request.user, "is_manager", False)
+            or (
+                hasattr(request.user, "axentra_profile")
+                and getattr(request.user.axentra_profile, "is_root_admin", False)
+            )
+        )
+
+    if es_platform_manager:
+        apps_gobernadas = list(
+            AppModule.objects
+            .filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("name")
+        )
+    else:
+        roles_owner = (
+            UserAppRole.objects
+            .filter(
+                user=request.user,
+                role=UserAppRole.ReservedRoles.OWNER,
+                is_active=True,
+                is_deleted=False,
+                app__is_active=True,
+                app__is_deleted=False,
+            )
+            .select_related("app")
+            .order_by("app__name")
+        )
+
+        apps_gobernadas = [
+            rol.app
+            for rol in roles_owner
+            if rol.app
+        ]
+
+    if not app_module and apps_gobernadas:
+        app_module = apps_gobernadas[0]
+
+    matrix_context = {}
+
+    if app_module:
+        matrix_context = PermissionSelectors.get_secured_matrix_data(
+            app_module=app_module,
+            user_focus_id=user_focus_id,
+            request_user=request.user,
+            is_manager_global=es_platform_manager,
+        ) or {}
+
+    role_mapping = matrix_context.get("role_mapping") or {}
+    roles_choices = matrix_context.get("roles_choices") or []
+
+    context = {
+        "modulo_actual": AppIdentifier.SECURITY,
+        "show_module_sidebar": True,
+        "current_security_view": "security:dynamic_matrix",
+
+        "apps_gobernadas": apps_gobernadas,
+        "app": app_module,
+        "app_slug_actual": app_module.slug if app_module else "",
+        "user_focus_id": user_focus_id,
+        "es_platform_manager": es_platform_manager,
+
+        "role_mapping_json": json.dumps(role_mapping),
+        "roles_buscador": [
+            rol[0]
+            for rol in roles_choices
+        ],
+
+        "personal_list": matrix_context.get("personal_list", []),
+        "usuarios_potenciales": matrix_context.get("usuarios_potenciales", []),
+        "mostrar_buscador": matrix_context.get("mostrar_buscador", False),
+        "roles_choices": roles_choices,
+        "usuario_enfocado": matrix_context.get("usuario_enfocado"),
+    }
+
+    context.update(matrix_context)
+
+    return context
+
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def inyectar_funcionario_view(request, app_id):
-    """Inyecta un funcionario al padrón de membresía delegando la auditoría al servicio."""
-    app_module = get_object_or_404(AppModule, id=app_id, is_active=True)
-    is_manager_global = getattr(request.user, 'is_manager', False) or (
-        hasattr(request.user, 'axentra_profile') and request.user.axentra_profile.is_root_admin
+    """
+    Inyecta un funcionario al padrón de membresía de una app.
+
+    - is_manager/root puede inyectar en cualquier app.
+    - owner puede inyectar sólo en sus apps.
+    - Sólo is_manager/root puede inyectar rol owner.
+    - En HTMX repinta la matriz con messages_oob.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    app_module = get_object_or_404(
+        AppModule,
+        id=app_id,
+        is_active=True,
+        is_deleted=False,
+    )
+
+    is_manager_global = (
+        getattr(request, "axentra_is_root", False)
+        or getattr(request.user, "is_manager", False)
+        or (
+            hasattr(request.user, "axentra_profile")
+            and getattr(request.user.axentra_profile, "is_root_admin", False)
+        )
     )
 
     if not is_manager_global:
-        messages.error(request, "🚫 Acceso Denegado: Operación exclusiva del Master central.")
-        return redirect(f"/app/security/matriz/?app_slug={app_module.slug}")
+        es_owner_de_app = UserAppRole.objects.filter(
+            user=request.user,
+            app=app_module,
+            role=UserAppRole.ReservedRoles.OWNER,
+            is_active=True,
+            is_deleted=False,
+        ).exists()
 
-    nuevo_usuario_id = request.POST.get('new_user_id')
-    rol_a_inyectar = request.POST.get('initial_role', 'viewer')
-    target_user = get_object_or_404(User, id=nuevo_usuario_id)
+        if not es_owner_de_app:
+            messages.error(
+                request,
+                "Acceso denegado: no tienes gobierno delegado sobre esta aplicación.",
+            )
 
-    # El servicio se encarga de sembrar y auditar en frío de forma limpia
-    if PermissionService.authorize_new_user_entry(request, app_module, str(target_user.id), rol_a_inyectar):
-        messages.success(request, f"🟢 Funcionario {target_user.email} inyectado con éxito.")
+            if is_htmx:
+                context = build_permission_matrix_context(
+                    request=request,
+                    app_module=app_module,
+                    user_focus_id=None,
+                    es_platform_manager=is_manager_global,
+                )
+
+                response = render(
+                    request,
+                    "security/htmx/permission_matrix_with_messages.html",
+                    context,
+                    status=403,
+                )
+
+                response["HX-Push-Url"] = (
+                    reverse("security:dynamic_matrix")
+                    + f"?app_slug={app_module.slug}"
+                )
+
+                return response
+
+            return redirect(
+                reverse("security:dynamic_matrix")
+                + f"?app_slug={app_module.slug}"
+            )
+
+    nuevo_usuario_id = request.POST.get("new_user_id")
+    rol_a_inyectar = request.POST.get("initial_role", UserAppRole.ReservedRoles.VIEWER)
+
+    if not nuevo_usuario_id:
+        messages.error(
+            request,
+            "Debes seleccionar un funcionario válido para inyectarlo al módulo.",
+        )
+
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=None,
+                es_platform_manager=is_manager_global,
+            )
+
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+                status=400,
+            )
+
+            response["HX-Push-Url"] = (
+                reverse("security:dynamic_matrix")
+                + f"?app_slug={app_module.slug}"
+            )
+
+            return response
+
+        return redirect(
+            reverse("security:dynamic_matrix")
+            + f"?app_slug={app_module.slug}"
+        )
+
+    target_user = get_object_or_404(
+        User,
+        id=nuevo_usuario_id,
+        is_deleted=False,
+    )
+
+    if (
+        rol_a_inyectar == UserAppRole.ReservedRoles.OWNER
+        and not is_manager_global
+    ):
+        messages.error(
+            request,
+            "Sólo un administrador global puede asignar rol owner.",
+        )
+
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=target_user.id,
+                es_platform_manager=is_manager_global,
+            )
+
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+                status=403,
+            )
+
+            response["HX-Push-Url"] = (
+                reverse("security:dynamic_matrix")
+                + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+            )
+
+            return response
+
+        return redirect(
+            reverse("security:dynamic_matrix")
+            + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+        )
+
+    operacion_exitosa = PermissionService.authorize_new_user_entry(
+        request,
+        app_module,
+        str(target_user.id),
+        rol_a_inyectar,
+    )
+
+    if operacion_exitosa:
+        messages.success(
+            request,
+            f"Funcionario {target_user.email} inyectado correctamente en {app_module.name}.",
+        )
     else:
-        messages.warning(request, "⚠️ Operación cancelada: El funcionario ya cuenta con membresía activa.")
-        
-    return redirect(f"/app/security/matriz/?app_slug={app_module.slug}&user_id={target_user.id}")
+        messages.warning(
+            request,
+            "Operación cancelada: el funcionario ya cuenta con membresía activa en esta aplicación.",
+        )
+
+    if is_htmx:
+        context = build_permission_matrix_context(
+            request=request,
+            app_module=app_module,
+            user_focus_id=target_user.id,
+            es_platform_manager=is_manager_global,
+        )
+
+        response = render(
+            request,
+            "security/htmx/permission_matrix_with_messages.html",
+            context,
+        )
+
+        response["HX-Push-Url"] = (
+            reverse("security:dynamic_matrix")
+            + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+        )
+
+        return response
+
+    return redirect(
+        reverse("security:dynamic_matrix")
+        + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+    )
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def toggle_user_modulo_active_ajax_view(request, user_id, app_id):
-    """Conmuta el estado activo/suspendido de un funcionario e inyecta la bitácora."""
-    app_module = get_object_or_404(AppModule, id=app_id)
-    target_user = get_object_or_404(User, id=user_id)
-    is_manager_global = getattr(request.user, 'is_manager', False) or getattr(request.user, 'is_superuser', False)
-    
+    """
+    Conmuta el estado activo/suspendido de un funcionario dentro de una app.
+
+    - No permite auto-suspensión.
+    - Owner sólo puede ser suspendido/reactivado por manager/root.
+    - En HTMX repinta la matriz con messages_oob.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    app_module = get_object_or_404(
+        AppModule,
+        id=app_id,
+        is_active=True,
+        is_deleted=False,
+    )
+
+    target_user = get_object_or_404(
+        User,
+        id=user_id,
+        is_deleted=False,
+    )
+
+    is_manager_global = (
+        getattr(request, "axentra_is_root", False)
+        or getattr(request.user, "is_manager", False)
+        or getattr(request.user, "is_superuser", False)
+        or (
+            hasattr(request.user, "axentra_profile")
+            and getattr(request.user.axentra_profile, "is_root_admin", False)
+        )
+    )
+
+    matriz_url = (
+        reverse("security:dynamic_matrix")
+        + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+    )
+
     if str(target_user.id) == str(request.user.id):
-        return HttpResponseForbidden("Operación denegada: No puedes auto-suspender tu perfil.")
-        
-    rol_instancia = get_object_or_404(UserAppRole, user=target_user, app=app_module)
-    if rol_instancia.role.lower() == 'owner' and not is_manager_global:
-        return HttpResponseForbidden("Acceso denegado: Rango protegido por jerarquía superior.")
+        messages.error(
+            request,
+            "Operación denegada: no puedes suspender tu propia membresía.",
+        )
+
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=target_user.id,
+                es_platform_manager=is_manager_global,
+            )
+
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+                status=403,
+            )
+
+            response["HX-Push-Url"] = matriz_url
+            return response
+
+        return redirect(matriz_url)
+
+    rol_instancia = get_object_or_404(
+        UserAppRole,
+        user=target_user,
+        app=app_module,
+        is_deleted=False,
+    )
+
+    if rol_instancia.role.lower() == "owner" and not is_manager_global:
+        messages.error(
+            request,
+            "Acceso denegado: el rol owner está protegido por jerarquía superior.",
+        )
+
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=target_user.id,
+                es_platform_manager=is_manager_global,
+            )
+
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+                status=403,
+            )
+
+            response["HX-Push-Url"] = matriz_url
+            return response
+
+        return redirect(matriz_url)
 
     rol_instancia.is_active = not rol_instancia.is_active
-    rol_instancia.save()
-    
-    # 🪐 AUDITORÍA NORMALIZADA: Conmutador de estado perimetral (Verbo RESET debido al Lockdown)
+    rol_instancia.save(
+        update_fields=[
+            "is_active",
+            "updated_at",
+        ]
+    )
+
     ForensicAuditor.registrar_evento(
         request=request,
         action_type=SecurityAuditLog.ActionTypes.RESET,
         module_component="ESTADO_MEMBRESIA",
         action_name="TOGGLE_SUSPENSION_MODULO",
-        target_scope=f"Conmutación de membresía para {target_user.email} en {app_module.name} (Estado: {rol_instancia.is_active}).",
-        level=SecurityAuditLog.Levels.INFO if rol_instancia.is_active else SecurityAuditLog.Levels.CRITICAL,
+        target_scope=(
+            f"Conmutación de membresía para {target_user.email} "
+            f"en {app_module.name} "
+            f"(Estado: {rol_instancia.is_active})."
+        ),
+        level=(
+            SecurityAuditLog.Levels.INFO
+            if rol_instancia.is_active
+            else SecurityAuditLog.Levels.CRITICAL
+        ),
         target_user=target_user,
-        search_target=target_user.id,
-        payload={'is_active_final': rol_instancia.is_active, 'app_slug': app_module.slug}
+        search_target=str(target_user.id),
+        payload={
+            "is_active_final": rol_instancia.is_active,
+            "app_id": str(app_module.id),
+            "app_slug": app_module.slug,
+            "role": rol_instancia.role,
+            "operador_id": str(request.user.id),
+            "operador_email": request.user.email,
+        },
     )
-    
-    response = HttpResponse(status=200, content="")
-    response['HX-Refresh'] = 'true'
-    return response
+
+    if rol_instancia.is_active:
+        messages.success(
+            request,
+            f"La membresía de {target_user.email} fue reactivada en {app_module.name}.",
+        )
+    else:
+        messages.warning(
+            request,
+            f"La membresía de {target_user.email} fue suspendida en {app_module.name}.",
+        )
+
+    if is_htmx:
+        context = build_permission_matrix_context(
+            request=request,
+            app_module=app_module,
+            user_focus_id=target_user.id,
+            es_platform_manager=is_manager_global,
+        )
+
+        response = render(
+            request,
+            "security/htmx/permission_matrix_with_messages.html",
+            context,
+        )
+
+        response["HX-Push-Url"] = matriz_url
+        return response
+
+    return redirect(matriz_url)
 
 
 @login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def expulsar_usuario_modulo_total_ajax_view(request, user_id, app_id):
-    """💥 KILL-SWITCH ABSOLUTO: Remueve la membresía de la base de datos."""
-    is_manager_global = getattr(request.user, 'is_manager', False) or getattr(request.user, 'is_superuser', False)
-    if not is_manager_global:
-        return HttpResponseForbidden("Acceso denegado: Requiere nivel Mánager Supremo.")
-        
-    app_module = get_object_or_404(AppModule, id=app_id)
-    target_user = get_object_or_404(User, id=user_id)
-    
-    if str(target_user.id) == str(request.user.id):
-        return HttpResponseForbidden("Operación denegada: Auto-purga bloqueada por estabilidad.")
-        
-    rol_instancia = UserAppRole.objects.filter(user=target_user, app=app_module).first()
-    if rol_instancia:
-        # 🪐 AUDITORÍA NORMALIZADA: Purga total física de credenciales (Verbo DELETE)
-        ForensicAuditor.registrar_evento(
-            request=request,
-            action_type=SecurityAuditLog.ActionTypes.DELETE,
-            module_component="ELIMINACION_MEMBRESIA",
-            action_name="PURGA_TOTAL_CREDENCIONALES",
-            target_scope=f"Destrucción total física de los privilegios de {target_user.email} en {app_module.name}",
-            level=SecurityAuditLog.Levels.CRITICAL,
-            target_user=target_user,
-            search_target=target_user.id,
-            payload={'deleted_role': rol_instancia.role}
+    """
+    Purga total de membresía de un usuario dentro de una app.
+
+    - Sólo manager/root puede purgar membresías.
+    - No permite auto-purga.
+    - Elimina la membresía UserAppRole.
+    - En HTMX repinta la matriz con messages_oob.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    app_module = get_object_or_404(
+        AppModule,
+        id=app_id,
+        is_active=True,
+        is_deleted=False,
+    )
+
+    target_user = get_object_or_404(
+        User,
+        id=user_id,
+        is_deleted=False,
+    )
+
+    is_manager_global = (
+        getattr(request, "axentra_is_root", False)
+        or getattr(request.user, "is_manager", False)
+        or getattr(request.user, "is_superuser", False)
+        or (
+            hasattr(request.user, "axentra_profile")
+            and getattr(request.user.axentra_profile, "is_root_admin", False)
         )
-        rol_instancia.delete()
-    
-    response = HttpResponse(status=200, content="")
-    response['HX-Refresh'] = 'true'
-    return response
+    )
+
+    matriz_url = (
+        reverse("security:dynamic_matrix")
+        + f"?app_slug={app_module.slug}"
+    )
+
+    matriz_url_con_usuario = (
+        reverse("security:dynamic_matrix")
+        + f"?app_slug={app_module.slug}&user_id={target_user.id}"
+    )
+
+    if not is_manager_global:
+        messages.error(
+            request,
+            "Acceso denegado: la purga total requiere nivel manager/root.",
+        )
+
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=target_user.id,
+                es_platform_manager=is_manager_global,
+            )
+
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+                status=403,
+            )
+
+            response["HX-Push-Url"] = matriz_url_con_usuario
+            return response
+
+        return redirect(matriz_url_con_usuario)
+
+    if str(target_user.id) == str(request.user.id):
+        messages.error(
+            request,
+            "Operación denegada: no puedes purgar tu propia membresía.",
+        )
+
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=target_user.id,
+                es_platform_manager=is_manager_global,
+            )
+
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+                status=403,
+            )
+
+            response["HX-Push-Url"] = matriz_url_con_usuario
+            return response
+
+        return redirect(matriz_url_con_usuario)
+
+    rol_instancia = (
+        UserAppRole.objects
+        .filter(
+            user=target_user,
+            app=app_module,
+            is_deleted=False,
+        )
+        .first()
+    )
+
+    if not rol_instancia:
+        messages.warning(
+            request,
+            f"{target_user.email} no tiene membresía registrada en {app_module.name}.",
+        )
+
+        if is_htmx:
+            context = build_permission_matrix_context(
+                request=request,
+                app_module=app_module,
+                user_focus_id=None,
+                es_platform_manager=is_manager_global,
+            )
+
+            response = render(
+                request,
+                "security/htmx/permission_matrix_with_messages.html",
+                context,
+            )
+
+            response["HX-Push-Url"] = matriz_url
+            return response
+
+        return redirect(matriz_url)
+
+    rol_eliminado = rol_instancia.role
+    permisos_eliminados = rol_instancia.permissions_list or []
+
+    ForensicAuditor.registrar_evento(
+        request=request,
+        action_type=SecurityAuditLog.ActionTypes.DELETE,
+        module_component="ELIMINACION_MEMBRESIA",
+        action_name="PURGA_TOTAL_CREDENCIALES",
+        target_scope=(
+            f"Destrucción total de privilegios de {target_user.email} "
+            f"en {app_module.name}."
+        ),
+        level=SecurityAuditLog.Levels.CRITICAL,
+        target_user=target_user,
+        search_target=str(target_user.id),
+        payload={
+            "deleted_role": rol_eliminado,
+            "deleted_permissions": permisos_eliminados,
+            "app_id": str(app_module.id),
+            "app_slug": app_module.slug,
+            "operador_id": str(request.user.id),
+            "operador_email": request.user.email,
+        },
+    )
+
+    rol_instancia.delete()
+
+    messages.warning(
+        request,
+        f"La membresía de {target_user.email} fue purgada completamente de {app_module.name}.",
+    )
+
+    if is_htmx:
+        context = build_permission_matrix_context(
+            request=request,
+            app_module=app_module,
+            user_focus_id=None,
+            es_platform_manager=is_manager_global,
+        )
+
+        response = render(
+            request,
+            "security/htmx/permission_matrix_with_messages.html",
+            context,
+        )
+
+        response["HX-Push-Url"] = matriz_url
+        return response
+
+    return redirect(matriz_url)
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
 def matrix_capabilities_view(request):
-    """Master de Capacidades Regionales: Muestra qué dependencias consumen qué apps."""
-    app_slug = request.GET.get('app_slug', 'accounts').strip().lower()
-    app_activa = get_object_or_404(AppModule, slug=app_slug)
-    
-    context = CapabilitySelectors.obtener_matriz_capacidades_contexto(app_activa)
+    """
+    Master de capacidades institucionales por app.
+
+    - GET normal: página completa.
+    - GET HTMX #workbench: layout con sidebar Security.
+    - GET HTMX #page-content: sólo contenido.
+    - Selector de app usa app_slug.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    app_slug = (
+        request.GET.get("app_slug", "accounts")
+        .strip()
+        .lower()
+    )
+
+    app_activa = get_object_or_404(
+        AppModule,
+        slug=app_slug,
+        is_active=True,
+        is_deleted=False,
+    )
+
+    context = CapabilitySelectors.obtener_matriz_capacidades_contexto(
+        app_activa,
+    )
+
     context.update({
-        'apps': AppModule.objects.filter(is_active=True),
-        'app_activa': app_activa,
-        'modulo_actual': 'security'
+        "apps": (
+            AppModule.objects
+            .filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("name")
+        ),
+        "app_activa": app_activa,
+        "modulo_actual": AppIdentifier.SECURITY,
+        "show_module_sidebar": True,
+        "current_security_view": "security:matrix_capabilities",
     })
-    return render(request, 'security/matrix_capabilities.html', context)
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "security/workbench/matrix_capabilities_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "security/content/matrix_capabilities_content.html",
+            context,
+        )
+
+    return render(
+        request,
+        "security/pages/matrix_capabilities.html",
+        context,
+    )
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
 @require_POST
 def add_capability_node_view(request, app_id):
-    """Vincula una nueva dependencia al mapa relacional de capacidades de la App."""
-    app_obj = get_object_or_404(AppModule, id=app_id)
-    dependencia_id = request.POST.get('dependencia_id')
-    
+    """
+    Vincula una dependencia al mapa relacional de capacidades de una app.
+
+    - Crea AppDependencyCapability si no existe.
+    - Si ya existe, avisa sin duplicar.
+    - En HTMX repinta la matriz de capacidades con messages_oob.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+
+    app_obj = get_object_or_404(
+        AppModule,
+        id=app_id,
+        is_active=True,
+        is_deleted=False,
+    )
+
+    capabilities_url = (
+        reverse("security:matrix_capabilities")
+        + f"?app_slug={app_obj.slug}"
+    )
+
+    dependencia_id = request.POST.get("dependencia_id")
+
     if not dependencia_id:
-        return HttpResponse('⚠️ Seleccione una dependencia válida.', status=400)
-        
-    dep_obj = get_object_or_404(Dependencia, id=dependencia_id)
-    from apps.security.models.organigrama import AppDependencyCapability
-    
+        messages.error(
+            request,
+            "Selecciona una dependencia válida antes de vincular el nodo.",
+        )
+
+        if is_htmx:
+            context = CapabilitySelectors.obtener_matriz_capacidades_contexto(
+                app_obj,
+            )
+
+            context.update({
+                "apps": (
+                    AppModule.objects
+                    .filter(
+                        is_active=True,
+                        is_deleted=False,
+                    )
+                    .order_by("name")
+                ),
+                "app_activa": app_obj,
+                "modulo_actual": AppIdentifier.SECURITY,
+                "show_module_sidebar": True,
+                "current_security_view": "security:matrix_capabilities",
+            })
+
+            response = render(
+                request,
+                "security/htmx/matrix_capabilities_with_messages.html",
+                context,
+                status=400,
+            )
+
+            response["HX-Push-Url"] = capabilities_url
+            return response
+
+        return redirect(capabilities_url)
+
+    dep_obj = get_object_or_404(
+        Dependencia,
+        id=dependencia_id,
+        is_deleted=False,
+    )
+
     capacidad, created = AppDependencyCapability.objects.get_or_create(
-        app=app_obj, dependencia=dep_obj, defaults={'flag_alfa': False, 'flag_beta': False}
+        app=app_obj,
+        dependencia=dep_obj,
+        defaults={
+            "can_operate": False,
+            "can_supervise": False,
+            "can_authorize": False,
+            "custom_settings": {},
+        },
     )
 
     if created:
-        # 🪐 AUDITORÍA NORMALIZADA: Vinculación de nodos organizacionales (Verbo CREATE)
         ForensicAuditor.registrar_evento(
             request=request,
             action_type=SecurityAuditLog.ActionTypes.CREATE,
             module_component="MAPA_CAPACIDADES",
             action_name="VINCULACION_NODO_CAPACIDAD",
-            target_scope=f"Asignación de derecho de consumo de {app_obj.name} a la dependencia {dep_obj.nombre}.",
+            target_scope=(
+                f"Asignación de derecho de consumo de {app_obj.name} "
+                f"a la dependencia {dep_obj.nombre}."
+            ),
             level=SecurityAuditLog.Levels.INFO,
-            search_target=str(dep_obj.id)
+            search_target=str(dep_obj.id),
+            payload={
+                "app_id": str(app_obj.id),
+                "app_slug": app_obj.slug,
+                "app_name": app_obj.name,
+                "dependencia_id": str(dep_obj.id),
+                "dependencia_nombre": dep_obj.nombre,
+                "capacidad_id": str(capacidad.id),
+                "operador_id": str(request.user.id),
+                "operador_email": request.user.email,
+            },
         )
 
-    response = HttpResponse(status=200)
-    response['HX-Refresh'] = 'true'
-    return response
+        messages.success(
+            request,
+            f"La dependencia {dep_obj.nombre} fue vinculada correctamente a {app_obj.name}.",
+        )
 
+    else:
+        messages.warning(
+            request,
+            f"La dependencia {dep_obj.nombre} ya estaba vinculada a {app_obj.name}.",
+        )
+
+    if is_htmx:
+        context = CapabilitySelectors.obtener_matriz_capacidades_contexto(
+            app_obj,
+        )
+
+        context.update({
+            "apps": (
+                AppModule.objects
+                .filter(
+                    is_active=True,
+                    is_deleted=False,
+                )
+                .order_by("name")
+            ),
+            "app_activa": app_obj,
+            "modulo_actual": AppIdentifier.SECURITY,
+            "show_module_sidebar": True,
+            "current_security_view": "security:matrix_capabilities",
+        })
+
+        response = render(
+            request,
+            "security/htmx/matrix_capabilities_with_messages.html",
+            context,
+        )
+
+        response["HX-Push-Url"] = capabilities_url
+        return response
+
+    return redirect(capabilities_url)
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
 @require_POST
 def toggle_capability_ajax_view(request, dep_id, app_id):
-    """Interruptor AJAX universal para prender/apagar capacidades organizacionales."""
-    app_obj = get_or_404_or_redirect = get_object_or_404(AppModule, id=app_id)
-    dep_obj = get_object_or_404(Dependencia, id=dep_id)
-    field = request.POST.get('field')
-    
-    if field not in ['flag_alfa', 'flag_beta']:
-        return HttpResponse('❌ Campo operativo inválido', status=400)
+    """
+    Alterna una capacidad de una dependencia dentro de una app.
 
-    from apps.security.models.organigrama import AppDependencyCapability
-    capacidad, _ = AppDependencyCapability.objects.get_or_create(app=app_obj, dependencia=dep_obj)
-    nuevo_estado = not getattr(capacidad, field)
-    setattr(capacidad, field, nuevo_estado)
-    capacidad.save()
+    Campos válidos:
+    - can_operate
+    - can_supervise
+    - can_authorize
+    """
 
-    # 🪐 AUDITORÍA NORMALIZADA: Conmutador de banderas de comportamiento operativo (Verbo UPDATE)
+    app_obj = get_object_or_404(
+        AppModule,
+        id=app_id,
+        is_active=True,
+        is_deleted=False,
+    )
+
+    dep_obj = get_object_or_404(
+        Dependencia,
+        id=dep_id,
+        is_deleted=False,
+    )
+
+    field = request.POST.get("field", "").strip()
+
+    campos_validos = {
+        "can_operate",
+        "can_supervise",
+        "can_authorize",
+    }
+
+    if field not in campos_validos:
+        return HttpResponse(
+            "Campo de capacidad inválido.",
+            status=400,
+        )
+
+    capacidad = get_object_or_404(
+        AppDependencyCapability,
+        app=app_obj,
+        dependencia=dep_obj,
+    )
+
+    valor_actual = bool(
+        getattr(
+            capacidad,
+            field,
+            False,
+        )
+    )
+
+    nuevo_valor = not valor_actual
+
+    setattr(
+        capacidad,
+        field,
+        nuevo_valor,
+    )
+
+    capacidad.save(
+        update_fields=[
+            field,
+            "updated_at",
+        ]
+    )
+
     ForensicAuditor.registrar_evento(
         request=request,
         action_type=SecurityAuditLog.ActionTypes.UPDATE,
         module_component="MAPA_CAPACIDADES",
-        action_name="TOGGLE_CONFIG_CAPACIDAD",
-        target_scope=f"Bandera [{field}] alternada a {nuevo_estado} para {dep_obj.nombre} en {app_obj.name}.",
+        action_name="TOGGLE_CAPACIDAD_DEPENDENCIA",
+        target_scope=(
+            f"Conmutación de capacidad [{field}] para "
+            f"{dep_obj.nombre} en {app_obj.name}: {nuevo_valor}."
+        ),
         level=SecurityAuditLog.Levels.INFO,
         search_target=str(dep_obj.id),
-        payload={'campo_mutado': field, 'estado_final': nuevo_estado}
+        payload={
+            "app_id": str(app_obj.id),
+            "app_slug": app_obj.slug,
+            "dependencia_id": str(dep_obj.id),
+            "dependencia_nombre": dep_obj.nombre,
+            "field": field,
+            "previous_value": valor_actual,
+            "new_value": nuevo_valor,
+            "operador_id": str(request.user.id),
+            "operador_email": request.user.email,
+        },
     )
 
-    labels_manifiesto = CapabilitySelectors.obtener_labels_manifiesto(app_obj.slug)
-    config_campo = labels_manifiesto.get(field, {})
-    help_text_dinamico = config_campo.get('help_text', 'Configuración de capacidad guardada con éxito.')
+    color_on = "bg-blue-600"
 
-    bg_active_class = "bg-blue-600 justify-end" if field == "flag_alfa" else "bg-indigo-600 justify-end"
-    bg_class = bg_active_class if nuevo_estado else "bg-gray-200 justify-start"
-    
-    return render(request, 'security/htmx/capability_switch_partial.html', {
-        'next_url': f"/app/security/platform/capabilities/toggle/{dep_obj.id}/{app_obj.id}/",
-        'bg_class': bg_class,
-        'help_text': help_text_dinamico
-    })
+    if field == "can_supervise":
+        color_on = "bg-indigo-600"
+
+    if field == "can_authorize":
+        color_on = "bg-emerald-600"
+
+    return render(
+        request,
+        "security/partials/capability_toggle.html",
+        {
+            "cap": capacidad,
+            "app_activa": app_obj,
+            "field_name": field,
+            "field_value": nuevo_valor,
+            "color_on": color_on,
+            "mobile": request.POST.get("mobile") == "1",
+        },
+    )
 
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def security_global_matrix_forensic_view(request):
-    """🛡️ AUDITORÍA GLOBAL MATRIX: Escanea y diagnostica de forma masiva los tokens de acceso."""
+    """
+    Auditoría global de matriz de accesos multi-app.
+
+    - Vista completa: shell/workbench.
+    - Navegación interna Security: #page-content.
+    - Filtros HTMX: #forensic-matrix-results.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
     filtros = {
-        'q': request.GET.get('q', '').strip(),
-        'sede_id': request.GET.get('sede', '').strip() or None,
-        'dependencia_id': request.GET.get('dependencia', '').strip() or None,
-        'area_id': request.GET.get('area', '').strip() or None
+        "q": request.GET.get("q", "").strip(),
+        "sede_id": request.GET.get("sede", "").strip() or None,
+        "dependencia_id": request.GET.get("dependencia", "").strip() or None,
+        "area_id": request.GET.get("area", "").strip() or None,
     }
-    
-    funcionarios_liquidados = PermissionSelectors.listar_matriz_forense_global(filtros)
-    
+
+    funcionarios_liquidados = PermissionSelectors.listar_matriz_forense_global(
+        filtros,
+    )
+
     context = {
-        'funcionarios': funcionarios_liquidados,
-        'aplicaciones_sistema': AppIdentifier.get_choices(), # 🧠 Vital para que el bucle for dibuje las columnas/tarjetas en el swap
-        'sedes': Sede.objects.filter(is_active=True).order_by('nombre'),
-        'dependencias': Dependencia.objects.filter(is_active=True, is_deleted=False).order_by('nombre'),
-        'areas_operativas': AreaOperativa.objects.filter(is_active=True, is_deleted=False).order_by('nombre').distinct('nombre'),
-        'current_q': filtros['q'],
-        'current_sede': str(filtros['sede_id']) if filtros['sede_id'] else "",
-        'current_dep': str(filtros['dependencia_id']) if filtros['dependencia_id'] else "",
-        'current_area': str(filtros['area_id']) if filtros['area_id'] else "",
+        "funcionarios": funcionarios_liquidados,
+        "aplicaciones_sistema": AppIdentifier.get_choices(),
+
+        "sedes": (
+            Sede.objects
+            .filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("nombre")
+        ),
+
+        "dependencias": (
+            Dependencia.objects
+            .filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("nombre")
+        ),
+
+        "areas_operativas": (
+            AreaOperativa.objects
+            .filter(
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("nombre")
+        ),
+
+        "current_q": filtros["q"],
+        "current_sede": str(filtros["sede_id"]) if filtros["sede_id"] else "",
+        "current_dep": str(filtros["dependencia_id"]) if filtros["dependencia_id"] else "",
+        "current_area": str(filtros["area_id"]) if filtros["area_id"] else "",
+
+        "modulo_actual": AppIdentifier.SECURITY,
+        "show_module_sidebar": True,
+        "current_security_view": "security:global_matrix_forensic",
     }
-    
-    # 🛡️ Si es HTMX, inyectamos directamente el parcial configurado
-    if request.headers.get('HX-Request'):
-        return render(request, 'security/partials/global_matrix_results_partial.html', context)
-    
-    return render(request, 'security/global_matrix_forensic.html', context)
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "security/workbench/global_matrix_forensic_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "security/content/global_matrix_forensic_content.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "forensic-matrix-results":
+        return render(
+            request,
+            "security/partials/global_matrix_results_partial.html",
+            context,
+        )
+
+    return render(
+        request,
+        "security/pages/global_matrix_forensic.html",
+        context,
+    )
 
 
 
@@ -587,19 +1740,150 @@ def security_global_matrix_forensic_view(request):
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
 def descargar_auditoria_excel_view(request):
     """
-    ENDPOINT DE EXTRACCIÓN: Captura la query actual de la URL
-    y descarga la evidencia completa sin límites de paginación.
+    Exporta evidencia de auditoría a Excel usando los mismos filtros del dashboard.
     """
-    # 🟢 SANEADO: Extracción limpia del GET sin colisiones de asignación
+
     filtros = {
-        'app_namespace': request.GET.get('app_namespace', '').strip().lower() or None,
-        'action_type': request.GET.get('action_type', '').strip().upper() or None,
-        'level_status': request.GET.get('level_status', '').strip().upper() or None,
-        'search_target': request.GET.get('search_target', '').strip() or None,
-        'operador': request.GET.get('operador', '').strip().lower() or None,
-        'fecha_inicio': request.GET.get('fecha_inicio', '').strip() or None,
-        'fecha_fin': request.GET.get('fecha_fin', '').strip() or None,
+        "app_namespace": request.GET.get("app_namespace", "").strip().lower() or None,
+        "action_type": request.GET.get("action_type", "").strip().upper() or None,
+        "level_status": request.GET.get("level_status", "").strip().upper() or None,
+        "search_target": request.GET.get("search_target", "").strip() or None,
+        "operador": request.GET.get("operador", "").strip().lower() or None,
+        "fecha_inicio": request.GET.get("fecha_inicio", "").strip() or None,
+        "fecha_fin": request.GET.get("fecha_fin", "").strip() or None,
     }
-    
-    # Invocamos la generación física del libro de Excel pasándole el request para el contexto si es necesario
-    return PermissionService.exportar_auditoria_excel(filtros)
+
+    return PermissionService.exportar_auditoria_excel(
+        request=request,
+        filtros=filtros,
+    )
+
+
+
+@login_required
+@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+def tenant_config_view(request):
+    """
+    Gobernanza central de identidad institucional / tenant.
+
+    - GET normal: página completa.
+    - GET HTMX: contenido para #page-content.
+    - POST normal: guarda y redirige a identidad.
+    - POST HTMX: guarda y repinta identidad con messages_oob.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    config_instancia, _ = TenantConfig.objects.get_or_create(
+        id=1,
+        defaults={
+            "app_name": "Axentra OS",
+            "entidad_nombre": "H. Ayuntamiento Constitucional",
+            "siglas": "AXN",
+        },
+    )
+
+    if request.method == "POST":
+        form = TenantConfigForm(
+            request.POST,
+            request.FILES,
+            instance=config_instancia,
+        )
+
+        if form.is_valid():
+            config_actualizada = form.save()
+
+            ForensicAuditor.registrar_evento(
+                request=request,
+                action_type=SecurityAuditLog.ActionTypes.UPDATE,
+                module_component="IDENTIDAD_GLOBAL",
+                action_name="RECONFIGURACION_TENANT_CORE",
+                target_scope=(
+                    "Modificación de activos de marca, logotipos, colores "
+                    "o información legal de la entidad."
+                ),
+                level=SecurityAuditLog.Levels.CRITICAL,
+                search_target=config_actualizada.siglas,
+                payload={
+                    "tenant_id": str(config_actualizada.id),
+                    "app_name": config_actualizada.app_name,
+                    "entidad_nombre": config_actualizada.entidad_nombre,
+                    "siglas": config_actualizada.siglas,
+                    "rfc": getattr(config_actualizada, "rfc", ""),
+                    "operador_id": str(request.user.id),
+                    "operador_email": request.user.email,
+                },
+            )
+
+            messages.success(
+                request,
+                "La identidad institucional se actualizó correctamente.",
+            )
+
+            if is_htmx:
+                form = TenantConfigForm(
+                    instance=config_actualizada,
+                )
+
+                context = {
+                    "form": form,
+                    "config": config_actualizada,
+                    "modulo_actual": AppIdentifier.SECURITY,
+                    "show_module_sidebar": True,
+                    "current_security_view": "security:tenant_config",
+                }
+
+                response = render(
+                    request,
+                    "security/htmx/tenant_config_with_messages.html",
+                    context,
+                )
+
+                response["HX-Push-Url"] = reverse(
+                    "security:tenant_config",
+                )
+
+                return response
+
+            return redirect(
+                "security:tenant_config",
+            )
+
+        messages.error(
+            request,
+            "Revisa los campos del formulario antes de guardar la identidad institucional.",
+        )
+
+    else:
+        form = TenantConfigForm(
+            instance=config_instancia,
+        )
+
+    context = {
+        "form": form,
+        "config": config_instancia,
+        "modulo_actual": AppIdentifier.SECURITY,
+        "show_module_sidebar": True,
+        "current_security_view": "security:tenant_config",
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "security/workbench/tenant_config_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "security/content/tenant_config_content.html",
+            context,
+        )
+
+    return render(
+        request,
+        "security/pages/tenant_config.html",
+        context,
+    )

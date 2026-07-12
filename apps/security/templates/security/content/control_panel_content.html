@@ -262,20 +262,20 @@
                 </header>
 
                 <div class="p-5 space-y-2">
-                    {% url 'security:dynamic_matrix' as matrix_url %}
                     {% url 'security:dashboard' as dashboard_url %}
+                    {% url 'security:global_matrix_forensic' as global_matrix_url %}
 
                     <a
-                        href="{{ matrix_url }}"
-                        hx-get="{{ matrix_url }}"
+                        href="{{ global_matrix_url }}"
+                        hx-get="{{ global_matrix_url }}"
                         hx-target="#page-content"
                         hx-swap="innerHTML"
                         hx-push-url="true"
                         class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-600 font-mono transition hover:bg-gray-50 hover:text-gray-950"
                     >
                         <span class="flex items-center gap-2">
-                            <i data-lucide="lock-keyhole" class="w-3.5 h-3.5 text-gray-400"></i>
-                            Ir a Matriz
+                            <i data-lucide="scan-search" class="w-3.5 h-3.5 text-gray-400"></i>
+                            Auditoría Global
                         </span>
                         <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-300"></i>
                     </a>
@@ -290,7 +290,7 @@
                     >
                         <span class="flex items-center gap-2">
                             <i data-lucide="radio" class="w-3.5 h-3.5 text-gray-400"></i>
-                            Ver Auditoría
+                            Ver Telemetría
                         </span>
                         <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-300"></i>
                     </a>

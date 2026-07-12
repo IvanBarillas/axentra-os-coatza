@@ -1,5 +1,5 @@
 {% url 'security:control_panel' as control_url %}
-{% url 'security:dynamic_matrix' as matrix_url %}
+{% url 'security:global_matrix_forensic' as global_matrix_url %}
 {% url 'security:matrix_capabilities' as capabilities_url %}
 {% url 'security:tenant_config' as tenant_url %}
 {% url 'security:dashboard' as dashboard_url %}
@@ -47,21 +47,24 @@
         </a>
 
         <a
-            href="{{ matrix_url }}"
-            hx-get="{{ matrix_url }}"
-            hx-target="#page-content"
-            hx-swap="innerHTML"
-            hx-push-url="true"
-            class="group flex items-center gap-3 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-wider font-mono transition
-            {% if current_security_view == 'security:dynamic_matrix' %}
-                bg-slate-950 text-white shadow-sm
-            {% else %}
-                text-gray-500 hover:bg-gray-50 hover:text-gray-950
-            {% endif %}"
-        >
-            <i data-lucide="lock-keyhole" class="w-4 h-4"></i>
-            <span>Matriz de Permisos</span>
-        </a>
+    href="{{ global_matrix_url }}"
+    hx-get="{{ global_matrix_url }}"
+    hx-target="#page-content"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    class="group flex items-center gap-3 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-wider font-mono transition
+    {% if current_security_view == 'security:global_matrix_forensic' %}
+        bg-slate-950 text-white shadow-sm
+    {% else %}
+        text-gray-500 hover:bg-gray-50 hover:text-gray-950
+    {% endif %}"
+>
+    <i data-lucide="scan-search" class="w-4 h-4"></i>
+    <span>Auditoría Global</span>
+</a>
+
+
+
 
         <a
             href="{{ capabilities_url }}"

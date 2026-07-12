@@ -72,187 +72,419 @@ class PermissionSelectors:
             return []
 
     @classmethod
-    def get_secured_matrix_data(cls, app_module: AppModule, user_focus_id: Optional[str] = None, request_user: Optional[User] = None, is_manager_global: bool = False) -> dict:
+    def get_secured_matrix_data(
+        cls,
+        app_module: AppModule,
+        user_focus_id: Optional[str] = None,
+        request_user: Optional[User] = None,
+        is_manager_global: bool = False,
+    ) -> dict:
         """
-        🚀 REFACTOR MASTER CORE: Extrae, cruza y computa el escalafón jerárquico 
-        y el árbol granular de llaves JSONField para la Consola Maestra de Privilegios.
+        Extrae, cruza y computa la matriz granular de permisos por aplicación.
+
+        Reglas:
+        - Los roles salen del manifiesto de permisos de cada app.
+        - Los pesos salen del ROLE_WEIGHTS de cada app.
+        - is_manager/root puede ver e inyectar owner.
+        - owner de app puede gobernar usuarios de su app, pero no modificar owners.
+        - Los usuarios ya asignados se administran desde el panel derecho, no se reinyectan.
         """
+
         try:
-            roles_activos = UserAppRole.objects.filter(app=app_module).select_related('user').order_by('user__first_name')
-            
+            roles_activos = (
+                UserAppRole.objects
+                .filter(
+                    app=app_module,
+                    is_deleted=False,
+                )
+                .select_related("user")
+                .order_by(
+                    "user__first_name",
+                    "user__last_name",
+                    "user__email",
+                )
+            )
+
             config_app = get_app_permissions(app_module.slug)
-            catalogo_permisos = config_app.get('permissions', {})
-            role_mapping = config_app.get('roles', {})
-            weights_map = config_app.get('weights', {})
-            
+
+            catalogo_permisos = config_app.get("permissions", {}) or {}
+            role_mapping = config_app.get("roles", {}) or {}
+            weights_map = config_app.get("weights", {}) or {}
+
+            if not role_mapping:
+                role_mapping = {
+                    "owner": list(catalogo_permisos.keys()),
+                    "viewer": ["has_access_module"],
+                }
+
+            operador_es_owner_de_app = False
+            rol_operador_obj = None
+            rol_operador_str = "viewer"
+            peso_operador = 0
+
+            if request_user and request_user.is_authenticated:
+                rol_operador_obj = (
+                    UserAppRole.objects
+                    .filter(
+                        user=request_user,
+                        app=app_module,
+                        is_active=True,
+                        is_deleted=False,
+                    )
+                    .first()
+                )
+
+                if rol_operador_obj:
+                    rol_operador_str = str(rol_operador_obj.role).lower().strip()
+                    operador_es_owner_de_app = rol_operador_str == "owner"
+                    peso_operador = weights_map.get(rol_operador_str, 0)
+
             personal_list = []
             usuario_enfocado_data = None
-            
+
             for r in roles_activos:
+                rol_actual = str(r.role or "viewer").lower().strip()
+
                 es_el_seleccionado = str(r.user.id) == str(user_focus_id)
+
                 personal_list.append({
-                    'usuario': r.user,
-                    'rol_actual': r.role.upper(),
-                    'es_el_seleccionado': es_el_seleccionado,
-                    'is_suspended': not r.is_active
+                    "usuario": r.user,
+                    "rol_actual": rol_actual,
+                    "rol_label": rol_actual.replace("_", " ").title(),
+                    "es_el_seleccionado": es_el_seleccionado,
+                    "is_suspended": not r.is_active,
                 })
-                
-                if es_el_seleccionado:
-                    permisos_raw = r.permissions_list or []
-                    permisos_usuario_lista = [p for p in permisos_raw if p in catalogo_permisos]
-                    
-                    permisos_permitidos_por_rol = role_mapping.get(r.role, [])
-                    payload_llaves = []
-                    for code, desc in catalogo_permisos.items():
-                        if code not in permisos_permitidos_por_rol:
-                            continue
-                        obligatorio_by_role = (code == 'has_access_module') or (r.role == 'owner')
-                        payload_llaves.append({
-                            'llave': code,
-                            'descripcion': desc,
-                            'concedido_total': (code in permisos_usuario_lista) or obligatorio_by_role,
-                            'obligatorio_by_role': obligatorio_by_role
-                        })
-                    
-                    bloqueo_visual = False
-                    motivo_bloqueo = "none"
 
-                    if not is_manager_global and request_user:
-                        rol_operador_obj = UserAppRole.objects.filter(user=request_user, app=app_module, is_active=True).first()
-                        rol_operador_str = rol_operador_obj.role if rol_operador_obj else 'viewer'
-                        
-                        peso_operador = weights_map.get(str(rol_operador_str).lower().strip(), 0)
-                        peso_destino = weights_map.get(str(r.role).lower().strip(), 0)
+                if not es_el_seleccionado:
+                    continue
 
-                        if str(r.user.id) == str(request_user.id):
-                            bloqueo_visual = True
-                            motivo_bloqueo = "auto_lock"
-                        elif r.role == 'owner':
-                            bloqueo_visual = True
-                            motivo_bloqueo = "owner_lock"
-                        elif peso_destino >= peso_operador:
-                            bloqueo_visual = True
-                            motivo_bloqueo = "weight_lock"
+                permisos_raw = r.permissions_list or []
 
-                    usuario_enfocado_data = {
-                        'usuario': r.user,
-                        'rol_actual': r.role,
-                        'permisos': payload_llaves,
-                        'bloqueo_visual': bloqueo_visual or (not r.is_active),
-                        'motivo_bloqueo': "suspended_lock" if not r.is_active else motivo_bloqueo
-                    }
+                permisos_usuario_lista = [
+                    permiso
+                    for permiso in permisos_raw
+                    if permiso in catalogo_permisos
+                ]
 
-            if is_manager_global:
-                usuarios_ya_asignados = UserAppRole.objects.filter(app=app_module).values_list('user_id', flat=True)
-                usuarios_potenciales = User.objects.filter(is_active=True, is_superuser=False, is_manager=False).exclude(id__in=usuarios_ya_asignados).order_by('first_name')
+                if rol_actual == "owner":
+                    permisos_permitidos_por_rol = list(catalogo_permisos.keys())
+                else:
+                    permisos_permitidos_por_rol = list(
+                        role_mapping.get(
+                            rol_actual,
+                            ["has_access_module"],
+                        )
+                    )
+
+                if "has_access_module" not in permisos_permitidos_por_rol:
+                    permisos_permitidos_por_rol.append("has_access_module")
+
+                payload_llaves = []
+
+                for code, desc in catalogo_permisos.items():
+                    if code not in permisos_permitidos_por_rol:
+                        continue
+
+                    obligatorio_by_role = (
+                        code == "has_access_module"
+                        or rol_actual == "owner"
+                    )
+
+                    payload_llaves.append({
+                        "llave": code,
+                        "descripcion": desc,
+                        "concedido_total": (
+                            code in permisos_usuario_lista
+                            or obligatorio_by_role
+                        ),
+                        "obligatorio_by_role": obligatorio_by_role,
+                    })
+
+                bloqueo_visual = False
+                motivo_bloqueo = "none"
+
+                if not is_manager_global and request_user:
+                    peso_destino = weights_map.get(rol_actual, 0)
+
+                    if str(r.user.id) == str(request_user.id):
+                        bloqueo_visual = True
+                        motivo_bloqueo = "auto_lock"
+
+                    elif rol_actual == "owner":
+                        bloqueo_visual = True
+                        motivo_bloqueo = "owner_lock"
+
+                    elif peso_destino >= peso_operador:
+                        bloqueo_visual = True
+                        motivo_bloqueo = "weight_lock"
+
+                if not r.is_active:
+                    bloqueo_visual = True
+                    motivo_bloqueo = "suspended_lock"
+
+                usuario_enfocado_data = {
+                    "usuario": r.user,
+                    "rol_actual": rol_actual,
+                    "rol_label": rol_actual.replace("_", " ").title(),
+                    "permisos": payload_llaves,
+                    "bloqueo_visual": bloqueo_visual,
+                    "motivo_bloqueo": motivo_bloqueo,
+                    "is_suspended": not r.is_active,
+                    "peso_destino": weights_map.get(rol_actual, 0),
+                    "peso_operador": peso_operador,
+                }
+
+            puede_gobernar_app = (
+                is_manager_global
+                or operador_es_owner_de_app
+            )
+
+            if puede_gobernar_app:
+                usuarios_ya_asignados = (
+                    UserAppRole.objects
+                    .filter(
+                        app=app_module,
+                        is_deleted=False,
+                    )
+                    .values_list("user_id", flat=True)
+                )
+
+                usuarios_potenciales = (
+                    User.objects
+                    .filter(
+                        is_active=True,
+                        is_deleted=False,
+                        is_superuser=False,
+                        is_manager=False,
+                    )
+                    .exclude(id__in=usuarios_ya_asignados)
+                    .order_by(
+                        "first_name",
+                        "last_name",
+                        "email",
+                    )
+                )
+
                 mostrar_buscador = True
             else:
-                usuarios_potenciales = None
+                usuarios_potenciales = User.objects.none()
                 mostrar_buscador = False
 
-            roles_grilla = [(rol_key, rol_key.upper()) for rol_key in role_mapping.keys() if rol_key != 'owner' or is_manager_global]
+            roles_grilla = []
+
+            for rol_key in role_mapping.keys():
+                rol_limpio = str(rol_key).lower().strip()
+
+                if rol_limpio == "owner" and not is_manager_global:
+                    continue
+
+                roles_grilla.append((
+                    rol_limpio,
+                    rol_limpio.replace("_", " ").title(),
+                ))
 
             return {
-                'personal_list': personal_list,
-                'usuario_enfocado': usuario_enfocado_data,
-                'roles_choices': roles_grilla,
-                'role_mapping': role_mapping,
-                'mostrar_buscador': mostrar_buscador,
-                'usuarios_potenciales': usuarios_potenciales
+                "personal_list": personal_list,
+                "usuario_enfocado": usuario_enfocado_data,
+                "roles_choices": roles_grilla,
+                "role_mapping": role_mapping,
+                "weights_map": weights_map,
+                "mostrar_buscador": mostrar_buscador,
+                "usuarios_potenciales": usuarios_potenciales,
+                "puede_gobernar_app": puede_gobernar_app,
+                "operador_es_owner_de_app": operador_es_owner_de_app,
             }
+
         except Exception as e:
-            logger.error(f"❌ Error crítico en get_secured_matrix_data: {str(e)}\n{traceback.format_exc()}")
-            return {'personal_list': [], 'usuario_enfocado': None, 'roles_choices': [], 'role_mapping': {}, 'mostrar_buscador': False, 'usuarios_potenciales': None}
+            logger.error(
+                f"❌ Error crítico en get_secured_matrix_data: {str(e)}\n{traceback.format_exc()}"
+            )
+
+            return {
+                "personal_list": [],
+                "usuario_enfocado": None,
+                "roles_choices": [],
+                "role_mapping": {},
+                "weights_map": {},
+                "mostrar_buscador": False,
+                "usuarios_potenciales": User.objects.none(),
+                "puede_gobernar_app": False,
+                "operador_es_owner_de_app": False,
+            }
+        
         
     @classmethod
     def listar_matriz_forense_global(cls, filtros) -> list:
-        """🪙 RAM FORENSIC ENGINE: Extrae la plantilla operativa masiva."""
+        """
+        Motor forense global.
+
+        Devuelve una matriz de usuarios vs aplicaciones con:
+        - accesos_modulos: dict slug_app -> bool
+        - owners_modulos: dict slug_app -> bool
+        - roles_por_modulo: dict slug_app -> role
+        """
+
         try:
             usuarios_queryset = (
-                User.objects.filter(is_superuser=False)
+                User.objects
+                .filter(is_superuser=False)
                 .select_related(
-                    'axentra_profile', 
-                    'axentra_profile__area', 
-                    'axentra_profile__area__dependencia', 
-                    'axentra_profile__area__sede_fisica'
+                    "axentra_profile",
+                    "axentra_profile__area",
+                    "axentra_profile__area__dependencia",
+                    "axentra_profile__area__sede_fisica",
                 )
-                .order_by('-date_joined')
+                .order_by("-date_joined")
             )
-            
-            if filtros.get('q'):
-                q_filter = filtros.get('q')
-                usuarios_queryset = usuarios_queryset.filter(
-                    db_models.Q(email__icontains=q_filter) | 
-                    db_models.Q(first_name__icontains=q_filter) | 
-                    db_models.Q(last_name__icontains=q_filter)
-                )
-                
-            sede_id = filtros.get('sede_id')
-            dependencia_id = filtros.get('dependencia_id')
-            area_id = filtros.get('area_id')
-            
-            if sede_id:
-                usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__sede_fisica_id=sede_id)
-            if dependencia_id:
-                usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__dependencia_id=dependencia_id)
-            if area_id:
-                usuarios_queryset = usuarios_queryset.filter(axentra_profile__area__id=area_id)
 
-            todos_los_roles = UserAppRole.objects.filter(is_active=True).select_related('app')
+            if filtros.get("q"):
+                q_filter = filtros.get("q")
+
+                usuarios_queryset = usuarios_queryset.filter(
+                    db_models.Q(email__icontains=q_filter)
+                    | db_models.Q(first_name__icontains=q_filter)
+                    | db_models.Q(last_name__icontains=q_filter)
+                )
+
+            sede_id = filtros.get("sede_id")
+            dependencia_id = filtros.get("dependencia_id")
+            area_id = filtros.get("area_id")
+
+            if sede_id:
+                usuarios_queryset = usuarios_queryset.filter(
+                    axentra_profile__area__sede_fisica_id=sede_id,
+                )
+
+            if dependencia_id:
+                usuarios_queryset = usuarios_queryset.filter(
+                    axentra_profile__area__dependencia_id=dependencia_id,
+                )
+
+            if area_id:
+                usuarios_queryset = usuarios_queryset.filter(
+                    axentra_profile__area_id=area_id,
+                )
+
+            todos_los_roles = (
+                UserAppRole.objects
+                .filter(
+                    is_deleted=False,
+                    app__is_active=True,
+                    app__is_deleted=False,
+                )
+                .select_related("app")
+            )
+
             matriz_seguridad_ram = {}
+
             for rol in todos_los_roles:
                 if rol.user_id not in matriz_seguridad_ram:
                     matriz_seguridad_ram[rol.user_id] = {}
+
                 matriz_seguridad_ram[rol.user_id][rol.app.slug] = {
-                    'role': rol.role,
-                    'permisos': rol.permissions_list or []
+                    "role": str(rol.role or "").lower().strip(),
+                    "permisos": rol.permissions_list or [],
+                    "is_active": rol.is_active,
                 }
 
             plantilla_final_funcionarios = []
-            particulas_ignorar = {'de', 'la', 'el', 'y', 'los', 'las', 'en', 'para'}
+            particulas_ignorar = {
+                "de",
+                "la",
+                "el",
+                "y",
+                "los",
+                "las",
+                "en",
+                "para",
+            }
 
             for user in usuarios_queryset:
                 roles_usuario = matriz_seguridad_ram.get(user.id, {})
+
                 accesos_modulos = {}
-                owners_modulos = {}  
-                
+                owners_modulos = {}
+                roles_por_modulo = {}
+                suspendidos_modulos = {}
+
                 for slug, _ in AppIdentifier.get_choices():
-                    if getattr(user, 'is_manager', False):
+                    if getattr(user, "is_manager", False):
                         accesos_modulos[slug] = True
                         owners_modulos[slug] = False
-                    else:
-                        datos_rol = roles_usuario.get(slug, {})
-                        permisos_list = datos_rol.get('permisos', [])
-                        rol_str = datos_rol.get('role', '')
-                        
-                        accesos_modulos[slug] = (rol_str == "owner") or ("has_access_module" in permisos_list)
-                        owners_modulos[slug] = (rol_str == "owner")
-                
-                profile = getattr(user, 'axentra_profile', None)
-                area = getattr(profile, 'area', None) if profile else None
-                dependencia = getattr(area, 'dependencia', None) if area else None
-                
-                if dependencia and dependencia.slug:
-                    palabras = dependencia.slug.split('-')
-                    letras_clave = [p[0].upper() for p in palabras if p and p not in particulas_ignorar]
-                    dep_siglas = "".join(letras_clave) if len(letras_clave) > 1 else dependencia.slug[:4].upper()
+                        roles_por_modulo[slug] = "manager"
+                        suspendidos_modulos[slug] = False
+                        continue
+
+                    datos_rol = roles_usuario.get(slug, {})
+
+                    rol_str = str(
+                        datos_rol.get("role", "")
+                    ).lower().strip()
+
+                    permisos_list = datos_rol.get("permisos", []) or []
+                    rol_activo = datos_rol.get("is_active", False)
+
+                    tiene_acceso = (
+                        rol_activo
+                        and (
+                            rol_str == "owner"
+                            or "has_access_module" in permisos_list
+                        )
+                    )
+
+                    accesos_modulos[slug] = tiene_acceso
+                    owners_modulos[slug] = rol_activo and rol_str == "owner"
+                    roles_por_modulo[slug] = rol_str if tiene_acceso else ""
+                    suspendidos_modulos[slug] = bool(rol_str and not rol_activo)
+
+                profile = getattr(user, "axentra_profile", None)
+                area = getattr(profile, "area", None) if profile else None
+                dependencia = getattr(area, "dependencia", None) if area else None
+
+                if dependencia and getattr(dependencia, "slug", None):
+                    palabras = dependencia.slug.split("-")
+
+                    letras_clave = [
+                        palabra[0].upper()
+                        for palabra in palabras
+                        if palabra and palabra not in particulas_ignorar
+                    ]
+
+                    dep_siglas = (
+                        "".join(letras_clave)
+                        if len(letras_clave) > 1
+                        else dependencia.slug[:4].upper()
+                    )
+
                 else:
-                    dep_siglas = 'MUNI'
+                    dep_siglas = "MUNI"
 
                 plantilla_final_funcionarios.append({
-                    'full_name': user.get_full_name() or user.username,
-                    'email': user.email,
-                    'profile_id': profile.id if profile else None,
-                    'is_email_verified': getattr(user, 'is_email_verified', False),
-                    'is_manager': getattr(user, 'is_manager', False),
-                    'sede_nombre': area.sede_fisica.nombre if area and getattr(area, 'sede_fisica', None) else '',
-                    'dependencia_siglas': dep_siglas,
-                    'area_nombre': area.nombre if area else '',
-                    'accesos_modulos': accesos_modulos,
-                    'owners_modulos': owners_modulos
+                    "id": user.id,
+                    "full_name": user.get_full_name() or user.username,
+                    "email": user.email,
+                    "profile_id": profile.id if profile else None,
+                    "is_email_verified": getattr(user, "is_email_verified", False),
+                    "is_manager": getattr(user, "is_manager", False),
+
+                    "sede_nombre": (
+                        area.sede_fisica.nombre
+                        if area and getattr(area, "sede_fisica", None)
+                        else ""
+                    ),
+                    "dependencia_siglas": dep_siglas,
+                    "area_nombre": area.nombre if area else "",
+
+                    "accesos_modulos": accesos_modulos,
+                    "owners_modulos": owners_modulos,
+                    "roles_por_modulo": roles_por_modulo,
+                    "suspendidos_modulos": suspendidos_modulos,
                 })
 
             return plantilla_final_funcionarios
+
         except Exception as e:
-            logger.error(f"❌ Error masivo en listar_matriz_forense_global: {str(e)}\n{traceback.format_exc()}")
+            logger.error(
+                f"❌ Error masivo en listar_matriz_forense_global: {str(e)}\n{traceback.format_exc()}"
+            )
             return []

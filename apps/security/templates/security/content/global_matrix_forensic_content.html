@@ -1,0 +1,162 @@
+{% load axentra_ui %}
+
+{% url 'security:global_matrix_forensic' as forensic_endpoint %}
+
+<div class="space-y-5 md:space-y-6 pb-24 md:pb-16 w-full animate-fade-in select-none">
+
+    <section class="rounded-2xl border border-gray-200/80 bg-white px-5 py-5 md:px-6 md:py-6 shadow-sm">
+        <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+
+            <div class="flex items-start gap-4 min-w-0">
+                <div class="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+                    <i data-lucide="scan-search" class="h-5 w-5"></i>
+                </div>
+
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">
+                            Security Audit
+                        </span>
+
+                        <span class="inline-flex items-center rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-blue-700 font-mono">
+                            Control Perimetral
+                        </span>
+                    </div>
+
+                    <h1 class="mt-2 text-xl md:text-2xl font-black text-gray-950 uppercase tracking-tight leading-none font-mono">
+                        Matriz de Accesos Multi-App
+                    </h1>
+
+                    <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono max-w-5xl">
+                        Visor maestro de privilegios. Inspecciona accesos concedidos por aplicación, verificación y adscripción orgánica.
+                    </p>
+                </div>
+            </div>
+
+            <div class="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 font-mono">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                Forensic Scan
+            </div>
+
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-gray-200/80 bg-white px-4 py-3 shadow-sm">
+
+        <form
+            method="GET"
+            action="{{ forensic_endpoint }}"
+            hx-get="{{ forensic_endpoint }}"
+            hx-target="#forensic-matrix-results"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="flex flex-col xl:flex-row xl:items-center gap-2"
+        >
+
+            <div class="relative flex-1 min-w-[220px]">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ current_q }}"
+                    placeholder="Buscar funcionario o correo..."
+                    class="w-full h-10 rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-3 text-[12px] font-bold text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-950/10"
+                >
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 xl:flex gap-2">
+
+                <select
+                    name="sede"
+                    class="h-10 w-full xl:w-44 rounded-xl border border-gray-200 bg-gray-50 px-3 text-[10px] font-black uppercase tracking-wider text-gray-600 font-mono focus:outline-none"
+                    title="Sede"
+                >
+                    <option value="">Todas las sedes</option>
+                    {% for sede in sedes %}
+                        <option value="{{ sede.id }}" {% if current_sede == sede.id|stringformat:"s" %}selected{% endif %}>
+                            {{ sede.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <select
+                    name="dependencia"
+                    class="h-10 w-full xl:w-52 rounded-xl border border-gray-200 bg-gray-50 px-3 text-[10px] font-black uppercase tracking-wider text-gray-600 font-mono focus:outline-none"
+                    title="Dependencia"
+                >
+                    <option value="">Todas las dependencias</option>
+                    {% for dep in dependencias %}
+                        <option value="{{ dep.id }}" {% if current_dep == dep.id|stringformat:"s" %}selected{% endif %}>
+                            {{ dep.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <select
+                    name="area"
+                    class="h-10 w-full xl:w-52 rounded-xl border border-gray-200 bg-gray-50 px-3 text-[10px] font-black uppercase tracking-wider text-gray-600 font-mono focus:outline-none"
+                    title="Área operativa"
+                >
+                    <option value="">Todas las áreas</option>
+                    {% for area in areas_operativas %}
+                        <option value="{{ area.id }}" {% if current_area == area.id|stringformat:"s" %}selected{% endif %}>
+                            {{ area.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+                <button
+                    type="submit"
+                    class="h-10 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-slate-900 active:scale-95 font-mono"
+                >
+                    <i data-lucide="scan-search" class="w-3.5 h-3.5 text-slate-400"></i>
+                    Buscar
+                </button>
+
+                <a
+                    href="{{ forensic_endpoint }}"
+                    hx-get="{{ forensic_endpoint }}"
+                    hx-target="#page-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    class="h-10 inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-950 font-mono"
+                >
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-gray-400"></i>
+                     
+                </a>
+            </div>
+
+        </form>
+
+    </section>
+
+    <div class="flex items-center -mt-2">
+        <span class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.15em]">
+            // Motor Perimetral
+        </span>
+    </div>
+
+    <div id="forensic-matrix-results" class="w-full animate-fade-in">
+        {% include "security/partials/global_matrix_results_partial.html" %}
+    </div>
+
+</div>
+
+<script>
+    if (typeof lucide !== "undefined") {
+        lucide.createIcons();
+    }
+
+    document.body.addEventListener("htmx:afterSwap", function(evt) {
+        if (
+            evt.detail.target.id === "forensic-matrix-results"
+            && typeof lucide !== "undefined"
+        ) {
+            lucide.createIcons();
+        }
+    });
+</script>

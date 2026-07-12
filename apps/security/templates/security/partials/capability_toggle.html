@@ -1,0 +1,10 @@
+<div
+    hx-post="{% url 'security:toggle_capability' cap.dependencia.id app_activa.id %}"
+    hx-trigger="click"
+    hx-target="this"
+    hx-swap="outerHTML"
+    hx-include="closest form"
+    class="{% if mobile %}w-10 h-5 p-0.5{% else %}w-11 h-6 p-1{% endif %} flex items-center {% if field_value %}{{ color_on }} justify-end{% else %}bg-gray-200 justify-start{% endif %} rounded-full cursor-pointer transition-all duration-300 transform active:scale-95 shadow-sm"
+>
+    <div class="{% if mobile %}w-3.5 h-3.5{% else %}w-4 h-4{% endif %} bg-white rounded-full shadow-md"></div>
+</div>
