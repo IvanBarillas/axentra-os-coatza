@@ -1761,21 +1761,34 @@ def descargar_auditoria_excel_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@axentra_gate_enforcer(
+    AppIdentifier.CONFIGURATION,
+    required_fine_permission="can_configure_tenant",
+)
+@login_required
+@axentra_gate_enforcer(
+    AppIdentifier.CONFIGURATION,
+    required_fine_permission="can_configure_tenant",
+)
 def tenant_config_view(request):
     """
     Gobernanza central de identidad institucional / tenant.
 
-    - GET normal: página completa.
-    - GET HTMX: contenido para #page-content.
-    - POST normal: guarda y redirige a identidad.
-    - POST HTMX: guarda y repinta identidad con messages_oob.
+    - GET normal: página completa de Configuración.
+    - GET HTMX target #workbench: layout con sidebar secundario de Configuración.
+    - GET HTMX target #page-content: sólo contenido de identidad institucional.
+    - POST normal: guarda y redirige a la propia identidad institucional.
+    - POST HTMX: guarda y repinta identidad con messages_oob dentro de Configuración.
     """
 
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
-    config_instancia = TenantConfig.objects.first()
+    config_instancia = (
+        TenantConfig.objects
+        .select_related("municipality")
+        .first()
+    )
 
     if not config_instancia:
         config_instancia = TenantConfig.objects.create(
@@ -1793,15 +1806,16 @@ def tenant_config_view(request):
 
         if form.is_valid():
             config_actualizada = form.save()
+            config_actualizada.refresh_from_db()
 
             ForensicAuditor.registrar_evento(
                 request=request,
                 action_type=SecurityAuditLog.ActionTypes.UPDATE,
-                module_component="IDENTIDAD_GLOBAL",
+                module_component="CONFIGURACION_INSTITUCIONAL",
                 action_name="RECONFIGURACION_TENANT_CORE",
                 target_scope=(
-                    "Modificación de activos de marca, logotipos, colores "
-                    "o información legal de la entidad."
+                    "Modificación de identidad institucional, municipio oficial, "
+                    "logotipos, colores o información legal de la entidad."
                 ),
                 level=SecurityAuditLog.Levels.CRITICAL,
                 search_target=config_actualizada.siglas,
@@ -1844,9 +1858,9 @@ def tenant_config_view(request):
                 context = {
                     "form": form,
                     "config": config_actualizada,
-                    "modulo_actual": AppIdentifier.SECURITY,
+                    "modulo_actual": AppIdentifier.CONFIGURATION,
                     "show_module_sidebar": True,
-                    "current_security_view": "security:tenant_config",
+                    "current_configuration_view": "security:tenant_config",
                 }
 
                 response = render(
@@ -1855,15 +1869,11 @@ def tenant_config_view(request):
                     context,
                 )
 
-                response["HX-Push-Url"] = reverse(
-                    "security:tenant_config",
-                )
+                response["HX-Push-Url"] = reverse("security:tenant_config")
 
                 return response
 
-            return redirect(
-                "security:tenant_config",
-            )
+            return redirect("security:tenant_config")
 
         messages.error(
             request,
@@ -1878,9 +1888,9 @@ def tenant_config_view(request):
     context = {
         "form": form,
         "config": config_instancia,
-        "modulo_actual": AppIdentifier.SECURITY,
+        "modulo_actual": AppIdentifier.CONFIGURATION,
         "show_module_sidebar": True,
-        "current_security_view": "security:tenant_config",
+        "current_configuration_view": "security:tenant_config",
     }
 
     if is_htmx and target_htmx == "workbench":
@@ -1902,3 +1912,4 @@ def tenant_config_view(request):
         "security/pages/tenant_config.html",
         context,
     )
+    

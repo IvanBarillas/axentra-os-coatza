@@ -100,22 +100,7 @@
             <span>Telemetría</span>
         </a>
 
-        <a
-            href="{{ tenant_url }}"
-            hx-get="{{ tenant_url }}"
-            hx-target="#page-content"
-            hx-swap="innerHTML"
-            hx-push-url="true"
-            class="group flex items-center gap-3 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-wider font-mono transition
-            {% if current_security_view == 'security:tenant_config' %}
-                bg-slate-950 text-white shadow-sm
-            {% else %}
-                text-gray-500 hover:bg-gray-50 hover:text-gray-950
-            {% endif %}"
-        >
-            <i data-lucide="building-2" class="w-4 h-4"></i>
-            <span>Identidad Tenant</span>
-        </a>
+        
 
     </nav>
 

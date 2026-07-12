@@ -15,6 +15,7 @@ from apps.security.models import (
     UserAppRole,
     Municipality,
     TenantConfig,
+    OfficialParameter,
     SecurityAuditLog,
 )
 
@@ -619,6 +620,69 @@ class MunicipalityAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
 
     readonly_fields = AxentraBaseAdminMixin.readonly_fields
 
+@admin.register(OfficialParameter)
+class OfficialParameterAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "parameter_type",
+        "year",
+        "name",
+        "code",
+        "display_value",
+        "unit",
+        "valid_from",
+        "valid_to",
+        "is_active",
+        "is_deleted",
+        "created_at",
+        "updated_at",
+    )
+
+    list_filter = (
+        "parameter_type",
+        "year",
+        "unit",
+        "is_active",
+        "is_deleted",
+        "valid_from",
+        "valid_to",
+        "created_at",
+        "updated_at",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+        "parameter_type",
+        "source",
+        "notes",
+    )
+
+    fields = (
+        "id",
+        "parameter_type",
+        "year",
+        "name",
+        "code",
+        "value",
+        "unit",
+        "valid_from",
+        "valid_to",
+        "source",
+        "notes",
+        "is_active",
+        "is_deleted",
+        "deleted_at",
+        "created_at",
+        "updated_at",
+    )
+
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields
+
+    ordering = (
+        "-year",
+        "parameter_type",
+        "name",
+    )
 
 @admin.register(TenantConfig)
 class TenantConfigAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):

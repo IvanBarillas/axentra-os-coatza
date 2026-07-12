@@ -1,6 +1,7 @@
 # apps/security/models/__init__.py
 
 from .accounts import User, UserProfile
+from .configuration import OfficialParameter
 
 from .organigrama import (
     Sede,
@@ -30,5 +31,6 @@ __all__ = [
     "UserAppRole",
     "Municipality",
     "TenantConfig",
+    "OfficialParameter",
     "SecurityAuditLog",
 ]
