@@ -1,6 +1,6 @@
 # apps/security/dtos/organigrama_dtos.py
 import uuid
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, Dict, Any, List
 
 # =========================================================================
@@ -40,9 +40,54 @@ class DependenciaReadOnlyDTO(BaseModel):
 class DependenciaInputDTO(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    nombre: str = Field(..., min_length=3, max_length=150)
-    parent_id: Optional[Any] = Field(None, description="Dependencia padre opcional para jerarquía administrativa.")
-    encargado_departamento_id: Optional[Any] = Field(None, description="Servidor público titular opcional.")
+    nombre: str = Field(
+        ...,
+        min_length=3,
+        max_length=150,
+    )
+
+    codigo_presupuestal: Optional[str] = Field(
+        default="",
+        max_length=3,
+        description="Código presupuestal de 3 dígitos usado para folios patrimoniales. Ejemplo: 012.",
+    )
+
+    parent_id: Optional[Any] = Field(
+        None,
+        description="Dependencia padre opcional para jerarquía administrativa.",
+    )
+
+    encargado_departamento_id: Optional[Any] = Field(
+        None,
+        description="Servidor público titular opcional.",
+    )
+
+    @field_validator("nombre")
+    @classmethod
+    def validar_nombre(cls, value: str) -> str:
+        value = value.strip()
+
+        if len(value) < 3:
+            raise ValueError("El nombre de la dependencia debe tener al menos 3 caracteres.")
+
+        return value
+
+    @field_validator("codigo_presupuestal")
+    @classmethod
+    def validar_codigo_presupuestal(cls, value: Optional[str]) -> str:
+        value = (value or "").strip()
+
+        if not value:
+            return ""
+
+        if not value.isdigit():
+            raise ValueError("El código presupuestal debe contener sólo números.")
+
+        if len(value) > 3:
+            raise ValueError("El código presupuestal no puede tener más de 3 dígitos.")
+
+        return value.zfill(3)
+    
 
 # =========================================================================
 # 🎛️ DOMINIO: AREAS OPERATIVAS (LA MATRIZ TRIPLE)

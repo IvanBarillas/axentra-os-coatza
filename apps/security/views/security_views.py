@@ -1775,14 +1775,14 @@ def tenant_config_view(request):
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
     target_htmx = request.headers.get("HX-Target", "")
 
-    config_instancia, _ = TenantConfig.objects.get_or_create(
-        id=1,
-        defaults={
-            "app_name": "Axentra OS",
-            "entidad_nombre": "H. Ayuntamiento Constitucional",
-            "siglas": "AXN",
-        },
-    )
+    config_instancia = TenantConfig.objects.first()
+
+    if not config_instancia:
+        config_instancia = TenantConfig.objects.create(
+            app_name="Axentra OS",
+            entidad_nombre="H. Ayuntamiento Constitucional",
+            siglas="AXN",
+        )
 
     if request.method == "POST":
         form = TenantConfigForm(
@@ -1811,6 +1811,21 @@ def tenant_config_view(request):
                     "entidad_nombre": config_actualizada.entidad_nombre,
                     "siglas": config_actualizada.siglas,
                     "rfc": getattr(config_actualizada, "rfc", ""),
+                    "municipality_id": (
+                        str(config_actualizada.municipality_id)
+                        if config_actualizada.municipality_id
+                        else None
+                    ),
+                    "municipality_code": (
+                        config_actualizada.municipality.code
+                        if config_actualizada.municipality
+                        else ""
+                    ),
+                    "municipality_name": (
+                        config_actualizada.municipality.name
+                        if config_actualizada.municipality
+                        else ""
+                    ),
                     "operador_id": str(request.user.id),
                     "operador_email": request.user.email,
                 },

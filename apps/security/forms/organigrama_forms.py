@@ -22,28 +22,56 @@ class SedeForm(AxentraFormStylerMixin, forms.ModelForm):
 class DependenciaForm(AxentraFormStylerMixin, forms.ModelForm):
     class Meta:
         model = Dependencia
-        fields = ["nombre", "parent", "encargado_departamento"]
+        fields = [
+            "nombre",
+            "codigo_presupuestal",
+            "parent",
+            "encargado_departamento",
+        ]
+
         widgets = {
-            "nombre": forms.TextInput(attrs={"placeholder": "Ej: Dirección General de Innovación"}),
+            "nombre": forms.TextInput(
+                attrs={
+                    "placeholder": "Ej: Dirección General de Innovación",
+                }
+            ),
+            "codigo_presupuestal": forms.TextInput(
+                attrs={
+                    "placeholder": "Ej: 012",
+                    "maxlength": "3",
+                    "inputmode": "numeric",
+                }
+            ),
             "parent": forms.Select(),
             "encargado_departamento": forms.Select(),
         }
+
         labels = {
             "nombre": "Nombre de la dependencia",
+            "codigo_presupuestal": "Código presupuestal",
             "parent": "Dependencia padre",
             "encargado_departamento": "Servidor público titular",
         }
 
+        help_texts = {
+            "codigo_presupuestal": "Clave de 3 dígitos usada para folios patrimoniales ORFIS/SIGMAVER. Ejemplo: 012.",
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         instancia_actual = self.instance if self.instance and self.instance.pk else None
         dependencias_padre = Dependencia.objects.filter(is_deleted=False).order_by("nombre")
 
         if instancia_actual:
             dependencias_padre = dependencias_padre.exclude(pk=instancia_actual.pk)
             ids_descendientes = self._obtener_ids_descendientes(instancia_actual)
+
             if ids_descendientes:
                 dependencias_padre = dependencias_padre.exclude(pk__in=ids_descendientes)
+
+        if self.fields.get("codigo_presupuestal"):
+            self.fields["codigo_presupuestal"].required = False
 
         if self.fields.get("parent"):
             self.fields["parent"].queryset = dependencias_padre
@@ -56,15 +84,43 @@ class DependenciaForm(AxentraFormStylerMixin, forms.ModelForm):
 
         self.aplicar_estilos_institucionales()
 
+    def clean_codigo_presupuestal(self):
+        codigo = (self.cleaned_data.get("codigo_presupuestal") or "").strip()
+
+        if not codigo:
+            return ""
+
+        if not codigo.isdigit():
+            raise forms.ValidationError("El código presupuestal debe contener sólo números.")
+
+        if len(codigo) > 3:
+            raise forms.ValidationError("El código presupuestal no puede tener más de 3 dígitos.")
+
+        codigo = codigo.zfill(3)
+
+        queryset = Dependencia.objects.filter(
+            codigo_presupuestal=codigo,
+            is_deleted=False,
+        )
+
+        if self.instance and self.instance.pk:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        if queryset.exists():
+            raise forms.ValidationError("Ya existe una dependencia con este código presupuestal.")
+
+        return codigo
+
     def clean_parent(self):
         parent = self.cleaned_data.get("parent")
+
         if not parent:
             return parent
 
         if self.instance and self.instance.pk:
             if parent.pk == self.instance.pk:
                 raise forms.ValidationError("Una dependencia no puede ser padre de sí misma.")
-            
+
             if parent.pk in self._obtener_ids_descendientes(self.instance):
                 raise forms.ValidationError("No puedes asignar como padre una dependencia hija o descendiente.")
 
@@ -79,14 +135,21 @@ class DependenciaForm(AxentraFormStylerMixin, forms.ModelForm):
         pendientes = [dependencia.pk]
 
         while pendientes:
-            hijos = Dependencia.objects.filter(parent_id__in=pendientes, is_deleted=False).values_list("id", flat=True)
+            hijos = Dependencia.objects.filter(
+                parent_id__in=pendientes,
+                is_deleted=False,
+            ).values_list("id", flat=True)
+
             nuevos_ids = set(hijos) - ids_descendientes
+
             if not nuevos_ids:
                 break
+
             ids_descendientes.update(nuevos_ids)
             pendientes = list(nuevos_ids)
 
         return ids_descendientes
+
 
 class AreaOperativaForm(AxentraFormStylerMixin, forms.ModelForm):
     class Meta:

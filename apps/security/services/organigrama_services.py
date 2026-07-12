@@ -121,8 +121,8 @@ class OrganigramaService:
         payload: Dict[str, Any],
     ) -> Tuple[bool, Optional[Dependencia], Optional[Dict[str, Any]]]:
         """
-        Inyección de una dependencia administrativa validada por Pydantic DTO
-        con soporte de jerarquía parent y bitácora forense.
+        Crea una dependencia administrativa validada por DTO,
+        con soporte de jerarquía, titular y código presupuestal.
         """
 
         try:
@@ -137,6 +137,7 @@ class OrganigramaService:
             with transaction.atomic():
                 nueva_dep = Dependencia.objects.create(
                     nombre=input_dto.nombre,
+                    codigo_presupuestal=input_dto.codigo_presupuestal or "",
                     parent_id=input_dto.parent_id,
                     encargado_departamento_id=input_dto.encargado_departamento_id,
                     is_active=True,
@@ -157,6 +158,7 @@ class OrganigramaService:
                     payload={
                         "dependencia_id": str(nueva_dep.id),
                         "nombre_dependencia": nueva_dep.nombre,
+                        "codigo_presupuestal": nueva_dep.codigo_presupuestal,
                         "parent_id": (
                             str(nueva_dep.parent_id)
                             if nueva_dep.parent_id
@@ -171,21 +173,13 @@ class OrganigramaService:
                     },
                 )
 
-            logger.info(
-                f"🏛️ AXENTRA OS: Dependencia '{nueva_dep.nombre}' dada de alta exitosamente. "
-                f"Parent=[{nueva_dep.parent_id}]"
-            )
-
             return True, nueva_dep, None
 
         except Exception as e:
-            logger.error(
-                f"❌ TRANSACCIÓN FALLIDA (Crear Dependencia): {str(e)}"
-            )
-
             return False, None, {
                 "server_error": [str(e)],
             }
+
 
     @staticmethod
     def actualizar_dependencia(
@@ -194,13 +188,14 @@ class OrganigramaService:
         payload: Dict[str, Any],
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """
-        Modificación estructural de nomenclatura, jerarquía o titular
+        Actualiza nomenclatura, código presupuestal, jerarquía o titular
         de una dependencia administrativa.
         """
 
         try:
             snapshot_anterior = {
                 "nombre": dep_instancia.nombre,
+                "codigo_presupuestal": dep_instancia.codigo_presupuestal,
                 "parent_id": (
                     str(dep_instancia.parent_id)
                     if dep_instancia.parent_id
@@ -215,17 +210,21 @@ class OrganigramaService:
 
             with transaction.atomic():
                 dep_instancia.nombre = payload.get("nombre")
+                dep_instancia.codigo_presupuestal = payload.get(
+                    "codigo_presupuestal",
+                    "",
+                )
                 dep_instancia.parent_id = payload.get("parent_id")
                 dep_instancia.encargado_departamento_id = payload.get(
                     "encargado_departamento_id"
                 )
 
                 dep_instancia.save()
-
                 dep_instancia.refresh_from_db()
 
                 snapshot_nuevo = {
                     "nombre": dep_instancia.nombre,
+                    "codigo_presupuestal": dep_instancia.codigo_presupuestal,
                     "parent_id": (
                         str(dep_instancia.parent_id)
                         if dep_instancia.parent_id
@@ -262,21 +261,13 @@ class OrganigramaService:
                     payload=payload_delta,
                 )
 
-            logger.info(
-                f"🏛️ AXENTRA OS: Dependencia '{dep_instancia.nombre}' actualizada correctamente. "
-                f"Parent=[{dep_instancia.parent_id}]"
-            )
-
             return True, None
 
         except Exception as e:
-            logger.error(
-                f"❌ TRANSACCIÓN FALLIDA (Actualizar Dependencia): {str(e)}"
-            )
-
             return False, {
                 "server_error": [str(e)],
             }
+            
 
     # =========================================================================
     # 🎛️ OPERACIONES DE ESCRITURA: ÁREAS OPERATIVAS (OFICINAS INTERNAS)
