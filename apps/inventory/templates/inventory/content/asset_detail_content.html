@@ -1,0 +1,180 @@
+<section class="min-h-full bg-slate-50 p-6">
+    <div class="mx-auto max-w-7xl space-y-6">
+
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <a
+                    href="{% url 'inventory:asset_list' %}"
+                    hx-get="{% url 'inventory:asset_list' %}"
+                    hx-target="#page-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    class="text-sm font-bold text-slate-500 hover:text-slate-900"
+                >
+                    ← Volver al listado
+                </a>
+
+                <h1 class="mt-2 text-3xl font-black text-slate-900">
+                    {{ asset.inventory_number }}
+                </h1>
+                <p class="mt-1 text-sm text-slate-500">
+                    {{ asset.name }}
+                </p>
+            </div>
+
+            <span class="rounded-full bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-wide text-white">
+                {{ asset.get_lifecycle_status_display }}
+            </span>
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-3">
+            <div class="space-y-6 lg:col-span-2">
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-black text-slate-900">
+                        Identidad patrimonial
+                    </h2>
+
+                    <dl class="mt-5 grid gap-4 md:grid-cols-2">
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Categoría</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.category.name }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Cuenta contable</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.accounting_account|default:"Sin cuenta" }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Tipo de control</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.get_control_type_display }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Condición física</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.get_physical_condition_display }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Marca</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.manufacturer|default:"Sin fabricante" }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Modelo</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.model|default:"Sin modelo" }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Serie</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.serial_number|default:"Sin serie" }}</dd>
+                        </div>
+
+                        <div>
+                            <dt class="text-xs font-black uppercase text-slate-400">Capitalizable</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-900">
+                                {% if asset.is_capitalizable %}Sí{% else %}No{% endif %}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-black text-slate-900">
+                        Ficha técnica tipo GLPI
+                    </h2>
+
+                    {% if asset.technical_profile %}
+                        <dl class="mt-5 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <dt class="text-xs font-black uppercase text-slate-400">Tipo técnico</dt>
+                                <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.technical_profile.get_technical_type_display }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-black uppercase text-slate-400">Hostname</dt>
+                                <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.technical_profile.hostname|default:"-" }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-black uppercase text-slate-400">IP</dt>
+                                <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.technical_profile.ip_address|default:"-" }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-black uppercase text-slate-400">MAC</dt>
+                                <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.technical_profile.mac_address|default:"-" }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-black uppercase text-slate-400">Sistema</dt>
+                                <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.technical_profile.operating_system|default:"-" }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-black uppercase text-slate-400">RAM</dt>
+                                <dd class="mt-1 text-sm font-bold text-slate-900">{{ asset.technical_profile.ram_gb|default:"-" }} GB</dd>
+                            </div>
+                        </dl>
+                    {% else %}
+                        <p class="mt-4 text-sm text-slate-500">
+                            Este activo aún no tiene ficha técnica.
+                        </p>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <aside class="space-y-6">
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-black text-slate-900">
+                        Resguardo actual
+                    </h2>
+
+                    <div class="mt-4 space-y-3 text-sm">
+                        <div>
+                            <p class="text-xs font-black uppercase text-slate-400">Resguardatario</p>
+                            <p class="font-bold text-slate-900">
+                                {% if asset.current_custodian %}
+                                    {{ asset.current_custodian.get_full_name|default:asset.current_custodian.email }}
+                                {% else %}
+                                    Sin resguardatario
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-black uppercase text-slate-400">Dependencia</p>
+                            <p class="font-bold text-slate-900">{{ asset.dependencia|default:"-" }}</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-black uppercase text-slate-400">Área</p>
+                            <p class="font-bold text-slate-900">{{ asset.area|default:"-" }}</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-black uppercase text-slate-400">Sede</p>
+                            <p class="font-bold text-slate-900">{{ asset.sede|default:"-" }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-black text-slate-900">
+                        Valor patrimonial
+                    </h2>
+
+                    <div class="mt-4 space-y-3">
+                        <div class="rounded-2xl bg-slate-50 p-4">
+                            <p class="text-xs font-black uppercase text-slate-400">Costo adquisición</p>
+                            <p class="mt-1 text-2xl font-black text-slate-900">${{ asset.acquisition_cost }}</p>
+                        </div>
+
+                        <div class="rounded-2xl bg-slate-50 p-4">
+                            <p class="text-xs font-black uppercase text-slate-400">Base depreciable</p>
+                            <p class="mt-1 text-2xl font-black text-slate-900">${{ asset.depreciable_base }}</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+    </div>
+</section>

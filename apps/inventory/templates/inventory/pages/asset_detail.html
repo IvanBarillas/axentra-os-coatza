@@ -1,0 +1,7 @@
+{% extends "shell/base.html" %}
+
+{% block title %}Expediente {{ asset.inventory_number }}{% endblock %}
+
+{% block workbench %}
+    {% include "inventory/workbench/asset_detail_workbench.html" %}
+{% endblock %}

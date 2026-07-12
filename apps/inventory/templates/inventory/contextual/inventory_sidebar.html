@@ -1,4 +1,7 @@
 {% url 'inventory:dashboard' as dashboard_url %}
+{% url 'inventory:asset_list' as asset_list_url %}
+{% url 'inventory:asset_create' as asset_create_url %}
+
 
 <aside class="h-full w-72 border-r border-slate-200 bg-white">
     <div class="flex h-full flex-col">
@@ -18,21 +21,55 @@
         <nav class="flex-1 space-y-1 px-3 py-4">
 
             <a
-                href="{{ dashboard_url }}"
-                hx-get="{{ dashboard_url }}"
-                hx-target="#page-content"
-                hx-swap="innerHTML"
-                hx-push-url="true"
-                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition
-                       {% if current_inventory_view == 'inventory:dashboard' %}
-                            bg-slate-900 text-white shadow-sm
-                       {% else %}
-                            text-slate-600 hover:bg-slate-100 hover:text-slate-900
-                       {% endif %}"
-            >
-                <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
-                <span>Panel General</span>
-            </a>
+    href="{{ dashboard_url }}"
+    hx-get="{{ dashboard_url }}"
+    hx-target="#page-content"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition
+           {% if current_inventory_view == 'inventory:dashboard' %}
+                bg-slate-900 text-white shadow-sm
+           {% else %}
+                text-slate-600 hover:bg-slate-100 hover:text-slate-900
+           {% endif %}"
+>
+    <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
+    <span>Panel General</span>
+</a>
+
+<a
+    href="{{ asset_list_url }}"
+    hx-get="{{ asset_list_url }}"
+    hx-target="#page-content"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition
+           {% if current_inventory_view == 'inventory:asset_list' %}
+                bg-slate-900 text-white shadow-sm
+           {% else %}
+                text-slate-600 hover:bg-slate-100 hover:text-slate-900
+           {% endif %}"
+>
+    <i data-lucide="package-search" class="h-4 w-4"></i>
+    <span>Bienes Patrimoniales</span>
+</a>
+
+<a
+    href="{{ asset_create_url }}"
+    hx-get="{{ asset_create_url }}"
+    hx-target="#page-content"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition
+           {% if current_inventory_view == 'inventory:asset_create' %}
+                bg-slate-900 text-white shadow-sm
+           {% else %}
+                text-slate-600 hover:bg-slate-100 hover:text-slate-900
+           {% endif %}"
+>
+    <i data-lucide="plus-circle" class="h-4 w-4"></i>
+    <span>Nuevo Activo</span>
+</a>
 
             <div class="pt-5">
                 <p class="px-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">

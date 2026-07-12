@@ -1,0 +1,1 @@
+from apps.inventory.selectors.asset_selectors import AssetSelectors
