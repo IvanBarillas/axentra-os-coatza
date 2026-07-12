@@ -23,6 +23,8 @@ urlpatterns = [
     # 📡 INTERCONEXIÓN DEL PAQUETE MODULAR DE RUTAS (UN SOLA APP EN DISCO)
     # ==========================================================================
     path('app/', include('apps.security.urls')),
+    
+    path("app/inventory/", include("apps.inventory.urls.inventory_urls")),
 ]
 
 if settings.DEBUG:

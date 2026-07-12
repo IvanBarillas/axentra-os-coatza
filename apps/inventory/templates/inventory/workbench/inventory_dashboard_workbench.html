@@ -1,0 +1,9 @@
+{% extends "shell/workbench.html" %}
+
+{% block module_sidebar %}
+    {% include "inventory/contextual/inventory_sidebar.html" %}
+{% endblock %}
+
+{% block page_content %}
+    {% include "inventory/content/inventory_dashboard_content.html" %}
+{% endblock %}

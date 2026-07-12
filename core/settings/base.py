@@ -33,6 +33,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'apps.shared.apps.SharedConfig',
     'apps.security.apps.SecurityConfig',
+    'apps.inventory.apps.InventoryConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

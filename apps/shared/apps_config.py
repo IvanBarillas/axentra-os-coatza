@@ -10,6 +10,7 @@ class AppIdentifier:
     SECURITY = "security"
     ACCOUNTS = "accounts"
     ORGANIGRAMA = "organigrama"
+    INVENTORY = "inventory"
 
     @classmethod
     def get_choices(cls) -> list:
@@ -22,4 +23,5 @@ class AppIdentifier:
             (cls.SECURITY, "Ciberseguridad Central"),
             (cls.ACCOUNTS, "Plantilla de Personal"),
             (cls.ORGANIGRAMA, "Estructura Orgánica"),
+            (cls.INVENTORY, "Inventario Patrimonial"),
         ]
