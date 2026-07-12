@@ -15,7 +15,8 @@
                 {% include "navigation/module_item.html" with title="Usuarios" icon="users" href=accounts_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
             {% endif %}
             {% if is_global_admin or 'security' in allowed_modules %}
-                {% include "navigation/module_item.html" with title="Ciberseguridad" icon="shield-check" href="#" %}
+                {% url 'security:control_panel' as security_url %}
+                {% include "navigation/module_item.html" with title="Ciberseguridad" icon="shield-check" href=security_url  hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
             {% endif %}
         </div>
     </div>

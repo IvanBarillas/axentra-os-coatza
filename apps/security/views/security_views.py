@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse, HttpResponseForbidden
 from django.contrib import messages
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.security.models.organigrama import AreaOperativa, Dependencia, Sede
@@ -28,9 +29,159 @@ logger = logging.getLogger(__name__)
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="has_access_module")
 def security_control_panel_view(request):
-    """Estación base ligera operativa libre de contadores estadísticos pesados."""
-    return render(request, 'security/control_panel.html')
+    """
+    Cockpit central del módulo Security.
 
+    - is_manager ve gobierno global.
+    - owner de app ve sólo las apps bajo su gobierno.
+    - Click desde sidebar global reemplaza #workbench.
+    - Navegación interna reemplaza #page-content.
+    """
+
+    is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
+    target_htmx = request.headers.get("HX-Target", "")
+
+    es_platform_manager = (
+        getattr(request, "axentra_is_root", False)
+        or getattr(request.user, "is_manager", False)
+    )
+
+    roles_owner = (
+        UserAppRole.objects
+        .filter(
+            user=request.user,
+            role="owner",
+            is_active=True,
+        )
+        .select_related("app")
+        .order_by("app__name")
+    )
+
+    if es_platform_manager:
+        apps_gobernadas = (
+            AppModule.objects
+            .filter(is_active=True)
+            .order_by("name")
+        )
+    else:
+        apps_gobernadas = [
+            rol.app
+            for rol in roles_owner
+            if rol.app and rol.app.is_active
+        ]
+
+    apps_gobernadas_ids = [
+        app.id
+        for app in apps_gobernadas
+    ]
+
+    roles_en_alcance = (
+        UserAppRole.objects
+        .filter(
+            app_id__in=apps_gobernadas_ids,
+            is_active=True,
+        )
+        .select_related(
+            "user",
+            "app",
+        )
+    )
+
+    total_apps_gobernadas = len(apps_gobernadas_ids)
+    total_usuarios_con_acceso = (
+        roles_en_alcance
+        .values("user_id")
+        .distinct()
+        .count()
+        if apps_gobernadas_ids
+        else 0
+    )
+
+    total_owners = (
+        roles_en_alcance
+        .filter(role="owner")
+        .values("user_id", "app_id")
+        .distinct()
+        .count()
+        if apps_gobernadas_ids
+        else 0
+    )
+
+    total_roles_suspendidos = (
+        UserAppRole.objects
+        .filter(
+            app_id__in=apps_gobernadas_ids,
+            is_active=False,
+        )
+        .count()
+        if apps_gobernadas_ids
+        else 0
+    )
+
+    apps_sin_owner = []
+
+    if es_platform_manager:
+        for app in apps_gobernadas:
+            tiene_owner = UserAppRole.objects.filter(
+                app=app,
+                role="owner",
+                is_active=True,
+            ).exists()
+
+            if not tiene_owner:
+                apps_sin_owner.append(app)
+
+    resumen_apps = []
+
+    for app in apps_gobernadas:
+        roles_app = roles_en_alcance.filter(app=app)
+
+        resumen_apps.append({
+            "app": app,
+            "total_usuarios": roles_app.values("user_id").distinct().count(),
+            "total_owners": roles_app.filter(role="owner").values("user_id").distinct().count(),
+            "total_operadores": roles_app.exclude(role="owner").values("user_id").distinct().count(),
+            "matrix_url": reverse("security:dynamic_matrix") + f"?app_slug={app.slug}",
+        })
+
+    context = {
+        "modulo_actual": AppIdentifier.SECURITY,
+        "show_module_sidebar": True,
+        "current_security_view": "security:control_panel",
+
+        "es_platform_manager": es_platform_manager,
+        "roles_owner": roles_owner,
+        "apps_gobernadas": apps_gobernadas,
+        "resumen_apps": resumen_apps,
+
+        "total_apps_gobernadas": total_apps_gobernadas,
+        "total_usuarios_con_acceso": total_usuarios_con_acceso,
+        "total_owners": total_owners,
+        "total_roles_suspendidos": total_roles_suspendidos,
+        "apps_sin_owner": apps_sin_owner,
+        "total_apps_sin_owner": len(apps_sin_owner),
+    }
+
+    if is_htmx and target_htmx == "workbench":
+        return render(
+            request,
+            "security/workbench/control_panel_workbench.html",
+            context,
+        )
+
+    if is_htmx and target_htmx == "page-content":
+        return render(
+            request,
+            "security/content/control_panel_content.html",
+            context,
+        )
+
+    return render(
+        request,
+        "security/pages/control_panel.html",
+        context,
+    )
+    
 
 @login_required
 @axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
