@@ -1,10 +1,14 @@
 # apps/security/models/infrastructure.py
-from django.db import models
+
 from django.conf import settings
+from django.db import models
+
 from apps.shared.models import AxentraBaseModel
+
 
 class AppModule(AxentraBaseModel):
     """Inventario de módulos federados en el Core OS."""
+
     name = models.CharField("Nombre del Módulo", max_length=100)
     slug = models.SlugField("Identificador Técnico", unique=True)
     description = models.TextField("Descripción Operativa", blank=True)
@@ -15,7 +19,9 @@ class AppModule(AxentraBaseModel):
         verbose_name_plural = "Módulos Instalados"
         ordering = ["name"]
 
-    def __str__(self): return self.name
+    def __str__(self):
+        return self.name
+
 
 class UserAppRole(AxentraBaseModel):
     """Matriz dinámica de membresías por app con roles declarados por manifiesto."""
@@ -27,24 +33,45 @@ class UserAppRole(AxentraBaseModel):
         REVIEWER = "reviewer", "👁️ Revisor / Auditor"
         VIEWER = "viewer", "👤 Solo Lectura"
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="roles", verbose_name="Funcionario Público")
-    app = models.ForeignKey(AppModule, on_delete=models.CASCADE, related_name="roles", verbose_name="Módulo Autorizado")
-    
-    role = models.CharField(
-        "Rol Funcional en el Módulo", max_length=50, default=ReservedRoles.VIEWER, db_index=True,
-        help_text="Rol declarado en el permissions.py del módulo. Ej: owner, admin, director_rh, sma_manager."
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="roles",
+        verbose_name="Funcionario Público",
     )
-    
+
+    app = models.ForeignKey(
+        AppModule,
+        on_delete=models.CASCADE,
+        related_name="roles",
+        verbose_name="Módulo Autorizado",
+    )
+
+    role = models.CharField(
+        "Rol Funcional en el Módulo",
+        max_length=50,
+        default=ReservedRoles.VIEWER,
+        db_index=True,
+        help_text="Rol declarado en el permissions.py del módulo. Ej: owner, admin, director_rh, sma_manager.",
+    )
+
     permissions_list = models.JSONField(
-        "Lista de Permisos Finos", default=list, blank=True,
-        help_text="Snapshot de permisos finos derivados del rol funcional."
+        "Lista de Permisos Finos",
+        default=list,
+        blank=True,
+        help_text="Snapshot de permisos finos derivados del rol funcional.",
     )
 
     class Meta:
         db_table = "axentra_sec_user_roles"
         verbose_name = "Permiso de Aplicación"
         verbose_name_plural = "Permisos de Aplicaciones"
-        constraints = [models.UniqueConstraint(fields=["user", "app"], name="uq_user_app_role")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "app"],
+                name="uq_user_app_role",
+            )
+        ]
 
     def __str__(self):
         return f"{self.user.email} ➡️ {self.app.name} ({self.role})"
@@ -52,28 +79,164 @@ class UserAppRole(AxentraBaseModel):
     def has_fine_permission(self, permission_string: str) -> bool:
         if not self.is_active or self.is_deleted:
             return False
+
         if self.role == self.ReservedRoles.OWNER:
             return True
+
         return permission_string in (self.permissions_list or [])
+
+
+class Municipality(AxentraBaseModel):
+    """
+    Catálogo municipal para claves oficiales INEGI / ORFIS.
+
+    Ejemplo:
+    039 · COATZACOALCOS
+    """
+
+    code = models.CharField(
+        "Clave Municipal",
+        max_length=3,
+        unique=True,
+        db_index=True,
+        help_text="Clave municipal INEGI/ORFIS. Ejemplo: 039 para Coatzacoalcos.",
+    )
+
+    name = models.CharField(
+        "Municipio",
+        max_length=150,
+        db_index=True,
+    )
+
+    state_code = models.CharField(
+        "Clave del Estado",
+        max_length=2,
+        blank=True,
+        help_text="Clave INEGI del estado. Veracruz = 30.",
+    )
+
+    state_name = models.CharField(
+        "Estado",
+        max_length=120,
+        blank=True,
+        default="VERACRUZ",
+    )
+
+    class Meta:
+        db_table = "axentra_core_municipalities"
+        verbose_name = "Municipio"
+        verbose_name_plural = "Municipios"
+        ordering = ["state_code", "code", "name"]
+        indexes = [
+            models.Index(fields=["code"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["state_code"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.code:
+            self.code = self.code.strip().zfill(3)
+
+        if self.name:
+            self.name = self.name.strip().upper()
+
+        if self.state_code:
+            self.state_code = self.state_code.strip().zfill(2)
+
+        if self.state_name:
+            self.state_name = self.state_name.strip().upper()
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code} · {self.name}"
+
 
 class TenantConfig(AxentraBaseModel):
     """Configuración de Marca e Identidad Legal del Ayuntamiento."""
-    app_name = models.CharField("Nombre del Sistema", max_length=50, default="GovStack")
-    entidad_nombre = models.CharField("Nombre del Ayuntamiento / Institución", max_length=150, default="H. Ayuntamiento Constitucional")
-    siglas = models.CharField("Siglas de la Entidad", max_length=15, default="GOV")
-    direccion_oficial = models.TextField("Dirección Institucional Sede", blank=True)
-    rfc = models.CharField("RFC de la Institución", max_length=13, blank=True)
-    logo_light = models.ImageField("Escudo Oficial (Fondo Claro)", upload_to="institucion/logos/", blank=True, null=True)
-    logo_dark = models.ImageField("Escudo Oficial (Fondo Oscuro)", upload_to="institucion/logos/", blank=True, null=True)
-    primary_color_class = models.CharField("Color de Acento (Tailwind Class)", max_length=30, default="slate-950", help_text="Clase nativa de Tailwind para branding.")
+
+    app_name = models.CharField(
+        "Nombre del Sistema",
+        max_length=50,
+        default="GovStack",
+    )
+
+    entidad_nombre = models.CharField(
+        "Nombre del Ayuntamiento / Institución",
+        max_length=150,
+        default="H. Ayuntamiento Constitucional",
+    )
+
+    siglas = models.CharField(
+        "Siglas de la Entidad",
+        max_length=15,
+        default="GOV",
+    )
+
+    municipality = models.ForeignKey(
+        Municipality,
+        on_delete=models.PROTECT,
+        related_name="tenant_configs",
+        verbose_name="Municipio",
+        null=True,
+        blank=True,
+        help_text="Municipio oficial asociado a la configuración institucional.",
+    )
+
+    direccion_oficial = models.TextField(
+        "Dirección Institucional Sede",
+        blank=True,
+    )
+
+    rfc = models.CharField(
+        "RFC de la Institución",
+        max_length=13,
+        blank=True,
+    )
+
+    logo_light = models.ImageField(
+        "Escudo Oficial (Fondo Claro)",
+        upload_to="institucion/logos/",
+        blank=True,
+        null=True,
+    )
+
+    logo_dark = models.ImageField(
+        "Escudo Oficial (Fondo Oscuro)",
+        upload_to="institucion/logos/",
+        blank=True,
+        null=True,
+    )
+
+    primary_color_class = models.CharField(
+        "Color de Acento (Tailwind Class)",
+        max_length=30,
+        default="slate-950",
+        help_text="Clase nativa de Tailwind para branding.",
+    )
 
     class Meta:
         db_table = "axentra_core_tenant_config"
         verbose_name = "Configuración Institucional"
         verbose_name_plural = "Configuraciones Institucionales"
 
-    def __str__(self): return f"Configuración Activa: {self.entidad_nombre}"
+    def __str__(self):
+        return f"Configuración Activa: {self.entidad_nombre}"
 
     def save(self, *args, **kwargs):
-        if not self.pk and TenantConfig.objects.exists(): return TenantConfig.objects.first()
+        if self.entidad_nombre:
+            self.entidad_nombre = self.entidad_nombre.strip().upper()
+
+        if self.siglas:
+            self.siglas = self.siglas.strip().upper()
+
+        if self.rfc:
+            self.rfc = self.rfc.strip().upper()
+
+        if not self.pk and TenantConfig.objects.exists():
+            return TenantConfig.objects.first()
+
         return super().save(*args, **kwargs)
+    
+

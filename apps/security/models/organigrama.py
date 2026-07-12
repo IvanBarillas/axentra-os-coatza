@@ -20,23 +20,79 @@ class Sede(AxentraBaseModel):
 
 class Dependencia(AxentraBaseModel):
     """Direcciones o Secretarías institucionales de la estructura del Ayuntamiento."""
-    nombre = models.CharField("Nombre de la Dependencia", max_length=150, unique=True)
-    slug = models.SlugField(max_length=150, unique=True, editable=False)
-    sedes_ocupadas = models.ManyToManyField(Sede, through="security.AreaOperativa", related_name="dependencias", verbose_name="Sedes Físicas Operativas")
-    encargado_departamento = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="dependencias_administrativas_a_cargo", verbose_name="Titular / Encargado de la Dependencia", null=True, blank=True, help_text="Director o Jefe de Área con facultades para gestionar su personal.")
 
-    parent = models.ForeignKey("self", null=True, blank=True, related_name="children", on_delete=models.PROTECT,)
-    
+    nombre = models.CharField(
+        "Nombre de la Dependencia",
+        max_length=150,
+        unique=True,
+    )
+
+    slug = models.SlugField(
+        max_length=150,
+        unique=True,
+        editable=False,
+    )
+
+    codigo_presupuestal = models.CharField(
+        "Código presupuestal",
+        max_length=3,
+        blank=True,
+        db_index=True,
+        help_text="Código de 3 dígitos usado para folios patrimoniales. Ejemplo: 012.",
+    )
+
+    sedes_ocupadas = models.ManyToManyField(
+        Sede,
+        through="security.AreaOperativa",
+        related_name="dependencias",
+        verbose_name="Sedes Físicas Operativas",
+    )
+
+    encargado_departamento = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="dependencias_administrativas_a_cargo",
+        verbose_name="Titular / Encargado de la Dependencia",
+        null=True,
+        blank=True,
+        help_text="Director o Jefe de Área con facultades para gestionar su personal.",
+    )
+
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        related_name="children",
+        on_delete=models.PROTECT,
+        verbose_name="Dependencia superior",
+    )
+
     class Meta:
         db_table = "axentra_org_dependencias"
         verbose_name = "Dependencia / Dirección"
         verbose_name_plural = "Dependencias / Direcciones"
         ordering = ["nombre"]
+        indexes = [
+            models.Index(fields=["codigo_presupuestal"]),
+            models.Index(fields=["nombre"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
 
-    def __str__(self): return self.nombre
+    def __str__(self):
+        if self.codigo_presupuestal:
+            return f"{self.codigo_presupuestal} · {self.nombre}"
+        return self.nombre
 
     def save(self, *args, **kwargs):
-        if not self.slug: self.slug = slugify(self.nombre)
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
+
+        if self.codigo_presupuestal:
+            self.codigo_presupuestal = self.codigo_presupuestal.strip().zfill(3)
+
+        if not self.slug:
+            self.slug = slugify(self.nombre)
+
         super().save(*args, **kwargs)
 
 class AreaOperativa(AxentraBaseModel):
