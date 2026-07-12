@@ -12,11 +12,10 @@ class SecurityPermissions:
         'can_view_analytics': 'Permite auditar el tráfico forense de bitácoras y telemetría en el Dashboard de Seguridad.',
         'can_view_matrix': 'Permite auditar y visualizar las rejillas de privilegios JSON.',
         'can_modify_matrix': 'Acción Crítica Máxima: Permite re-grabar y mutar llaves JSON de funcionarios.',
-        'can_configure_tenant': 'Acción Crítica Core: Permite alterar la identidad visual, logos y RFC legal de la entidad.',
     }
 
     ROLE_MAPPING = {
-        'owner': ['has_access_module', 'can_view_analytics', 'can_view_matrix', 'can_modify_matrix', 'can_configure_tenant'],
+        'owner': ['has_access_module', 'can_view_analytics', 'can_view_matrix', 'can_modify_matrix'],
         'admin': ['has_access_module', 'can_view_analytics', 'can_view_matrix', 'can_modify_matrix'],
         'cyber_auditor': ['has_access_module', 'can_view_analytics', 'can_view_matrix'],
         'editor': ['has_access_module', 'can_view_analytics', 'can_view_matrix'],
@@ -30,7 +29,6 @@ class SecurityPermissions:
         ["layout-dashboard", "Panel Administrativo", "security:control_panel", 1, "has_access_module"],
         ["activity", "Auditoría Forense", "security:global_matrix_forensic", 3, "can_view_matrix"],
         ["bar-chart-3", "Dashboard Analítico", "security:dashboard", 4, "can_view_analytics"],
-        ["settings", "Identidad Global", "security:tenant_config", 5, "can_configure_tenant"],
     ]
     
     CAPABILITIES = {
@@ -48,6 +46,82 @@ class SecurityPermissions:
         },
     }
 
+# =========================================================================
+# ⚙️ CLASE 2: DOMINIO DE CONFIGURACIÓN INSTITUCIONAL
+# =========================================================================
+class ConfigurationPermissions:
+    APP_CODE = AppIdentifier.CONFIGURATION
+
+    PERMISSIONS = {
+        "has_access_module": "Permite ingresar al módulo de Configuración Institucional.",
+        "can_configure_tenant": "Permite modificar identidad institucional, municipio oficial, logos, RFC y datos legales.",
+        "can_manage_official_parameters": "Permite administrar parámetros oficiales como UMA, salario mínimo, tasas y factores anuales.",
+    }
+
+    ROLE_MAPPING = {
+        "owner": [
+            "has_access_module",
+            "can_configure_tenant",
+            "can_manage_official_parameters",
+        ],
+        "admin": [
+            "has_access_module",
+            "can_configure_tenant",
+            "can_manage_official_parameters",
+        ],
+        "configuration_manager": [
+            "has_access_module",
+            "can_configure_tenant",
+            "can_manage_official_parameters",
+        ],
+        "auditor": [
+            "has_access_module",
+        ],
+        "viewer": [
+            "has_access_module",
+        ],
+    }
+
+    ROLE_WEIGHTS = {
+        "owner": 100,
+        "admin": 85,
+        "configuration_manager": 75,
+        "auditor": 45,
+        "viewer": 20,
+    }
+
+    SIDEBAR_MENU = [
+        [
+            "landmark",
+            "Identidad Institucional",
+            "security:tenant_config",
+            1,
+            "can_configure_tenant",
+        ],
+        [
+            "badge-dollar-sign",
+            "Parámetros Oficiales",
+            "#",
+            2,
+            "can_manage_official_parameters",
+        ],
+    ]
+
+    CAPABILITIES = {
+        "can_operate": {
+            "label": "Puede Operar Configuración",
+            "help_text": "Permite capturar parámetros y datos institucionales no críticos.",
+        },
+        "can_supervise": {
+            "label": "Puede Supervisar Configuración",
+            "help_text": "Permite revisar configuración institucional y parámetros oficiales.",
+        },
+        "can_authorize": {
+            "label": "Puede Autorizar Configuración",
+            "help_text": "Permite autorizar cambios críticos de configuración institucional.",
+        },
+    }
+    
 
 # =========================================================================
 # 👥 CLASE 2: DOMINIO DE CAPITAL HUMANO (ACCOUNTS)

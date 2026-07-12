@@ -991,6 +991,7 @@ def dependencia_create_view(request):
         if form.is_valid():
             payload = {
                 "nombre": form.cleaned_data["nombre"],
+                "codigo_presupuestal": form.cleaned_data["codigo_presupuestal"],
                 "parent_id": form.cleaned_data["parent"].id if form.cleaned_data.get("parent") else None,
                 "encargado_departamento_id": form.cleaned_data["encargado_departamento"].id if form.cleaned_data.get("encargado_departamento") else None,
             }
@@ -1062,6 +1063,7 @@ def dependencia_update_view(request, pk: uuid.UUID):
         if form.is_valid():
             payload = {
                 "nombre": form.cleaned_data["nombre"],
+                "codigo_presupuestal": form.cleaned_data["codigo_presupuestal"],
                 "parent_id": form.cleaned_data["parent"].id if form.cleaned_data.get("parent") else None,
                 "encargado_departamento_id": form.cleaned_data["encargado_departamento"].id if form.cleaned_data.get("encargado_departamento") else None,
             }
@@ -1119,6 +1121,7 @@ def dependencia_update_view(request, pk: uuid.UUID):
             "back_target": "#page-content",
         },
     )
+
 
 @require_POST
 @login_required
@@ -1567,7 +1570,10 @@ def dependencia_detail_view(request, pk: uuid.UUID):
     target_htmx = request.headers.get("HX-Target", "")
 
     dependencia = get_object_or_404(
-        Dependencia,
+        Dependencia.objects.select_related(
+            "parent",
+            "encargado_departamento",
+        ),
         pk=pk,
         is_deleted=False,
     )
