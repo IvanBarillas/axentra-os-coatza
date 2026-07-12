@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.inventory.models.catalog_models import InventoryBaseModel
@@ -61,7 +62,38 @@ class DepreciationPolicy(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_depreciation_policies"
+        verbose_name = "Política de depreciación"
+        verbose_name_plural = "Políticas de depreciación"
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["accounting_account"]),
+            models.Index(fields=["method"]),
+            models.Index(fields=["frequency"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
+
+    def clean(self):
+        if self.useful_life_months <= 0:
+            raise ValidationError(
+                {
+                    "useful_life_months": "La vida útil debe ser mayor a cero."
+                }
+            )
+
+        if self.residual_percentage < 0:
+            raise ValidationError(
+                {
+                    "residual_percentage": "El porcentaje residual no puede ser negativo."
+                }
+            )
+
+        if self.residual_percentage > 100:
+            raise ValidationError(
+                {
+                    "residual_percentage": "El porcentaje residual no puede ser mayor a 100."
+                }
+            )
 
     def save(self, *args, **kwargs):
         self.name = self.name.strip().upper()
@@ -143,19 +175,67 @@ class DepreciationRecord(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_depreciation_records"
+        verbose_name = "Registro de depreciación"
+        verbose_name_plural = "Registros de depreciación"
         unique_together = ("asset", "period_year", "period_month")
         ordering = ["-period_year", "-period_month"]
         indexes = [
+            models.Index(fields=["asset"]),
+            models.Index(fields=["policy"]),
             models.Index(fields=["period_year", "period_month"]),
+            models.Index(fields=["calculated_by"]),
+            models.Index(fields=["calculated_at"]),
+            models.Index(fields=["is_active", "is_deleted"]),
         ]
 
+    def clean(self):
+        if self.period_month is not None:
+            if self.period_month < 1 or self.period_month > 12:
+                raise ValidationError(
+                    {
+                        "period_month": "El mes debe estar entre 1 y 12."
+                    }
+                )
+
+        money_fields = {
+            "original_value": self.original_value,
+            "residual_value": self.residual_value,
+            "depreciation_amount": self.depreciation_amount,
+            "accumulated_depreciation": self.accumulated_depreciation,
+            "book_value": self.book_value,
+        }
+
+        for field_name, value in money_fields.items():
+            if value < 0:
+                raise ValidationError(
+                    {
+                        field_name: "El valor no puede ser negativo."
+                    }
+                )
+
+        if self.residual_value > self.original_value:
+            raise ValidationError(
+                {
+                    "residual_value": "El valor residual no puede ser mayor al valor original."
+                }
+            )
+
+        if self.accumulated_depreciation > self.original_value:
+            raise ValidationError(
+                {
+                    "accumulated_depreciation": "La depreciación acumulada no puede ser mayor al valor original."
+                }
+            )
+
+    @property
+    def period_label(self):
+        if self.period_month:
+            return f"{self.period_year}-{self.period_month:02d}"
+
+        return str(self.period_year)
+
     def __str__(self):
-        periodo = (
-            f"{self.period_year}-{self.period_month:02d}"
-            if self.period_month
-            else str(self.period_year)
-        )
-        return f"{self.asset.inventory_number} · {periodo}"
+        return f"{self.asset.display_inventory_number} · {self.period_label}"
 
 
 class AccountingExportBatch(InventoryBaseModel):
@@ -210,7 +290,27 @@ class AccountingExportBatch(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_accounting_export_batches"
+        verbose_name = "Lote de exportación contable"
+        verbose_name_plural = "Lotes de exportación contable"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["export_type"]),
+            models.Index(fields=["period_start"]),
+            models.Index(fields=["period_end"]),
+            models.Index(fields=["generated_by"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
+
+    def clean(self):
+        if self.period_start and self.period_end:
+            if self.period_end < self.period_start:
+                raise ValidationError(
+                    {
+                        "period_end": "La fecha final no puede ser anterior a la fecha inicial."
+                    }
+                )
 
     def __str__(self):
         return f"{self.get_export_type_display()} · {self.created_at:%Y-%m-%d}"
+    

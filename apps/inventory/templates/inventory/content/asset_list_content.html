@@ -1,52 +1,62 @@
-<section class="min-h-full bg-slate-50 p-6">
-    <div class="mx-auto max-w-7xl space-y-6">
+<section class="space-y-6">
 
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                    Inventory / Patrimonio
-                </p>
-                <h1 class="mt-2 text-2xl font-black text-slate-900">
-                    Bienes Patrimoniales
-                </h1>
-                <p class="mt-1 text-sm text-slate-500">
-                    Expedientes de activos, control físico, resguardos y trazabilidad.
-                </p>
-            </div>
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <p class="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Inventory / Patrimonio
+            </p>
 
-            <a
-                href="{% url 'inventory:asset_create' %}"
-                hx-get="{% url 'inventory:asset_create' %}"
-                hx-target="#page-content"
-                hx-swap="innerHTML"
-                hx-push-url="true"
-                class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
-            >
-                <i data-lucide="plus" class="h-4 w-4"></i>
-                Nuevo Activo
-            </a>
+            <h1 class="mt-2 text-2xl font-black text-slate-900">
+                Bienes Patrimoniales
+            </h1>
+
+            <p class="mt-1 text-sm text-slate-500">
+                Expedientes de activos, control físico, resguardos, ubicación, valor patrimonial y trazabilidad.
+            </p>
         </div>
 
-        <form
-            method="GET"
-            hx-get="{% url 'inventory:asset_list' %}"
+        <a
+            href="{% url 'inventory:asset_create' %}"
+            hx-get="{% url 'inventory:asset_create' %}"
             hx-target="#page-content"
             hx-swap="innerHTML"
             hx-push-url="true"
-            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
         >
-            <div class="grid gap-3 md:grid-cols-4">
+            <i data-lucide="plus" class="h-4 w-4"></i>
+            Nuevo Activo
+        </a>
+    </div>
+
+    <form
+        method="GET"
+        hx-get="{% url 'inventory:asset_list' %}"
+        hx-target="#page-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+    >
+        <div class="grid gap-3 md:grid-cols-12">
+            <div class="md:col-span-5">
+                <label class="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+                    Búsqueda
+                </label>
                 <input
                     type="text"
                     name="q"
                     value="{{ q }}"
-                    placeholder="Buscar folio, nombre, serie..."
-                    class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                    placeholder="Folio oficial, interno, anterior, nombre, serie, proveedor..."
+                    class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
                 >
+            </div>
 
+            <div class="md:col-span-3">
+                <label class="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+                    Estado
+                </label>
                 <select
                     name="status"
-                    class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                    class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
                 >
                     <option value="">Todos los estados</option>
                     {% for value, label in statuses %}
@@ -55,10 +65,15 @@
                         </option>
                     {% endfor %}
                 </select>
+            </div>
 
+            <div class="md:col-span-3">
+                <label class="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-400">
+                    Categoría
+                </label>
                 <select
                     name="category"
-                    class="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                    class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
                 >
                     <option value="">Todas las categorías</option>
                     {% for category in categories %}
@@ -67,87 +82,261 @@
                         </option>
                     {% endfor %}
                 </select>
+            </div>
 
+            <div class="flex items-end gap-2 md:col-span-1">
                 <button
                     type="submit"
-                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                    class="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+                    title="Filtrar"
                 >
-                    Filtrar
+                    <i data-lucide="search" class="h-4 w-4"></i>
                 </button>
             </div>
-        </form>
+        </div>
 
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {% if q or status or category_id %}
+            <div class="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-xs font-bold text-slate-500">
+                    Filtros activos aplicados al listado.
+                </p>
+
+                <a
+                    href="{% url 'inventory:asset_list' %}"
+                    hx-get="{% url 'inventory:asset_list' %}"
+                    hx-target="#page-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    class="text-xs font-black uppercase tracking-wide text-slate-700 hover:text-slate-950"
+                >
+                    Limpiar filtros
+                </a>
+            </div>
+        {% endif %}
+    </form>
+
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+            <div>
+                <h2 class="text-sm font-black uppercase tracking-wide text-slate-700">
+                    Activos registrados
+                </h2>
+                <p class="mt-1 text-xs text-slate-400">
+                    Consulta rápida del expediente patrimonial.
+                </p>
+            </div>
+
+            <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                {{ assets|length }} registro{% if assets|length != 1 %}s{% endif %}
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">Folio</th>
-                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">Activo</th>
-                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">Categoría</th>
-                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">Estado</th>
-                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">Resguardatario</th>
-                        <th class="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-500">Valor</th>
+                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+                            Folio
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+                            Activo
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+                            Categoría
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+                            Estado
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+                            Resguardatario
+                        </th>
+                        <th class="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-500">
+                            Valor
+                        </th>
                     </tr>
                 </thead>
 
                 <tbody class="divide-y divide-slate-100">
                     {% for asset in assets %}
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3">
+                        <tr class="transition hover:bg-slate-50">
+                            <td class="px-4 py-4 align-top">
                                 <a
                                     href="{% url 'inventory:asset_detail' asset.id %}"
                                     hx-get="{% url 'inventory:asset_detail' asset.id %}"
                                     hx-target="#page-content"
                                     hx-swap="innerHTML"
                                     hx-push-url="true"
-                                    class="font-black text-slate-900 hover:underline"
+                                    class="font-mono text-sm font-black text-slate-900 hover:underline"
                                 >
-                                    {{ asset.inventory_number }}
+                                    {{ asset.display_inventory_number }}
                                 </a>
-                                {% if asset.serial_number %}
-                                    <p class="text-xs text-slate-400">SN: {{ asset.serial_number }}</p>
+
+                                <div class="mt-2 space-y-0.5">
+                                    {% if asset.official_inventory_number %}
+                                        <p class="text-[11px] font-semibold text-slate-400">
+                                            Oficial: {{ asset.official_inventory_number }}
+                                        </p>
+                                    {% endif %}
+
+                                    {% if asset.internal_inventory_number %}
+                                        <p class="text-[11px] font-semibold text-slate-400">
+                                            Interno: {{ asset.internal_inventory_number }}
+                                        </p>
+                                    {% endif %}
+
+                                    {% if asset.legacy_inventory_number %}
+                                        <p class="text-[11px] font-semibold text-slate-400">
+                                            Anterior: {{ asset.legacy_inventory_number }}
+                                        </p>
+                                    {% endif %}
+
+                                    {% if asset.serial_number %}
+                                        <p class="text-[11px] font-semibold text-slate-400">
+                                            SN: {{ asset.serial_number }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td class="px-4 py-4 align-top">
+                                <p class="font-bold text-slate-800">
+                                    {{ asset.name }}
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-400">
+                                    {{ asset.manufacturer|default:"SIN FABRICANTE" }}
+                                    {% if asset.model %}
+                                        · {{ asset.model }}
+                                    {% endif %}
+                                </p>
+
+                                {% if asset.description %}
+                                    <p class="mt-2 line-clamp-2 max-w-md text-xs leading-5 text-slate-500">
+                                        {{ asset.description }}
+                                    </p>
                                 {% endif %}
                             </td>
 
-                            <td class="px-4 py-3">
-                                <p class="font-bold text-slate-800">{{ asset.name }}</p>
-                                <p class="text-xs text-slate-400">{{ asset.manufacturer|default:"SIN FABRICANTE" }} {{ asset.model|default:"" }}</p>
+                            <td class="px-4 py-4 align-top text-sm text-slate-600">
+                                <p class="font-bold text-slate-700">
+                                    {{ asset.category.name }}
+                                </p>
+
+                                {% if asset.accounting_account %}
+                                    <p class="mt-1 text-xs text-slate-400">
+                                        {{ asset.accounting_account.code }}
+                                    </p>
+                                {% endif %}
                             </td>
 
-                            <td class="px-4 py-3 text-sm text-slate-600">
-                                {{ asset.category.name }}
+                            <td class="px-4 py-4 align-top">
+                                <div class="flex flex-col gap-1.5">
+                                    <span class="w-fit rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                                        {{ asset.get_lifecycle_status_display }}
+                                    </span>
+
+                                    {% if asset.is_capitalizable %}
+                                        <span class="w-fit rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase text-emerald-700">
+                                            Capitalizable
+                                        </span>
+                                    {% else %}
+                                        <span class="w-fit rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase text-amber-700">
+                                            Control interno
+                                        </span>
+                                    {% endif %}
+
+                                    <span class="w-fit rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase text-slate-500 ring-1 ring-slate-200">
+                                        {{ asset.get_physical_condition_display }}
+                                    </span>
+                                </div>
                             </td>
 
-                            <td class="px-4 py-3">
-                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
-                                    {{ asset.get_lifecycle_status_display }}
-                                </span>
-                            </td>
-
-                            <td class="px-4 py-3 text-sm text-slate-600">
+                            <td class="px-4 py-4 align-top text-sm text-slate-600">
                                 {% if asset.current_custodian %}
-                                    {{ asset.current_custodian.get_full_name|default:asset.current_custodian.email }}
+                                    <p class="font-bold text-slate-800">
+                                        {{ asset.current_custodian.get_full_name|default:asset.current_custodian.email }}
+                                    </p>
                                 {% else %}
-                                    <span class="text-slate-400">Sin resguardo</span>
+                                    <span class="font-semibold text-slate-400">
+                                        Sin resguardo
+                                    </span>
+                                {% endif %}
+
+                                {% if asset.dependencia %}
+                                    <p class="mt-1 text-xs text-slate-400">
+                                        {{ asset.dependencia }}
+                                    </p>
+                                {% endif %}
+
+                                {% if asset.area %}
+                                    <p class="mt-0.5 text-xs text-slate-400">
+                                        {{ asset.area }}
+                                    </p>
                                 {% endif %}
                             </td>
 
-                            <td class="px-4 py-3 text-right text-sm font-black text-slate-900">
-                                ${{ asset.acquisition_cost }}
+                            <td class="px-4 py-4 text-right align-top">
+                                <p class="text-sm font-black text-slate-900">
+                                    ${{ asset.acquisition_cost }}
+                                </p>
+
+                                {% if asset.acquisition_date %}
+                                    <p class="mt-1 text-xs text-slate-400">
+                                        {{ asset.acquisition_date|date:"d/m/Y" }}
+                                    </p>
+                                {% endif %}
                             </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">
-                                No hay activos registrados con esos filtros.
+                            <td colspan="6" class="px-4 py-14">
+                                <div class="mx-auto max-w-md text-center">
+                                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                                        <i data-lucide="box" class="h-5 w-5"></i>
+                                    </div>
+
+                                    <h3 class="mt-4 text-sm font-black text-slate-900">
+                                        No hay activos registrados
+                                    </h3>
+
+                                    <p class="mt-2 text-sm leading-6 text-slate-500">
+                                        No se encontraron bienes patrimoniales con los filtros seleccionados.
+                                    </p>
+
+                                    <div class="mt-5 flex items-center justify-center gap-3">
+                                        {% if q or status or category_id %}
+                                            <a
+                                                href="{% url 'inventory:asset_list' %}"
+                                                hx-get="{% url 'inventory:asset_list' %}"
+                                                hx-target="#page-content"
+                                                hx-swap="innerHTML"
+                                                hx-push-url="true"
+                                                class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-50"
+                                            >
+                                                Limpiar filtros
+                                            </a>
+                                        {% endif %}
+
+                                        <a
+                                            href="{% url 'inventory:asset_create' %}"
+                                            hx-get="{% url 'inventory:asset_create' %}"
+                                            hx-target="#page-content"
+                                            hx-swap="innerHTML"
+                                            hx-push-url="true"
+                                            class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white hover:bg-slate-800"
+                                        >
+                                            Registrar activo
+                                        </a>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
     </div>
+
 </section>
 
 <script>

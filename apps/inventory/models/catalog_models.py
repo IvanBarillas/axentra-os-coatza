@@ -18,10 +18,22 @@ class InventoryBaseModel(models.Model):
         default=uuid.uuid4,
         editable=False,
     )
-    is_active = models.BooleanField(default=True)
-    is_deleted = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(
+        "Activo",
+        default=True,
+    )
+    is_deleted = models.BooleanField(
+        "Eliminado",
+        default=False,
+    )
+    created_at = models.DateTimeField(
+        "Creado",
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        "Actualizado",
+        auto_now=True,
+    )
 
     class Meta:
         abstract = True
@@ -36,7 +48,6 @@ class AssetNature(models.TextChoices):
 class AssetControlType(models.TextChoices):
     CAPITALIZED_ASSET = "CAPITALIZED_ASSET", "Activo Fijo Capitalizado"
     INTERNAL_CONTROL = "INTERNAL_CONTROL", "Control Interno"
-    CONSUMABLE = "CONSUMABLE", "Consumible / Insumo"
 
 
 class AssetLifecycleStatus(models.TextChoices):
@@ -121,17 +132,6 @@ class DocumentType(models.TextChoices):
     OTHER = "OTHER", "Otro Documento"
 
 
-class RelationType(models.TextChoices):
-    INCLUDES = "INCLUDES", "Incluye / Contiene"
-    CONNECTED_TO = "CONNECTED_TO", "Conectado a"
-    DEPENDS_ON = "DEPENDS_ON", "Depende de"
-    ASSIGNED_WITH = "ASSIGNED_WITH", "Asignado con"
-    REPLACES = "REPLACES", "Reemplaza a"
-    PART_OF = "PART_OF", "Parte de"
-    USES_SERVICE = "USES_SERVICE", "Usa Servicio"
-    BACKS_UP = "BACKS_UP", "Respalda a"
-
-
 class AssetCategory(InventoryBaseModel):
     """
     Categoría patrimonial alineada a CONAC / control municipal.
@@ -166,11 +166,23 @@ class AssetCategory(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_asset_categories"
+        verbose_name = "Categoría patrimonial"
+        verbose_name_plural = "Categorías patrimoniales"
         ordering = ["nature", "name"]
+        indexes = [
+            models.Index(fields=["code"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["nature"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
 
     def save(self, *args, **kwargs):
         self.code = self.code.strip().upper()
         self.name = self.name.strip().upper()
+
+        if self.description:
+            self.description = self.description.strip()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -223,11 +235,21 @@ class AccountingAccount(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_accounting_accounts"
+        verbose_name = "Cuenta contable"
+        verbose_name_plural = "Cuentas contables"
         ordering = ["code"]
+        indexes = [
+            models.Index(fields=["code"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["category"]),
+            models.Index(fields=["is_depreciable"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
 
     def save(self, *args, **kwargs):
         self.code = self.code.strip()
         self.name = self.name.strip().upper()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -243,7 +265,13 @@ class Manufacturer(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_manufacturers"
+        verbose_name = "Fabricante"
+        verbose_name_plural = "Fabricantes"
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
 
     def save(self, *args, **kwargs):
         self.name = self.name.strip().upper()
@@ -270,11 +298,22 @@ class AssetModel(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_asset_models"
+        verbose_name = "Modelo de activo"
+        verbose_name_plural = "Modelos de activos"
         unique_together = ("manufacturer", "name")
         ordering = ["manufacturer__name", "name"]
+        indexes = [
+            models.Index(fields=["manufacturer"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
 
     def save(self, *args, **kwargs):
         self.name = self.name.strip().upper()
+
+        if self.description:
+            self.description = self.description.strip()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -311,14 +350,31 @@ class Supplier(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_suppliers"
+        verbose_name = "Proveedor"
+        verbose_name_plural = "Proveedores"
         ordering = ["razon_social"]
+        indexes = [
+            models.Index(fields=["razon_social"]),
+            models.Index(fields=["rfc"]),
+            models.Index(fields=["email"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
 
     def save(self, *args, **kwargs):
         self.razon_social = self.razon_social.strip().upper()
+
         if self.rfc:
             self.rfc = self.rfc.strip().upper()
+
         if self.contacto_nombre:
             self.contacto_nombre = self.contacto_nombre.strip().upper()
+
+        if self.telefono:
+            self.telefono = self.telefono.strip()
+
+        if self.email:
+            self.email = self.email.strip().lower()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -360,11 +416,22 @@ class Contract(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_contracts"
+        verbose_name = "Contrato"
+        verbose_name_plural = "Contratos"
         ordering = ["-fecha_inicio", "numero_contrato"]
+        indexes = [
+            models.Index(fields=["numero_contrato"]),
+            models.Index(fields=["nombre"]),
+            models.Index(fields=["supplier"]),
+            models.Index(fields=["fecha_inicio"]),
+            models.Index(fields=["fecha_fin"]),
+            models.Index(fields=["is_active", "is_deleted"]),
+        ]
 
     def save(self, *args, **kwargs):
         self.numero_contrato = self.numero_contrato.strip().upper()
         self.nombre = self.nombre.strip().upper()
+
         super().save(*args, **kwargs)
 
     def __str__(self):

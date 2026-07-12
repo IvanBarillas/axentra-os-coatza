@@ -14,7 +14,6 @@ from apps.inventory.models.catalog_models import (
     Manufacturer,
     MovementType,
     PhysicalCondition,
-    RelationType,
     Supplier,
     AssetModel,
 )
@@ -22,12 +21,7 @@ from apps.inventory.models.catalog_models import (
 from apps.inventory.models.asset_models import (
     Asset,
     ImmovableAssetDetail,
-)
-
-from apps.inventory.models.technical_models import (
-    AssetRelation,
-    TechnicalAssetProfile,
-    TechnicalAssetType,
+    InventoryFolioSequence,
 )
 
 from apps.inventory.models.custody_models import (
@@ -60,10 +54,4 @@ from apps.inventory.models.audit_models import (
     PhysicalAuditResult,
     PhysicalAuditSession,
     PhysicalAuditStatus,
-)
-
-from apps.inventory.models.consumable_models import (
-    Consumable,
-    ConsumableMovement,
-    ConsumableMovementType,
 )

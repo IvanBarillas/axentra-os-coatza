@@ -25,16 +25,29 @@ class Asset(InventoryBaseModel):
     Es el expediente patrimonial del bien.
     """
 
-    inventory_number = models.CharField(
-        "Número de inventario / placa patrimonial",
+    official_inventory_number = models.CharField(
+        "Folio oficial patrimonial",
         max_length=80,
         unique=True,
-        help_text="Folio oficial de patrimonio o folio interno generado por Axentra.",
+        null=True,
+        blank=True,
+        help_text="Folio estructurado para ORFIS / SIGMAVER. Ej: 039-26-5151-012-BM-0005.",
     )
+
+    internal_inventory_number = models.CharField(
+        "Folio interno Axentra",
+        max_length=80,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Folio operativo interno. Ej: AXN-INV-2026-000001.",
+    )
+
     legacy_inventory_number = models.CharField(
         "Número de inventario anterior",
         max_length=80,
         blank=True,
+        help_text="Folio previo o heredado durante una migración.",
     )
 
     name = models.CharField(
@@ -222,9 +235,13 @@ class Asset(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_assets"
+        verbose_name = "Activo patrimonial"
+        verbose_name_plural = "Activos patrimoniales"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["inventory_number"]),
+            models.Index(fields=["official_inventory_number"]),
+            models.Index(fields=["internal_inventory_number"]),
+            models.Index(fields=["legacy_inventory_number"]),
             models.Index(fields=["serial_number"]),
             models.Index(fields=["lifecycle_status"]),
             models.Index(fields=["control_type"]),
@@ -271,8 +288,11 @@ class Asset(InventoryBaseModel):
             )
 
     def save(self, *args, **kwargs):
-        self.inventory_number = self.inventory_number.strip().upper()
-        self.name = self.name.strip().upper()
+        if self.official_inventory_number:
+            self.official_inventory_number = self.official_inventory_number.strip().upper()
+
+        if self.internal_inventory_number:
+            self.internal_inventory_number = self.internal_inventory_number.strip().upper()
 
         if self.legacy_inventory_number:
             self.legacy_inventory_number = self.legacy_inventory_number.strip().upper()
@@ -280,14 +300,113 @@ class Asset(InventoryBaseModel):
         if self.serial_number:
             self.serial_number = self.serial_number.strip().upper()
 
+        self.name = self.name.strip().upper()
+
         super().save(*args, **kwargs)
+
+    @property
+    def display_inventory_number(self):
+        return (
+            self.official_inventory_number
+            or self.internal_inventory_number
+            or self.legacy_inventory_number
+            or "SIN-FOLIO"
+        )
 
     @property
     def depreciable_base(self):
         return max(self.acquisition_cost - self.residual_value, Decimal("0.00"))
 
     def __str__(self):
-        return f"{self.inventory_number} · {self.name}"
+        return f"{self.display_inventory_number} · {self.name}"
+
+
+class InventoryFolioSequence(InventoryBaseModel):
+    """
+    Secuencia transaccional para folios oficiales de inventario.
+
+    Ejemplo de scope:
+    039-26-5151-012-BM-0005
+
+    El consecutivo vive agrupado por:
+    municipio + año + CONAC + dependencia + tipo de activo.
+    """
+
+    municipality_code = models.CharField(
+        "Clave municipal",
+        max_length=3,
+    )
+    year = models.PositiveSmallIntegerField(
+        "Año corto",
+        help_text="Ejemplo: 26 para 2026.",
+    )
+    conac_code = models.CharField(
+        "Código CONAC / COG",
+        max_length=10,
+    )
+    dependency_code = models.CharField(
+        "Código presupuestal de dependencia",
+        max_length=10,
+    )
+    asset_type_code = models.CharField(
+        "Tipo de bien",
+        max_length=2,
+        help_text="BM, BI, BP, etc.",
+    )
+    current_number = models.PositiveIntegerField(
+        "Consecutivo actual",
+        default=0,
+    )
+
+    class Meta:
+        db_table = "inventory_folio_sequences"
+        verbose_name = "Secuencia de folio"
+        verbose_name_plural = "Secuencias de folios"
+        ordering = [
+            "municipality_code",
+            "year",
+            "conac_code",
+            "dependency_code",
+            "asset_type_code",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "municipality_code",
+                    "year",
+                    "conac_code",
+                    "dependency_code",
+                    "asset_type_code",
+                ],
+                name="uq_inventory_folio_sequence_scope",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=[
+                    "municipality_code",
+                    "year",
+                    "conac_code",
+                    "dependency_code",
+                    "asset_type_code",
+                ]
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.municipality_code = self.municipality_code.strip().zfill(3)
+        self.conac_code = self.conac_code.strip().upper()
+        self.dependency_code = self.dependency_code.strip().upper().zfill(3)
+        self.asset_type_code = self.asset_type_code.strip().upper()
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.municipality_code}-{self.year:02d}-"
+            f"{self.conac_code}-{self.dependency_code}-"
+            f"{self.asset_type_code} · {self.current_number:04d}"
+        )
 
 
 class ImmovableAssetDetail(InventoryBaseModel):
@@ -331,6 +450,8 @@ class ImmovableAssetDetail(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_immovable_asset_details"
+        verbose_name = "Detalle de inmueble"
+        verbose_name_plural = "Detalles de inmuebles"
 
     def save(self, *args, **kwargs):
         if self.cadastral_key:
@@ -345,4 +466,5 @@ class ImmovableAssetDetail(InventoryBaseModel):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Inmueble · {self.asset.inventory_number}"
+        return f"Inmueble · {self.asset.display_inventory_number}"
+    

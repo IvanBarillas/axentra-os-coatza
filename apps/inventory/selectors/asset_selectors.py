@@ -1,8 +1,8 @@
 # apps/inventory/selectors/asset_selectors.py
 
-from django.db.models import Count, Q, Sum
+from django.db.models import Q, Sum
 
-from apps.inventory.models import Asset
+from apps.inventory.models import Asset, AssetControlType
 
 
 class AssetSelectors:
@@ -12,11 +12,17 @@ class AssetSelectors:
 
         return {
             "total_assets": activos.count(),
-            "capitalized_assets": activos.filter(is_capitalizable=True).count(),
-            "internal_control_assets": activos.filter(is_capitalizable=False).count(),
-            "assigned_assets": activos.filter(current_custodian__isnull=False).count(),
+            "capitalized_assets": activos.filter(
+                control_type=AssetControlType.CAPITALIZED_ASSET,
+            ).count(),
+            "internal_control_assets": activos.filter(
+                control_type=AssetControlType.INTERNAL_CONTROL,
+            ).count(),
+            "assigned_assets": activos.filter(
+                current_custodian__isnull=False,
+            ).count(),
             "total_book_value": activos.aggregate(
-                total=Sum("acquisition_cost")
+                total=Sum("acquisition_cost"),
             )["total"] or 0,
         }
 
@@ -30,6 +36,8 @@ class AssetSelectors:
                 "accounting_account",
                 "manufacturer",
                 "model",
+                "supplier",
+                "contract",
                 "sede",
                 "dependencia",
                 "area",
@@ -40,13 +48,25 @@ class AssetSelectors:
 
         if q:
             queryset = queryset.filter(
-                Q(inventory_number__icontains=q)
+                Q(official_inventory_number__icontains=q)
+                | Q(internal_inventory_number__icontains=q)
                 | Q(legacy_inventory_number__icontains=q)
                 | Q(name__icontains=q)
                 | Q(description__icontains=q)
                 | Q(serial_number__icontains=q)
+                | Q(category__code__icontains=q)
+                | Q(category__name__icontains=q)
+                | Q(accounting_account__code__icontains=q)
+                | Q(accounting_account__name__icontains=q)
                 | Q(manufacturer__name__icontains=q)
                 | Q(model__name__icontains=q)
+                | Q(supplier__razon_social__icontains=q)
+                | Q(supplier__rfc__icontains=q)
+                | Q(contract__numero_contrato__icontains=q)
+                | Q(contract__nombre__icontains=q)
+                | Q(sede__nombre__icontains=q)
+                | Q(dependencia__nombre__icontains=q)
+                | Q(area__nombre__icontains=q)
                 | Q(current_custodian__email__icontains=q)
                 | Q(current_custodian__first_name__icontains=q)
                 | Q(current_custodian__last_name__icontains=q)
@@ -82,9 +102,11 @@ class AssetSelectors:
                 "movements",
                 "custody_assignments",
                 "depreciation_records",
-                "child_relations",
-                "parent_relations",
+                "disposal_requests",
+                "physical_audit_items",
                 "audit_logs",
             )
             .get(id=asset_id, is_deleted=False)
         )
+        
+        

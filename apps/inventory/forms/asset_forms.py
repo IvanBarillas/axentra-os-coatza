@@ -1,6 +1,7 @@
 # apps/inventory/forms/asset_forms.py
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.inventory.models import (
@@ -12,16 +13,18 @@ from apps.inventory.models import (
     Manufacturer,
     Supplier,
 )
-from apps.inventory.forms.base_styler import AxentraFormStylerMixin
 
+from apps.inventory.forms.base_styler import AxentraFormStylerMixin
 from apps.security.models.organigrama import AreaOperativa, Dependencia, Sede
+
+
+User = get_user_model()
 
 
 class AssetForm(AxentraFormStylerMixin, forms.ModelForm):
     class Meta:
         model = Asset
         fields = [
-            "inventory_number",
             "legacy_inventory_number",
             "name",
             "description",
@@ -50,16 +53,9 @@ class AssetForm(AxentraFormStylerMixin, forms.ModelForm):
             "latitude",
             "longitude",
             "notes",
-            "extra_attributes",
         ]
 
         widgets = {
-            "inventory_number": forms.TextInput(
-                attrs={
-                    "placeholder": "Ej: COATZA-TI-000001",
-                    "autocomplete": "off",
-                }
-            ),
             "legacy_inventory_number": forms.TextInput(
                 attrs={
                     "placeholder": "Número anterior si existe",
@@ -84,24 +80,25 @@ class AssetForm(AxentraFormStylerMixin, forms.ModelForm):
                     "autocomplete": "off",
                 }
             ),
-            "acquisition_date": forms.DateInput(attrs={"type": "date"}),
-            "registration_date": forms.DateInput(attrs={"type": "date"}),
+            "acquisition_date": forms.DateInput(
+                attrs={
+                    "type": "date",
+                }
+            ),
+            "registration_date": forms.DateInput(
+                attrs={
+                    "type": "date",
+                }
+            ),
             "notes": forms.Textarea(
                 attrs={
                     "rows": 3,
                     "placeholder": "Notas internas del expediente.",
                 }
             ),
-            "extra_attributes": forms.Textarea(
-                attrs={
-                    "rows": 4,
-                    "placeholder": '{"hostname": "COATZA-PC-001", "vlan": "10"}',
-                }
-            ),
         }
 
         labels = {
-            "inventory_number": "Número de inventario / placa patrimonial",
             "legacy_inventory_number": "Número de inventario anterior",
             "name": "Nombre / descripción corta",
             "description": "Descripción detallada",
@@ -130,14 +127,13 @@ class AssetForm(AxentraFormStylerMixin, forms.ModelForm):
             "latitude": "Latitud",
             "longitude": "Longitud",
             "notes": "Notas",
-            "extra_attributes": "Atributos extendidos JSON",
         }
 
         help_texts = {
-            "inventory_number": "Folio oficial de patrimonio o folio interno generado por Axentra.",
+            "legacy_inventory_number": "Usar sólo si el bien ya tenía un folio anterior antes de migrarlo a Axentra.",
             "control_type": "Define si el bien será activo fijo capitalizado, control interno o consumible.",
-            "is_capitalizable": "Marca si el bien supera el umbral contable aplicable.",
-            "extra_attributes": "Datos flexibles no críticos. Ejemplo: datos técnicos temporales.",
+            "is_capitalizable": "Este campo será calculado automáticamente por el motor de folios y UMA.",
+            "capitalization_threshold_amount": "Umbral aplicado para determinar si el bien supera las 70 UMA.",
         }
 
     def __init__(self, *args, **kwargs):
@@ -145,75 +141,86 @@ class AssetForm(AxentraFormStylerMixin, forms.ModelForm):
 
         today = timezone.localdate()
 
-        self.fields["registration_date"].initial = (
-            self.fields["registration_date"].initial or today
+        if not self.initial.get("registration_date"):
+            self.fields["registration_date"].initial = today
+
+        self.fields["category"].queryset = (
+            AssetCategory.objects
+            .filter(is_active=True, is_deleted=False)
+            .order_by("nature", "name")
         )
-
-        self.fields["category"].queryset = AssetCategory.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).order_by("nature", "name")
-
         self.fields["category"].empty_label = "--- Seleccione categoría patrimonial ---"
         self.fields["category"].label_from_instance = (
             lambda obj: f"{obj.code} · {obj.name}"
         )
 
-        self.fields["accounting_account"].queryset = AccountingAccount.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).select_related("category").order_by("code")
-
+        self.fields["accounting_account"].queryset = (
+            AccountingAccount.objects
+            .filter(is_active=True, is_deleted=False)
+            .select_related("category")
+            .order_by("code")
+        )
         self.fields["accounting_account"].empty_label = "--- Seleccione cuenta contable ---"
         self.fields["accounting_account"].label_from_instance = (
             lambda obj: f"{obj.code} · {obj.name}"
         )
 
-        self.fields["manufacturer"].queryset = Manufacturer.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).order_by("name")
+        self.fields["manufacturer"].queryset = (
+            Manufacturer.objects
+            .filter(is_active=True, is_deleted=False)
+            .order_by("name")
+        )
         self.fields["manufacturer"].empty_label = "--- Fabricante opcional ---"
 
-        self.fields["model"].queryset = AssetModel.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).select_related("manufacturer").order_by("manufacturer__name", "name")
+        self.fields["model"].queryset = (
+            AssetModel.objects
+            .filter(is_active=True, is_deleted=False)
+            .select_related("manufacturer")
+            .order_by("manufacturer__name", "name")
+        )
         self.fields["model"].empty_label = "--- Modelo opcional ---"
         self.fields["model"].label_from_instance = (
             lambda obj: f"{obj.manufacturer.name} · {obj.name}"
         )
 
-        self.fields["supplier"].queryset = Supplier.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).order_by("razon_social")
+        self.fields["supplier"].queryset = (
+            Supplier.objects
+            .filter(is_active=True, is_deleted=False)
+            .order_by("razon_social")
+        )
         self.fields["supplier"].empty_label = "--- Proveedor opcional ---"
 
-        self.fields["contract"].queryset = Contract.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).select_related("supplier").order_by("-fecha_inicio", "numero_contrato")
+        self.fields["contract"].queryset = (
+            Contract.objects
+            .filter(is_active=True, is_deleted=False)
+            .select_related("supplier")
+            .order_by("-fecha_inicio", "numero_contrato")
+        )
         self.fields["contract"].empty_label = "--- Contrato opcional ---"
+        self.fields["contract"].label_from_instance = (
+            lambda obj: f"{obj.numero_contrato} · {obj.nombre}"
+        )
 
-        self.fields["sede"].queryset = Sede.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).order_by("nombre")
+        self.fields["sede"].queryset = (
+            Sede.objects
+            .filter(is_active=True, is_deleted=False)
+            .order_by("nombre")
+        )
         self.fields["sede"].empty_label = "--- Seleccione sede física ---"
 
-        self.fields["dependencia"].queryset = Dependencia.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).order_by("nombre")
+        self.fields["dependencia"].queryset = (
+            Dependencia.objects
+            .filter(is_active=True, is_deleted=False)
+            .order_by("nombre")
+        )
         self.fields["dependencia"].empty_label = "--- Seleccione dependencia ---"
+        self.fields["dependencia"].label_from_instance = self._label_dependencia
 
-        self.fields["area"].queryset = AreaOperativa.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).select_related("dependencia", "sede_fisica").order_by(
-            "dependencia__nombre",
-            "nombre",
+        self.fields["area"].queryset = (
+            AreaOperativa.objects
+            .filter(is_active=True, is_deleted=False)
+            .select_related("dependencia", "sede_fisica")
+            .order_by("dependencia__nombre", "nombre")
         )
         self.fields["area"].empty_label = "--- Seleccione área operativa ---"
         self.fields["area"].label_from_instance = (
@@ -224,10 +231,32 @@ class AssetForm(AxentraFormStylerMixin, forms.ModelForm):
             )
         )
 
+        self.fields["current_custodian"].queryset = (
+            User.objects
+            .filter(is_active=True, is_deleted=False)
+            .order_by("first_name", "last_name", "email")
+        )
+        self.fields["current_custodian"].empty_label = "--- Sin resguardatario inicial ---"
+        self.fields["current_custodian"].label_from_instance = (
+            lambda obj: obj.get_full_name() or obj.email
+        )
+
+        # Estos dos campos pronto serán calculados por el motor de UMA/Folios.
+        self.fields["is_capitalizable"].required = False
+        self.fields["capitalization_threshold_amount"].required = False
+
         self.aplicar_estilos_institucionales()
 
-    def clean_inventory_number(self):
-        value = self.cleaned_data["inventory_number"]
+    def _label_dependencia(self, obj):
+        codigo = getattr(obj, "codigo_presupuestal", "") or "SIN-CÓDIGO"
+        return f"{codigo} · {obj.nombre.upper()}"
+
+    def clean_legacy_inventory_number(self):
+        value = self.cleaned_data.get("legacy_inventory_number")
+
+        if not value:
+            return ""
+
         return value.strip().upper()
 
     def clean_name(self):
@@ -241,3 +270,4 @@ class AssetForm(AxentraFormStylerMixin, forms.ModelForm):
             return value
 
         return value.strip().upper()
+    

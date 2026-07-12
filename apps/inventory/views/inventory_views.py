@@ -1,10 +1,5 @@
 # apps/inventory/inventory_views.py
 
-from django.shortcuts import render
-
-
-# apps/inventory/views.py
-
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -117,6 +112,15 @@ def asset_detail_view(request, asset_id):
             "dependencia",
             "area",
             "current_custodian",
+        ).prefetch_related(
+            "documents",
+            "photos",
+            "movements",
+            "custody_assignments",
+            "depreciation_records",
+            "disposal_requests",
+            "physical_audit_items",
+            "audit_logs",
         ),
         id=asset_id,
         is_deleted=False,
@@ -159,9 +163,10 @@ def asset_create_view(request):
 
         if form.is_valid():
             asset = form.save()
+
             messages.success(
                 request,
-                f"Activo {asset.inventory_number} registrado correctamente.",
+                f"Activo {asset.display_inventory_number} registrado correctamente.",
             )
 
             detail_url = reverse(
@@ -170,8 +175,19 @@ def asset_create_view(request):
             )
 
             if _is_htmx(request):
-                response = redirect(detail_url)
-                response["HX-Redirect"] = detail_url
+                context = {
+                    "modulo_actual": "inventory",
+                    "show_module_sidebar": True,
+                    "current_inventory_view": "inventory:asset_list",
+                    "asset": asset,
+                }
+
+                response = render(
+                    request,
+                    "inventory/content/asset_detail_content.html",
+                    context,
+                )
+                response["HX-Push-Url"] = detail_url
                 return response
 
             return redirect(detail_url)
@@ -180,6 +196,7 @@ def asset_create_view(request):
             request,
             "No se pudo registrar el activo. Revisa los campos marcados.",
         )
+
     else:
         form = AssetForm()
 
@@ -213,4 +230,3 @@ def asset_create_view(request):
         context,
     )
     
-

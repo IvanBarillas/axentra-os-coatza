@@ -16,7 +16,10 @@ class PhysicalAuditStatus(models.TextChoices):
 class PhysicalAuditResult(models.TextChoices):
     FOUND = "FOUND", "Encontrado"
     NOT_FOUND = "NOT_FOUND", "No Encontrado"
-    FOUND_DIFFERENT_LOCATION = "FOUND_DIFFERENT_LOCATION", "Encontrado en Ubicación Diferente"
+    FOUND_DIFFERENT_LOCATION = (
+        "FOUND_DIFFERENT_LOCATION",
+        "Encontrado en Ubicación Diferente",
+    )
     DAMAGED = "DAMAGED", "Encontrado con Daño"
     UNREGISTERED = "UNREGISTERED", "Sobrante No Registrado"
 
@@ -25,7 +28,7 @@ class PhysicalAuditSession(InventoryBaseModel):
     """
     Levantamiento físico de inventario.
 
-    Permite marcar encontrados vs registrados.
+    Permite comparar lo registrado en sistema contra lo encontrado físicamente.
     """
 
     folio = models.CharField(
@@ -96,11 +99,26 @@ class PhysicalAuditSession(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_physical_audit_sessions"
+        verbose_name = "Auditoría física"
+        verbose_name_plural = "Auditorías físicas"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["folio"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["sede"]),
+            models.Index(fields=["dependencia"]),
+            models.Index(fields=["area"]),
+            models.Index(fields=["started_at"]),
+            models.Index(fields=["closed_at"]),
+        ]
 
     def save(self, *args, **kwargs):
         self.folio = self.folio.strip().upper()
         self.name = self.name.strip().upper()
+
+        if self.notes:
+            self.notes = self.notes.strip()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -108,6 +126,13 @@ class PhysicalAuditSession(InventoryBaseModel):
 
 
 class PhysicalAuditItem(InventoryBaseModel):
+    """
+    Lectura individual dentro de una auditoría física.
+
+    Puede apuntar a un activo registrado o guardar únicamente el número escaneado
+    cuando se detecta un sobrante no registrado.
+    """
+
     session = models.ForeignKey(
         PhysicalAuditSession,
         on_delete=models.CASCADE,
@@ -124,6 +149,7 @@ class PhysicalAuditItem(InventoryBaseModel):
         "Número escaneado",
         max_length=100,
         blank=True,
+        help_text="Puede ser folio oficial, folio interno, folio anterior, QR o código de barras.",
     )
     result = models.CharField(
         "Resultado",
@@ -161,15 +187,34 @@ class PhysicalAuditItem(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_physical_audit_items"
+        verbose_name = "Lectura de auditoría física"
+        verbose_name_plural = "Lecturas de auditoría física"
         ordering = ["-scanned_at"]
+        indexes = [
+            models.Index(fields=["session"]),
+            models.Index(fields=["asset"]),
+            models.Index(fields=["scanned_inventory_number"]),
+            models.Index(fields=["result"]),
+            models.Index(fields=["scanned_by"]),
+            models.Index(fields=["scanned_at"]),
+        ]
 
     def save(self, *args, **kwargs):
         if self.scanned_inventory_number:
             self.scanned_inventory_number = self.scanned_inventory_number.strip().upper()
+
+        if self.notes:
+            self.notes = self.notes.strip()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
-        target = self.asset.inventory_number if self.asset else self.scanned_inventory_number
+        target = (
+            self.asset.display_inventory_number
+            if self.asset
+            else self.scanned_inventory_number or "SIN-LECTURA"
+        )
+
         return f"{self.session.folio} · {target} · {self.get_result_display()}"
 
 
@@ -177,7 +222,9 @@ class InventoryAuditLog(InventoryBaseModel):
     """
     Auditoría interna del módulo Inventory.
 
-    Más adelante podemos integrarlo también al ForensicAuditor global de Security.
+    Registra mutaciones relevantes del expediente patrimonial:
+    altas, cambios, resguardos, movimientos, bajas, auditorías físicas,
+    documentos, fotos y procesos financieros.
     """
 
     action_type = models.CharField(
@@ -234,16 +281,32 @@ class InventoryAuditLog(InventoryBaseModel):
 
     class Meta:
         db_table = "inventory_audit_logs"
+        verbose_name = "Bitácora de inventario"
+        verbose_name_plural = "Bitácora de inventario"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["action_type"]),
+            models.Index(fields=["asset"]),
+            models.Index(fields=["actor"]),
             models.Index(fields=["target_model", "target_id"]),
+            models.Index(fields=["created_at"]),
         ]
 
     def save(self, *args, **kwargs):
         self.action_type = self.action_type.strip().upper()
         self.summary = self.summary.strip()
+
+        if self.target_model:
+            self.target_model = self.target_model.strip()
+
+        if self.target_id:
+            self.target_id = self.target_id.strip()
+
+        if self.user_agent:
+            self.user_agent = self.user_agent.strip()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.action_type} · {self.summary}"
+    

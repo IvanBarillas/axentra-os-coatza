@@ -148,3 +148,4 @@ class AssetPhoto(InventoryBaseModel):
 
     def __str__(self):
         return f"{self.asset.inventory_number} · {self.get_photo_type_display()}"
+    
