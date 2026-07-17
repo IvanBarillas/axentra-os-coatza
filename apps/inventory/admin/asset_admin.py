@@ -1,1050 +1,285 @@
 # apps/inventory/admin/asset_admin.py
 
+"""
+Administración completa de Inventory para desarrollo.
+
+Características:
+- Registra automáticamente todos los modelos de Inventory.
+- Muestra todos los campos concretos en los listados.
+- Muestra todos los campos en los formularios.
+- Permite buscar en textos, correos, UUID y relaciones.
+- Genera filtros para estados, opciones, booleanos y fechas.
+- Usa raw_id_fields para evitar desplegables demasiado grandes.
+- Mantiene visibles los campos técnicos y de auditoría.
+
+Esta configuración está pensada para desarrollo y diagnóstico.
+Antes de producción conviene crear administradores específicos y
+restringir los campos sensibles o de sólo lectura.
+"""
+
+from django.apps import apps
 from django.contrib import admin
-
-from apps.inventory.models import (
-    AccountingAccount,
-    AccountingExportBatch,
-    Asset,
-    AssetCategory,
-    AssetDocument,
-    AssetModel,
-    AssetPhoto,
-    Contract,
-    CustodyAssignment,
-    DepreciationPolicy,
-    DepreciationRecord,
-    DisposalRequest,
-    ImmovableAssetDetail,
-    InventoryAuditLog,
-    InventoryFolioSequence,
-    InventoryMovement,
-    Manufacturer,
-    PhysicalAuditItem,
-    PhysicalAuditSession,
-    Supplier,
-)
+from django.contrib.admin.sites import AlreadyRegistered
+from django.db import models
 
 
-class InventoryBaseAdmin(admin.ModelAdmin):
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+# =============================================================================
+# CONFIGURACIÓN GENERAL DEL SITIO
+# =============================================================================
 
-    list_filter = (
-        "is_active",
-        "is_deleted",
-    )
+admin.site.site_header = "Axentra OS · Administración"
+admin.site.site_title = "Axentra OS"
+admin.site.index_title = "Administración del sistema"
 
 
-@admin.register(AssetCategory)
-class AssetCategoryAdmin(InventoryBaseAdmin):
-    list_display = (
-        "code",
-        "name",
-        "nature",
-        "is_active",
-        "is_deleted",
-    )
-    search_fields = (
-        "code",
-        "name",
-        "description",
-    )
-    list_filter = (
-        "nature",
-        "is_active",
-        "is_deleted",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+# =============================================================================
+# ADMINISTRADOR BASE DE DESARROLLO
+# =============================================================================
 
+class InventoryDevelopmentAdmin(admin.ModelAdmin):
+    """
+    Administrador genérico para visualizar completamente cualquier modelo
+    perteneciente a Inventory.
+    """
 
-@admin.register(AccountingAccount)
-class AccountingAccountAdmin(InventoryBaseAdmin):
-    list_display = (
-        "code",
-        "name",
-        "category",
-        "is_depreciable",
-        "default_useful_life_months",
-        "default_annual_depreciation_rate",
-        "is_active",
-    )
-    search_fields = (
-        "code",
-        "name",
-        "category__code",
-        "category__name",
-    )
-    list_filter = (
-        "is_depreciable",
-        "category",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "category",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+    list_per_page = 50
+    list_max_show_all = 5000
 
+    save_on_top = True
+    save_as = True
 
-@admin.register(Manufacturer)
-class ManufacturerAdmin(InventoryBaseAdmin):
-    list_display = (
-        "name",
-        "is_active",
-        "is_deleted",
-    )
-    search_fields = (
-        "name",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+    preserve_filters = True
+    show_full_result_count = True
 
+    actions_on_top = True
+    actions_on_bottom = True
 
-@admin.register(AssetModel)
-class AssetModelAdmin(InventoryBaseAdmin):
-    list_display = (
-        "manufacturer",
-        "name",
-        "is_active",
-        "is_deleted",
-    )
-    search_fields = (
-        "manufacturer__name",
-        "name",
-        "description",
-    )
-    list_filter = (
-        "manufacturer",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "manufacturer",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+    empty_value_display = "—"
 
+    # -------------------------------------------------------------------------
+    # Campos mostrados en el listado
+    # -------------------------------------------------------------------------
 
-@admin.register(Supplier)
-class SupplierAdmin(InventoryBaseAdmin):
-    list_display = (
-        "razon_social",
-        "rfc",
-        "contacto_nombre",
-        "telefono",
-        "email",
-        "is_active",
-    )
-    search_fields = (
-        "razon_social",
-        "rfc",
-        "contacto_nombre",
-        "telefono",
-        "email",
-    )
-    list_filter = (
-        "is_active",
-        "is_deleted",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+    def get_list_display(self, request):
+        """
+        Muestra todos los campos concretos del modelo.
 
+        No incluye relaciones inversas ni ManyToMany porque no son columnas
+        concretas de la tabla.
+        """
 
-@admin.register(Contract)
-class ContractAdmin(InventoryBaseAdmin):
-    list_display = (
-        "numero_contrato",
-        "nombre",
-        "supplier",
-        "fecha_inicio",
-        "fecha_fin",
-        "monto_total",
-        "is_active",
-    )
-    search_fields = (
-        "numero_contrato",
-        "nombre",
-        "supplier__razon_social",
-        "supplier__rfc",
-    )
-    list_filter = (
-        "supplier",
-        "fecha_inicio",
-        "fecha_fin",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "supplier",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+        return tuple(
+            field.name
+            for field in self.model._meta.concrete_fields
+        )
 
+    # -------------------------------------------------------------------------
+    # Campos de sólo lectura
+    # -------------------------------------------------------------------------
 
-@admin.register(InventoryFolioSequence)
-class InventoryFolioSequenceAdmin(InventoryBaseAdmin):
-    list_display = (
-        "municipality_code",
-        "year",
-        "conac_code",
-        "dependency_code",
-        "asset_type_code",
-        "current_number",
-        "sequence_preview",
-        "is_active",
-    )
-    search_fields = (
-        "municipality_code",
-        "conac_code",
-        "dependency_code",
-        "asset_type_code",
-    )
-    list_filter = (
-        "municipality_code",
-        "year",
-        "conac_code",
-        "dependency_code",
-        "asset_type_code",
-        "is_active",
-        "is_deleted",
-    )
-    fields = (
-        "id",
-        "municipality_code",
-        "year",
-        "conac_code",
-        "dependency_code",
-        "asset_type_code",
-        "current_number",
-        "is_active",
-        "is_deleted",
-        "created_at",
-        "updated_at",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+    def get_readonly_fields(self, request, obj=None):
+        """
+        Los campos no editables definidos por Django se presentan como
+        sólo lectura, pero continúan siendo visibles.
+        """
 
-    def sequence_preview(self, obj):
-        return str(obj)
+        readonly = []
 
-    sequence_preview.short_description = "Vista previa"
+        for field in self.model._meta.concrete_fields:
+            if not field.editable:
+                readonly.append(field.name)
 
+        return tuple(readonly)
 
-class ImmovableAssetDetailInline(admin.StackedInline):
-    model = ImmovableAssetDetail
-    extra = 0
-    can_delete = True
-    show_change_link = True
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+    # -------------------------------------------------------------------------
+    # Relaciones
+    # -------------------------------------------------------------------------
 
+    def get_raw_id_fields(self, request):
+        """
+        Usa selectores por ID para todas las relaciones.
 
-class AssetPhotoInline(admin.TabularInline):
-    model = AssetPhoto
-    extra = 0
-    show_change_link = True
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+        Esto evita cargar miles de usuarios, activos, dependencias o
+        movimientos dentro de un <select>.
+        """
 
+        return tuple(
+            field.name
+            for field in self.model._meta.concrete_fields
+            if isinstance(
+                field,
+                (models.ForeignKey, models.OneToOneField),
+            )
+        )
 
-class AssetDocumentInline(admin.TabularInline):
-    model = AssetDocument
-    extra = 0
-    show_change_link = True
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+    def get_queryset(self, request):
+        """
+        Reduce consultas repetidas al mostrar relaciones ForeignKey.
+        """
 
+        queryset = super().get_queryset(request)
 
-@admin.register(Asset)
-class AssetAdmin(InventoryBaseAdmin):
-    list_display = (
-        "display_inventory_number",
-        "official_inventory_number",
-        "internal_inventory_number",
-        "legacy_inventory_number",
-        "name",
-        "category",
-        "control_type",
-        "lifecycle_status",
-        "physical_condition",
-        "is_capitalizable",
-        "acquisition_cost",
-        "sede",
-        "dependencia",
-        "area",
-        "current_custodian",
-        "is_active",
-    )
+        relation_fields = [
+            field.name
+            for field in self.model._meta.concrete_fields
+            if isinstance(
+                field,
+                (models.ForeignKey, models.OneToOneField),
+            )
+        ]
 
-    search_fields = (
-        "official_inventory_number",
-        "internal_inventory_number",
-        "legacy_inventory_number",
-        "name",
-        "description",
-        "serial_number",
-        "manufacturer__name",
-        "model__name",
-        "supplier__razon_social",
-        "current_custodian__email",
-        "current_custodian__first_name",
-        "current_custodian__last_name",
-        "sede__nombre",
-        "dependencia__nombre",
-        "area__nombre",
-    )
+        if relation_fields:
+            queryset = queryset.select_related(*relation_fields)
 
-    list_filter = (
-        "control_type",
-        "lifecycle_status",
-        "physical_condition",
-        "is_capitalizable",
-        "category",
-        "accounting_account",
-        "manufacturer",
-        "sede",
-        "dependencia",
-        "area",
-        "is_active",
-        "is_deleted",
-    )
+        return queryset
 
-    autocomplete_fields = (
-        "category",
-        "accounting_account",
-        "manufacturer",
-        "model",
-        "supplier",
-        "contract",
-        "sede",
-        "dependencia",
-        "area",
-        "current_custodian",
-    )
+    # -------------------------------------------------------------------------
+    # Búsqueda
+    # -------------------------------------------------------------------------
 
-    readonly_fields = (
-        "id",
-        "display_inventory_number",
-        "depreciable_base",
-        "created_at",
-        "updated_at",
-    )
+    def get_search_fields(self, request):
+        """
+        Habilita búsqueda automática sobre:
 
-    fieldsets = (
-        (
-            "Identidad patrimonial",
-            {
-                "fields": (
-                    "id",
-                    "display_inventory_number",
-                    "official_inventory_number",
-                    "internal_inventory_number",
-                    "legacy_inventory_number",
-                    "name",
-                    "description",
+        - CharField
+        - TextField
+        - EmailField
+        - SlugField
+        - UUIDField
+        - Llaves foráneas por su identificador
+        """
+
+        search_fields = []
+
+        text_field_types = (
+            models.CharField,
+            models.TextField,
+            models.EmailField,
+            models.SlugField,
+        )
+
+        for field in self.model._meta.concrete_fields:
+            if isinstance(field, text_field_types):
+                search_fields.append(field.name)
+
+            elif isinstance(field, models.UUIDField):
+                search_fields.append(f"={field.name}")
+
+            elif isinstance(
+                field,
+                (models.ForeignKey, models.OneToOneField),
+            ):
+                search_fields.append(f"={field.name}__pk")
+
+        return tuple(search_fields)
+
+    # -------------------------------------------------------------------------
+    # Filtros
+    # -------------------------------------------------------------------------
+
+    def get_list_filter(self, request):
+        """
+        Genera filtros para:
+
+        - Campos con choices.
+        - Booleanos.
+        - Fechas.
+        - Fechas y horas.
+        - Relaciones ForeignKey.
+        """
+
+        list_filter = []
+
+        for field in self.model._meta.concrete_fields:
+            if field.primary_key:
+                continue
+
+            if field.choices:
+                list_filter.append(field.name)
+                continue
+
+            if isinstance(field, models.BooleanField):
+                list_filter.append(field.name)
+                continue
+
+            if isinstance(field, (models.DateField, models.DateTimeField)):
+                list_filter.append(field.name)
+                continue
+
+            if isinstance(
+                field,
+                (models.ForeignKey, models.OneToOneField),
+            ):
+                list_filter.append(
+                    (
+                        field.name,
+                        admin.RelatedOnlyFieldListFilter,
+                    )
                 )
-            },
-        ),
-        (
-            "Clasificación CONAC / control",
-            {
-                "fields": (
-                    "category",
-                    "accounting_account",
-                    "control_type",
-                    "lifecycle_status",
-                    "physical_condition",
-                    "acquisition_type",
-                )
-            },
-        ),
-        (
-            "Información financiera",
-            {
-                "fields": (
-                    "acquisition_date",
-                    "registration_date",
-                    "acquisition_cost",
-                    "residual_value",
-                    "depreciable_base",
-                    "useful_life_months",
-                    "is_capitalizable",
-                    "capitalization_threshold_amount",
-                )
-            },
-        ),
-        (
-            "Marca, modelo y proveedor",
-            {
-                "fields": (
-                    "manufacturer",
-                    "model",
-                    "serial_number",
-                    "supplier",
-                    "contract",
-                )
-            },
-        ),
-        (
-            "Ubicación y resguardo",
-            {
-                "fields": (
-                    "sede",
-                    "dependencia",
-                    "area",
-                    "current_custodian",
-                    "latitude",
-                    "longitude",
-                )
-            },
-        ),
-        (
-            "Notas y atributos extendidos",
-            {
-                "fields": (
-                    "notes",
-                    "extra_attributes",
-                )
-            },
-        ),
-        (
-            "Control del sistema",
-            {
-                "fields": (
-                    "is_active",
-                    "is_deleted",
-                    "created_at",
-                    "updated_at",
-                )
-            },
-        ),
-    )
 
-    inlines = (
-        ImmovableAssetDetailInline,
-        AssetPhotoInline,
-        AssetDocumentInline,
-    )
+        return tuple(list_filter)
+
+    # -------------------------------------------------------------------------
+    # Ordenamiento
+    # -------------------------------------------------------------------------
+
+    def get_ordering(self, request):
+        """
+        Respeta el ordering declarado en Meta.
+
+        Si el modelo no declara uno, ordena por fecha de creación o por PK.
+        """
+
+        declared_ordering = self.model._meta.ordering
+
+        if declared_ordering:
+            return declared_ordering
+
+        field_names = {
+            field.name
+            for field in self.model._meta.concrete_fields
+        }
+
+        if "created_at" in field_names:
+            return ("-created_at",)
+
+        return (self.model._meta.pk.name,)
+
+    # -------------------------------------------------------------------------
+    # Navegación por fecha
+    # -------------------------------------------------------------------------
+
+    def get_date_hierarchy(self, request):
+        """
+        Utiliza created_at como navegación cronológica cuando exista.
+        """
+
+        field_names = {
+            field.name
+            for field in self.model._meta.concrete_fields
+        }
+
+        if "created_at" in field_names:
+            return "created_at"
+
+        return None
 
 
-@admin.register(ImmovableAssetDetail)
-class ImmovableAssetDetailAdmin(InventoryBaseAdmin):
-    list_display = (
-        "asset",
-        "asset_folio",
-        "cadastral_key",
-        "deed_number",
-        "surface_m2",
-        "legal_status",
-        "is_active",
-    )
-    search_fields = (
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "cadastral_key",
-        "public_registry_record",
-        "deed_number",
-        "legal_status",
-    )
-    list_filter = (
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "asset",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
+# =============================================================================
+# REGISTRO AUTOMÁTICO
+# =============================================================================
 
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
+inventory_app_config = apps.get_app_config("inventory")
 
 
-@admin.register(CustodyAssignment)
-class CustodyAssignmentAdmin(InventoryBaseAdmin):
-    list_display = (
-        "folio",
-        "asset_folio",
-        "asset",
-        "assigned_to",
-        "assigned_by",
-        "status",
-        "dependencia",
-        "area",
-        "sede",
-        "assigned_at",
-        "signed_at",
-        "returned_at",
-        "is_active",
-    )
-    search_fields = (
-        "folio",
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "assigned_to__email",
-        "assigned_to__first_name",
-        "assigned_to__last_name",
-        "assigned_by__email",
-        "dependencia__nombre",
-        "area__nombre",
-        "sede__nombre",
-        "notes",
-    )
-    list_filter = (
-        "status",
-        "dependencia",
-        "area",
-        "sede",
-        "assigned_at",
-        "signed_at",
-        "returned_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "asset",
-        "assigned_to",
-        "assigned_by",
-        "dependencia",
-        "area",
-        "sede",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio activo"
-
-
-@admin.register(InventoryMovement)
-class InventoryMovementAdmin(InventoryBaseAdmin):
-    list_display = (
-        "asset_folio",
-        "asset",
-        "movement_type",
-        "from_dependencia",
-        "to_dependencia",
-        "from_user",
-        "to_user",
-        "performed_by",
-        "reference_folio",
-        "created_at",
-        "is_active",
-    )
-    search_fields = (
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "reference_folio",
-        "reason",
-        "performed_by__email",
-        "from_user__email",
-        "to_user__email",
-    )
-    list_filter = (
-        "movement_type",
-        "from_dependencia",
-        "to_dependencia",
-        "from_area",
-        "to_area",
-        "from_sede",
-        "to_sede",
-        "created_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "asset",
-        "from_dependencia",
-        "to_dependencia",
-        "from_area",
-        "to_area",
-        "from_sede",
-        "to_sede",
-        "from_user",
-        "to_user",
-        "performed_by",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
-
-
-@admin.register(DisposalRequest)
-class DisposalRequestAdmin(InventoryBaseAdmin):
-    list_display = (
-        "folio",
-        "asset_folio",
-        "asset",
-        "reason",
-        "status",
-        "requested_by",
-        "reviewed_by",
-        "approved_by",
-        "requested_at",
-        "approved_at",
-        "executed_at",
-        "is_active",
-    )
-    search_fields = (
-        "folio",
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "requested_by__email",
-        "reviewed_by__email",
-        "approved_by__email",
-        "description",
-        "legal_reference",
-        #"source_app",
-        "source_model",
-        "source_object_id",
-    )
-    list_filter = (
-        "reason",
-        "status",
-        "requested_at",
-        "approved_at",
-        "executed_at",
-        #"source_app",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "asset",
-        "requested_by",
-        "reviewed_by",
-        "approved_by",
-    )
-    readonly_fields = (
-        "id",
-        "requested_at",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
-
-
-@admin.register(DepreciationPolicy)
-class DepreciationPolicyAdmin(InventoryBaseAdmin):
-    list_display = (
-        "name",
-        "accounting_account",
-        "method",
-        "frequency",
-        "useful_life_months",
-        "residual_percentage",
-        "is_active",
-    )
-    search_fields = (
-        "name",
-        "accounting_account__code",
-        "accounting_account__name",
-    )
-    list_filter = (
-        "method",
-        "frequency",
-        "accounting_account",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "accounting_account",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-
-@admin.register(DepreciationRecord)
-class DepreciationRecordAdmin(InventoryBaseAdmin):
-    list_display = (
-        "asset_folio",
-        "asset",
-        "policy",
-        "period_year",
-        "period_month",
-        "original_value",
-        "depreciation_amount",
-        "accumulated_depreciation",
-        "book_value",
-        "calculated_by",
-        "calculated_at",
-    )
-    search_fields = (
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "policy__name",
-        "calculated_by__email",
-    )
-    list_filter = (
-        "period_year",
-        "period_month",
-        "policy",
-        "calculated_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "asset",
-        "policy",
-        "calculated_by",
-    )
-    readonly_fields = (
-        "id",
-        "calculated_at",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
-
-
-@admin.register(AccountingExportBatch)
-class AccountingExportBatchAdmin(InventoryBaseAdmin):
-    list_display = (
-        "export_type",
-        "period_start",
-        "period_end",
-        "generated_by",
-        "generated_file",
-        "created_at",
-        "is_active",
-    )
-    search_fields = (
-        "generated_by__email",
-        "generated_by__first_name",
-        "generated_by__last_name",
-    )
-    list_filter = (
-        "export_type",
-        "period_start",
-        "period_end",
-        "created_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "generated_by",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-
-@admin.register(AssetDocument)
-class AssetDocumentAdmin(InventoryBaseAdmin):
-    list_display = (
-        "title",
-        "document_type",
-        "asset_folio",
-        "asset",
-        "custody_assignment",
-        "disposal_request",
-        "movement",
-        "uploaded_by",
-        #"source_app",
-        "created_at",
-        "is_active",
-    )
-    search_fields = (
-        "title",
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "custody_assignment__folio",
-        "disposal_request__folio",
-        "movement__reference_folio",
-        "uploaded_by__email",
-        "sha256_hash",
-        #"source_app",
-        "source_model",
-        "source_object_id",
-        "notes",
-    )
-    list_filter = (
-        "document_type",
-        "uploaded_by",
-        #"source_app",
-        "created_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "asset",
-        "custody_assignment",
-        "disposal_request",
-        "movement",
-        "uploaded_by",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
-
-
-@admin.register(AssetPhoto)
-class AssetPhotoAdmin(InventoryBaseAdmin):
-    list_display = (
-        "asset_folio",
-        "asset",
-        "photo_type",
-        "caption",
-        "uploaded_by",
-        "created_at",
-        "is_active",
-    )
-    search_fields = (
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "caption",
-        "uploaded_by__email",
-    )
-    list_filter = (
-        "photo_type",
-        "uploaded_by",
-        "created_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "asset",
-        "uploaded_by",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
-
-
-@admin.register(PhysicalAuditSession)
-class PhysicalAuditSessionAdmin(InventoryBaseAdmin):
-    list_display = (
-        "folio",
-        "name",
-        "status",
-        "sede",
-        "dependencia",
-        "area",
-        "started_by",
-        "closed_by",
-        "started_at",
-        "closed_at",
-        "is_active",
-    )
-    search_fields = (
-        "folio",
-        "name",
-        "started_by__email",
-        "closed_by__email",
-        "sede__nombre",
-        "dependencia__nombre",
-        "area__nombre",
-        "notes",
-    )
-    list_filter = (
-        "status",
-        "sede",
-        "dependencia",
-        "area",
-        "started_at",
-        "closed_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "sede",
-        "dependencia",
-        "area",
-        "started_by",
-        "closed_by",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-
-@admin.register(PhysicalAuditItem)
-class PhysicalAuditItemAdmin(InventoryBaseAdmin):
-    list_display = (
-        "session",
-        "asset_folio",
-        "asset",
-        "scanned_inventory_number",
-        "result",
-        "scanned_by",
-        "scanned_at",
-        "is_active",
-    )
-    search_fields = (
-        "session__folio",
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "scanned_inventory_number",
-        "scanned_by__email",
-        "notes",
-    )
-    list_filter = (
-        "result",
-        "scanned_by",
-        "scanned_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "session",
-        "asset",
-        "scanned_by",
-    )
-    readonly_fields = (
-        "id",
-        "scanned_at",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        if obj.asset:
-            return obj.asset.display_inventory_number
-
-        return obj.scanned_inventory_number or "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
-
-
-@admin.register(InventoryAuditLog)
-class InventoryAuditLogAdmin(InventoryBaseAdmin):
-    list_display = (
-        "action_type",
-        "actor",
-        "asset_folio",
-        "asset",
-        "target_model",
-        "target_id",
-        "summary",
-        "created_at",
-    )
-    search_fields = (
-        "action_type",
-        "actor__email",
-        "asset__official_inventory_number",
-        "asset__internal_inventory_number",
-        "asset__legacy_inventory_number",
-        "asset__name",
-        "target_model",
-        "target_id",
-        "summary",
-    )
-    list_filter = (
-        "action_type",
-        "target_model",
-        "created_at",
-        "is_active",
-        "is_deleted",
-    )
-    autocomplete_fields = (
-        "actor",
-        "asset",
-    )
-    readonly_fields = (
-        "id",
-        "created_at",
-        "updated_at",
-    )
-
-    def asset_folio(self, obj):
-        return obj.asset.display_inventory_number if obj.asset else "SIN-FOLIO"
-
-    asset_folio.short_description = "Folio"
+for inventory_model in inventory_app_config.get_models():
+    try:
+        admin.site.register(
+            inventory_model,
+            InventoryDevelopmentAdmin,
+        )
+    except AlreadyRegistered:
+        # Permite conservar un administrador específico si algún modelo
+        # ya fue registrado antes.
+        pass
     
