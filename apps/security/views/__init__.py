@@ -8,7 +8,6 @@ from .accounts_views import (
     funcionario_editar_view, 
     funcionario_cambiar_password_view, 
     funcionario_soft_delete_view,funcionario_detail_view,
-    # ENDPOINTS DE COCHERA HTMX (SIDEBAR 2)
     funcionario_sub_identidad_view, funcionario_sub_hardware_view, funcionario_sub_telefonia_view
 )
 
@@ -76,7 +75,6 @@ __all__ = [
     'funcionario_editar_view', 
     'funcionario_cambiar_password_view', 
     'funcionario_soft_delete_view',
-    # ENDPOINTS DE COCHERA HTMX (SIDEBAR 2)
     'funcionario_sub_identidad_view', 'funcionario_sub_hardware_view', 'funcionario_sub_telefonia_view',
     
     # Organigrama

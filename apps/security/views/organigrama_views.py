@@ -14,7 +14,7 @@ from django.db import transaction
 from apps.security.models.accounts import UserProfile
 from apps.security.permissions import OrganigramaPermissions
 from apps.shared.apps_config import AppIdentifier
-from apps.security.decorators import axentra_gate_enforcer
+from apps.security.decorators import axentra_module_gate
 from apps.security.models.organigrama import Sede, Dependencia, AreaOperativa
 from apps.security.models.audit import SecurityAuditLog
 from apps.security.selectors.organigrama_selectors import SedeSelectors, DependenciaSelectors, AreaOperativaSelectors
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def organigrama_dashboard_view(request):
     """Cabina de mando analítica: Métrica con mapeo plano seguro para evitar fallos de Lookup."""
     
@@ -111,7 +111,7 @@ def organigrama_dashboard_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def estructura_list_view(request):
     """Hub principal de estructura orgánica gubernamental."""
 
@@ -163,7 +163,7 @@ def estructura_list_view(request):
 # 🏛️ PILAR 2: GESTIÓN GEOGRÁFICA (SEDES E INMUEBLES MUNICIPALES)
 # =========================================================================
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_list_view(request):
     """Inventario geográfico físico de palacios y anexos municipales."""
 
@@ -190,7 +190,7 @@ def sede_list_view(request):
     return render(request, "organigrama/pages/sede_list.html", context)
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_create_view(request):
     """Aprovisionamiento de nuevos inmuebles institucionales."""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
@@ -237,7 +237,7 @@ def sede_create_view(request):
     return render(request, "organigrama/pages/sede_form.html", context)
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_update_view(request, pk: uuid.UUID):
     """Modificación contextual de metadatos geográficos de una sede."""
 
@@ -332,7 +332,7 @@ def sede_update_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_soft_delete_view(request, pk: uuid.UUID):
     """Baja lógica protegida de una sede física."""
 
@@ -473,7 +473,7 @@ def sede_soft_delete_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def sede_toggle_status_view(request, pk: uuid.UUID):
     """
     Alternador protegido de estado operativo para sedes.
@@ -607,7 +607,7 @@ def sede_toggle_status_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_detail_view(request, pk: uuid.UUID):
     """Expediente contextual de una sede física."""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
@@ -677,7 +677,7 @@ def sede_detail_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_sub_identidad_view(request, pk: uuid.UUID):
     """Subvista de identidad del expediente contextual de sede."""
 
@@ -801,7 +801,7 @@ def render_sede_contextual_subview(
     )
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_sub_dependencias_view(request, pk: uuid.UUID):
     """Subvista de dependencias presentes en una sede."""
 
@@ -844,7 +844,7 @@ def sede_sub_dependencias_view(request, pk: uuid.UUID):
     )
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_sub_areas_view(request, pk: uuid.UUID):
     """Subvista de áreas operativas presentes en una sede."""
 
@@ -877,7 +877,7 @@ def sede_sub_areas_view(request, pk: uuid.UUID):
 
    
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_sub_funcionarios_view(request, pk: uuid.UUID):
     """Subvista de funcionarios adscritos a una sede."""
 
@@ -920,7 +920,7 @@ def sede_sub_funcionarios_view(request, pk: uuid.UUID):
 # 🏛️ PILAR 3: RAMOS ESTRUCTURALES (DEPENDENCIAS / DIRECCIONES GENERALES)
 # =========================================================================
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def dependencia_list_view(request):
     """Inventario administrativo de dependencias institucionales."""
 
@@ -979,7 +979,7 @@ def dependencia_list_view(request):
     
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_create_view(request):
     """Alta de dependencias administrativas institucionales."""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
@@ -1049,7 +1049,7 @@ def dependencia_create_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_update_view(request, pk: uuid.UUID):
     """Modificación contextual de nomenclatura, jerarquía y titular de dependencia."""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
@@ -1125,7 +1125,7 @@ def dependencia_update_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_soft_delete_view(request, pk: uuid.UUID):
     """Baja lógica protegida de una dependencia administrativa."""
 
@@ -1318,7 +1318,7 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def dependencia_toggle_status_view(request, pk: uuid.UUID):
     """
     Alternador protegido de estado operativo para dependencias.
@@ -1562,7 +1562,7 @@ def render_dependencia_contextual_subview(
     )
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def dependencia_detail_view(request, pk: uuid.UUID):
     """Expediente contextual de una dependencia administrativa."""
 
@@ -1688,7 +1688,7 @@ def dependencia_detail_view(request, pk: uuid.UUID):
     
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def dependencia_sub_identidad_view(request, pk: uuid.UUID):
     """Subvista de identidad del expediente contextual de dependencia."""
 
@@ -1706,7 +1706,7 @@ def dependencia_sub_identidad_view(request, pk: uuid.UUID):
     )
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def dependencia_sub_areas_view(request, pk: uuid.UUID):
     """Subvista de áreas operativas adscritas a una dependencia."""
 
@@ -1745,7 +1745,7 @@ def dependencia_sub_areas_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def dependencia_sub_sedes_view(request, pk: uuid.UUID):
     """Subvista de sedes donde opera una dependencia."""
 
@@ -1789,7 +1789,7 @@ def dependencia_sub_sedes_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def dependencia_sub_funcionarios_view(request, pk: uuid.UUID):
     """Subvista de funcionarios adscritos a una dependencia."""
 
@@ -1835,7 +1835,7 @@ def dependencia_sub_funcionarios_view(request, pk: uuid.UUID):
 # 📍 PILAR 4: SUB-FRAGMENTACIÓN (ÁREAS OPERATIVAS Y OFICINAS INTERNAS)
 # =========================================================================
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def area_list_view(request):
     """Inventario administrativo de áreas operativas."""
 
@@ -1887,7 +1887,7 @@ def area_list_view(request):
     
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_create_view(request):
     """Alta de áreas operativas que vinculan dependencia administrativa con sede física."""
 
@@ -1990,7 +1990,7 @@ def area_create_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_update_view(request, pk: uuid.UUID):
     """Modificación contextual de un área operativa."""
 
@@ -2134,7 +2134,7 @@ def area_update_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_soft_delete_view(request, pk: uuid.UUID):
     """Baja lógica protegida de un área operativa."""
 
@@ -2294,7 +2294,7 @@ def area_soft_delete_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
 def area_toggle_status_view(request, pk: uuid.UUID):
     """
     Alternador protegido de estado operativo para áreas.
@@ -2528,7 +2528,7 @@ def render_area_contextual_subview(
     
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def area_detail_view(request, pk: uuid.UUID):
     """Expediente contextual de un área operativa."""
 
@@ -2627,7 +2627,7 @@ def area_detail_view(request, pk: uuid.UUID):
     
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def area_sub_identidad_view(request, pk: uuid.UUID):
     """Subvista de identidad del expediente contextual de área."""
 
@@ -2649,7 +2649,7 @@ def area_sub_identidad_view(request, pk: uuid.UUID):
     
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def area_sub_funcionarios_view(request, pk: uuid.UUID):
     """Subvista de funcionarios adscritos a un área operativa."""
 
@@ -2700,7 +2700,7 @@ def area_sub_funcionarios_view(request, pk: uuid.UUID):
 # =========================================================================
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def cargar_areas_htmx_view(request):
     """Hidratación en cascada de selectores secundarios dependientes."""
     dependencia_id = request.GET.get('dependencia')
@@ -2712,7 +2712,7 @@ def cargar_areas_htmx_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def vincular_areas_ajax_view(request, dep_id):
     """Despacha la matriz de sub-oficinas de una dependencia usando el accesor premium inverso."""
     dependencia = get_object_or_404(Dependencia, id=dep_id, is_deleted=False)
