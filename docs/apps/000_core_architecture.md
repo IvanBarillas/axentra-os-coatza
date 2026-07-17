@@ -1,181 +1,536 @@
-# AXENTRA OS — CORE PLATFORM MANIFESTO
+# AXENTRA OS — Arquitectura del Core
 
-## Sistema Operativo Municipal Federado y Core de Ciberseguridad Aislada
+## Sistema Operativo Municipal Modular
 
-Este repositorio concentra el Core de Infraestructura y Gobernanza Central de Axentra OS. Está diseñado bajo una arquitectura matricial de software federado, actuando como el motor maestro para despliegues en Ayuntamientos y Administraciones Públicas Municipales.
+Este documento describe la arquitectura vigente de Axentra OS y establece las reglas que deben respetar el Core y las aplicaciones que se incorporen posteriormente.
 
----
-
-# 1. Manifiesto del Sistema de Permisos y Roles
-
-Axentra OS no utiliza el sistema tradicional de permisos de Django (`auth.Permission`). El acceso perimetral opera mediante un catálogo atómico federado mantenido en memoria y persistido mediante un `JSONField` dentro de PostgreSQL (`UserAppRole`).
-
-## Protocolo para crear y federar una nueva aplicación satélite
-
-Cuando un desarrollador crea un nuevo módulo (por ejemplo, patrimonio o catastro), debe seguir estrictamente el siguiente flujo de tres pasos.
+Axentra OS está construido actualmente como un monolito modular en Django. El sistema comparte autenticación, identidad institucional, estructura organizacional, permisos, auditoría y el chasis visual, pero mantiene separados sus dominios funcionales.
 
 ---
 
-## Paso 1. Registrar el identificador Core
+# 1. Arquitectura general
 
-Agregar el slug e identificador de la aplicación en el catálogo unificado.
+La plataforma se divide en tres capas conceptuales:
 
-**Archivo:** `apps/shared/apps_config.py`
+1. **Core de plataforma**
+2. **Módulos funcionales**
+3. **Aplicaciones satélite futuras**
+
+El Core proporciona:
+
+- Autenticación.
+- Identidad institucional.
+- Funcionarios.
+- Sedes, dependencias y áreas.
+- Gobierno de accesos.
+- Permisos finos.
+- Auditoría forense.
+- Registro de aplicaciones.
+- Shell visual.
+- Navegación dinámica.
+- Integración HTMX.
+
+Los módulos actuales son:
+
+| Identificador | Responsabilidad                                                   |
+| ------------- | ----------------------------------------------------------------- |
+| `security`    | Ciberseguridad, permisos, auditoría y configuración institucional |
+| `accounts`    | Funcionarios y expedientes laborales                              |
+| `organigrama` | Sedes, dependencias y áreas operativas                            |
+
+Actualmente estos dominios se encuentran dentro de la aplicación física `apps.security`, pero se exponen como módulos lógicos independientes mediante namespaces, manifiestos y permisos.
+
+---
+
+# 2. Estructura principal del proyecto
+
+```text
+axentra-os/
+├── apps/
+│   ├── shared/
+│   │   ├── apps_config.py
+│   │   ├── context_processors.py
+│   │   ├── manifest_registry.py
+│   │   ├── models.py
+│   │   ├── templates/
+│   │   └── utils/
+│   │
+│   └── security/
+│       ├── dtos/
+│       ├── forms/
+│       ├── models/
+│       ├── selectors/
+│       ├── services/
+│       ├── templates/
+│       ├── urls/
+│       ├── utils/
+│       ├── views/
+│       ├── decorators.py
+│       └── permissions.py
+│
+├── core/
+│   ├── settings/
+│   ├── urls.py
+│   ├── views.py
+│   ├── asgi.py
+│   └── wsgi.py
+│
+├── templates/
+│   ├── navigation/
+│   ├── partials/
+│   ├── public/
+│   └── shell/
+│
+├── static/
+├── media/
+├── docs/
+├── manage.py
+└── pyproject.toml
+```
+
+---
+
+# 3. Principios arquitectónicos
+
+## 3.1 Monolito modular
+
+Axentra OS no utiliza microservicios para sus funciones internas actuales.
+
+Los módulos comparten:
+
+- Proceso Django.
+- Base de datos.
+- Modelo de usuario.
+- Sesión.
+- Shell visual.
+- Sistema de permisos.
+- Auditoría.
+
+La separación se realiza mediante:
+
+- Namespaces de URL.
+- Manifiestos.
+- Servicios.
+- Selectores.
+- Formularios.
+- DTO.
+- Directorios de plantillas.
+- Permisos por módulo.
+
+Esta organización permite desarrollar inicialmente con sencillez y extraer aplicaciones satélite solamente cuando exista una necesidad real.
+
+## 3.2 Fuente única de verdad
+
+Cada concepto debe tener un responsable claro:
+
+| Concepto                 | Fuente de verdad                   |
+| ------------------------ | ---------------------------------- |
+| Módulos reconocidos      | `apps/shared/apps_config.py`       |
+| Manifiestos              | `permissions.py` de cada módulo    |
+| Descubrimiento           | `apps/shared/manifest_registry.py` |
+| Membresías               | `UserAppRole`                      |
+| Permisos del usuario     | `permissions_list`                 |
+| Estructura institucional | Sede, Dependencia y AreaOperativa  |
+| Identidad del municipio  | `TenantConfig`                     |
+| Navegación               | Manifiesto y context processors    |
+| Auditoría                | `SecurityAuditLog`                 |
+
+## 3.3 Baja lógica
+
+Las entidades operativas heredan de `AxentraBaseModel`.
+
+Este modelo proporciona:
+
+- UUID como llave primaria.
+- `is_active`.
+- `is_deleted`.
+- `created_at`.
+- `updated_at`.
+- `deleted_at`.
+- `soft_delete()`.
+- `restore()`.
+
+Las consultas funcionales deben excluir registros con:
+
+```python
+is_deleted=True
+```
+
+Una baja lógica no equivale únicamente a desactivar el registro. Siempre deben evaluarse ambos campos cuando corresponda:
+
+```python
+is_active=True,
+is_deleted=False,
+```
+
+---
+
+# 4. Flujo de navegación
+
+El flujo principal es:
+
+```nginx
+Portal público
+    ↓
+Autenticación
+    ↓
+Launcher de aplicaciones
+    ↓
+Módulo autorizado
+    ↓
+Workbench
+    ↓
+Contenido o expediente contextual
+```
+
+## 4.1 Portal público
+
+Ruta:
+
+```nginx
+/
+```
+
+Vista:
+
+```nginx
+intro_portal_view
+```
+
+Responsabilidades:
+
+- Mostrar la página institucional.
+- No utilizar el shell interno.
+- Redirigir al launcher si ya existe una sesión.
+
+## 4.2 Autenticación
+
+Ruta base:
+
+```nginx
+/app/auth/
+```
+
+Responsabilidades:
+
+- Inicio de sesión.
+- Cierre de sesión.
+- Recuperación o administración futura de credenciales.
+- Protección mediante Django Axes.
+
+El usuario de Axentra OS utiliza correo electrónico como identificador:
+
+```python
+USERNAME_FIELD = "email"
+```
+
+## 4.3 Launcher
+
+Ruta:
+
+```nginx
+/index/
+```
+
+Vista:
+
+```nginx
+index_hub_view
+```
+
+El launcher consulta los módulos permitidos y presenta únicamente las aplicaciones autorizadas.
+
+Los usuarios con bypass global pueden visualizar todos los módulos registrados.
+
+---
+
+# 5. Shell visual vigente
+
+La composición visual oficial es:
+
+```text
+shell/base.html
+└── shell/workbench.html
+    ├── global-sidebar
+    ├── module-sidebar opcional
+    └── page-content
+```
+
+## 5.1 `shell/base.html`
+
+Es el documento HTML principal.
+
+Contiene:
+
+- Sidebar global.
+- Navbar.
+- Contenedor `#workbench`.
+- Raíces para modales, drawers, mensajes y overlays.
+- Inicialización de HTMX.
+- Inicialización de Alpine.js.
+- Inicialización de Lucide.
+- Inicialización de Chart.js.
+- Modal global de confirmación.
+- Eventos globales HTMX.
+
+## 5.2 `shell/workbench.html`
+
+Define la superficie operativa de cada módulo.
+
+Su estructura es:
+
+```html
+<div id="workbench">
+  <aside id="module-sidebar">
+    <!-- Sidebar contextual opcional -->
+  </aside>
+
+  <section>
+    <main id="page-content">
+      <!-- Contenido funcional -->
+    </main>
+  </section>
+</div>
+```
+
+## 5.3 Reglas del shell
+
+Las nuevas pantallas deben extender:
+
+```django
+{% extends "shell/workbench.html" %}
+```
+
+No deben crear nuevamente:
+
+- Sidebar global.
+- Navbar global.
+- Footer global.
+- Contenedor `#workbench`.
+- Raíces de modales.
+- Scripts base.
+
+Una pantalla decide si necesita sidebar secundario mediante:
+
+```python
+context = {
+    "show_module_sidebar": True,
+}
+```
+
+Las pantallas simples pueden usar:
+
+```python
+context = {
+    "show_module_sidebar": False,
+}
+```
+
+---
+
+# 6. Contrato HTMX
+
+Axentra OS utiliza dos destinos principales.
+
+## 6.1 Cambio de módulo
+
+Cuando el usuario selecciona una aplicación desde el sidebar global:
+
+```html
+hx-target="#workbench" hx-push-url="true"
+```
+
+La vista debe devolver una plantilla de tipo:
+
+```text
+<modulo>/workbench/
+```
+
+Esta respuesta puede incluir:
+
+- Sidebar del módulo.
+- Contenido inicial.
+- Estado de navegación.
+
+## 6.2 Navegación dentro de un módulo
+
+Cuando el usuario navega dentro de una aplicación:
+
+```html
+hx-target="#page-content" hx-push-url="true"
+```
+
+La vista debe devolver una plantilla de tipo:
+
+```text
+<modulo>/content/
+```
+
+El shell y el sidebar permanecen estables.
+
+## 6.3 Fragmentos transaccionales
+
+Para tablas, formularios, filas, filtros o mensajes se utilizan plantillas dentro de:
+
+```text
+<modulo>/htmx/
+```
+
+Estas respuestas deben reemplazar únicamente el componente afectado.
+
+## 6.4 Detección en las vistas
+
+Las vistas deben distinguir entre:
+
+- Navegación directa.
+- Sustitución de `#workbench`.
+- Sustitución de `#page-content`.
+- Fragmentos pequeños.
+
+Ejemplo:
+
+```python
+is_htmx = (
+    str(request.headers.get("HX-Request", ""))
+    .strip()
+    .lower()
+    == "true"
+)
+
+target_htmx = request.headers.get("HX-Target", "")
+
+if is_htmx and target_htmx == "workbench":
+    return render(
+        request,
+        "nueva_app/workbench/dashboard_workbench.html",
+        context,
+    )
+
+if is_htmx and target_htmx == "page-content":
+    return render(
+        request,
+        "nueva_app/content/dashboard_content.html",
+        context,
+    )
+
+return render(
+    request,
+    "nueva_app/pages/dashboard.html",
+    context,
+)
+```
+
+## 6.5 Organización oficial de plantillas
+
+Cada módulo debe utilizar, cuando corresponda:
+
+```nginx
+templates/nueva_app/
+├── pages/
+├── workbench/
+├── content/
+├── htmx/
+└── contextual/
+```
+
+### `pages`
+
+Documento para navegación directa o recarga completa.
+
+### `workbench`
+
+Respuesta destinada a reemplazar `#workbench`.
+
+### `content`
+
+Respuesta destinada a reemplazar `#page-content`.
+
+### `htmx`
+
+Fragmentos transaccionales pequeños.
+
+### `contextual`
+
+Sidebar o navegación específica de un expediente.
+
+---
+
+# 7. Sistema de aplicaciones y manifiestos
+
+## 7.1 Registro de identificadores
+
+Los módulos reconocidos se declaran en:
+
+```nginx
+apps/shared/apps_config.py
+```
+
+Ejemplo:
 
 ```python
 class AppIdentifier:
-    ORGANIGRAMA = "organigrama"
-    ACCOUNTS = "accounts"
     SECURITY = "security"
-    STAFF = "staff"
-    DYNAMIC_FORMS = "dynamic_forms"
-    HELPDESK = "helpdesk"
+    ACCOUNTS = "accounts"
+    ORGANIGRAMA = "organigrama"
     NUEVA_APP = "nueva_app"
 
     @classmethod
     def get_choices(cls):
         return [
-            (cls.ORGANIGRAMA, "ORGANIGRAMA Y MATRIZ"),
-            (cls.ACCOUNTS, "CONTROL DE PERSONAL"),
-            (cls.SECURITY, "CIBERSEGURIDAD CENTRAL"),
-            (cls.STAFF, "INTELSTAFF AUSENCIAS"),
-            (cls.DYNAMIC_FORMS, "FORMULARIOS DINÁMICOS"),
-            (cls.HELPDESK, "MESA DE AYUDA"),
-            (cls.NUEVA_APP, "NUEVA APP EJEMPLO"),
+            (cls.SECURITY, "Ciberseguridad Central"),
+            (cls.ACCOUNTS, "Plantilla de Personal"),
+            (cls.ORGANIGRAMA, "Estructura Orgánica"),
+            (cls.NUEVA_APP, "Nueva Aplicación"),
         ]
 ```
 
----
+El identificador debe:
 
-## Paso 2. Declarar el manifiesto de privilegios local
+- Estar en minúsculas.
+- Ser estable.
+- No depender del nombre visible.
+- Coincidir con el slug persistido en `AppModule`.
+- Coincidir con el namespace del módulo.
 
-Dentro de la nueva aplicación debe existir obligatoriamente un archivo `permissions.py`.
+## 7.2 Descubrimiento de manifiestos
 
-Su propósito es centralizar de manera declarativa la identidad del módulo, los privilegios atómicos, los perfiles predeterminados, la navegación protegida y las capacidades organizacionales.
+El registro se encuentra en:
 
-**Archivo:** `apps/nueva_app/permissions.py`
-
----
-
-## Desglose técnico de los componentes
-
-### `LAUNCHER_CARD`
-
-#### Identidad en el Lanzador General
-
-Configura los metadatos necesarios para que el chasis de Axentra OS renderice la tarjeta de acceso rápido dentro del Home principal.
-
-Representa la capa de descubrimiento inicial.
-
-**Responsabilidades:**
-
-- Definir título.
-- Definir descripción.
-- Configurar iconografía.
-- Definir estilos visuales.
-- Especificar la ruta de aterrizaje (`url_name`).
-- Determinar si corresponde a un módulo Core o Satélite.
-
----
-
-### `PERMISSIONS`
-
-#### Catálogo Atómico de Llaves
-
-Define las acciones granulares que el sistema puede controlar dentro del dominio funcional del módulo.
-
-Se persisten directamente dentro de la matriz `JSONField` asociada al funcionario.
-
-**Responsabilidades:**
-
-- Declarar privilegios elementales.
-- Servir como fuente única de verdad para la autorización.
-- Permitir validaciones eficientes en backend y frontend.
-
-**Ejemplos:**
-
-- `has_access_module`
-- `can_write_records`
-- `can_delete_records`
-
----
-
-### `ROLE_MAPPING`
-
-#### Plantillas de Roles Predeterminadas
-
-Agrupa las llaves de `PERMISSIONS` para construir los perfiles funcionales estándar del Core.
-
-Perfiles soportados:
-
-- `owner`
-- `admin`
-- `editor`
-- `reviewer`
-- `viewer`
-
-Reduce configuraciones manuales repetitivas y garantiza consistencia entre despliegues.
-
----
-
-## Directiva Inmutable Zero-Zero Trust SOBERANA
-
-En Axentra OS, el rol `owner` es el único perfil que clona e inyecta automáticamente la piscina completa de permisos desde el primer segundo.
-
-Al cambiar el rol a `admin` o cualquier escala jerárquica inferior:
-
-- El sistema vacía todas las llaves por diseño defensivo.
-- Preserva únicamente el token mínimo vitalicio obligatorio:
-
-```text
-has_access_module
+```nginx
+apps/shared/manifest_registry.py
 ```
 
-- El operador del sistema deberá habilitar manualmente cada casilla desde la grilla visual.
+`AxentraOSRegistry` intenta localizar el manifiesto en:
 
----
-
-### `SIDEBAR_MENU`
-
-#### Navegación Dinámica Protegida
-
-Define la estructura del menú lateral disponible dentro del módulo.
-
-Cada entrada representa una opción navegable compuesta por un arreglo plano con la siguiente estructura:
-
-```python
-["icono_lucide", "Texto", "Ruta", orden, "permiso_requerido"]
+```nginx
+apps.<app_code>.permissions
 ```
 
-Antes de renderizar cada elemento, el motor de navegación valida si el usuario posee la llave indicada.
+Mientras los dominios Core permanezcan centralizados, puede utilizar como compatibilidad:
 
-Si el permiso no existe, la opción es omitida del DOM de forma segura.
+```nginx
+apps.security.permissions
+```
 
----
+Las nuevas aplicaciones satélite deben incluir su propio archivo:
 
-### `CAPABILITIES`
+```nginx
+apps/nueva_app/permissions.py
+```
 
-#### Semántica de Comportamiento del Organigrama
+## 7.3 Contenido del manifiesto
 
-Describe atributos institucionales asociados a dependencias, direcciones o áreas del organigrama municipal para alterar reglas de negocio mediante configuraciones declarativas avanzadas.
+Cada manifiesto puede declarar:
 
-### Diferencia conceptual clave
+- `APP_CODE`
+- `PERMISSIONS`
+- `ROLE_MAPPING`
+- `ROLE_WEIGHTS`
+- `SIDEBAR_MENU`
+- `CAPABILITIES`
+- Menús contextuales adicionales
 
-**Permisos:**
-
-Responden a la pregunta:
-
-> ¿Qué puede hacer este usuario?
-
-**Capacidades:**
-
-Responden a la pregunta:
-
-> ¿Cómo debe comportarse el sistema respecto a esta unidad organizacional?
-
----
-
-## Ejemplo completo de manifiesto local (`permissions.py`)
+Ejemplo:
 
 ```python
 from apps.shared.apps_config import AppIdentifier
@@ -184,88 +539,99 @@ from apps.shared.apps_config import AppIdentifier
 class NuevaAppPermissions:
     APP_CODE = AppIdentifier.NUEVA_APP
 
-    LAUNCHER_CARD = {
-        "title": "Gestión de Nueva App",
-        "description": "Descripción operativa táctica del módulo municipal.",
-        "icon": "package",
-        "badge_text": "Operaciones",
-        "hover_color": "hover:border-blue-600",
-        "text_hover_color": "group-hover:text-blue-600",
-        "url_name": "nueva_app:dashboard",
-        "is_core": False,
-    }
-
     PERMISSIONS = {
         "has_access_module": (
-            "Token elemental requerido para que el módulo "
-            "sea visible y accesible."
+            "Permite ingresar al módulo."
         ),
-        "can_write_records": (
-            "Permite la creación y modificación de registros."
+        "can_view_records": (
+            "Permite consultar registros."
+        ),
+        "can_create_records": (
+            "Permite crear registros."
+        ),
+        "can_edit_records": (
+            "Permite modificar registros."
         ),
         "can_delete_records": (
-            "Permite la eliminación lógica de elementos."
+            "Permite aplicar bajas lógicas."
         ),
     }
 
     ROLE_MAPPING = {
         "owner": [
             "has_access_module",
-            "can_write_records",
+            "can_view_records",
+            "can_create_records",
+            "can_edit_records",
             "can_delete_records",
         ],
         "admin": [
             "has_access_module",
-            "can_write_records",
+            "can_view_records",
+            "can_create_records",
+            "can_edit_records",
         ],
         "editor": [
             "has_access_module",
-            "can_write_records",
+            "can_view_records",
+            "can_create_records",
+            "can_edit_records",
         ],
         "reviewer": [
             "has_access_module",
+            "can_view_records",
         ],
         "viewer": [
             "has_access_module",
+            "can_view_records",
         ],
+    }
+
+    ROLE_WEIGHTS = {
+        "owner": 100,
+        "admin": 80,
+        "editor": 60,
+        "reviewer": 40,
+        "viewer": 20,
     }
 
     SIDEBAR_MENU = [
-        [
-            "layout-dashboard",
-            "Tablero General",
-            "nueva_app:dashboard",
-            1,
-            "has_access_module",
-        ],
-        [
-            "database",
-            "Registros",
-            "nueva_app:records_list",
-            2,
-            "can_write_records",
-        ],
+        {
+            "icon": "layout-dashboard",
+            "name": "Panel principal",
+            "url": "nueva_app:dashboard",
+            "order": 10,
+            "permission": "has_access_module",
+        },
+        {
+            "icon": "database",
+            "name": "Registros",
+            "url": "nueva_app:record_list",
+            "order": 20,
+            "permission": "can_view_records",
+        },
     ]
 
     CAPABILITIES = {
-        "flag_alfa": {
-            "label": (
-                "[Security] Dependencia de TI / Innovación "
-                "proveedora de soporte especializado"
-            ),
+        "can_operate": {
+            "label": "Puede operar",
             "help_text": (
-                "Habilita al personal adscrito para "
-                "asignación de comisiones técnicas."
+                "Permite a la dependencia ejecutar "
+                "procesos de esta aplicación."
             ),
         },
-        "flag_beta": {
-            "label": (
-                "[Security] Dependencia consumidora "
-                "estricta (Solo reportes)"
-            ),
+        "can_supervise": {
+            "label": "Puede supervisar",
             "help_text": (
-                "Limita los catálogos para que el área "
-                "solo consulte sus propios folios."
+                "Permite a la dependencia supervisar "
+                "procesos de esta aplicación."
+            ),
+        },
+        "can_authorize": {
+            "label": "Puede autorizar",
+            "help_text": (
+                "Permite a la dependencia autorizar "
+                "operaciones críticas."
             ),
         },
     }
@@ -273,232 +639,711 @@ class NuevaAppPermissions:
 
 ---
 
-## Paso 3. Proteger las vistas mediante los mixins Core
+# 8. Gobierno de accesos
 
-Para blindar las URLs contra accesos ilegítimos o intentos de manipulación perimetral, las vistas basadas en clases (CBV) deben heredar los mixins de control respetando el orden estricto de resolución de herencia de Python (MRO).
+Axentra OS utiliza un modelo de autorización por aplicación.
 
-**Archivo:** `apps/nueva_app/views.py`
+## 8.1 `AppModule`
+
+Representa una aplicación registrada:
 
 ```python
-from django.views.generic import TemplateView
-from django.contrib.auth.mixins import LoginRequiredMixin
+class AppModule(AxentraBaseModel):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+```
 
-from apps.security.services.mixins import (
-    ModuleAccessRequiredMixin,
-    ModulePermissionsMixin,
-)
+## 8.2 `UserAppRole`
 
+Relaciona un funcionario con una aplicación:
+
+```python
+class UserAppRole(AxentraBaseModel):
+    user = models.ForeignKey(User, ...)
+    app = models.ForeignKey(AppModule, ...)
+    role = models.CharField(max_length=50)
+    permissions_list = models.JSONField(default=list)
+```
+
+La combinación usuario–aplicación es única.
+
+## 8.3 Permisos finos
+
+`permissions_list` contiene un snapshot de las llaves autorizadas:
+
+```json
+["has_access_module", "can_view_records", "can_create_records"]
+```
+
+La base de datos determina las llaves concedidas al usuario. El manifiesto determina cuáles llaves son válidas para la aplicación.
+
+Nunca debe confiarse solamente en que una opción no aparezca en el HTML. Toda operación sensible debe protegerse también en backend.
+
+## 8.4 Roles
+
+Los roles agrupan permisos predeterminados, pero no sustituyen a los permisos finos.
+
+El rol responde:
+
+> ¿Qué perfil funcional tiene el usuario dentro del módulo?
+
+Los permisos responden:
+
+> ¿Qué acciones concretas puede ejecutar?
+
+## 8.5 Regla de owner
+
+El rol `owner` puede recibir todas las llaves declaradas por el manifiesto.
+
+Los roles inferiores deben conservar como mínimo:
+
+```text
+has_access_module
+```
+
+si se desea que el usuario pueda ingresar al módulo.
+
+Los permisos adicionales deben validarse contra `PERMISSIONS` antes de persistirse.
+
+## 8.6 Bypass global
+
+Puede existir bypass para:
+
+- `is_superuser`.
+- `is_manager`.
+- Perfil con condición root administrativa.
+
+El bypass debe utilizarse solamente para gobierno global del Core.
+
+No debe confundirse:
+
+- Administrador global del sistema.
+- Owner de una aplicación.
+- Administrador funcional de una aplicación.
+
+---
+
+# 9. Guardián de rutas
+
+Las vistas funcionales deben protegerse con:
+
+```python
+axentra_module_gate
+```
+
+El alias `axentra_gate_enforcer` puede mantenerse temporalmente por compatibilidad, pero el nombre arquitectónico oficial es:
+
+```python
+axentra_module_gate
+```
+
+Ejemplo:
+
+```python
+from django.contrib.auth.decorators import login_required
+
+from apps.security.decorators import axentra_module_gate
 from apps.shared.apps_config import AppIdentifier
 
 
-class NuevaAppDashboardView(
-    LoginRequiredMixin,
-    ModulePermissionsMixin,
-    ModuleAccessRequiredMixin,
-    TemplateView,
-):
-    template_name = "nueva_app/dashboard.html"
-
-    required_module = AppIdentifier.NUEVA_APP
-    required_fine_permission = "can_write_records"
-```
-
----
-
-# 2. Motor de UI: Home Matrix
-
-Para renderizar la interfaz Home Matrix, el backend consume el contexto `user_module_permissions`, validando qué aplicaciones puede utilizar el usuario a partir de la persistencia de `UserAppRole`.
-
-El despliegue de componentes en plantillas se realiza exclusivamente mediante los inclusion tags autorizados.
-
-**Archivo:** `apps/shared/templatetags/axentra_ui.py`
-
-```django
-{% load axentra_ui %}
-
-{% dashboard_header
-    badge_text="MÓDULO"
-    title="Catastro Municipal"
-    description="Gestión territorial"
-    modulo_actual="security"
-%}
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    {% action_card
-        title="Configurar Parámetros"
-        description="Modificación global"
-        url_destination="security:tenant_config"
-        icon="settings"
-        button_text="Abrir Configuración"
-    %}
-</div>
-```
-
----
-
-# 3. Engine de Filtrado Organizacional
-
-Para garantizar el cumplimiento de las restricciones perimetrales, Axentra OS implementa el `OrganizationalQueryEngine`.
-
-Este mecanismo evita que un funcionario consulte información fuera de su adscripción autorizada, aplicando automáticamente restricciones relacionales en cascada sobre entidades archivadas o inactivas.
-
-**Archivo:** `apps/shared/services/query_filters.py`
-
-```python
-from apps.shared.services.query_filters import OrganizationalQueryEngine
-from apps.shared.dtos.filter_dtos import OrganizationalFilterDTO
-
-
-def get_records_view(request):
-    filtros_dto = OrganizationalFilterDTO(
-        sede_id=request.GET.get("sede"),
-        dependencia_id=request.GET.get("dependencia"),
-        area_id=request.GET.get("area"),
-    )
-
-    queryset_base = Expediente.objects.all()
-
-    queryset_filtrado = (
-        OrganizationalQueryEngine.filtrar_entidades(
-            queryset=queryset_base,
-            filtros=filtros_dto,
-            profile_path="empleado__axentra_profile",
-        )
-    )
-
-    return queryset_filtrado
-```
-
----
-
-# 4. Pasarela de Validación Pydantic v2
-
-Axentra OS delega las reglas complejas de integridad y contratos de datos a esquemas estrictos de Pydantic v2.
-
-Las excepciones brutas nunca deben exponerse directamente al cliente.
-
-Los errores de validación se interceptan y se acoplan de forma transparente al ciclo de renderizado de formularios tradicionales.
-
-**Archivo:** `apps/shared/services/pydantic_validators.py`
-
-```python
-from pydantic import ValidationError
-
-from apps.shared.services.pydantic_validators import (
-    PydanticErrorBridge,
+@login_required
+@axentra_module_gate(
+    AppIdentifier.NUEVA_APP,
+    required_fine_permission="can_view_records",
 )
+def record_list_view(request):
+    ...
+```
 
+El guardián realiza:
 
-def procesar_formulario_view(request):
-    form = MiExpedienteForm(request.POST)
+1. Validación de autenticación.
+2. Bloqueo de usuarios dados de baja.
+3. Resolución de bypass global.
+4. Lectura de `UserAppRole`.
+5. Validación de acceso al módulo.
+6. Validación del permiso fino.
+7. Construcción del menú permitido.
+8. Inyección de contexto en el request.
+9. Telemetría de acceso.
 
-    if form.is_valid():
-        try:
-            datos_validados = MI_ESQUEMA_PYDANTIC(
-                **form.cleaned_data
-            )
+El decorador deja disponibles:
 
-        except ValidationError as ex:
-            PydanticErrorBridge.acoplar_errores_a_formulario(
-                ex,
-                form,
-            )
-
-            return render(
-                request,
-                "template.html",
-                {"form": form},
-            )
+```python
+request.axentra_permissions
+request.axentra_permissions_list
+request.axentra_is_root
+request.axentra_active_module
+request.axentra_sidebar_menu
 ```
 
 ---
 
-# 5. Servicio de Auditoría Forense
+# 10. Navegación dinámica
 
-Toda mutación de datos, conmutación de estados o alteración estructural en Axentra OS es capturada por el motor transaccional `ForensicAuditor`.
+Los menús se generan desde el manifiesto activo.
 
-Opera de forma asíncrona y desacoplada de la capa visual, implementando un diseño de catálogo normalizado bajo PostgreSQL.
+Cada elemento debe incluir:
 
-## Columnas indexadas clave
+```python
+{
+    "icon": "database",
+    "name": "Registros",
+    "url": "nueva_app:record_list",
+    "order": 20,
+    "permission": "can_view_records",
+}
+```
 
-### `action_type` (El Verbo Global)
+Antes de mostrarlo, el Core verifica:
 
-- `CREATE`
-- `UPDATE`
-- `DELETE`
-- `ASSIGN`
-- `ACCESS`
-- `RESET`
-- `QUERY`
+- Módulo activo.
+- Permisos del usuario.
+- Permiso requerido.
+- Estado del usuario.
+- Estado de la membresía.
+- Bypass global.
 
-### `module_component` (El Sujeto)
+Ocultar un enlace no sustituye la protección de la vista.
+
+---
+
+# 11. Estructura organizacional
+
+Axentra OS modela la institución mediante:
+
+- `Sede`
+- `Dependencia`
+- `AreaOperativa`
+- `UserProfile`
+
+## 11.1 Sede
+
+Representa un inmueble físico.
+
+## 11.2 Dependencia
+
+Representa una unidad administrativa:
+
+- Secretaría.
+- Dirección.
+- Coordinación.
+- Departamento.
+
+Puede participar en una jerarquía mediante:
+
+```python
+parent = models.ForeignKey(
+    "self",
+    null=True,
+    blank=True,
+    related_name="children",
+    on_delete=models.PROTECT,
+)
+```
+
+## 11.3 Área operativa
+
+Representa la intersección entre una dependencia y una sede:
+
+```text
+Dependencia + Sede = Área operativa
+```
+
+Esto permite que una dependencia opere en diferentes inmuebles sin duplicar su identidad administrativa.
+
+## 11.4 Perfil del funcionario
+
+`UserProfile` conecta al funcionario con su área.
+
+A partir del área se obtiene:
+
+- Dependencia.
+- Sede.
+- Adscripción institucional.
+
+---
+
+# 12. Capacidades organizacionales
+
+Los permisos y las capacidades resuelven problemas diferentes.
+
+## Permisos
+
+Responden:
+
+> ¿Qué puede hacer este usuario?
+
+## Capacidades
+
+Responden:
+
+> ¿Cómo participa esta dependencia dentro de una aplicación?
+
+Las capacidades se almacenan mediante:
+
+```python
+AppDependencyCapability
+```
 
 Ejemplos:
 
-- `MATRIZ_PERMISOS`
-- `FICHA_PERSONAL`
-- `SEDES_INFRAESTRUCTURA`
+- Puede operar.
+- Puede supervisar.
+- Puede autorizar.
+- Configuración particular mediante `custom_settings`.
 
-Los desarrolladores deben invocar el auditor desde la capa de servicios transaccionales.
+Una capacidad no debe utilizarse como sustituto de un permiso de usuario.
 
 ---
 
+# 13. Capas de cada módulo
+
+## 13.1 Views
+
+Responsabilidades:
+
+- Recibir la petición.
+- Leer parámetros.
+- Detectar HTMX.
+- Invocar selectores y servicios.
+- Preparar contexto.
+- Elegir la plantilla correspondiente.
+
+Las vistas no deben concentrar consultas complejas ni reglas transaccionales extensas.
+
+## 13.2 Selectors
+
+Responsabilidades:
+
+- Consultas de lectura.
+- Filtros.
+- Agregaciones.
+- Optimización con `select_related`.
+- Optimización con `prefetch_related`.
+- Construcción de datos para dashboards.
+
+Los selectores no deben ejecutar mutaciones.
+
+## 13.3 Services
+
+Responsabilidades:
+
+- Altas.
+- Modificaciones.
+- Bajas lógicas.
+- Restauraciones.
+- Asignación de permisos.
+- Validaciones de negocio.
+- Transacciones.
+- Auditoría de mutaciones.
+
+Las operaciones relacionadas deben ejecutarse dentro de:
+
 ```python
-from apps.security.models.audit import SecurityAuditLog
-from apps.security.utils.forensic_auditor import ForensicAuditor
+transaction.atomic()
+```
+
+## 13.4 Forms
+
+Responsabilidades:
+
+- Validar datos de entrada.
+- Normalizar valores.
+- Aplicar validaciones de formulario.
+- Proporcionar errores de usuario.
+
+## 13.5 DTO
+
+Responsabilidades:
+
+- Transportar resultados estructurados.
+- Evitar diccionarios ambiguos.
+- Separar la representación del modelo persistente.
+
+## 13.6 Templates
+
+Responsabilidades:
+
+- Presentación.
+- Interacciones HTMX.
+- Estados visuales.
+- Mensajes.
+- Componentes.
+
+Las plantillas no deben implementar reglas críticas de autorización.
+
+---
+
+# 14. Auditoría forense
+
+Las operaciones sensibles deben registrarse en:
+
+```python
+SecurityAuditLog
+```
+
+El registro puede contener:
+
+- Aplicación.
+- Tipo de acción.
+- Componente.
+- Nivel.
+- Nombre de la acción.
+- Operador.
+- Usuario afectado.
+- Dirección IP.
+- User agent.
+- Payload estructurado.
+- Criterio de búsqueda.
+- Alcance de la operación.
+
+Las mutaciones relevantes deben utilizar el auditor central para mantener un formato consistente.
+
+No deben registrarse:
+
+- Contraseñas.
+- Tokens.
+- Secretos.
+- Cookies.
+- Llaves privadas.
+- Datos innecesariamente sensibles.
+
+---
+
+# 15. Context processors
+
+El Core utiliza context processors para exponer información transversal.
+
+## `global_tenant_settings`
+
+Entrega:
+
+```django
+{{ tenant }}
+```
+
+Incluye identidad institucional y activos visuales.
+
+## `user_module_permissions`
+
+Entrega:
+
+```django
+{{ allowed_modules }}
+{{ is_global_admin }}
+```
+
+Controla las aplicaciones visibles en el launcher.
+
+## `menu_dinamico_processor`
+
+Entrega:
+
+```django
+{{ modulo_actual }}
+{{ menu_actual }}
+{{ sidebar_menu }}
+```
+
+El menú se obtiene del manifiesto y de los permisos efectivos.
+
+Los context processors no deben sustituir la validación backend.
+
+---
+
+# 16. Incorporación de una aplicación nueva
+
+## Paso 1. Crear la aplicación
+
+```bash
+python manage.py startapp nueva_app apps/nueva_app
+```
+
+Debe quedar registrada correctamente como paquete Django.
+
+## Paso 2. Registrar su identificador
+
+Editar:
+
+```text
+apps/shared/apps_config.py
+```
+
+Agregar:
+
+```python
+NUEVA_APP = "nueva_app"
+```
+
+y su elección correspondiente.
+
+## Paso 3. Crear el manifiesto
+
+Crear:
+
+```text
+apps/nueva_app/permissions.py
+```
+
+Debe contener como mínimo:
+
+- `APP_CODE`.
+- `PERMISSIONS`.
+- `ROLE_MAPPING`.
+- `ROLE_WEIGHTS`.
+- `SIDEBAR_MENU`.
+
+## Paso 4. Registrar la aplicación Django
+
+Agregarla a `LOCAL_APPS`:
+
+```python
+LOCAL_APPS = [
+    "apps.shared.apps.SharedConfig",
+    "apps.security.apps.SecurityConfig",
+    "apps.nueva_app.apps.NuevaAppConfig",
+]
+```
+
+## Paso 5. Crear URLs con namespace
+
+Ejemplo:
+
+```python
+# apps/nueva_app/urls.py
+
+from django.urls import path
+
+from .views import dashboard_view
 
 
-ForensicAuditor.registrar_evento(
-    request=request,
-    action_type=SecurityAuditLog.ActionTypes.UPDATE,
-    module_component="FICHA_PERSONAL",
-    action_name="EDICION_FICHA_IDENTIDAD",
-    target_scope=(
-        f"Actualización del expediente "
-        f"de {usuario.email}"
-    ),
-    level=SecurityAuditLog.Levels.INFO,
-    target_user=usuario,
-    search_target=usuario.id,
-    payload=payload_delta,
+app_name = "nueva_app"
+
+urlpatterns = [
+    path("", dashboard_view, name="dashboard"),
+]
+```
+
+Incluirlas en el proyecto:
+
+```python
+path(
+    "app/nueva-app/",
+    include("apps.nueva_app.urls"),
 )
 ```
 
+## Paso 6. Proteger las vistas
+
+```python
+@login_required
+@axentra_module_gate(
+    AppIdentifier.NUEVA_APP,
+    required_fine_permission="has_access_module",
+)
+def dashboard_view(request):
+    ...
+```
+
+## Paso 7. Crear las plantillas
+
+```text
+apps/nueva_app/templates/nueva_app/
+├── pages/
+│   └── dashboard.html
+├── workbench/
+│   └── dashboard_workbench.html
+├── content/
+│   └── dashboard_content.html
+├── htmx/
+└── contextual/
+```
+
+## Paso 8. Aplicar migraciones
+
+```bash
+python manage.py makemigrations nueva_app
+python manage.py migrate
+```
+
+El proceso de sincronización debe crear o verificar el registro correspondiente en `AppModule`.
+
+## Paso 9. Verificar permisos
+
+Comprobar:
+
+- Usuario sin membresía: acceso denegado.
+- Usuario con `has_access_module`: acceso general.
+- Usuario sin permiso fino: operación denegada.
+- Owner: permisos completos del módulo.
+- Manager global: bypass esperado.
+- Usuario dado de baja: acceso denegado.
+
+## Paso 10. Verificar HTMX
+
+Comprobar:
+
+- Acceso directo.
+- Recarga de página.
+- Cambio desde sidebar global.
+- Navegación interna.
+- Botón atrás.
+- Historial del navegador.
+- Mensajes.
+- Formularios con errores.
+- Confirmaciones.
+- Restauración de iconos después de un swap.
+
 ---
 
-## Cabina de Mando Analítica y Reportes de Evidencia
+# 17. Convenciones obligatorias
 
-La plataforma provee una consola analítica avanzada con filtros en caliente y un motor de cumplimiento de Compliance Forense capaz de exportar conjuntos de datos hacia hojas de cálculo inmutables (`.xlsx`), incrustando el JSON crudo de auditoría para revisiones de los órganos internos de control.
+## Python
+
+- Nombres descriptivos.
+- Vistas pequeñas.
+- Selectores para lectura.
+- Servicios para escritura.
+- Transacciones para mutaciones relacionadas.
+- Tipado cuando mejore claridad.
+- Sin credenciales dentro del código.
+
+## URLs
+
+- Namespace por aplicación.
+- Nombres estables.
+- Rutas agrupadas por dominio.
+- UUID para entidades del Core.
+
+## Templates
+
+- `pages` para documento completo.
+- `workbench` para `#workbench`.
+- `content` para `#page-content`.
+- `htmx` para fragmentos.
+- `contextual` para navegación de expediente.
+
+## Permisos
+
+- Toda aplicación debe declarar `has_access_module`.
+- Las llaves deben ser estables.
+- Backend y frontend deben validar el mismo permiso.
+- No deben persistirse llaves inexistentes en el manifiesto.
+
+## Datos
+
+- Utilizar baja lógica.
+- Evitar eliminaciones físicas salvo necesidad justificada.
+- Auditar operaciones críticas.
+- Filtrar registros eliminados.
+- Evitar consultas repetidas desde templates.
 
 ---
 
-# 6. Pipeline de Context Processors
+# 18. Seguridad operativa
 
-El archivo `apps/shared/context_processors.py` proporciona variables globales residentes en memoria optimizadas para consumo directo desde el motor de plantillas.
+Nunca deben almacenarse en el repositorio:
 
-| Variable                | Descripción                                                    |
-| ----------------------- | -------------------------------------------------------------- |
-| `tenant.app_name`       | Nombre del aplicativo central.                                 |
-| `tenant.entidad_nombre` | Nombre de la entidad o administración activa.                  |
-| `tenant.siglas`         | Siglas oficiales de la administración vigente.                 |
-| `allowed_modules`       | Lista de módulos autorizados para el usuario autenticado.      |
-| `menu_actual`           | Menú dinámico generado a partir de la memoria RAM del request. |
+- Contraseñas.
+- Secret keys.
+- Tokens.
+- Credenciales PostgreSQL.
+- Credenciales SMTP.
+- Llaves privadas.
+- Contraseñas iniciales de administradores.
+
+La configuración sensible debe recibirse mediante variables de entorno o secretos del entorno de despliegue.
+
+Producción debe utilizar:
+
+- `DEBUG=False`.
+- Cookies seguras.
+- Redirección HTTPS.
+- `CSRF_TRUSTED_ORIGINS`.
+- `ALLOWED_HOSTS` explícitos.
+- Argon2 como hasher principal.
+- PostgreSQL.
+- Logs persistentes.
+- Nginx o proxy inverso.
+- Gunicorn.
 
 ---
 
-# Principios de Arquitectura
+# 19. Pruebas mínimas requeridas
 
-- Gobernanza centralizada con despliegues federados.
-- Control de acceso basado en privilegios atómicos sin redundancia de roles relacionales.
-- Separación estricta entre autorización, visualización y persistencia transaccional.
-- Auditoría forense resiliente basada en firmas e índices.
-- Restricciones organizacionales aplicadas transversalmente en la capa de base de datos.
-- Validación estricta mediante esquemas inmutables de Pydantic v2.
+Cada módulo debe cubrir como mínimo:
+
+## Acceso
+
+- Usuario anónimo.
+- Usuario dado de baja.
+- Usuario sin módulo.
+- Usuario con módulo.
+- Usuario sin permiso fino.
+- Usuario con permiso fino.
+- Owner.
+- Manager global.
+
+## Servicios
+
+- Alta correcta.
+- Edición correcta.
+- Baja lógica.
+- Restauración.
+- Validaciones de jerarquía.
+- Auditoría.
+- Rollback transaccional.
+
+## HTMX
+
+- Respuesta de página.
+- Respuesta de workbench.
+- Respuesta de contenido.
+- Fragmento con error.
+- Fragmento con éxito.
+- Mensajes fuera de banda cuando corresponda.
+
+## Organigrama
+
+- Dependencia jerárquica.
+- Área por dependencia y sede.
+- Restricción de duplicados.
+- Adscripción de funcionarios.
+- Protección de relaciones mediante `PROTECT`.
 
 ---
 
-# Licencia
+# 20. Regla final
 
-**AXENTRA MÉXICO © 2026**
+Una nueva funcionalidad pertenece al Core solamente cuando es transversal a varias aplicaciones.
 
-Infraestructura soberana y tecnologías de ciberseguridad centralizada.
+Ejemplos de responsabilidades Core:
+
+- Identidad.
+- Autenticación.
+- Permisos.
+- Organigrama.
+- Auditoría.
+- Documentos compartidos.
+- Notificaciones compartidas.
+- Configuración institucional.
+
+Una funcionalidad de negocio debe pertenecer a su aplicación:
+
+- Predial.
+- Catastro.
+- Comercio.
+- Agua.
+- Tesorería.
+- Obras.
+- Recursos Humanos.
+- Cabildo.
+
+El Core gobierna identidad, acceso, organización e integración. Las aplicaciones satélite implementan los procesos municipales especializados sin duplicar las capacidades de plataforma.
+
+---
+
+AXENTRA MÉXICO © 2026  
+Arquitectura del Core de Axentra OS
