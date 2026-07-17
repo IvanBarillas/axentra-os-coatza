@@ -1,4 +1,4 @@
-# apps/account/permission.py
+# apps/security/permission.py
 from apps.shared.apps_config import AppIdentifier
 
 # =========================================================================

@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from apps.security.models.organigrama import AppDependencyCapability, AreaOperativa, Dependencia, Sede
 from apps.shared.apps_config import AppIdentifier
-from apps.security.decorators import axentra_gate_enforcer
+from apps.security.decorators import axentra_module_gate
 from apps.security.models import AppModule, UserAppRole, TenantConfig, SecurityAuditLog
 from apps.security.forms import TenantConfigForm
 from apps.security.selectors.permission_selectors import PermissionSelectors
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="has_access_module")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="has_access_module")
 def security_control_panel_view(request):
     """
     Cockpit central del módulo Security.
@@ -184,7 +184,7 @@ def security_control_panel_view(request):
     
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
 def security_dashboard_view(request):
     """
     Consola Central de Ciberseguridad.
@@ -293,7 +293,7 @@ def security_dashboard_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def dynamic_permission_matrix_view(request):
     """
     Matriz dinámica de permisos por aplicación.
@@ -490,7 +490,7 @@ def dynamic_permission_matrix_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def guardar_llaves_json_view(request, app_id, user_id):
     """
@@ -760,7 +760,7 @@ def build_permission_matrix_context(
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def inyectar_funcionario_view(request, app_id):
     """
@@ -956,7 +956,7 @@ def inyectar_funcionario_view(request, app_id):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def toggle_user_modulo_active_ajax_view(request, user_id, app_id):
     """
@@ -1123,7 +1123,7 @@ def toggle_user_modulo_active_ajax_view(request, user_id, app_id):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def expulsar_usuario_modulo_total_ajax_view(request, user_id, app_id):
     """
@@ -1310,7 +1310,7 @@ def expulsar_usuario_modulo_total_ajax_view(request, user_id, app_id):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
 def matrix_capabilities_view(request):
     """
     Master de capacidades institucionales por app.
@@ -1378,7 +1378,7 @@ def matrix_capabilities_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
 @require_POST
 def add_capability_node_view(request, app_id):
     """
@@ -1527,7 +1527,7 @@ def add_capability_node_view(request, app_id):
     return redirect(capabilities_url)
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
 @require_POST
 def toggle_capability_ajax_view(request, dep_id, app_id):
     """
@@ -1642,7 +1642,7 @@ def toggle_capability_ajax_view(request, dep_id, app_id):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_view_matrix")
 def security_global_matrix_forensic_view(request):
     """
     Auditoría global de matriz de accesos multi-app.
@@ -1737,7 +1737,7 @@ def security_global_matrix_forensic_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_view_analytics")
 def descargar_auditoria_excel_view(request):
     """
     Exporta evidencia de auditoría a Excel usando los mismos filtros del dashboard.
@@ -1761,12 +1761,12 @@ def descargar_auditoria_excel_view(request):
 
 
 @login_required
-@axentra_gate_enforcer(
+@axentra_module_gate(
     AppIdentifier.CONFIGURATION,
     required_fine_permission="can_configure_tenant",
 )
 @login_required
-@axentra_gate_enforcer(
+@axentra_module_gate(
     AppIdentifier.CONFIGURATION,
     required_fine_permission="can_configure_tenant",
 )

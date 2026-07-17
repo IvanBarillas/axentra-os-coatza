@@ -14,7 +14,7 @@ from apps.security.models.audit import SecurityAuditLog
 from apps.security.permissions import AccountsPermissions
 from apps.security.utils.forensic_auditor import ForensicAuditor
 from apps.shared.apps_config import AppIdentifier
-from apps.security.decorators import axentra_gate_enforcer
+from apps.security.decorators import axentra_module_gate
 from apps.security.models import User, UserProfile
 from apps.security.models.organigrama import Dependencia, AreaOperativa, Sede
 from apps.security.selectors.accounts_selectors import AccountsDashboardSelectors, FuncionarioSelectors
@@ -31,7 +31,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 @login_required
-@axentra_gate_enforcer(module_identifier=AppIdentifier.ACCOUNTS, required_fine_permission="can_view_analytics")
+@axentra_module_gate(module_identifier=AppIdentifier.ACCOUNTS, required_fine_permission="can_view_analytics")
 def accounts_analytics_view(request):
     """📊 CONSOLA ANALÍTICA DE PERSONAL (Métricas y Cronología de Altas)"""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
@@ -71,7 +71,7 @@ def accounts_analytics_view(request):
 # 👤 PILAR UNIQUE: GESTIÓN DE EXPEDIENTES Y SERVIDORES PÚBLICOS
 # =========================================================================
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_list_view(request):
     """
     Controlador de padrón de funcionarios.
@@ -176,7 +176,7 @@ def build_funcionario_list_context(request):
     
     
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_detail_view(request, pk: uuid.UUID):
     """👤 EXPEDIENTE CONTEXTUAL DE FUNCIONARIO (Workspace Principal)"""
     is_htmx = str(request.headers.get("HX-Request", "")).strip().lower() == "true"
@@ -252,7 +252,7 @@ def funcionario_detail_view(request, pk: uuid.UUID):
     
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_create_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_create_user")
 def funcionario_create_view(request):
     """
     👤 CONTROLADOR DE ALTA DE FUNCIONARIOS
@@ -367,7 +367,7 @@ def funcionario_create_view(request):
     )
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_editar_view(request, pk: uuid.UUID):
     """Controlador de edición de funcionarios."""
 
@@ -553,7 +553,7 @@ def funcionario_editar_view(request, pk: uuid.UUID):
     )
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_change_password")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_change_password")
 def funcionario_cambiar_password_view(request, pk: uuid.UUID):
     """Controlador de rotación administrativa de contraseña para funcionarios."""
 
@@ -708,7 +708,7 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_delete_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_delete_user")
 def funcionario_soft_delete_view(request, pk: uuid.UUID):
     """
     Baja lógica institucional de funcionario.
@@ -802,7 +802,7 @@ def funcionario_soft_delete_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_toggle_status_view(request, pk: uuid.UUID):
     """
     Alternador de estatus operativo de funcionario.
@@ -975,7 +975,7 @@ def funcionario_toggle_status_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_sub_identidad_view(request, pk: uuid.UUID):
     funcionario = get_object_or_404(User, id=pk)
     perfil = getattr(funcionario, "axentra_profile", None)
@@ -993,7 +993,7 @@ def funcionario_sub_identidad_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_sub_hardware_view(request, pk: uuid.UUID):
     funcionario = get_object_or_404(User, id=pk)
 
@@ -1027,7 +1027,7 @@ def funcionario_sub_hardware_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_gate_enforcer(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
 def funcionario_sub_telefonia_view(request, pk: uuid.UUID):
     funcionario = get_object_or_404(User, id=pk)
 

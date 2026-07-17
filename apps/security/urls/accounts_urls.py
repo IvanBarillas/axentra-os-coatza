@@ -11,7 +11,6 @@ from apps.security.views.accounts_views import (
 
  
 urls_accounts = [
-    # Autenticación Oficial de Axentra OS
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html', redirect_authenticated_user=True), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='accounts:login'), name='logout'),
     path('acceso-denegado/', TemplateView.as_view(template_name='errors/403.html'), name='access_denied'),
@@ -27,7 +26,6 @@ urls_accounts = [
     path('funcionarios/baja/<uuid:pk>/', funcionario_soft_delete_view, name='funcionario_delete'),
     path('funcionarios/estado/<uuid:pk>/', funcionario_toggle_status_view, name='funcionario_toggle_status'),
     
-    # ENDPOINTS DE COCHERA HTMX (SIDEBAR 2)
     path('funcionarios/sub/identidad/<uuid:pk>/', funcionario_sub_identidad_view, name='funcionario_sub_identidad'),
     path('funcionarios/sub/hardware/<uuid:pk>/', funcionario_sub_hardware_view, name='funcionario_sub_hardware'),
     path('funcionarios/sub/telefonia/<uuid:pk>/', funcionario_sub_telefonia_view, name='funcionario_sub_telefonia'),

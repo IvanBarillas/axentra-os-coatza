@@ -14,7 +14,7 @@ Para preservar el minimalismo radical y evitar la duplicación de especificacion
 
 ### 🛡️ 1. Arquitectura y Gobernanza Central
 
-- **Core Engine Specification (`000_core_architecture`):** El manifiesto técnico obligatorio. Detalla el funcionamiento del guardián de rutas `axentra_gate_enforcer`, la inyección atómica en la RAM del request, el escalafón inmutable de pesos políticos y el protocolo estricto para federar nuevas aplicaciones satélites en el ecosistema.
+- **Core Engine Specification (`000_core_architecture`):** El manifiesto técnico obligatorio. Detalla el funcionamiento del guardián de rutas `axentra_module_gate`, la inyección atómica en la RAM del request, el escalafón inmutable de pesos políticos y el protocolo estricto para federar nuevas aplicaciones satélites en el ecosistema.
   ➔ [Abrir Consola de Arquitectura Core](docs/apps/000_core_architecture.md)
 
 ### 🎛️ 2. Diccionario de Aplicaciones y Módulos Satélites
