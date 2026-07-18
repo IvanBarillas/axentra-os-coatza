@@ -16,7 +16,13 @@ def render_inventory(request, *, page, content, context, status=200):
         "show_module_sidebar": True,
     }
     base.update(context)
-    template = content if is_htmx(request) else page
+    if is_htmx(request) and request.headers.get("HX-Target", "") == "workbench":
+        template = "inventory/workbench/module_workbench.html"
+        base["inventory_content_template"] = content
+    elif is_htmx(request):
+        template = content
+    else:
+        template = page
     return render(request, template, base, status=status)
 
 
@@ -81,3 +87,4 @@ def apply_directory_choices(form):
         if field in form.fields:
             form.fields[field].choices = [("", "--- Seleccione ---"), *choices[source]]
     return form
+
