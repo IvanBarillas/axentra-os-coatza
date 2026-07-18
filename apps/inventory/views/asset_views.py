@@ -1,65 +1,219 @@
+# apps/inventory/views/asset_views.py
+
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from apps.inventory.forms import AssetConditionUpdateForm, AssetCorrectionForm
+from apps.inventory.forms import (
+    AssetConditionUpdateForm,
+    AssetCorrectionForm,
+)
+from apps.inventory.models import DocumentAccessLevel
 from apps.inventory.selectors import AssetSelectors, DocumentSelectors
 from apps.inventory.services import correct_asset, update_asset_condition
+from apps.inventory.services.audit_service import (
+    build_audit_request_context,
+)
 from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
 
-from .common import render_inventory, run_service, selector_or_404, success
+from .common import (
+    render_inventory,
+    run_service,
+    selector_or_404,
+    success,
+)
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
-def asset_list_view(request):
-    filters = {
+def _asset_list_filters(request):
+    return {
         "q": request.GET.get("q", "").strip(),
         "status": request.GET.get("status", "").strip(),
-        "operational_status": request.GET.get("operational_status", "").strip(),
+        "operational_status": request.GET.get(
+            "operational_status",
+            "",
+        ).strip(),
         "category_id": request.GET.get("category", "").strip(),
         "department_id": request.GET.get("department", "").strip(),
     }
-    return render_inventory(request, page="inventory/pages/asset_list.html", content="inventory/content/asset_list_content.html", context={
-        "current_inventory_view": "inventory:asset_list",
-        "assets": AssetSelectors.listar_activos(**filters),
-        "categories": AssetSelectors.categories(),
-        "statuses": AssetSelectors.status_choices(),
-        "operational_statuses": AssetSelectors.operational_status_choices(),
+
+
+def _can_view_restricted_documents(request) -> bool:
+    if getattr(request, "axentra_is_root", False):
+        return True
+
+    permissions = set(
+        getattr(request, "axentra_permissions_list", []) or []
+    )
+    permission_map = getattr(request, "axentra_permissions", {}) or {}
+
+    return bool(
+        "can_view_restricted_documents" in permissions
+        or permission_map.get("can_view_restricted_documents", False)
+    )
+
+
+def _asset_documents(request, asset_id):
+    """Aplica protección documental adicional al expediente visible."""
+
+    documents = DocumentSelectors.asset_documents(asset_id)
+
+    if not _can_view_restricted_documents(request):
+        documents = documents.exclude(
+            access_level__in=(
+                DocumentAccessLevel.CONFIDENTIAL,
+                DocumentAccessLevel.RESTRICTED,
+            ),
+        )
+
+    return documents
+
+
+@require_http_methods(["GET"])
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_view_assets",
+)
+def asset_list_view(request):
+    filters = _asset_list_filters(request)
+    assets = AssetSelectors.listar_activos(
+        actor_id=request.user.id,
         **filters,
-    })
+    )
+
+    return render_inventory(
+        request,
+        page="inventory/pages/asset_list.html",
+        content="inventory/content/asset_list_content.html",
+        context={
+            "current_inventory_view": "inventory:asset_list",
+            "assets": assets,
+            "categories": AssetSelectors.categories(),
+            "statuses": AssetSelectors.status_choices(),
+            "operational_statuses": (
+                AssetSelectors.operational_status_choices()
+            ),
+            **filters,
+        },
+    )
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+@require_http_methods(["GET"])
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_view_assets",
+)
 def asset_detail_view(request, asset_id):
-    asset = selector_or_404(lambda: AssetSelectors.obtener_expediente(asset_id))
-    return render_inventory(request, page="inventory/pages/asset_detail.html", content="inventory/content/asset_detail_content.html", context={
-        "current_inventory_view": "inventory:asset_list", "asset": asset,
-        "documents": DocumentSelectors.asset_documents(asset.id),
-        "photos": DocumentSelectors.asset_photos(asset.id),
-    })
+    asset = selector_or_404(
+        lambda: AssetSelectors.obtener_expediente(
+            actor_id=request.user.id,
+            asset_id=asset_id,
+        )
+    )
+
+    return render_inventory(
+        request,
+        page="inventory/pages/asset_detail.html",
+        content="inventory/content/asset_detail_content.html",
+        context={
+            "current_inventory_view": "inventory:asset_list",
+            "asset": asset,
+            "documents": _asset_documents(request, asset.id),
+            "photos": DocumentSelectors.asset_photos(asset.id),
+        },
+    )
 
 
-def _asset_action(request, asset_id, *, form_class, service, title):
-    asset = selector_or_404(lambda: AssetSelectors.obtener(asset_id))
+def _asset_action(
+    request,
+    asset_id,
+    *,
+    form_class,
+    service,
+    form_title,
+    success_message,
+):
+    """Base común para mutaciones auditadas del expediente."""
+
+    asset = selector_or_404(
+        lambda: AssetSelectors.obtener(
+            actor_id=request.user.id,
+            asset_id=asset_id,
+        )
+    )
     form = form_class(request.POST or None)
+
     if request.method == "POST" and form.is_valid():
-        result = run_service(form, lambda: service(asset_id=asset.id, data=form.to_dto(), actor=request.user, request_context=None))
+        request_context = build_audit_request_context(request)
+        result = run_service(
+            form,
+            lambda: service(
+                asset_id=asset.id,
+                data=form.to_dto(),
+                actor=request.user,
+                request_context=request_context,
+            ),
+        )
+
         if result:
-            success(request, title)
-            return redirect(reverse("inventory:asset_detail", kwargs={"asset_id": asset.id}))
-    return render_inventory(request, page="inventory/pages/asset_action_form.html", content="inventory/content/asset_action_form_content.html", context={
-        "current_inventory_view": "inventory:asset_list", "asset": asset, "form": form, "form_title": title,
-    }, status=422 if request.method == "POST" else 200)
+            success(request, success_message)
+            return redirect(
+                reverse(
+                    "inventory:asset_detail",
+                    kwargs={"asset_id": asset.id},
+                )
+            )
+
+    return render_inventory(
+        request,
+        page="inventory/pages/asset_action_form.html",
+        content="inventory/content/asset_action_form_content.html",
+        context={
+            "current_inventory_view": "inventory:asset_list",
+            "asset": asset,
+            "form": form,
+            "form_title": form_title,
+        },
+        status=422 if request.method == "POST" else 200,
+    )
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_correct_asset",
+)
 def asset_correct_view(request, asset_id):
-    return _asset_action(request, asset_id, form_class=AssetCorrectionForm, service=correct_asset, title="Activo corregido correctamente.")
+    return _asset_action(
+        request,
+        asset_id,
+        form_class=AssetCorrectionForm,
+        service=correct_asset,
+        form_title="Corrección patrimonial auditada",
+        success_message="Activo corregido correctamente.",
+    )
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_edit_asset",
+)
 def asset_condition_view(request, asset_id):
-    return _asset_action(request, asset_id, form_class=AssetConditionUpdateForm, service=update_asset_condition, title="Condición del activo actualizada.")
+    return _asset_action(
+        request,
+        asset_id,
+        form_class=AssetConditionUpdateForm,
+        service=update_asset_condition,
+        form_title="Actualizar condición física y operativa",
+        success_message="Condición del activo actualizada.",
+    )
+
+
+__all__ = [
+    "asset_condition_view",
+    "asset_correct_view",
+    "asset_detail_view",
+    "asset_list_view",
+]
+

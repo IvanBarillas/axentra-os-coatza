@@ -75,8 +75,13 @@ from apps.inventory.services.folio_service import (
 
 
 PERMISSION_CREATE = "can_create_asset"
+PERMISSION_CREATE_ANY_DEPARTMENT = (
+    "can_create_intake_for_any_department"
+)
 PERMISSION_SUBMIT = "can_submit_asset_intake"
+PERMISSION_DEPARTMENT_APPROVE = "can_approve_department_intake"
 PERMISSION_PATRIMONY_VALIDATE = "can_validate_patrimony_intake"
+PERMISSION_REGISTER_ASSET = "can_register_asset"
 
 
 def _money(value, *, field_name: str) -> Decimal:
@@ -126,27 +131,43 @@ def _get_active(model, object_id, *, label: str, required=True):
         ) from exc
 
 
-def _require_module_permission(actor_id, permission: str):
+def _get_actor_role(actor_id):
+    """Resuelve identidad y rol activo de Inventory una sola vez."""
+
     try:
         actor = get_user_identity(actor_id)
         role = get_module_role(actor.id)
     except CoreDirectoryError as exc:
         raise InventoryAuthorizationError(str(exc)) from exc
 
-    if actor.has_global_bypass:
-        return actor
-
-    if not role:
+    if not actor.has_global_bypass and not role:
         raise InventoryAuthorizationError(
             "El usuario no tiene acceso activo a Inventory."
         )
 
-    if not role.has_permission(permission):
-        raise InventoryAuthorizationError(
-            f"La operación requiere el permiso [{permission}]."
-        )
+    return actor, role
 
-    return actor
+
+def _has_permission(actor, role, permission: str) -> bool:
+    return bool(
+        actor.has_global_bypass
+        or (role and role.has_permission(permission))
+    )
+
+
+def _require_any_module_permission(actor_id, *permissions):
+    actor, role = _get_actor_role(actor_id)
+
+    if any(
+        _has_permission(actor, role, permission)
+        for permission in permissions
+    ):
+        return actor, role
+
+    expected = ", ".join(f"[{value}]" for value in permissions)
+    raise InventoryAuthorizationError(
+        f"La operación requiere alguno de estos permisos: {expected}."
+    )
 
 
 def _require_patrimony_validator(actor_id):
@@ -165,6 +186,48 @@ def _require_patrimony_validator(actor_id):
     raise InventoryAuthorizationError(
         f"La operación requiere el permiso "
         f"[{PERMISSION_PATRIMONY_VALIDATE}]."
+    )
+
+
+def _require_asset_registrar(actor_id):
+    """Exige el permiso independiente para crear el activo oficial."""
+
+    try:
+        actor = get_user_identity(actor_id)
+        role = get_module_role(actor.id)
+    except CoreDirectoryError as exc:
+        raise InventoryAuthorizationError(str(exc)) from exc
+
+    if role and role.has_permission(PERMISSION_REGISTER_ASSET):
+        return actor, False
+
+    if actor.has_global_bypass:
+        return actor, True
+
+    raise InventoryAuthorizationError(
+        f"La operación requiere el permiso "
+        f"[{PERMISSION_REGISTER_ASSET}]."
+    )
+
+
+def _can_operate_intake_for_department(
+    *,
+    actor,
+    role,
+    actor_department_id,
+    target_department_id,
+) -> bool:
+    """Comprueba alcance local o permiso de captura transversal."""
+
+    if actor.has_global_bypass:
+        return True
+
+    if actor_department_id == target_department_id:
+        return True
+
+    return bool(
+        role
+        and role.has_permission(PERMISSION_CREATE_ANY_DEPARTMENT)
     )
 
 
@@ -205,6 +268,9 @@ def _lock_intake(intake_request_id):
                 "requested_dependencia",
                 "requested_area",
                 "proposed_custodian",
+                "captured_by",
+                "capture_dependencia",
+                "submitted_by",
             )
             .get(pk=intake_request_id, is_deleted=False)
         )
@@ -277,7 +343,10 @@ def create_intake_draft(
     request_context: AuditRequestContext | None = None,
     request=None,
 ) -> AssetIntakeRequest:
-    actor = _require_module_permission(actor_id, PERMISSION_CREATE)
+    actor, role = _require_any_module_permission(
+        actor_id,
+        PERMISSION_CREATE,
+    )
     context = _context(request_context, request)
 
     try:
@@ -294,12 +363,23 @@ def create_intake_draft(
     except CoreDirectoryError as exc:
         raise InventoryValidationError(str(exc)) from exc
 
-    if (
-        not actor.has_global_bypass
-        and org_context.department_id != department.id
+    actor_department = org_context.department
+    actor_department_id = org_context.department_id
+    cross_department = bool(
+        actor_department_id
+        and actor_department_id != department.id
+    )
+
+    if not _can_operate_intake_for_department(
+        actor=actor,
+        role=role,
+        actor_department_id=actor_department_id,
+        target_department_id=department.id,
     ):
         raise InventoryAuthorizationError(
-            "Sólo puede capturar altas para su dependencia."
+            "La solicitud está destinada a otra dependencia y el usuario "
+            f"no cuenta con el permiso "
+            f"[{PERMISSION_CREATE_ANY_DEPARTMENT}]."
         )
 
     category = _get_active(
@@ -347,6 +427,7 @@ def create_intake_draft(
         raise InventoryValidationError("Tipo de adquisición inválido.")
 
     intake_id = uuid4()
+    captured_at = timezone.now()
     intake = AssetIntakeRequest(
         id=intake_id,
         request_number=_request_number(intake_id),
@@ -370,6 +451,24 @@ def create_intake_draft(
         requested_dependencia_id=department.id,
         requested_area_id=data.requested_area_id,
         proposed_custodian_id=data.proposed_custodian_id,
+        captured_by_id=actor.id,
+        captured_by_id_snapshot=actor.id,
+        captured_by_name_snapshot=actor.display_name,
+        captured_by_email_snapshot=actor.normalized_email,
+        captured_at=captured_at,
+        capture_dependencia_id=actor_department_id,
+        capture_dependencia_id_snapshot=actor_department_id,
+        capture_dependencia_name_snapshot=(
+            actor_department.name if actor_department else ""
+        ),
+        capture_dependencia_code_snapshot=(
+            actor_department.normalized_code
+            if actor_department else ""
+        ),
+        requested_dependencia_id_snapshot=department.id,
+        requested_dependencia_name_snapshot=department.name,
+        requested_dependencia_code_snapshot=department.normalized_code,
+        is_cross_department_capture=cross_department,
         submitted_by_id=actor.id,
         notes=str(data.notes or "").strip(),
         extra_attributes=dict(data.extra_attributes or {}),
@@ -408,6 +507,24 @@ def create_intake_draft(
         intake_request_id=intake.id,
         target=intake,
         new_value=model_snapshot(intake),
+        payload={
+            "source_department_id": (
+                str(actor_department_id)
+                if actor_department_id else None
+            ),
+            "source_department_name": (
+                actor_department.name if actor_department else ""
+            ),
+            "source_department_code": (
+                actor_department.normalized_code
+                if actor_department else ""
+            ),
+            "target_department_id": str(department.id),
+            "target_department_name": department.name,
+            "target_department_code": department.normalized_code,
+            "cross_department_capture": cross_department,
+            "captured_at": captured_at.isoformat(),
+        },
         request_context=context,
     )
     return intake
@@ -418,7 +535,10 @@ def submit_intake(
     *, intake_request_id, actor_id,
     request_context=None, request=None,
 ):
-    actor = _require_module_permission(actor_id, PERMISSION_SUBMIT)
+    actor, role = _require_any_module_permission(
+        actor_id,
+        PERMISSION_SUBMIT,
+    )
     context = _context(request_context, request)
     intake = _lock_intake(intake_request_id)
 
@@ -434,11 +554,18 @@ def submit_intake(
     actor_context = get_user_organizational_context(
         actor.id, require_profile=not actor.has_global_bypass
     )
-    if not actor.has_global_bypass and (
-        actor_context.department_id != intake.requested_dependencia_id
-    ):
+    is_original_capturer = intake.submitted_by_id == actor.id
+    can_operate_target = _can_operate_intake_for_department(
+        actor=actor,
+        role=role,
+        actor_department_id=actor_context.department_id,
+        target_department_id=intake.requested_dependencia_id,
+    )
+
+    if not is_original_capturer and not can_operate_target:
         raise InventoryAuthorizationError(
-            "No puede enviar solicitudes de otra dependencia."
+            "No puede enviar una solicitud capturada por otro usuario para "
+            "una dependencia fuera de su alcance."
         )
 
     if not intake.acquisition_date or not intake.expenditure_object_id:
@@ -469,7 +596,13 @@ def submit_intake(
         actor_id=actor.id,
         intake_request_id=intake.id,
         target=intake,
-        payload={"decision_id": decision.id},
+        payload={
+            "decision_id": decision.id,
+            "target_department_id": str(
+                intake.requested_dependencia_id
+            ),
+            "submitted_by_original_capturer": is_original_capturer,
+        },
         request_context=context,
     )
     return _transition_result(intake, previous, decision, context)
@@ -480,6 +613,10 @@ def decide_department_intake(
     *, intake_request_id, actor_id, approve: bool,
     comment="", bypass_reason="", request_context=None, request=None,
 ):
+    actor, _role = _require_any_module_permission(
+        actor_id,
+        PERMISSION_DEPARTMENT_APPROVE,
+    )
     context = _context(request_context, request)
     intake = _lock_intake(intake_request_id)
     if intake.status != AssetIntakeStatus.SUBMITTED:
@@ -488,7 +625,7 @@ def decide_department_intake(
         )
 
     authority = user_can_approve_department(
-        actor_id, intake.requested_dependencia_id
+        actor.id, intake.requested_dependencia_id
     )
     if not authority.allowed:
         raise InventoryAuthorizationError(authority.reason)
@@ -503,7 +640,7 @@ def decide_department_intake(
 
     previous = intake.status
     now = timezone.now()
-    intake.department_approved_by_id = actor_id if approve else None
+    intake.department_approved_by_id = actor.id if approve else None
     intake.department_approved_at = now if approve else None
     intake.department_rejection_reason = "" if approve else str(comment).strip()
     intake.status = (
@@ -522,7 +659,7 @@ def decide_department_intake(
     decision = _create_decision(
         intake=intake, decision_type=decision_type,
         previous_status=previous, resulting_status=intake.status,
-        actor_id=actor_id, context=context, comment=comment,
+        actor_id=actor.id, context=context, comment=comment,
         bypass_used=authority.bypass_used,
         bypass_reason=bypass_reason,
     )
@@ -530,7 +667,7 @@ def decide_department_intake(
         action=InventoryAuditAction.APPROVE if approve else InventoryAuditAction.REJECT,
         level=InventoryAuditLevel.CRITICAL if authority.bypass_used else InventoryAuditLevel.SUCCESS,
         summary="Solicitud aceptada por la dependencia" if approve else "Solicitud rechazada por la dependencia",
-        actor_id=actor_id, intake_request_id=intake.id, target=intake,
+        actor_id=actor.id, intake_request_id=intake.id, target=intake,
         reason=comment, payload={"decision_id": decision.id},
         bypass_used=authority.bypass_used,
         bypass_reason=bypass_reason,
@@ -544,12 +681,47 @@ def send_to_patrimony(
     *, intake_request_id, actor_id,
     request_context=None, request=None,
 ):
-    actor = _require_module_permission(actor_id, PERMISSION_SUBMIT)
+    actor, role = _require_any_module_permission(
+        actor_id,
+        PERMISSION_SUBMIT,
+        PERMISSION_DEPARTMENT_APPROVE,
+    )
     context = _context(request_context, request)
     intake = _lock_intake(intake_request_id)
     if intake.status != AssetIntakeStatus.DEPARTMENT_APPROVED:
         raise InventoryStateError(
             "La solicitud debe estar aceptada por la dependencia."
+        )
+
+    try:
+        actor_context = get_user_organizational_context(
+            actor.id,
+            require_profile=not actor.has_global_bypass,
+        )
+    except CoreDirectoryError as exc:
+        raise InventoryAuthorizationError(str(exc)) from exc
+
+    is_original_capturer = intake.submitted_by_id == actor.id
+    can_operate_target = _can_operate_intake_for_department(
+        actor=actor,
+        role=role,
+        actor_department_id=actor_context.department_id,
+        target_department_id=intake.requested_dependencia_id,
+    )
+    can_approve_target = bool(
+        role
+        and role.has_permission(PERMISSION_DEPARTMENT_APPROVE)
+        and actor_context.department_id
+        == intake.requested_dependencia_id
+    )
+
+    if not (
+        is_original_capturer
+        or can_operate_target
+        or can_approve_target
+    ):
+        raise InventoryAuthorizationError(
+            "No puede enviar a Patrimonio una solicitud fuera de su alcance."
         )
     previous = intake.status
     intake.status = AssetIntakeStatus.UNDER_PATRIMONY_REVIEW
@@ -565,7 +737,13 @@ def send_to_patrimony(
         action=InventoryAuditAction.SUBMIT,
         summary="Solicitud enviada a validación patrimonial",
         actor_id=actor.id, intake_request_id=intake.id, target=intake,
-        payload={"decision_id": decision.id}, request_context=context,
+        payload={
+            "decision_id": decision.id,
+            "target_department_id": str(
+                intake.requested_dependencia_id
+            ),
+        },
+        request_context=context,
     )
     return _transition_result(intake, previous, decision, context)
 
@@ -819,7 +997,7 @@ def register_approved_intake(
     useful_life_months=None,
     bypass_reason="", request_context=None, request=None,
 ):
-    actor, bypass = _require_patrimony_validator(actor_id)
+    actor, bypass = _require_asset_registrar(actor_id)
     if bypass and not str(bypass_reason).strip():
         raise InventoryBypassReasonRequired(
             "El registro por root/manager requiere justificación."
@@ -1013,3 +1191,4 @@ __all__ = [
     "send_to_patrimony",
     "submit_intake",
 ]
+
