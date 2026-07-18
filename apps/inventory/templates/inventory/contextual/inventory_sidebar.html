@@ -1,139 +1,22 @@
-{% url 'inventory:dashboard' as dashboard_url %}
-{% url 'inventory:asset_list' as asset_list_url %}
-{% url 'inventory:asset_create' as asset_create_url %}
-
-<aside class="h-full w-72 border-r border-slate-200 bg-white">
-    <div class="flex h-full flex-col">
-
-        <div class="border-b border-slate-200 px-5 py-5">
-            <p class="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
-                Módulo
-            </p>
-
-            <h2 class="mt-1 text-lg font-black text-slate-900">
-                Inventario
-            </h2>
-
-            <p class="mt-1 text-xs text-slate-500">
-                Patrimonio, resguardos y control físico.
-            </p>
-        </div>
-
-        <nav class="flex-1 space-y-1 px-3 py-4">
-
-            <a
-                href="{{ dashboard_url }}"
-                hx-get="{{ dashboard_url }}"
-                hx-target="#page-content"
-                hx-swap="innerHTML"
-                hx-push-url="true"
-                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition
-                       {% if current_inventory_view == 'inventory:dashboard' %}
-                            bg-slate-900 text-white shadow-sm
-                       {% else %}
-                            text-slate-600 hover:bg-slate-100 hover:text-slate-900
-                       {% endif %}"
-            >
-                <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
-                <span>Panel General</span>
-            </a>
-
-            <a
-                href="{{ asset_list_url }}"
-                hx-get="{{ asset_list_url }}"
-                hx-target="#page-content"
-                hx-swap="innerHTML"
-                hx-push-url="true"
-                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition
-                       {% if current_inventory_view == 'inventory:asset_list' %}
-                            bg-slate-900 text-white shadow-sm
-                       {% else %}
-                            text-slate-600 hover:bg-slate-100 hover:text-slate-900
-                       {% endif %}"
-            >
-                <i data-lucide="package-search" class="h-4 w-4"></i>
-                <span>Bienes Patrimoniales</span>
-            </a>
-
-            <a
-                href="{{ asset_create_url }}"
-                hx-get="{{ asset_create_url }}"
-                hx-target="#page-content"
-                hx-swap="innerHTML"
-                hx-push-url="true"
-                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition
-                       {% if current_inventory_view == 'inventory:asset_create' %}
-                            bg-slate-900 text-white shadow-sm
-                       {% else %}
-                            text-slate-600 hover:bg-slate-100 hover:text-slate-900
-                       {% endif %}"
-            >
-                <i data-lucide="plus-circle" class="h-4 w-4"></i>
-                <span>Nuevo Activo</span>
-            </a>
-
-            <div class="pt-5">
-                <p class="px-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-                    Próximamente
-                </p>
-
-                <div class="mt-2 space-y-1">
-
-                    <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400">
-                        <i data-lucide="file-signature" class="h-4 w-4"></i>
-                        <span>Resguardos</span>
-                    </div>
-
-                    <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400">
-                        <i data-lucide="shuffle" class="h-4 w-4"></i>
-                        <span>Movimientos</span>
-                    </div>
-
-                    <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400">
-                        <i data-lucide="archive-x" class="h-4 w-4"></i>
-                        <span>Bajas Patrimoniales</span>
-                    </div>
-
-                    <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400">
-                        <i data-lucide="qr-code" class="h-4 w-4"></i>
-                        <span>Levantamiento Físico</span>
-                    </div>
-
-                    <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400">
-                        <i data-lucide="calculator" class="h-4 w-4"></i>
-                        <span>Depreciación</span>
-                    </div>
-
-                    <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400">
-                        <i data-lucide="landmark" class="h-4 w-4"></i>
-                        <span>CONAC / SIGMAVER</span>
-                    </div>
-
-                    <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400">
-                        <i data-lucide="folder-check" class="h-4 w-4"></i>
-                        <span>Expediente Digital</span>
-                    </div>
-
-                </div>
-            </div>
-        </nav>
-
-        <div class="border-t border-slate-200 p-4">
-            <div class="rounded-2xl bg-slate-50 p-4">
-                <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Núcleo patrimonial
-                </p>
-                <p class="mt-1 text-xs text-slate-500">
-                    Patrimonio Municipal + ORFIS + CONAC/SIGMAVER.
-                </p>
-            </div>
-        </div>
-
+{% url 'inventory:dashboard' as dashboard_url %}{% url 'inventory:intake_list' as intake_url %}{% url 'inventory:asset_list' as assets_url %}{% url 'inventory:custody_list' as custody_url %}{% url 'inventory:movement_list' as movements_url %}{% url 'inventory:loan_list' as loans_url %}{% url 'inventory:disposal_list' as disposals_url %}{% url 'inventory:document_list' as documents_url %}{% url 'inventory:physical_audit_list' as audits_url %}{% url 'inventory:financial_dashboard' as financial_url %}
+<div class="flex h-full w-full flex-col">
+    <div class="border-b border-slate-200 px-5 py-5">
+        <p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Módulo</p>
+        <h2 class="mt-1 text-lg font-black text-slate-900">Inventario</h2>
+        <p class="mt-1 text-xs text-slate-500">Patrimonio, resguardos y control físico.</p>
     </div>
-</aside>
-
-<script>
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-</script>
+    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        {% include "inventory/partials/sidebar_link.html" with url=dashboard_url route="inventory:dashboard" icon="layout-dashboard" label="Panel general" %}
+        {% include "inventory/partials/sidebar_link.html" with url=intake_url route="inventory:intake_list" icon="clipboard-plus" label="Solicitudes de alta" %}
+        {% include "inventory/partials/sidebar_link.html" with url=assets_url route="inventory:asset_list" icon="package-search" label="Bienes patrimoniales" %}
+        {% include "inventory/partials/sidebar_link.html" with url=custody_url route="inventory:custody_list" icon="file-signature" label="Resguardos" %}
+        {% include "inventory/partials/sidebar_link.html" with url=movements_url route="inventory:movement_list" icon="arrow-left-right" label="Movimientos" %}
+        {% include "inventory/partials/sidebar_link.html" with url=loans_url route="inventory:loan_list" icon="handshake" label="Préstamos" %}
+        {% include "inventory/partials/sidebar_link.html" with url=disposals_url route="inventory:disposal_list" icon="archive-x" label="Bajas" %}
+        {% include "inventory/partials/sidebar_link.html" with url=documents_url route="inventory:document_list" icon="folder-check" label="Documentos" %}
+        {% include "inventory/partials/sidebar_link.html" with url=audits_url route="inventory:physical_audit_list" icon="scan-line" label="Auditoría física" %}
+        {% include "inventory/partials/sidebar_link.html" with url=financial_url route="inventory:financial_dashboard" icon="landmark" label="Finanzas / SIGMAVER" %}
+    </nav>
+    <div class="border-t border-slate-200 p-4"><div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs font-black text-slate-600">Núcleo patrimonial</p><p class="mt-1 text-xs text-slate-500">ORFIS · CONAC · SIGMAVER</p></div></div>
+</div>
+<script>if(window.lucide){window.lucide.createIcons();}</script>

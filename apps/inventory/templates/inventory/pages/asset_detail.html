@@ -1,7 +1,1 @@
-{% extends "shell/base.html" %}
-
-{% block title %}Expediente {{ asset.inventory_number }}{% endblock %}
-
-{% block workbench %}
-    {% include "inventory/workbench/asset_detail_workbench.html" %}
-{% endblock %}
+{% extends "shell/base.html" %}{% block title %}Expediente patrimonial{% endblock %}{% block workbench %}{% include "inventory/workbench/module_workbench.html" with inventory_content_template="inventory/content/asset_detail_content.html" %}{% endblock %}

@@ -1,7 +1,1 @@
-{% extends "shell/base.html" %}
-
-{% block title %}Bienes Patrimoniales{% endblock %}
-
-{% block workbench %}
-    {% include "inventory/workbench/asset_list_workbench.html" %}
-{% endblock %}
+{% extends "shell/base.html" %}{% block title %}Bienes Patrimoniales{% endblock %}{% block workbench %}{% include "inventory/workbench/module_workbench.html" with inventory_content_template="inventory/content/asset_list_content.html" %}{% endblock %}

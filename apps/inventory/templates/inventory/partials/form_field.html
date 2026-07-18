@@ -1,22 +1,8 @@
-<div>
-    <label for="{{ field.id_for_label }}" class="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">
-        {{ field.label }}
-        {% if field.field.required %}
-            <span class="text-red-500">*</span>
-        {% endif %}
+<div class="space-y-1.5">
+    <label for="{{ field.id_for_label }}" class="block text-xs font-black uppercase tracking-wide text-slate-500">
+        {{ field.label }}{% if field.field.required %}<span class="text-red-500"> *</span>{% endif %}
     </label>
-
     {{ field }}
-
-    {% if field.help_text %}
-        <p class="mt-1.5 text-xs leading-5 text-slate-400">
-            {{ field.help_text }}
-        </p>
-    {% endif %}
-
-    {% for error in field.errors %}
-        <p class="mt-1.5 text-xs font-bold text-red-600">
-            {{ error }}
-        </p>
-    {% endfor %}
+    {% if field.help_text %}<p class="text-xs leading-5 text-slate-400">{{ field.help_text }}</p>{% endif %}
+    {% for error in field.errors %}<p class="text-xs font-bold text-red-600">{{ error }}</p>{% endfor %}
 </div>

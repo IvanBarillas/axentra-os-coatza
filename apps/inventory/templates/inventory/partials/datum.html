@@ -1,0 +1,1 @@
+<div><dt class="text-xs font-black uppercase tracking-wide text-slate-400">{{ label }}</dt><dd class="mt-1 text-sm font-bold text-slate-800">{% if money %}${{ value|default:0|floatformat:2 }}{% else %}{{ value|default:"—" }}{% endif %}</dd></div>

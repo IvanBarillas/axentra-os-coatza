@@ -1,0 +1,121 @@
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.views.decorators.http import require_POST, require_http_methods
+
+from apps.inventory.forms import (
+    AssetIntakeCreateForm, CancelAssetIntakeForm, DepartmentIntakeDecisionForm,
+    PatrimonyApprovalForm, PatrimonyObservationForm,
+)
+from apps.inventory.selectors import IntakeSelectors
+from apps.inventory.services import (
+    approve_patrimony_intake, cancel_intake, create_intake_draft,
+    decide_department_intake, observe_patrimony_intake,
+    register_approved_intake, send_to_patrimony, submit_intake,
+)
+from apps.security.decorators import axentra_gate_enforcer
+from apps.shared.apps_config import AppIdentifier
+
+from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
+
+
+def _detail_url(intake_id):
+    return reverse("inventory:intake_detail", kwargs={"intake_id": intake_id})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def intake_list_view(request):
+    filters = {
+        "q": request.GET.get("q", "").strip(),
+        "status": request.GET.get("status", "").strip(),
+        "department_id": request.GET.get("department", "").strip(),
+    }
+    return render_inventory(request, page="inventory/pages/intake_list.html", content="inventory/content/intake_list_content.html", context={
+        "current_inventory_view": "inventory:intake_list",
+        "intakes": IntakeSelectors.listar(**filters), **filters,
+    })
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def intake_detail_view(request, intake_id):
+    intake = selector_or_404(lambda: IntakeSelectors.obtener(intake_id))
+    return render_inventory(request, page="inventory/pages/intake_detail.html", content="inventory/content/intake_detail_content.html", context={
+        "current_inventory_view": "inventory:intake_list", "intake": intake,
+    })
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_create_asset")
+def intake_create_view(request):
+    form = apply_directory_choices(AssetIntakeCreateForm(request.POST or None))
+    if request.method == "POST" and form.is_valid():
+        intake = run_service(form, lambda: create_intake_draft(data=form.to_dto(), actor_id=request.user.id, request=request))
+        if intake:
+            success(request, f"Solicitud {intake.request_number} creada en borrador.")
+            return redirect(_detail_url(intake.id))
+    return render_inventory(request, page="inventory/pages/intake_form.html", content="inventory/content/intake_form_content.html", context={
+        "current_inventory_view": "inventory:intake_create", "form": form,
+    }, status=422 if request.method == "POST" else 200)
+
+
+def _post_transition(request, intake_id, *, form_class, callback, message):
+    intake = selector_or_404(lambda: IntakeSelectors.obtener(intake_id))
+    form = form_class(request.POST)
+    if form.is_valid():
+        result = run_service(form, lambda: callback(intake, form))
+        if result:
+            success(request, message)
+            return redirect(_detail_url(intake_id))
+    return render_inventory(request, page="inventory/pages/intake_action_form.html", content="inventory/content/intake_action_form_content.html", context={
+        "current_inventory_view": "inventory:intake_list", "intake": intake, "form": form,
+    }, status=422)
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_create_asset")
+def intake_submit_view(request, intake_id):
+    from django import forms
+    class ConfirmForm(forms.Form):
+        confirm = forms.BooleanField()
+    return _post_transition(request, intake_id, form_class=ConfirmForm, callback=lambda i, f: submit_intake(intake_request_id=i.id, actor_id=request.user.id, request=request), message="Solicitud enviada para aceptación.")
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def intake_department_decision_view(request, intake_id):
+    return _post_transition(request, intake_id, form_class=DepartmentIntakeDecisionForm, callback=lambda i, f: decide_department_intake(intake_request_id=i.id, actor_id=request.user.id, approve=f.to_dto().approve, comment=f.to_dto().comment, bypass_reason=f.to_dto().bypass_reason, request=request), message="Decisión departamental registrada.")
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+def intake_send_to_patrimony_view(request, intake_id):
+    from django import forms
+    class ConfirmForm(forms.Form):
+        confirm = forms.BooleanField()
+    return _post_transition(request, intake_id, form_class=ConfirmForm, callback=lambda i, f: send_to_patrimony(intake_request_id=i.id, actor_id=request.user.id, request=request), message="Solicitud enviada a Control Patrimonial.")
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+def intake_observe_view(request, intake_id):
+    return _post_transition(request, intake_id, form_class=PatrimonyObservationForm, callback=lambda i, f: observe_patrimony_intake(intake_request_id=i.id, actor_id=request.user.id, observation=f.to_dto().observation, request=request), message="Observación patrimonial registrada.")
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+def intake_approve_view(request, intake_id):
+    return _post_transition(request, intake_id, form_class=PatrimonyApprovalForm, callback=lambda i, f: approve_patrimony_intake(intake_request_id=i.id, actor_id=request.user.id, data=f.to_dto(), bypass_reason=f.cleaned_data.get("bypass_reason", ""), request=request), message="Solicitud aprobada por Control Patrimonial.")
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+def intake_register_view(request, intake_id):
+    from django import forms
+    class RegisterForm(forms.Form):
+        bypass_reason = forms.CharField(required=False)
+    return _post_transition(request, intake_id, form_class=RegisterForm, callback=lambda i, f: register_approved_intake(intake_request_id=i.id, actor_id=request.user.id, bypass_reason=f.cleaned_data.get("bypass_reason", ""), request=request), message="Activo registrado oficialmente.")
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+def intake_cancel_view(request, intake_id):
+    return _post_transition(request, intake_id, form_class=CancelAssetIntakeForm, callback=lambda i, f: cancel_intake(intake_request_id=i.id, actor_id=request.user.id, reason=f.to_dto().reason, request=request), message="Solicitud cancelada.")

@@ -2,16 +2,14 @@
 
 """Generación transaccional de folios patrimoniales oficiales."""
 
-from dataclasses import dataclass
 from datetime import date
 import re
-from uuid import UUID
-
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.inventory.dtos import FolioScope, GeneratedInventoryFolio
 from apps.inventory.integrations.core_directory import (
     CoreDirectoryError,
     get_department,
@@ -44,27 +42,6 @@ _FORMAT_TOKENS = frozenset(
         "progressive",
     }
 )
-
-
-@dataclass(frozen=True, slots=True)
-class FolioScope:
-    policy_id: UUID
-    municipality_code: str
-    fiscal_year: int
-    conac_code: str
-    dependency_id: UUID
-    dependency_code: str
-    asset_type_code: str
-    progressive_length: int
-
-
-@dataclass(frozen=True, slots=True)
-class GeneratedInventoryFolio:
-    official_inventory_number: str
-    internal_inventory_number: str
-    progressive_number: int
-    sequence_id: UUID
-    scope: FolioScope
 
 
 def _normalize_code(
@@ -451,4 +428,3 @@ __all__ = [
     "get_effective_folio_policy",
     "preview_inventory_folio",
 ]
-

@@ -103,4 +103,3 @@ __all__ = [
     "InventoryValidationError",
     "InventoryWorkflowError",
 ]
-
