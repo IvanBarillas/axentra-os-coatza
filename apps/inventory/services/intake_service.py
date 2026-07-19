@@ -193,7 +193,10 @@ def _lock_intake(intake_request_id):
     try:
         return (
             AssetIntakeRequest.objects
-            .select_for_update()
+            # PostgreSQL no permite FOR UPDATE sobre el lado nullable de los
+            # LEFT OUTER JOIN generados por las relaciones opcionales.
+            # Bloqueamos exclusivamente la fila de AssetIntakeRequest.
+            .select_for_update(of=("self",))
             .select_related(
                 "category",
                 "expenditure_object",
