@@ -1,15 +1,50 @@
 {% if workflow_error %}
-    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">La guía del proceso todavía no está disponible.</div>
+    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        La guía del proceso todavía no está disponible.
+    </div>
+{% elif workflow_compact %}
+    <section
+        x-data="{ workflowHelpOpen: false }"
+        @keydown.escape.window="workflowHelpOpen = false"
+        class="flex justify-end"
+    >
+        <button
+            type="button"
+            @click="workflowHelpOpen = true; $nextTick(() => { if(window.bootIcons){window.bootIcons();} if(window.AxentraWorkflows){window.AxentraWorkflows.render();} })"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-800 hover:bg-blue-100"
+        >
+            <i data-lucide="route" class="h-4 w-4"></i>
+            Ver flujo completo
+        </button>
+
+        {% include "shared/workflows/help_drawer.html" %}
+    </section>
 {% else %}
-    <section x-data="{ workflowHelpOpen: false }" @keydown.escape.window="workflowHelpOpen = false" class="space-y-5">
+    <section
+        x-data="{ workflowHelpOpen: false }"
+        @keydown.escape.window="workflowHelpOpen = false"
+        class="space-y-5"
+    >
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <p class="text-xs font-black uppercase tracking-[.22em] text-blue-600">Proceso guiado</p>
-                <h2 class="mt-1 text-xl font-black text-slate-950">{{ workflow.name }}</h2>
-                {% if not workflow_compact %}<p class="mt-1 max-w-3xl text-sm text-slate-500">{{ workflow.description }}</p>{% endif %}
+                <p class="text-xs font-black uppercase tracking-[.22em] text-blue-600">
+                    Proceso guiado
+                </p>
+                <h2 class="mt-1 text-xl font-black text-slate-950">
+                    {{ workflow.name }}
+                </h2>
+                <p class="mt-1 max-w-3xl text-sm text-slate-500">
+                    {{ workflow.description }}
+                </p>
             </div>
-            <button type="button" @click="workflowHelpOpen = true; $nextTick(() => { if(window.bootIcons){window.bootIcons();} if(window.AxentraWorkflows){window.AxentraWorkflows.render();} })" class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-800 hover:bg-blue-100">
-                <i data-lucide="route" class="h-4 w-4"></i>Ver flujo completo
+
+            <button
+                type="button"
+                @click="workflowHelpOpen = true; $nextTick(() => { if(window.bootIcons){window.bootIcons();} if(window.AxentraWorkflows){window.AxentraWorkflows.render();} })"
+                class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-800 hover:bg-blue-100"
+            >
+                <i data-lucide="route" class="h-4 w-4"></i>
+                Ver flujo completo
             </button>
         </div>
 
