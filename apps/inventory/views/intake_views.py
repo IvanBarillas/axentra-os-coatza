@@ -1,12 +1,13 @@
+from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
-from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from apps.inventory.forms import (
     AssetIntakeCreateForm, CancelAssetIntakeForm, DepartmentIntakeDecisionForm,
     PatrimonyApprovalForm, PatrimonyObservationForm,
 )
-from apps.inventory.selectors import IntakeSelectors
+from apps.inventory.selectors import CoreDirectorySelectors, IntakeSelectors
 from apps.inventory.services import (
     approve_patrimony_intake, cancel_intake, create_intake_draft,
     decide_department_intake, observe_patrimony_intake,
@@ -20,6 +21,81 @@ from .common import apply_directory_choices, render_inventory, run_service, sele
 
 def _detail_url(intake_id):
     return reverse("inventory:intake_detail", kwargs={"intake_id": intake_id})
+
+
+def _options_response(options):
+    return JsonResponse(
+        {
+            "options": [
+                {"value": str(value), "label": label}
+                for value, label in options
+            ]
+        }
+    )
+
+
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_create_asset",
+)
+@require_GET
+def intake_directory_departments_view(request):
+    site_id = request.GET.get("site_id", "").strip() or None
+    options = (
+        (item.id, f"{item.code or 'SIN-CÓDIGO'} · {item.name}")
+        for item in CoreDirectorySelectors.departments(site_id=site_id)
+    )
+    return _options_response(options)
+
+
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_create_asset",
+)
+@require_GET
+def intake_directory_areas_view(request):
+    site_id = request.GET.get("site_id", "").strip() or None
+    department_id = request.GET.get("department_id", "").strip() or None
+    options = (
+        (
+            item.id,
+            (
+                f"{item.department_code or 'SIN-CÓDIGO'} · "
+                f"{item.department_name} → {item.name} "
+                f"[{item.site_name}]"
+            ),
+        )
+        for item in CoreDirectorySelectors.areas(
+            site_id=site_id,
+            department_id=department_id,
+        )
+    )
+    return _options_response(options)
+
+
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_create_asset",
+)
+@require_GET
+def intake_directory_users_view(request):
+    department_id = request.GET.get("department_id", "").strip() or None
+    area_id = request.GET.get("area_id", "").strip() or None
+    options = (
+        (
+            item.id,
+            (
+                f"{item.display_name} · {item.email}"
+                if item.email
+                else item.display_name
+            ),
+        )
+        for item in CoreDirectorySelectors.users(
+            department_id=department_id,
+            area_id=area_id,
+        )
+    )
+    return _options_response(options)
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")

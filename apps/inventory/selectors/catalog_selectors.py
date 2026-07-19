@@ -63,8 +63,8 @@ class CoreDirectorySelectors:
     """Opciones del Core obtenidas sólo mediante el adaptador desacoplado."""
 
     @staticmethod
-    def departments():
-        return core_directory.list_departments()
+    def departments(*, site_id=None):
+        return core_directory.list_departments(site_id=site_id)
 
     @staticmethod
     def sites():
@@ -75,14 +75,58 @@ class CoreDirectorySelectors:
         return core_directory.list_areas(department_id=department_id, site_id=site_id)
 
     @staticmethod
-    def users(*, department_id=None):
-        return core_directory.list_users(department_id=department_id)
+    def users(*, department_id=None, area_id=None):
+        return core_directory.list_users(
+            department_id=department_id,
+            area_id=area_id,
+        )
 
     @classmethod
-    def form_choices(cls, *, department_id=None, site_id=None):
+    def form_choices(
+        cls,
+        *,
+        department_id=None,
+        site_id=None,
+        area_id=None,
+    ):
         return {
-            "department_choices": [(str(x.id), f"{x.code or 'SIN-CÓDIGO'} · {x.name}") for x in cls.departments()],
-            "site_choices": [(str(x.id), x.name) for x in cls.sites()],
-            "area_choices": [(str(x.id), x.name) for x in cls.areas(department_id=department_id, site_id=site_id)],
-            "user_choices": [(str(x.id), x.display_name) for x in cls.users(department_id=department_id)],
+            "department_choices": [
+                (
+                    str(item.id),
+                    f"{item.code or 'SIN-CÓDIGO'} · {item.name}",
+                )
+                for item in cls.departments(site_id=site_id)
+            ],
+            "site_choices": [
+                (str(item.id), item.name)
+                for item in cls.sites()
+            ],
+            "area_choices": [
+                (
+                    str(item.id),
+                    (
+                        f"{item.department_code or 'SIN-CÓDIGO'} · "
+                        f"{item.department_name} → {item.name} "
+                        f"[{item.site_name}]"
+                    ),
+                )
+                for item in cls.areas(
+                    department_id=department_id,
+                    site_id=site_id,
+                )
+            ],
+            "user_choices": [
+                (
+                    str(item.id),
+                    (
+                        f"{item.display_name} · {item.email}"
+                        if item.email
+                        else item.display_name
+                    ),
+                )
+                for item in cls.users(
+                    department_id=department_id,
+                    area_id=area_id,
+                )
+            ],
         }

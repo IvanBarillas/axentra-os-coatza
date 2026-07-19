@@ -63,7 +63,40 @@ def selector_or_404(callback):
 def apply_directory_choices(form):
     from apps.inventory.selectors import CoreDirectorySelectors
 
-    choices = CoreDirectorySelectors.form_choices()
+    def selected(*field_names):
+        for field_name in field_names:
+            if form.is_bound:
+                value = form.data.get(field_name)
+            else:
+                value = form.initial.get(field_name)
+            if value:
+                return value
+        return None
+
+    site_id = selected(
+        "requested_site_id",
+        "site_id",
+        "destination_site_id",
+        "origin_site_id",
+    )
+    department_id = selected(
+        "requested_department_id",
+        "department_id",
+        "destination_department_id",
+        "origin_department_id",
+    )
+    area_id = selected(
+        "requested_area_id",
+        "area_id",
+        "destination_area_id",
+        "origin_area_id",
+    )
+
+    choices = CoreDirectorySelectors.form_choices(
+        site_id=site_id,
+        department_id=department_id,
+        area_id=area_id,
+    )
     mapping = {
         "requested_department_id": "department_choices",
         "department_id": "department_choices",
@@ -87,4 +120,3 @@ def apply_directory_choices(form):
         if field in form.fields:
             form.fields[field].choices = [("", "--- Seleccione ---"), *choices[source]]
     return form
-

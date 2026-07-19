@@ -42,10 +42,23 @@ class AssetIntakeBaseForm(InventoryForm):
     serial_number = forms.CharField(max_length=120, required=False)
     supplier = forms.ModelChoiceField(queryset=Supplier.objects.none(), required=False)
     contract = forms.ModelChoiceField(queryset=Contract.objects.none(), required=False)
-    requested_department_id = UUIDChoiceField()
-    requested_site_id = UUIDChoiceField(required=False)
-    requested_area_id = UUIDChoiceField(required=False)
-    proposed_custodian_id = UUIDChoiceField(required=False)
+    requested_site_id = UUIDChoiceField(
+        label="Sede física",
+        help_text="Edificio o sede donde se ubicará inicialmente el bien.",
+    )
+    requested_department_id = UUIDChoiceField(
+        label="Dependencia responsable",
+        help_text="Dependencia que recibirá y administrará el bien.",
+    )
+    requested_area_id = UUIDChoiceField(
+        label="Área operativa",
+        help_text="Se muestra como dependencia → área [sede] para evitar ambigüedades.",
+    )
+    proposed_custodian_id = UUIDChoiceField(
+        label="Resguardatario propuesto",
+        required=False,
+        help_text="Servidor público que recibirá inicialmente el resguardo.",
+    )
     notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
     def __init__(self, *args, **kwargs):
@@ -75,6 +88,53 @@ class AssetIntakeBaseForm(InventoryForm):
         supplier = data.get("supplier")
         if contract and supplier and contract.supplier_id != supplier.id:
             self.add_error("contract", "El contrato no pertenece al proveedor.")
+
+        site_id = data.get("requested_site_id")
+        department_id = data.get("requested_department_id")
+        area_id = data.get("requested_area_id")
+        custodian_id = data.get("proposed_custodian_id")
+
+        if area_id:
+            from apps.inventory.integrations.core_directory import (
+                CoreDirectoryError,
+                get_area_context,
+            )
+
+            try:
+                area_context = get_area_context(area_id)
+            except CoreDirectoryError as exc:
+                self.add_error("requested_area_id", str(exc))
+            else:
+                if department_id and area_context.department_id != department_id:
+                    self.add_error(
+                        "requested_area_id",
+                        "El área no pertenece a la dependencia seleccionada.",
+                    )
+                if site_id and area_context.site_id != site_id:
+                    self.add_error(
+                        "requested_area_id",
+                        "El área no pertenece a la sede seleccionada.",
+                    )
+
+        if custodian_id and area_id:
+            from apps.inventory.integrations.core_directory import (
+                CoreDirectoryError,
+                get_user_organizational_context,
+            )
+
+            try:
+                user_context = get_user_organizational_context(
+                    custodian_id,
+                    require_profile=True,
+                )
+            except CoreDirectoryError as exc:
+                self.add_error("proposed_custodian_id", str(exc))
+            else:
+                if user_context.area_id != area_id:
+                    self.add_error(
+                        "proposed_custodian_id",
+                        "El resguardatario no está adscrito al área seleccionada.",
+                    )
         return data
 
     def _dto_kwargs(self):

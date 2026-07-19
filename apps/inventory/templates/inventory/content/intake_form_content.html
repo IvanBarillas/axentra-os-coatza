@@ -1,1 +1,85 @@
 <section class="mx-auto max-w-5xl space-y-6">{% include "inventory/partials/messages.html" %}<div><a href="{% url 'inventory:intake_list' %}" class="text-sm font-black text-slate-500">← Volver a solicitudes</a><p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Alta controlada</p><h1 class="mt-2 text-2xl font-black">Nueva solicitud de ingreso</h1><p class="mt-1 text-sm text-slate-500">El bien todavía no recibirá folio oficial; primero debe ser aceptado y validado.</p></div>{% include "inventory/partials/generic_form.html" with submit_label="Guardar borrador" %}</section>
+
+<script>
+(() => {
+    const site = document.getElementById("id_requested_site_id");
+    const department = document.getElementById("id_requested_department_id");
+    const area = document.getElementById("id_requested_area_id");
+    const custodian = document.getElementById("id_proposed_custodian_id");
+
+    if (!site || !department || !area || !custodian || site.dataset.cascadeReady === "true") {
+        return;
+    }
+
+    site.dataset.cascadeReady = "true";
+
+    const endpoints = {
+        departments: "{% url 'inventory:intake_directory_departments' %}",
+        areas: "{% url 'inventory:intake_directory_areas' %}",
+        users: "{% url 'inventory:intake_directory_users' %}",
+    };
+
+    const reset = (select, placeholder) => {
+        select.replaceChildren(new Option(placeholder, ""));
+        select.value = "";
+        select.disabled = true;
+    };
+
+    const load = async (select, url, placeholder) => {
+        reset(select, "Cargando...");
+        try {
+            const response = await fetch(url, {
+                headers: {"X-Requested-With": "XMLHttpRequest"},
+                credentials: "same-origin",
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            select.replaceChildren(new Option(placeholder, ""));
+            payload.options.forEach(({value, label}) => {
+                select.add(new Option(label, value));
+            });
+            select.disabled = false;
+        } catch (error) {
+            reset(select, "No se pudieron cargar las opciones");
+            console.error("Inventory directory cascade:", error);
+        }
+    };
+
+    site.addEventListener("change", async () => {
+        reset(department, "--- Seleccione dependencia ---");
+        reset(area, "--- Seleccione área ---");
+        reset(custodian, "--- Seleccione resguardatario ---");
+        if (!site.value) return;
+        await load(
+            department,
+            `${endpoints.departments}?site_id=${encodeURIComponent(site.value)}`,
+            "--- Seleccione dependencia ---",
+        );
+    });
+
+    department.addEventListener("change", async () => {
+        reset(area, "--- Seleccione área ---");
+        reset(custodian, "--- Seleccione resguardatario ---");
+        if (!site.value || !department.value) return;
+        const params = new URLSearchParams({
+            site_id: site.value,
+            department_id: department.value,
+        });
+        await load(area, `${endpoints.areas}?${params}`, "--- Seleccione área ---");
+    });
+
+    area.addEventListener("change", async () => {
+        reset(custodian, "--- Seleccione resguardatario ---");
+        if (!department.value || !area.value) return;
+        const params = new URLSearchParams({
+            department_id: department.value,
+            area_id: area.value,
+        });
+        await load(custodian, `${endpoints.users}?${params}`, "--- Sin resguardatario inicial ---");
+    });
+
+    department.disabled = !site.value;
+    area.disabled = !department.value;
+    custodian.disabled = !area.value;
+})();
+</script>

@@ -590,6 +590,7 @@ def user_can_approve_department(
 
 def list_departments(
     *,
+    site_id=None,
     include_unavailable: bool = False,
 ) -> tuple[DepartmentIdentity, ...]:
     """Lista dependencias sin exponer modelos pertenecientes al Core."""
@@ -602,7 +603,19 @@ def list_departments(
     if not include_unavailable:
         queryset = queryset.filter(is_active=True, is_deleted=False)
 
-    queryset = queryset.order_by("codigo_presupuestal", "nombre")
+    if site_id:
+        resolved_site_id = _as_uuid(site_id, field_name="site_id")
+        department_ids = AreaOperativa.objects.filter(
+            sede_fisica_id=resolved_site_id,
+            is_active=True,
+            is_deleted=False,
+        ).values_list("dependencia_id", flat=True)
+        queryset = queryset.filter(pk__in=department_ids)
+
+    queryset = queryset.distinct().order_by(
+        "codigo_presupuestal",
+        "nombre",
+    )
     return tuple(_department_to_identity(item) for item in queryset)
 
 
@@ -667,6 +680,7 @@ def list_areas(
 def list_users(
     *,
     department_id=None,
+    area_id=None,
     include_unavailable: bool = False,
 ) -> tuple[UserIdentity, ...]:
     """Lista usuarios, opcionalmente adscritos a una dependencia."""
@@ -681,6 +695,16 @@ def list_users(
             axentra_profile__area__dependencia_id=_as_uuid(
                 department_id,
                 field_name="department_id",
+            ),
+            axentra_profile__area__is_active=True,
+            axentra_profile__area__is_deleted=False,
+        )
+
+    if area_id:
+        queryset = queryset.filter(
+            axentra_profile__area_id=_as_uuid(
+                area_id,
+                field_name="area_id",
             ),
             axentra_profile__area__is_active=True,
             axentra_profile__area__is_deleted=False,
