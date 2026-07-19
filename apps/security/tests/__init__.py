@@ -1,1 +1,1 @@
-"""Pruebas de Security."""
+"""Pruebas de componentes compartidos."""
