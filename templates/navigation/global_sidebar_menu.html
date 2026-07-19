@@ -67,20 +67,4 @@
         </div>
     {% endif %}
 
-    {# INFRAESTRUCTURA #}
-    {% if is_global_admin or 'inventory' in allowed_modules %}
-        <div class="space-y-1">
-            {% include "navigation/module_group.html" with group_id="inventory" title="Infraestructura" icon="package" %}
-
-            <div
-                x-show="openMenu === 'inventory'"
-                x-cloak
-                class="ml-4 pl-3 border-l border-slate-800 space-y-1"
-            >
-                {% include "navigation/module_item.html" with title="Padrón Hardware" icon="monitor" href="#" %}
-                {% include "navigation/module_item.html" with title="Voz y Extensiones" icon="phone" href="#" %}
-                {% include "navigation/module_item.html" with title="Redes Wi-Fi / SSID" icon="wifi" href="#" %}
-            </div>
-        </div>
-    {% endif %}
 </nav>

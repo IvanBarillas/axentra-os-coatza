@@ -179,6 +179,10 @@ class SecurityConfig(AppConfig):
     verbose_name = "Seguridad y Permisos del Sistema"
 
     def ready(self):
+        # Registra las guías visuales de Security, Accounts y Organigrama.
+        # El import es idempotente por el caché de módulos de Python.
+        from apps.security import workflows  # noqa: F401
+
         post_migrate.connect(
             sincronizar_entorno_so_axentra,
             sender=self,
