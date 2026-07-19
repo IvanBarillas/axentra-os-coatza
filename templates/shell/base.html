@@ -21,6 +21,25 @@
             --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
         }
         [x-cloak] { display: none !important; }
+
+        /* Estado visual del sidebar contextual sincronizado por HTMX. */
+        #module-sidebar a[data-axentra-sidebar-current="true"] {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.16) !important;
+        }
+        #module-sidebar a[data-axentra-sidebar-current="true"] i {
+            color: inherit !important;
+        }
+        #module-sidebar a[data-axentra-sidebar-current="false"] {
+            background-color: transparent !important;
+            color: #475569 !important;
+            box-shadow: none !important;
+        }
+        #module-sidebar a[data-axentra-sidebar-current="false"]:hover {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+        }
         .animate-fade-in { animation: fadeIn .25s ease; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(2px); }
@@ -93,6 +112,7 @@
     <script src="{% static 'js/chart.umd.js' %}" defer></script>
     <script src="{% static 'js/vendor/mermaid.min.js' %}" defer></script>
     <script src="{% static 'js/axentra-workflows.js' %}" defer></script>
+    <script src="{% static 'js/axentra-secondary-sidebar.js' %}" defer></script>
 
     <script>
         function bootIcons() {
