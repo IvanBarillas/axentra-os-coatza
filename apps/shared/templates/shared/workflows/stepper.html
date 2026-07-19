@@ -1,0 +1,18 @@
+{% if not workflow_error %}
+    <ol class="grid gap-3 md:grid-cols-2 xl:grid-cols-4" aria-label="Progreso del proceso">
+        {% for item in workflow_stepper_items %}
+            <li class="rounded-2xl border p-4 {% if item.state == 'completed' %}border-emerald-200 bg-emerald-50{% elif item.state == 'current' %}border-blue-300 bg-blue-50 ring-2 ring-blue-100{% else %}border-slate-200 bg-white{% endif %}">
+                <div class="flex items-start gap-3">
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl {% if item.state == 'completed' %}bg-emerald-600 text-white{% elif item.state == 'current' %}bg-blue-600 text-white{% else %}bg-slate-100 text-slate-400{% endif %}">
+                        <i data-lucide="{% if item.state == 'completed' %}check{% else %}{{ item.step.icon }}{% endif %}" class="h-4 w-4"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-xs font-black uppercase tracking-wider {% if item.state == 'current' %}text-blue-700{% else %}text-slate-400{% endif %}">{% if item.state == 'completed' %}Completado{% elif item.state == 'current' %}Etapa actual{% elif item.state == 'guide' %}Paso {{ forloop.counter }}{% else %}Pendiente{% endif %}</p>
+                        <h3 class="mt-1 text-sm font-black text-slate-900">{{ item.step.name }}</h3>
+                        {% if item.step.description %}<p class="mt-1 text-xs leading-relaxed text-slate-500">{{ item.step.description }}</p>{% endif %}
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+    </ol>
+{% endif %}
