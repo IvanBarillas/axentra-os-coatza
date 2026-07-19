@@ -1,1 +1,82 @@
-<section class="mx-auto max-w-5xl space-y-6">{% include "inventory/partials/messages.html" %}<div><a href="{% url 'inventory:intake_list' %}" class="text-sm font-black text-slate-500">← Volver a solicitudes</a><p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Alta controlada</p><h1 class="mt-2 text-2xl font-black">Nueva solicitud de ingreso</h1><p class="mt-1 text-sm text-slate-500">El bien todavía no recibirá folio oficial; primero debe ser aceptado y validado.</p></div>{% include "inventory/partials/generic_form.html" with submit_label="Guardar borrador" %}</section>
+<section class="mx-auto max-w-5xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+
+    <div>
+        <a
+            href="{% url 'inventory:intake_list' %}"
+            hx-get="{% url 'inventory:intake_list' %}"
+            hx-target="#page-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="inline-flex items-center gap-2 text-sm font-black text-slate-500 transition hover:text-slate-900"
+        >
+            <i data-lucide="arrow-left" class="h-4 w-4"></i>
+            Volver a solicitudes
+        </a>
+
+        <p class="mt-4 text-xs font-black uppercase tracking-[0.24em] text-slate-400">
+            Alta controlada
+        </p>
+        <h1 class="mt-2 text-2xl font-black text-slate-900">
+            Nueva solicitud de ingreso
+        </h1>
+        <p class="mt-1 max-w-3xl text-sm text-slate-500">
+            En esta etapa se crea un borrador. El bien todavía no recibe folio oficial ni forma parte del inventario patrimonial.
+        </p>
+    </div>
+
+    <div class="grid gap-3 md:grid-cols-3">
+        <div class="rounded-2xl border border-slate-900 bg-slate-900 p-4 text-white shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-black text-slate-900">1</span>
+                <div>
+                    <p class="text-sm font-black">Captura</p>
+                    <p class="text-xs text-slate-300">Solicitud en borrador</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500">2</span>
+                <div>
+                    <p class="text-sm font-black text-slate-700">Aceptación</p>
+                    <p class="text-xs text-slate-400">Dependencia destino</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500">3</span>
+                <div>
+                    <p class="text-sm font-black text-slate-700">Validación patrimonial</p>
+                    <p class="text-xs text-slate-400">Clasificación y folio oficial</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+        <div class="flex gap-3">
+            <i data-lucide="building-2" class="mt-0.5 h-5 w-5 shrink-0 text-sky-700"></i>
+            <div>
+                <p class="text-sm font-black text-sky-900">Selecciona cuidadosamente la dependencia destino</p>
+                <p class="mt-1 text-sm text-sky-800">
+                    Su director o encargado deberá aceptar el ingreso antes de que Control Patrimonial pueda validarlo. La captura no transfiere la propiedad ni genera el folio por sí sola.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+        {% include "inventory/partials/generic_form.html" with submit_label="Guardar borrador" %}
+    </div>
+
+    <div class="flex items-start gap-3 rounded-2xl bg-slate-100 p-4 text-sm text-slate-600">
+        <i data-lucide="shield-check" class="mt-0.5 h-5 w-5 shrink-0 text-slate-500"></i>
+        <p>
+            El folio oficial se genera únicamente después de la aceptación departamental y la aprobación de Control Patrimonial. Los usuarios con bypass conservan una justificación auditable.
+        </p>
+    </div>
+</section>

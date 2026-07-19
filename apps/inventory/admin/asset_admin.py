@@ -1,26 +1,27 @@
-# apps/inventory/admin/asset_admin.py
-
 """
 Administración completa de Inventory para desarrollo.
 
 Características:
 - Registra automáticamente todos los modelos de Inventory.
 - Muestra todos los campos concretos en los listados.
-- Muestra todos los campos en los formularios.
-- Permite buscar en textos, correos, UUID y relaciones.
-- Genera filtros para estados, opciones, booleanos y fechas.
-- Usa raw_id_fields para evitar desplegables demasiado grandes.
-- Mantiene visibles los campos técnicos y de auditoría.
+- Conserva visibles todos los campos editables y técnicos en formularios.
+- Permite buscar texto, UUID, PK y referencias directas.
+- Genera filtros para choices, booleanos, fechas y relaciones.
+- Usa raw_id_fields para relaciones potencialmente voluminosas.
 
 Esta configuración está pensada para desarrollo y diagnóstico.
-Antes de producción conviene crear administradores específicos y
-restringir los campos sensibles o de sólo lectura.
+Antes de producción deben crearse administradores específicos y restringirse
+las mutaciones sobre folios, estados, trazabilidad y datos financieros.
 """
+
+from uuid import UUID
 
 from django.apps import apps
 from django.contrib import admin
 from django.contrib.admin.sites import AlreadyRegistered
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import DataError, models
+from django.db.models import Q
 
 
 # =============================================================================
@@ -37,17 +38,13 @@ admin.site.index_title = "Administración del sistema"
 # =============================================================================
 
 class InventoryDevelopmentAdmin(admin.ModelAdmin):
-    """
-    Administrador genérico para visualizar completamente cualquier modelo
-    perteneciente a Inventory.
-    """
+    """Administrador genérico de máxima visibilidad para Inventory."""
 
     list_per_page = 50
     list_max_show_all = 5000
 
     save_on_top = True
     save_as = True
-
     preserve_filters = True
     show_full_result_count = True
 
@@ -57,39 +54,62 @@ class InventoryDevelopmentAdmin(admin.ModelAdmin):
     empty_value_display = "—"
 
     # -------------------------------------------------------------------------
-    # Campos mostrados en el listado
+    # Utilidades internas
+    # -------------------------------------------------------------------------
+
+    def _concrete_fields(self):
+        return tuple(self.model._meta.concrete_fields)
+
+    def _direct_relation_fields(self):
+        return tuple(
+            field
+            for field in self._concrete_fields()
+            if isinstance(field, (models.ForeignKey, models.OneToOneField))
+        )
+
+    def _field_names(self):
+        return {field.name for field in self._concrete_fields()}
+
+    # -------------------------------------------------------------------------
+    # Listado
     # -------------------------------------------------------------------------
 
     def get_list_display(self, request):
         """
-        Muestra todos los campos concretos del modelo.
+        Muestra todas las columnas concretas de la tabla.
 
-        No incluye relaciones inversas ni ManyToMany porque no son columnas
-        concretas de la tabla.
+        Las relaciones inversas y ManyToMany no aparecen en el listado porque
+        no corresponden a una única columna concreta.
         """
 
-        return tuple(
-            field.name
-            for field in self.model._meta.concrete_fields
-        )
+        return tuple(field.name for field in self._concrete_fields())
 
     # -------------------------------------------------------------------------
-    # Campos de sólo lectura
+    # Campos visibles y de sólo lectura
     # -------------------------------------------------------------------------
 
     def get_readonly_fields(self, request, obj=None):
         """
-        Los campos no editables definidos por Django se presentan como
-        sólo lectura, pero continúan siendo visibles.
+        Conserva visibles los campos no editables.
+
+        La PK se vuelve de sólo lectura al editar para impedir que desde el
+        administrador se cambie accidentalmente la identidad de un registro.
         """
 
-        readonly = []
+        readonly = {
+            field.name
+            for field in self._concrete_fields()
+            if not field.editable
+        }
 
-        for field in self.model._meta.concrete_fields:
-            if not field.editable:
-                readonly.append(field.name)
+        if obj is not None:
+            readonly.add(self.model._meta.pk.name)
 
-        return tuple(readonly)
+        return tuple(
+            field.name
+            for field in self._concrete_fields()
+            if field.name in readonly
+        )
 
     # -------------------------------------------------------------------------
     # Relaciones
@@ -97,39 +117,29 @@ class InventoryDevelopmentAdmin(admin.ModelAdmin):
 
     def get_raw_id_fields(self, request):
         """
-        Usa selectores por ID para todas las relaciones.
+        Usa selectores por ID para ForeignKey, OneToOne y ManyToMany locales.
 
         Esto evita cargar miles de usuarios, activos, dependencias o
-        movimientos dentro de un <select>.
+        movimientos dentro de un elemento ``select``.
         """
 
-        return tuple(
+        direct_relations = [field.name for field in self._direct_relation_fields()]
+        many_to_many = [
             field.name
-            for field in self.model._meta.concrete_fields
-            if isinstance(
-                field,
-                (models.ForeignKey, models.OneToOneField),
-            )
-        )
-
-    def get_queryset(self, request):
-        """
-        Reduce consultas repetidas al mostrar relaciones ForeignKey.
-        """
-
-        queryset = super().get_queryset(request)
-
-        relation_fields = [
-            field.name
-            for field in self.model._meta.concrete_fields
-            if isinstance(
-                field,
-                (models.ForeignKey, models.OneToOneField),
-            )
+            for field in self.model._meta.many_to_many
+            if field.editable and not field.auto_created
         ]
 
-        if relation_fields:
-            queryset = queryset.select_related(*relation_fields)
+        return tuple(direct_relations + many_to_many)
+
+    def get_queryset(self, request):
+        """Evita consultas repetidas al representar relaciones directas."""
+
+        queryset = super().get_queryset(request)
+        relation_names = [field.name for field in self._direct_relation_fields()]
+
+        if relation_names:
+            queryset = queryset.select_related(*relation_names)
 
         return queryset
 
@@ -139,147 +149,156 @@ class InventoryDevelopmentAdmin(admin.ModelAdmin):
 
     def get_search_fields(self, request):
         """
-        Habilita búsqueda automática sobre:
+        Habilita búsqueda parcial segura sobre campos textuales.
 
-        - CharField
-        - TextField
-        - EmailField
-        - SlugField
-        - UUIDField
-        - Llaves foráneas por su identificador
+        Los UUID, PK y relaciones se procesan por separado en
+        ``get_search_results`` para que una cadena ordinaria no provoque un
+        error de conversión en la base de datos.
         """
 
-        search_fields = []
-
-        text_field_types = (
+        searchable_types = (
             models.CharField,
             models.TextField,
             models.EmailField,
             models.SlugField,
         )
 
-        for field in self.model._meta.concrete_fields:
-            if isinstance(field, text_field_types):
-                search_fields.append(field.name)
+        return tuple(
+            field.name
+            for field in self._concrete_fields()
+            if isinstance(field, searchable_types)
+        )
 
-            elif isinstance(field, models.UUIDField):
-                search_fields.append(f"={field.name}")
+    def get_search_results(self, request, queryset, search_term):
+        queryset, may_have_duplicates = super().get_search_results(
+            request,
+            queryset,
+            search_term,
+        )
 
-            elif isinstance(
-                field,
-                (models.ForeignKey, models.OneToOneField),
-            ):
-                search_fields.append(f"={field.name}__pk")
+        term = str(search_term or "").strip()
+        if not term:
+            return queryset, may_have_duplicates
 
-        return tuple(search_fields)
+        identifier_filter = Q()
+        has_identifier_filter = False
+
+        # UUID propios del modelo.
+        try:
+            uuid_value = UUID(term)
+        except (TypeError, ValueError, AttributeError):
+            uuid_value = None
+
+        if uuid_value is not None:
+            for field in self._concrete_fields():
+                if isinstance(field, models.UUIDField):
+                    identifier_filter |= Q(**{field.name: uuid_value})
+                    has_identifier_filter = True
+
+            # Relaciones cuyo modelo destino usa UUID como PK.
+            for field in self._direct_relation_fields():
+                if isinstance(field.target_field, models.UUIDField):
+                    identifier_filter |= Q(**{f"{field.name}_id": uuid_value})
+                    has_identifier_filter = True
+
+        # PK y relaciones enteras.
+        if term.isdigit():
+            integer_value = int(term)
+            integer_types = (
+                models.AutoField,
+                models.BigAutoField,
+                models.SmallAutoField,
+                models.IntegerField,
+                models.BigIntegerField,
+                models.SmallIntegerField,
+                models.PositiveIntegerField,
+                models.PositiveBigIntegerField,
+                models.PositiveSmallIntegerField,
+            )
+
+            if isinstance(self.model._meta.pk, integer_types):
+                identifier_filter |= Q(pk=integer_value)
+                has_identifier_filter = True
+
+            for field in self._direct_relation_fields():
+                if isinstance(field.target_field, integer_types):
+                    identifier_filter |= Q(**{f"{field.name}_id": integer_value})
+                    has_identifier_filter = True
+
+        if has_identifier_filter:
+            try:
+                identifier_queryset = self.get_queryset(request).filter(
+                    identifier_filter
+                )
+                queryset = queryset | identifier_queryset
+            except (ValidationError, ValueError, TypeError, DataError):
+                # La búsqueda textual continúa funcionando aunque algún backend
+                # no pueda convertir un identificador concreto.
+                pass
+
+        return queryset, may_have_duplicates
 
     # -------------------------------------------------------------------------
     # Filtros
     # -------------------------------------------------------------------------
 
     def get_list_filter(self, request):
-        """
-        Genera filtros para:
-
-        - Campos con choices.
-        - Booleanos.
-        - Fechas.
-        - Fechas y horas.
-        - Relaciones ForeignKey.
-        """
+        """Genera filtros útiles sin incluir la llave primaria."""
 
         list_filter = []
 
-        for field in self.model._meta.concrete_fields:
+        for field in self._concrete_fields():
             if field.primary_key:
                 continue
 
             if field.choices:
                 list_filter.append(field.name)
-                continue
-
-            if isinstance(field, models.BooleanField):
+            elif isinstance(field, models.BooleanField):
                 list_filter.append(field.name)
-                continue
-
-            if isinstance(field, (models.DateField, models.DateTimeField)):
+            elif isinstance(field, (models.DateField, models.DateTimeField)):
                 list_filter.append(field.name)
-                continue
-
-            if isinstance(
-                field,
-                (models.ForeignKey, models.OneToOneField),
-            ):
+            elif isinstance(field, (models.ForeignKey, models.OneToOneField)):
                 list_filter.append(
-                    (
-                        field.name,
-                        admin.RelatedOnlyFieldListFilter,
-                    )
+                    (field.name, admin.RelatedOnlyFieldListFilter)
                 )
 
         return tuple(list_filter)
 
     # -------------------------------------------------------------------------
-    # Ordenamiento
+    # Ordenamiento y navegación temporal
     # -------------------------------------------------------------------------
 
     def get_ordering(self, request):
-        """
-        Respeta el ordering declarado en Meta.
-
-        Si el modelo no declara uno, ordena por fecha de creación o por PK.
-        """
-
         declared_ordering = self.model._meta.ordering
 
         if declared_ordering:
-            return declared_ordering
+            return tuple(declared_ordering)
 
-        field_names = {
-            field.name
-            for field in self.model._meta.concrete_fields
-        }
-
-        if "created_at" in field_names:
+        if "created_at" in self._field_names():
             return ("-created_at",)
 
         return (self.model._meta.pk.name,)
 
-    # -------------------------------------------------------------------------
-    # Navegación por fecha
-    # -------------------------------------------------------------------------
-
     def get_date_hierarchy(self, request):
-        """
-        Utiliza created_at como navegación cronológica cuando exista.
-        """
-
-        field_names = {
-            field.name
-            for field in self.model._meta.concrete_fields
-        }
-
-        if "created_at" in field_names:
+        if "created_at" in self._field_names():
             return "created_at"
 
         return None
 
 
 # =============================================================================
-# REGISTRO AUTOMÁTICO
+# REGISTRO AUTOMÁTICO DE TODOS LOS MODELOS DE INVENTORY
 # =============================================================================
 
 inventory_app_config = apps.get_app_config("inventory")
 
-
 for inventory_model in inventory_app_config.get_models():
     try:
-        admin.site.register(
-            inventory_model,
-            InventoryDevelopmentAdmin,
-        )
+        admin.site.register(inventory_model, InventoryDevelopmentAdmin)
     except AlreadyRegistered:
-        # Permite conservar un administrador específico si algún modelo
-        # ya fue registrado antes.
+        # Conserva un ModelAdmin específico registrado previamente.
         pass
-    
+
+
+__all__ = ["InventoryDevelopmentAdmin"]
+

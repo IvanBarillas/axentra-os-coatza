@@ -1,1 +1,177 @@
-<section class="space-y-6">{% include "inventory/partials/messages.html" %}<div class="flex items-end justify-between gap-4"><div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Antes del folio oficial</p><h1 class="mt-2 text-2xl font-black">Solicitudes de alta</h1></div><a href="{% url 'inventory:intake_create' %}" hx-get="{% url 'inventory:intake_create' %}" hx-target="#page-content" hx-push-url="true" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Nueva solicitud</a></div><form method="get" hx-get="{% url 'inventory:intake_list' %}" hx-target="#page-content" hx-push-url="true" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-4"><input name="q" value="{{ q }}" placeholder="Folio, nombre o serie" class="md:col-span-2"><input name="status" value="{{ status }}" placeholder="Estado"><button class="rounded-xl bg-slate-900 text-sm font-black text-white">Filtrar</button></form><div class="grid gap-4">{% for intake in intakes %}<a href="{% url 'inventory:intake_detail' intake.id %}" hx-get="{% url 'inventory:intake_detail' intake.id %}" hx-target="#page-content" hx-push-url="true" class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400 md:flex-row md:items-center md:justify-between"><div><p class="font-mono text-sm font-black">{{ intake.request_number }}</p><p class="mt-1 font-black">{{ intake.name }}</p><p class="mt-1 text-xs text-slate-500">{{ intake.requested_dependencia }}</p></div><div class="text-right"><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black">{{ intake.get_status_display }}</span><p class="mt-2 text-xs text-slate-400">{{ intake.created_at|date:"d/m/Y H:i" }}</p></div></a>{% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}</div></section>
+<section class="space-y-6">
+    {% include "inventory/partials/messages.html" %}
+
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <p class="text-xs font-black uppercase tracking-[0.24em] text-slate-400">
+                Antes del folio oficial
+            </p>
+            <h1 class="mt-2 text-2xl font-black text-slate-900">
+                Solicitudes de alta
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                Consulta las solicitudes visibles de acuerdo con tu dependencia y permisos.
+            </p>
+        </div>
+
+        {% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list %}
+            <a
+                href="{% url 'inventory:intake_create' %}"
+                hx-get="{% url 'inventory:intake_create' %}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+            >
+                <i data-lucide="plus" class="h-4 w-4"></i>
+                Nueva solicitud
+            </a>
+        {% endif %}
+    </div>
+
+    <form
+        method="get"
+        action="{% url 'inventory:intake_list' %}"
+        hx-get="{% url 'inventory:intake_list' %}"
+        hx-target="#page-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-12"
+    >
+        <div class="md:col-span-6">
+            <label for="intake-filter-q" class="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">
+                Buscar
+            </label>
+            <input
+                id="intake-filter-q"
+                type="search"
+                name="q"
+                value="{{ q }}"
+                placeholder="Folio de solicitud, nombre o número de serie"
+                autocomplete="off"
+                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+            >
+        </div>
+
+        <div class="md:col-span-4">
+            <label for="intake-filter-status" class="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">
+                Estado
+            </label>
+            <input
+                id="intake-filter-status"
+                type="text"
+                name="status"
+                value="{{ status }}"
+                placeholder="Ej. SUBMITTED"
+                autocomplete="off"
+                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+            >
+        </div>
+
+        {% if department_id %}
+            <input type="hidden" name="department" value="{{ department_id }}">
+        {% endif %}
+
+        <div class="flex items-end gap-2 md:col-span-2">
+            <button
+                type="submit"
+                class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-black text-white transition hover:bg-slate-800"
+            >
+                <i data-lucide="search" class="h-4 w-4"></i>
+                Filtrar
+            </button>
+
+            {% if q or status %}
+                <a
+                    href="{% url 'inventory:intake_list' %}"
+                    hx-get="{% url 'inventory:intake_list' %}"
+                    hx-target="#page-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                    title="Limpiar filtros"
+                    class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-400 hover:text-slate-900"
+                >
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                    <span class="sr-only">Limpiar filtros</span>
+                </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="grid gap-4">
+        {% for intake in intakes %}
+            <a
+                href="{% url 'inventory:intake_detail' intake.id %}"
+                hx-get="{% url 'inventory:intake_detail' intake.id %}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="group flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400 hover:shadow-md md:flex-row md:items-center md:justify-between"
+            >
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="font-mono text-sm font-black text-slate-900">
+                            {{ intake.request_number }}
+                        </p>
+
+                        {% if intake.source_type %}
+                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                                {{ intake.get_source_type_display|default:intake.source_type }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <p class="mt-2 truncate font-black text-slate-900 group-hover:text-slate-700">
+                        {{ intake.name }}
+                    </p>
+
+                    <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                        <span class="inline-flex items-center gap-1.5">
+                            <i data-lucide="building-2" class="h-3.5 w-3.5"></i>
+                            {% if intake.target_department_name_snapshot %}
+                                {{ intake.target_department_name_snapshot }}
+                            {% elif intake.requested_dependencia %}
+                                {{ intake.requested_dependencia }}
+                            {% else %}
+                                Sin dependencia asignada
+                            {% endif %}
+                        </span>
+
+                        {% if intake.serial_number %}
+                            <span class="inline-flex items-center gap-1.5 font-mono">
+                                <i data-lucide="barcode" class="h-3.5 w-3.5"></i>
+                                {{ intake.serial_number }}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="flex shrink-0 items-center justify-between gap-4 md:justify-end md:text-right">
+                    <div>
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-black
+                            {% if intake.status == 'REGISTERED' %}
+                                bg-emerald-50 text-emerald-700
+                            {% elif intake.status == 'REJECTED' or intake.status == 'CANCELLED' %}
+                                bg-rose-50 text-rose-700
+                            {% elif intake.status == 'OBSERVED' %}
+                                bg-amber-50 text-amber-700
+                            {% elif intake.status == 'APPROVED' %}
+                                bg-indigo-50 text-indigo-700
+                            {% else %}
+                                bg-slate-100 text-slate-700
+                            {% endif %}">
+                            {{ intake.get_status_display }}
+                        </span>
+                        <p class="mt-2 text-xs text-slate-400">
+                            {{ intake.created_at|date:"d/m/Y H:i" }}
+                        </p>
+                    </div>
+
+                    <i data-lucide="chevron-right" class="h-5 w-5 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-600"></i>
+                </div>
+            </a>
+        {% empty %}
+            {% include "inventory/partials/empty_state.html" %}
+        {% endfor %}
+    </div>
+</section>

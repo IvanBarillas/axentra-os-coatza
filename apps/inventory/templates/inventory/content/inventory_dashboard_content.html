@@ -1,12 +1,144 @@
 <section class="space-y-6">
     {% include "inventory/partials/messages.html" %}
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Control patrimonial</p><h1 class="mt-2 text-3xl font-black tracking-tight text-slate-900">Inventario Municipal</h1><p class="mt-1 text-sm text-slate-500">Vista ejecutiva de bienes, altas y valor registrado.</p></div><a href="{% url 'inventory:intake_create' %}" hx-get="{% url 'inventory:intake_create' %}" hx-target="#page-content" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white"><i data-lucide="plus" class="h-4 w-4"></i>Nueva solicitud</a></div>
+
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <p class="text-xs font-black uppercase tracking-[0.24em] text-slate-400">
+                Control patrimonial
+            </p>
+
+            <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-900">
+                {% if inventory_scope == "GLOBAL" %}
+                    Inventario Municipal
+                {% elif inventory_scope == "DEPARTMENT" %}
+                    Inventario de mi dependencia
+                {% else %}
+                    Mi inventario
+                {% endif %}
+            </h1>
+
+            <p class="mt-1 text-sm text-slate-500">
+                {% if inventory_scope == "GLOBAL" %}
+                    Vista consolidada de bienes, altas y valor patrimonial del municipio.
+                {% elif inventory_scope == "DEPARTMENT" %}
+                    Bienes y solicitudes correspondientes a tu dependencia activa.
+                {% else %}
+                    Bienes bajo tu resguardo y solicitudes que has capturado o enviado.
+                {% endif %}
+            </p>
+        </div>
+
+        {% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list %}
+            <a
+                href="{% url 'inventory:intake_create' %}"
+                hx-get="{% url 'inventory:intake_create' %}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+            >
+                <i data-lucide="plus" class="h-4 w-4"></i>
+                Nueva solicitud
+            </a>
+        {% endif %}
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+        <span class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide
+            {% if inventory_scope == 'GLOBAL' %}
+                bg-indigo-50 text-indigo-700
+            {% elif inventory_scope == 'DEPARTMENT' %}
+                bg-sky-50 text-sky-700
+            {% else %}
+                bg-emerald-50 text-emerald-700
+            {% endif %}">
+            {% if inventory_scope == "GLOBAL" %}
+                Alcance global
+            {% elif inventory_scope == "DEPARTMENT" %}
+                Alcance departamental
+            {% else %}
+                Alcance personal
+            {% endif %}
+        </span>
+
+        <span class="text-xs font-semibold text-slate-400">
+            Las cifras se calculan exclusivamente sobre los registros que tienes autorizados.
+        </span>
+    </div>
+
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {% include "inventory/partials/stat_card.html" with label="Bienes registrados" value=metrics.total icon="boxes" %}
+        {% if inventory_scope == "OWN" %}
+            {% include "inventory/partials/stat_card.html" with label="Bienes bajo mi resguardo" value=metrics.total icon="package-check" %}
+        {% elif inventory_scope == "DEPARTMENT" %}
+            {% include "inventory/partials/stat_card.html" with label="Bienes de la dependencia" value=metrics.total icon="building-2" %}
+        {% else %}
+            {% include "inventory/partials/stat_card.html" with label="Bienes registrados" value=metrics.total icon="boxes" %}
+        {% endif %}
+
         {% include "inventory/partials/stat_card.html" with label="Activos" value=metrics.active icon="badge-check" %}
         {% include "inventory/partials/stat_card.html" with label="Altas pendientes" value=metrics.pending icon="clock-3" %}
-        {% include "inventory/partials/stat_card.html" with label="Sin resguardatario" value=metrics.without_custodian icon="user-x" %}
+
+        {% if inventory_scope != "OWN" %}
+            {% include "inventory/partials/stat_card.html" with label="Sin resguardatario" value=metrics.without_custodian icon="user-x" %}
+        {% endif %}
+
         {% include "inventory/partials/stat_card.html" with label="Valor de adquisición" value=metrics.acquisition_value icon="landmark" money=True %}
     </div>
-    <div class="grid gap-5 md:grid-cols-3"><a href="{% url 'inventory:intake_list' %}" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:border-slate-400"><i data-lucide="clipboard-list" class="h-6 w-6"></i><h2 class="mt-4 font-black">Flujo de altas</h2><p class="mt-1 text-sm text-slate-500">Aceptación departamental y validación patrimonial.</p></a><a href="{% url 'inventory:asset_list' %}" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:border-slate-400"><i data-lucide="package-search" class="h-6 w-6"></i><h2 class="mt-4 font-black">Expedientes</h2><p class="mt-1 text-sm text-slate-500">Consulta folios, ubicación, condición y trazabilidad.</p></a><a href="{% url 'inventory:physical_audit_list' %}" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:border-slate-400"><i data-lucide="scan-line" class="h-6 w-6"></i><h2 class="mt-4 font-black">Toma física</h2><p class="mt-1 text-sm text-slate-500">Conciliación anual por sede y dependencia.</p></a></div>
+
+    <div class="grid gap-5 md:grid-cols-3">
+        <a
+            href="{% url 'inventory:intake_list' %}"
+            hx-get="{% url 'inventory:intake_list' %}"
+            hx-target="#page-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400"
+        >
+            <i data-lucide="clipboard-list" class="h-6 w-6 text-slate-700"></i>
+            <h2 class="mt-4 font-black text-slate-900">Flujo de altas</h2>
+            <p class="mt-1 text-sm text-slate-500">
+                Consulta solicitudes capturadas, recibidas o pendientes según tu alcance.
+            </p>
+        </a>
+
+        <a
+            href="{% url 'inventory:asset_list' %}"
+            hx-get="{% url 'inventory:asset_list' %}"
+            hx-target="#page-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400"
+        >
+            <i data-lucide="package-search" class="h-6 w-6 text-slate-700"></i>
+            <h2 class="mt-4 font-black text-slate-900">Expedientes</h2>
+            <p class="mt-1 text-sm text-slate-500">
+                Consulta folios, ubicación, condición y trazabilidad autorizada.
+            </p>
+        </a>
+
+        {% if request.axentra_is_root or "can_manage_physical_audits" in request.axentra_permissions_list or "can_scan_physical_audits" in request.axentra_permissions_list %}
+            <a
+                href="{% url 'inventory:physical_audit_list' %}"
+                hx-get="{% url 'inventory:physical_audit_list' %}"
+                hx-target="#page-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400"
+            >
+                <i data-lucide="scan-line" class="h-6 w-6 text-slate-700"></i>
+                <h2 class="mt-4 font-black text-slate-900">Toma física</h2>
+                <p class="mt-1 text-sm text-slate-500">
+                    Conciliación física por sede, dependencia y área operativa.
+                </p>
+            </a>
+        {% else %}
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <i data-lucide="shield-check" class="h-6 w-6 text-slate-400"></i>
+                <h2 class="mt-4 font-black text-slate-900">Alcance protegido</h2>
+                <p class="mt-1 text-sm text-slate-500">
+                    Inventory limita automáticamente los expedientes y cifras de acuerdo con tu responsabilidad.
+                </p>
+            </div>
+        {% endif %}
+    </div>
 </section>

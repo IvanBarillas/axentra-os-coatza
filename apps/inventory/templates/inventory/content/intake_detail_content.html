@@ -1,10 +1,287 @@
-<section class="space-y-6">{% include "inventory/partials/messages.html" %}<a href="{% url 'inventory:intake_list' %}" hx-get="{% url 'inventory:intake_list' %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver a solicitudes</a><div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"><div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Solicitud de alta</p><h1 class="mt-2 font-mono text-3xl font-black">{{ intake.request_number }}</h1><p class="mt-1 font-bold text-slate-500">{{ intake.name }}</p></div><span class="rounded-full bg-slate-900 px-4 py-2 text-xs font-black text-white">{{ intake.get_status_display }}</span></div>
-<div class="grid gap-6 lg:grid-cols-3"><div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2"><h2 class="text-lg font-black">Datos propuestos</h2><dl class="mt-5 grid gap-5 md:grid-cols-2">{% include "inventory/partials/datum.html" with label="Categoría" value=intake.category %}{% include "inventory/partials/datum.html" with label="Objeto del gasto" value=intake.expenditure_object %}{% include "inventory/partials/datum.html" with label="Cuenta contable" value=intake.accounting_account %}{% include "inventory/partials/datum.html" with label="Adquisición" value=intake.get_acquisition_type_display %}{% include "inventory/partials/datum.html" with label="Costo" value=intake.acquisition_cost money=True %}{% include "inventory/partials/datum.html" with label="Fecha" value=intake.acquisition_date %}{% include "inventory/partials/datum.html" with label="Dependencia" value=intake.requested_dependencia %}{% include "inventory/partials/datum.html" with label="Resguardatario propuesto" value=intake.proposed_custodian %}</dl>{% if intake.description %}<p class="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">{{ intake.description }}</p>{% endif %}</div>
-<aside class="space-y-4"><div class="rounded-3xl border border-slate-200 bg-white p-5"><h2 class="font-black">Acciones del flujo</h2><div class="mt-4 space-y-2">
-{% if intake.status == 'DRAFT' or intake.status == 'DEPARTMENT_REJECTED' or intake.status == 'OBSERVED' %}<form method="post" action="{% url 'inventory:intake_submit' intake.id %}">{% csrf_token %}<input type="hidden" name="confirm" value="on"><button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Enviar a aceptación</button></form>{% endif %}
-{% if intake.status == 'SUBMITTED' %}<form method="post" action="{% url 'inventory:intake_department_decision' intake.id %}" class="space-y-2">{% csrf_token %}<textarea name="comment" placeholder="Comentario o motivo del rechazo" class="w-full"></textarea><label class="flex items-center gap-2 text-sm font-bold"><input type="checkbox" name="approve"> Aprobar</label><button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Registrar decisión</button></form>{% endif %}
-{% if intake.status == 'DEPARTMENT_APPROVED' %}<form method="post" action="{% url 'inventory:intake_send_to_patrimony' intake.id %}">{% csrf_token %}<input type="hidden" name="confirm" value="on"><button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Enviar a Patrimonio</button></form>{% endif %}
-{% if intake.status == 'UNDER_PATRIMONY_REVIEW' %}<form method="post" action="{% url 'inventory:intake_approve' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white">Abrir aprobación</button></form><form method="post" action="{% url 'inventory:intake_observe' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">Emitir observación</button></form>{% endif %}
-{% if intake.status == 'APPROVED' %}<form method="post" action="{% url 'inventory:intake_register' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white">Generar folio y registrar</button></form>{% endif %}
-{% if intake.status != 'REGISTERED' and intake.status != 'CANCELLED' %}<form method="post" action="{% url 'inventory:intake_cancel' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-black text-red-700">Cancelar solicitud</button></form>{% endif %}
-</div></div><div class="rounded-3xl border border-slate-200 bg-white p-5"><h2 class="font-black">Historial</h2><div class="mt-4 space-y-3">{% for decision in intake.decisions.all %}<div class="border-l-2 border-slate-200 pl-3"><p class="text-sm font-bold">{{ decision.get_decision_type_display }}</p><p class="text-xs text-slate-400">{{ decision.occurred_at|date:"d/m/Y H:i" }}</p></div>{% empty %}<p class="text-sm text-slate-500">Sin decisiones.</p>{% endfor %}</div></div></aside></div></section>
+<section class="space-y-6">
+    {% include "inventory/partials/messages.html" %}
+
+    <a
+        href="{% url 'inventory:intake_list' %}"
+        hx-get="{% url 'inventory:intake_list' %}"
+        hx-target="#page-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="inline-flex items-center gap-2 text-sm font-black text-slate-500 transition hover:text-slate-900"
+    >
+        <i data-lucide="arrow-left" class="h-4 w-4"></i>
+        Volver a solicitudes
+    </a>
+
+    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div class="min-w-0">
+            <p class="text-xs font-black uppercase tracking-[0.24em] text-slate-400">
+                Solicitud de alta
+            </p>
+            <h1 class="mt-2 break-all font-mono text-3xl font-black text-slate-900">
+                {{ intake.request_number }}
+            </h1>
+            <p class="mt-1 font-bold text-slate-500">{{ intake.name }}</p>
+        </div>
+
+        <span class="inline-flex w-fit rounded-full px-4 py-2 text-xs font-black
+            {% if intake.status == 'REGISTERED' %}
+                bg-emerald-50 text-emerald-700
+            {% elif intake.status == 'REJECTED' or intake.status == 'DEPARTMENT_REJECTED' or intake.status == 'CANCELLED' %}
+                bg-rose-50 text-rose-700
+            {% elif intake.status == 'OBSERVED' %}
+                bg-amber-50 text-amber-700
+            {% elif intake.status == 'APPROVED' %}
+                bg-indigo-50 text-indigo-700
+            {% else %}
+                bg-slate-900 text-white
+            {% endif %}">
+            {{ intake.get_status_display }}
+        </span>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-3">
+        <div class="space-y-6 lg:col-span-2">
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-lg font-black text-slate-900">Datos propuestos</h2>
+                    <span class="text-xs font-semibold text-slate-400">
+                        Creada {{ intake.created_at|date:"d/m/Y H:i" }}
+                    </span>
+                </div>
+
+                <dl class="mt-5 grid gap-5 md:grid-cols-2">
+                    {% include "inventory/partials/datum.html" with label="Categoría" value=intake.category %}
+                    {% include "inventory/partials/datum.html" with label="Objeto del gasto" value=intake.expenditure_object %}
+                    {% include "inventory/partials/datum.html" with label="Cuenta contable" value=intake.accounting_account %}
+                    {% include "inventory/partials/datum.html" with label="Adquisición" value=intake.get_acquisition_type_display %}
+                    {% include "inventory/partials/datum.html" with label="Costo de adquisición" value=intake.acquisition_cost money=True %}
+                    {% include "inventory/partials/datum.html" with label="Valor residual" value=intake.residual_value money=True %}
+                    {% include "inventory/partials/datum.html" with label="Fecha de adquisición" value=intake.acquisition_date %}
+                    {% include "inventory/partials/datum.html" with label="Fecha de recepción" value=intake.reception_date %}
+                    {% include "inventory/partials/datum.html" with label="Fabricante" value=intake.manufacturer %}
+                    {% include "inventory/partials/datum.html" with label="Modelo" value=intake.model %}
+                    {% include "inventory/partials/datum.html" with label="Número de serie" value=intake.serial_number %}
+                    {% include "inventory/partials/datum.html" with label="Proveedor" value=intake.supplier %}
+                    {% include "inventory/partials/datum.html" with label="Contrato" value=intake.contract %}
+                </dl>
+
+                {% if intake.description %}
+                    <div class="mt-6 rounded-2xl bg-slate-50 p-4">
+                        <p class="text-xs font-black uppercase tracking-wide text-slate-400">Descripción</p>
+                        <p class="mt-2 whitespace-pre-line text-sm text-slate-600">{{ intake.description }}</p>
+                    </div>
+                {% endif %}
+
+                {% if intake.notes %}
+                    <div class="mt-4 rounded-2xl border border-slate-200 p-4">
+                        <p class="text-xs font-black uppercase tracking-wide text-slate-400">Notas</p>
+                        <p class="mt-2 whitespace-pre-line text-sm text-slate-600">{{ intake.notes }}</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 class="text-lg font-black text-slate-900">Destino y responsables</h2>
+                <dl class="mt-5 grid gap-5 md:grid-cols-2">
+                    <div>
+                        <dt class="text-xs font-black uppercase tracking-wide text-slate-400">Dependencia destino</dt>
+                        <dd class="mt-1 text-sm font-bold text-slate-700">
+                            {% if intake.target_department_name_snapshot %}
+                                {{ intake.target_department_name_snapshot }}
+                            {% elif intake.requested_dependencia %}
+                                {{ intake.requested_dependencia }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-xs font-black uppercase tracking-wide text-slate-400">Área destino</dt>
+                        <dd class="mt-1 text-sm font-bold text-slate-700">
+                            {{ intake.target_area_name_snapshot|default:intake.requested_area|default:"—" }}
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-xs font-black uppercase tracking-wide text-slate-400">Sede destino</dt>
+                        <dd class="mt-1 text-sm font-bold text-slate-700">
+                            {{ intake.target_site_name_snapshot|default:intake.requested_sede|default:"—" }}
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-xs font-black uppercase tracking-wide text-slate-400">Resguardatario propuesto</dt>
+                        <dd class="mt-1 text-sm font-bold text-slate-700">
+                            {{ intake.proposed_custodian_name_snapshot|default:intake.proposed_custodian|default:"—" }}
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-xs font-black uppercase tracking-wide text-slate-400">Capturada por</dt>
+                        <dd class="mt-1 text-sm font-bold text-slate-700">
+                            {{ intake.captured_by_name_snapshot|default:intake.submitted_by|default:"—" }}
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-xs font-black uppercase tracking-wide text-slate-400">Dependencia de origen</dt>
+                        <dd class="mt-1 text-sm font-bold text-slate-700">
+                            {{ intake.source_department_name_snapshot|default:"—" }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <aside class="space-y-4">
+            <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="font-black text-slate-900">Acciones del flujo</h2>
+                <p class="mt-1 text-xs text-slate-500">
+                    Sólo aparecen las acciones permitidas para tu rol y el estado actual.
+                </p>
+
+                <div class="mt-4 space-y-3">
+                    {% if intake.status == 'DRAFT' or intake.status == 'DEPARTMENT_REJECTED' or intake.status == 'OBSERVED' %}
+                        {% if request.axentra_is_root or "can_submit_asset_intake" in request.axentra_permissions_list %}
+                            <form
+                                method="post"
+                                action="{% url 'inventory:intake_submit' intake.id %}"
+                                hx-post="{% url 'inventory:intake_submit' intake.id %}"
+                                hx-target="#page-content"
+                                hx-swap="innerHTML"
+                            >
+                                {% csrf_token %}
+                                <input type="hidden" name="confirm" value="on">
+                                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800">
+                                    <i data-lucide="send" class="h-4 w-4"></i>
+                                    Enviar a aceptación
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if intake.status == 'SUBMITTED' %}
+                        {% if request.axentra_is_root or "can_approve_department_intake" in request.axentra_permissions_list %}
+                            <details class="rounded-2xl border border-slate-200 p-3">
+                                <summary class="cursor-pointer text-sm font-black text-slate-700">Decisión departamental</summary>
+                                <form
+                                    method="post"
+                                    action="{% url 'inventory:intake_department_decision' intake.id %}"
+                                    hx-post="{% url 'inventory:intake_department_decision' intake.id %}"
+                                    hx-target="#page-content"
+                                    hx-swap="innerHTML"
+                                    class="mt-3 space-y-3"
+                                >
+                                    {% csrf_token %}
+                                    <textarea name="comment" rows="3" placeholder="Comentario; obligatorio al rechazar" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-500"></textarea>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button type="submit" name="approve" value="on" class="rounded-xl bg-emerald-700 px-3 py-2.5 text-xs font-black text-white">Aceptar</button>
+                                        <button type="submit" class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-black text-rose-700">Rechazar</button>
+                                    </div>
+                                </form>
+                            </details>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if intake.status == 'DEPARTMENT_APPROVED' %}
+                        {% if request.axentra_is_root or "can_validate_patrimony_intake" in request.axentra_permissions_list %}
+                            <form method="post" action="{% url 'inventory:intake_send_to_patrimony' intake.id %}" hx-post="{% url 'inventory:intake_send_to_patrimony' intake.id %}" hx-target="#page-content" hx-swap="innerHTML">
+                                {% csrf_token %}
+                                <input type="hidden" name="confirm" value="on">
+                                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">
+                                    <i data-lucide="landmark" class="h-4 w-4"></i>
+                                    Enviar a Patrimonio
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if intake.status == 'UNDER_PATRIMONY_REVIEW' %}
+                        {% if request.axentra_is_root or "can_validate_patrimony_intake" in request.axentra_permissions_list %}
+                            <details class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3">
+                                <summary class="cursor-pointer text-sm font-black text-emerald-800">Aprobar alta patrimonial</summary>
+                                <form method="post" action="{% url 'inventory:intake_approve' intake.id %}" hx-post="{% url 'inventory:intake_approve' intake.id %}" hx-target="#page-content" hx-swap="innerHTML" class="mt-3 space-y-3">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="expenditure_object" value="{{ intake.expenditure_object_id|default:'' }}">
+                                    <input type="hidden" name="accounting_account" value="{{ intake.accounting_account_id|default:'' }}">
+                                    <input type="hidden" name="physical_condition" value="GOOD">
+                                    <input type="hidden" name="residual_value" value="{{ intake.residual_value|default:'0.00' }}">
+                                    {% if not intake.expenditure_object_id %}
+                                        <p class="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">La solicitud no tiene objeto del gasto. Debe corregirse antes de aprobarla.</p>
+                                    {% endif %}
+                                    <textarea name="observation" rows="2" placeholder="Comentario de aprobación opcional" class="w-full rounded-xl border border-emerald-200 px-3 py-2 text-sm"></textarea>
+                                    <button type="submit" {% if not intake.expenditure_object_id %}disabled{% endif %} class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">Confirmar aprobación</button>
+                                </form>
+                            </details>
+
+                            <details class="rounded-2xl border border-amber-200 bg-amber-50/50 p-3">
+                                <summary class="cursor-pointer text-sm font-black text-amber-800">Emitir observación</summary>
+                                <form method="post" action="{% url 'inventory:intake_observe' intake.id %}" hx-post="{% url 'inventory:intake_observe' intake.id %}" hx-target="#page-content" hx-swap="innerHTML" class="mt-3 space-y-3">
+                                    {% csrf_token %}
+                                    <textarea name="observation" rows="3" required placeholder="Describe lo que debe corregirse" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm"></textarea>
+                                    <button type="submit" class="w-full rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white">Registrar observación</button>
+                                </form>
+                            </details>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if intake.status == 'APPROVED' %}
+                        {% if request.axentra_is_root or "can_register_asset" in request.axentra_permissions_list %}
+                            <form method="post" action="{% url 'inventory:intake_register' intake.id %}" hx-post="{% url 'inventory:intake_register' intake.id %}" hx-target="#page-content" hx-swap="innerHTML">
+                                {% csrf_token %}
+                                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white">
+                                    <i data-lucide="badge-check" class="h-4 w-4"></i>
+                                    Generar folio y registrar
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if intake.status != 'REGISTERED' and intake.status != 'CANCELLED' %}
+                        {% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list %}
+                            <details class="rounded-2xl border border-rose-200 p-3">
+                                <summary class="cursor-pointer text-sm font-black text-rose-700">Cancelar solicitud</summary>
+                                <form method="post" action="{% url 'inventory:intake_cancel' intake.id %}" hx-post="{% url 'inventory:intake_cancel' intake.id %}" hx-target="#page-content" hx-swap="innerHTML" class="mt-3 space-y-3">
+                                    {% csrf_token %}
+                                    <textarea name="reason" rows="3" required placeholder="Motivo de cancelación" class="w-full rounded-xl border border-rose-200 px-3 py-2 text-sm"></textarea>
+                                    <button type="submit" class="w-full rounded-xl bg-rose-700 px-4 py-3 text-sm font-black text-white">Confirmar cancelación</button>
+                                </form>
+                            </details>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if intake.status == 'REGISTERED' %}
+                        <div class="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+                            Esta solicitud ya generó un activo patrimonial oficial.
+                        </div>
+                    {% elif intake.status == 'CANCELLED' %}
+                        <div class="rounded-2xl bg-slate-100 p-4 text-sm font-bold text-slate-600">
+                            La solicitud se encuentra cancelada y no admite más transiciones.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="font-black text-slate-900">Historial</h2>
+                <div class="mt-4 space-y-4">
+                    {% for decision in intake.decisions.all %}
+                        <div class="border-l-2 border-slate-200 pl-3">
+                            <p class="text-sm font-bold text-slate-700">{{ decision.get_decision_type_display }}</p>
+                            {% if decision.comment %}
+                                <p class="mt-1 whitespace-pre-line text-xs text-slate-500">{{ decision.comment }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-slate-400">
+                                {{ decision.occurred_at|default:decision.created_at|date:"d/m/Y H:i" }}
+                            </p>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-slate-500">Sin decisiones registradas.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
