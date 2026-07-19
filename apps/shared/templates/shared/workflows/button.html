@@ -1,0 +1,20 @@
+{% if workflow_error %}
+    <span class="text-sm text-amber-700">La guía del proceso no está disponible.</span>
+{% else %}
+    <section
+        x-data="{ workflowHelpOpen: false }"
+        @keydown.escape.window="workflowHelpOpen = false"
+        class="flex justify-end"
+    >
+        <button
+            type="button"
+            @click="workflowHelpOpen = true; $nextTick(() => { if(window.bootIcons){window.bootIcons();} if(window.AxentraWorkflows){window.AxentraWorkflows.render();} })"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-800 hover:bg-blue-100"
+        >
+            <i data-lucide="route" class="h-4 w-4"></i>
+            Ver flujo completo
+        </button>
+
+        {% include "shared/workflows/help_drawer.html" %}
+    </section>
+{% endif %}
