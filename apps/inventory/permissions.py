@@ -1,7 +1,7 @@
 # apps/inventory/permissions.py
 
 """
-Manifiesto soberano de permisos de Inventory consumido por AxentraOSRegistry, 
+Manifiesto soberano de permisos de Inventory consumido por AxentraOSRegistry,
 get_app_permissions, get_user_permissions_for_app y axentra_module_gate.
 Las llaves deben permanecer estables (se guardan como snapshot en UserAppRole.permissions_list).
 """
@@ -19,9 +19,11 @@ class InventoryPermissions:
 
         # Solicitudes de alta
         "can_create_asset": "Permite capturar una solicitud de alta patrimonial.",
+        "can_create_intake_for_any_department": "Permite capturar solicitudes de alta para una dependencia destino distinta a la adscripción del usuario.",
         "can_submit_asset_intake": "Permite enviar solicitudes de alta a revisión.",
         "can_approve_department_intake": "Permite aceptar o rechazar altas por la dependencia.",
         "can_validate_patrimony_intake": "Permite validar altas y crear el activo patrimonial oficial.",
+        "can_register_asset": "Permite generar el folio oficial y registrar un activo previamente aprobado.",
 
         # Expediente patrimonial
         "can_edit_asset": "Permite corregir datos administrativos autorizados del activo.",
@@ -79,6 +81,9 @@ class InventoryPermissions:
         "owner": list(PERMISSIONS.keys()),
         "admin": list(PERMISSIONS.keys()),
         "admin_patrimonio": list(PERMISSIONS.keys()),
+        "adquisiciones": _VIEW_PERMISSIONS + _INTAKE_OPERATOR_PERMISSIONS + [
+            "can_create_intake_for_any_department",
+        ],
         "almacenista": _VIEW_PERMISSIONS + _INTAKE_OPERATOR_PERMISSIONS + _PATRIMONY_OPERATOR_PERMISSIONS + [
             "can_request_loans", "can_request_disposals", "can_accept_custody", "can_scan_physical_audits"
         ],
@@ -101,7 +106,7 @@ class InventoryPermissions:
     }
 
     ROLE_WEIGHTS = {
-        "owner": 100, "admin": 95, "admin_patrimonio": 90, "almacenista": 70, "auditor": 60,
+        "owner": 100, "admin": 95, "admin_patrimonio": 90, "adquisiciones": 75, "almacenista": 70, "auditor": 60,
         "editor": 55, "reviewer": 50, "director": 45, "resguardatario": 25, "viewer": 20
     }
 
@@ -109,7 +114,7 @@ class InventoryPermissions:
     SIDEBAR_MENU = [
         ["layout-dashboard", "Panel de Inventario", "inventory:dashboard", 1, "can_view_dashboard"],
         ["package", "Bienes Patrimoniales", "inventory:asset_list", 2, "can_view_assets"],
-        ["circle-plus", "Solicitud de Alta", "inventory:asset_create", 3, "can_create_asset"],
+        ["circle-plus", "Solicitud de Alta", "inventory:intake_create", 3, "can_create_asset"],
     ]
 
     CAPABILITIES = {
@@ -128,4 +133,3 @@ class InventoryPermissions:
     }
 
 __all__ = ["InventoryPermissions"]
-
