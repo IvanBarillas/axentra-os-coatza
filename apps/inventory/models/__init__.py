@@ -28,6 +28,7 @@ from apps.inventory.models.catalog_models import (
     DocumentType,
     ExpenditureObject,
     InventoryAssetTypeCode,
+    InventoryAssetType,
     InventoryBaseModel,
     Manufacturer,
     MovementType,
@@ -142,6 +143,7 @@ __all__ = [
     "DocumentType",
     "ExpenditureObject",
     "InventoryAssetTypeCode",
+    "InventoryAssetType",
     "InventoryBaseModel",
     "Manufacturer",
     "MovementType",
@@ -209,4 +211,3 @@ __all__ = [
     "PhysicalAuditSession",
     "PhysicalAuditStatus",
 ]
-

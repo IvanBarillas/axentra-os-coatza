@@ -115,6 +115,14 @@ class AssetIntakeRequest(InventoryBaseModel):
         related_name="intake_requests",
         verbose_name="Categoría patrimonial propuesta",
     )
+    proposed_asset_type = models.ForeignKey(
+        "inventory.InventoryAssetType",
+        on_delete=models.PROTECT,
+        related_name="intake_requests_proposed",
+        verbose_name="Tipo patrimonial propuesto",
+        null=True,
+        blank=True,
+    )
     expenditure_object = models.ForeignKey(
         "inventory.ExpenditureObject",
         on_delete=models.PROTECT,
@@ -983,6 +991,40 @@ class Asset(InventoryBaseModel):
         AccountingAccount,
         on_delete=models.PROTECT,
         related_name="assets",
+        null=True,
+        blank=True,
+    )
+
+    calculated_asset_type = models.ForeignKey(
+        "inventory.InventoryAssetType",
+        on_delete=models.PROTECT,
+        related_name="assets_calculated",
+        verbose_name="Tipo patrimonial calculado",
+        null=True,
+        blank=True,
+    )
+    authorized_asset_type = models.ForeignKey(
+        "inventory.InventoryAssetType",
+        on_delete=models.PROTECT,
+        related_name="assets_authorized",
+        verbose_name="Tipo patrimonial autorizado",
+        null=True,
+        blank=True,
+    )
+    classification_override_reason = models.TextField(
+        "Justificación de clasificación diferente",
+        blank=True,
+    )
+    classification_authorized_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="inventory_classifications_authorized",
+        verbose_name="Clasificación autorizada por",
+        null=True,
+        blank=True,
+    )
+    classification_authorized_at = models.DateTimeField(
+        "Fecha de autorización de clasificación",
         null=True,
         blank=True,
     )

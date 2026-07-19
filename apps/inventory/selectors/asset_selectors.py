@@ -34,6 +34,9 @@ ASSET_RELATED = (
     "category",
     "expenditure_object",
     "accounting_account",
+    "calculated_asset_type",
+    "authorized_asset_type",
+    "classification_authorized_by",
     "manufacturer",
     "model",
     "supplier",
@@ -236,6 +239,7 @@ class IntakeSelectors:
             .filter(is_deleted=False)
             .select_related(
                 "category",
+                "proposed_asset_type",
                 "expenditure_object",
                 "accounting_account",
                 "manufacturer",

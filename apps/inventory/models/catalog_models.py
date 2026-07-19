@@ -390,6 +390,54 @@ class AccountingAccountType(models.TextChoices):
 # =============================================================================
 
 
+class InventoryAssetType(InventoryBaseModel):
+    """Catálogo configurable de tipos usados en el folio patrimonial."""
+
+    code = models.CharField("Código para folio", max_length=10, unique=True)
+    name = models.CharField("Nombre", max_length=160)
+    nature = models.CharField(
+        "Naturaleza",
+        max_length=20,
+        choices=AssetNature.choices,
+    )
+    is_capitalizable_default = models.BooleanField(
+        "Capitalizable por defecto",
+        default=False,
+    )
+    requires_uma_validation = models.BooleanField(
+        "Requiere validación UMA",
+        default=False,
+    )
+    allows_user_proposal = models.BooleanField(
+        "Disponible como propuesta del capturista",
+        default=True,
+    )
+    requires_override_approval = models.BooleanField(
+        "Exige autorización cuando contradice el cálculo",
+        default=True,
+    )
+    description = models.TextField("Descripción", blank=True)
+
+    class Meta:
+        db_table = "inventory_asset_types"
+        verbose_name = "Tipo patrimonial configurable"
+        verbose_name_plural = "Tipos patrimoniales configurables"
+        ordering = ["nature", "code"]
+        indexes = [
+            models.Index(fields=["nature", "is_active"]),
+            models.Index(fields=["allows_user_proposal", "is_active"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.code = self.code.strip().upper()
+        self.name = self.name.strip().upper()
+        self.description = self.description.strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code} · {self.name}"
+
+
 class AssetCategory(InventoryBaseModel):
     """
     Categoría funcional del activo.

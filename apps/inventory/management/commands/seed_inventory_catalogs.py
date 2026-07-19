@@ -18,6 +18,7 @@ from apps.inventory.models import (
     DepreciationPolicy,
     ExpenditureObject,
     InventoryAssetTypeCode,
+    InventoryAssetType,
     InventoryFolioPolicy,
     Manufacturer,
     UmaValue,
@@ -44,6 +45,7 @@ class Command(BaseCommand):
         )
 
         categories = self._seed_categories()
+        self._seed_asset_types()
         accounts = self._seed_accounting_accounts(categories)
         self._seed_expenditure_objects(categories, accounts)
         self._seed_uma_values()
@@ -56,6 +58,45 @@ class Command(BaseCommand):
                 "\nCatálogos de Inventory sembrados correctamente.\n"
             )
         )
+
+    def _seed_asset_types(self):
+        definitions = (
+            {
+                "code": InventoryAssetTypeCode.BM,
+                "name": "BIEN MUEBLE CAPITALIZABLE",
+                "nature": AssetNature.MOVABLE,
+                "is_capitalizable_default": True,
+                "requires_uma_validation": True,
+                "description": "Bien mueble sujeto a registro patrimonial y depreciación.",
+            },
+            {
+                "code": InventoryAssetTypeCode.BI,
+                "name": "BIEN INMUEBLE",
+                "nature": AssetNature.IMMOVABLE,
+                "is_capitalizable_default": True,
+                "requires_uma_validation": False,
+                "description": "Terreno, edificio u otro bien inmueble.",
+            },
+            {
+                "code": InventoryAssetTypeCode.BP,
+                "name": "BIEN DE CONTROL INTERNO",
+                "nature": AssetNature.MOVABLE,
+                "is_capitalizable_default": False,
+                "requires_uma_validation": True,
+                "description": "Bien controlable que no alcanza el umbral de capitalización.",
+            },
+        )
+        for definition in definitions:
+            code = definition.pop("code")
+            self._upsert(
+                InventoryAssetType,
+                {"code": code},
+                {
+                    **definition,
+                    "allows_user_proposal": True,
+                    "requires_override_approval": True,
+                },
+            )
 
     def _upsert(self, model, lookup, defaults):
         """
