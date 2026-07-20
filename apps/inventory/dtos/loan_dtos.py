@@ -29,6 +29,8 @@ class DepartmentLoanDecisionDTO:
     approve: bool
     comment: str = ""
     bypass_reason: str = ""
+    destination_area_id: UUID | None = None
+    borrower_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)

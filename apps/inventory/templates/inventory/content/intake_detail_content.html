@@ -1,10 +1,49 @@
-<section class="space-y-6">{% include "inventory/partials/messages.html" %}<a href="{% url 'inventory:intake_list' %}" hx-get="{% url 'inventory:intake_list' %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver a solicitudes</a><div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"><div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Solicitud de alta</p><h1 class="mt-2 font-mono text-3xl font-black">{{ intake.request_number }}</h1><p class="mt-1 font-bold text-slate-500">{{ intake.name }}</p></div><span class="rounded-full bg-slate-900 px-4 py-2 text-xs font-black text-white">{{ intake.get_status_display }}</span></div>
-<div class="grid gap-6 lg:grid-cols-3"><div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2"><h2 class="text-lg font-black">Datos propuestos</h2><dl class="mt-5 grid gap-5 md:grid-cols-2">{% include "inventory/partials/datum.html" with label="Categoría" value=intake.category %}{% include "inventory/partials/datum.html" with label="Objeto del gasto" value=intake.expenditure_object %}{% include "inventory/partials/datum.html" with label="Cuenta contable" value=intake.accounting_account %}{% include "inventory/partials/datum.html" with label="Adquisición" value=intake.get_acquisition_type_display %}{% include "inventory/partials/datum.html" with label="Costo" value=intake.acquisition_cost money=True %}{% include "inventory/partials/datum.html" with label="Fecha" value=intake.acquisition_date %}{% include "inventory/partials/datum.html" with label="Dependencia" value=intake.requested_dependencia %}{% include "inventory/partials/datum.html" with label="Resguardatario propuesto" value=intake.proposed_custodian %}</dl>{% if intake.description %}<p class="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">{{ intake.description }}</p>{% endif %}</div>
-<aside class="space-y-4"><div class="rounded-3xl border border-slate-200 bg-white p-5"><h2 class="font-black">Acciones del flujo</h2><div class="mt-4 space-y-2">
-{% if intake.status == 'DRAFT' or intake.status == 'DEPARTMENT_REJECTED' or intake.status == 'OBSERVED' %}<form method="post" action="{% url 'inventory:intake_submit' intake.id %}">{% csrf_token %}<input type="hidden" name="confirm" value="on"><button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Enviar a aceptación</button></form>{% endif %}
-{% if intake.status == 'SUBMITTED' %}<form method="post" action="{% url 'inventory:intake_department_decision' intake.id %}" class="space-y-2">{% csrf_token %}<textarea name="comment" placeholder="Comentario o motivo del rechazo" class="w-full"></textarea><label class="flex items-center gap-2 text-sm font-bold"><input type="checkbox" name="approve"> Aprobar</label><button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Registrar decisión</button></form>{% endif %}
-{% if intake.status == 'DEPARTMENT_APPROVED' %}<form method="post" action="{% url 'inventory:intake_send_to_patrimony' intake.id %}">{% csrf_token %}<input type="hidden" name="confirm" value="on"><button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Enviar a Patrimonio</button></form>{% endif %}
-{% if intake.status == 'UNDER_PATRIMONY_REVIEW' %}<form method="post" action="{% url 'inventory:intake_approve' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white">Abrir aprobación</button></form><form method="post" action="{% url 'inventory:intake_observe' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">Emitir observación</button></form>{% endif %}
-{% if intake.status == 'APPROVED' %}<form method="post" action="{% url 'inventory:intake_register' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white">Generar folio y registrar</button></form>{% endif %}
-{% if intake.status != 'REGISTERED' and intake.status != 'CANCELLED' %}<form method="post" action="{% url 'inventory:intake_cancel' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-black text-red-700">Cancelar solicitud</button></form>{% endif %}
-</div></div><div class="rounded-3xl border border-slate-200 bg-white p-5"><h2 class="font-black">Historial</h2><div class="mt-4 space-y-3">{% for decision in intake.decisions.all %}<div class="border-l-2 border-slate-200 pl-3"><p class="text-sm font-bold">{{ decision.get_decision_type_display }}</p><p class="text-xs text-slate-400">{{ decision.occurred_at|date:"d/m/Y H:i" }}</p></div>{% empty %}<p class="text-sm text-slate-500">Sin decisiones.</p>{% endfor %}</div></div></aside></div></section>
+<section class="space-y-6">{% include "inventory/partials/messages.html" %}<a href="{% url 'inventory:intake_list' %}" hx-get="{% url 'inventory:intake_list' %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver a solicitudes</a>
+<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+<div>
+<p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Solicitud de alta</p>
+<h1 class="mt-2 font-mono text-3xl font-black">{{ intake.request_number }}</h1>
+<p class="mt-1 font-bold text-slate-500">{{ intake.name }}</p>
+</div>
+<span class="rounded-full bg-slate-900 px-4 py-2 text-xs font-black text-white">{{ intake.get_status_display }}</span>
+</div>
+<div class="grid gap-6 lg:grid-cols-3">
+<div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+<h2 class="text-lg font-black">Datos propuestos</h2>
+<dl class="mt-5 grid gap-5 md:grid-cols-2">{% include "inventory/partials/datum.html" with label="Categoría" value=intake.category %}{% include "inventory/partials/datum.html" with label="Objeto del gasto" value=intake.expenditure_object %}{% include "inventory/partials/datum.html" with label="Cuenta contable" value=intake.accounting_account %}{% include "inventory/partials/datum.html" with label="Adquisición" value=intake.get_acquisition_type_display %}{% include "inventory/partials/datum.html" with label="Costo" value=intake.acquisition_cost money=True %}{% include "inventory/partials/datum.html" with label="Fecha" value=intake.acquisition_date %}{% include "inventory/partials/datum.html" with label="Dependencia" value=intake.requested_dependencia %}{% include "inventory/partials/datum.html" with label="Resguardatario propuesto" value=intake.proposed_custodian %}</dl>{% if intake.description %}<p class="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">{{ intake.description }}</p>{% endif %}</div>
+<aside class="space-y-4">
+<div class="rounded-3xl border border-slate-200 bg-white p-5">
+<h2 class="font-black">Acciones del flujo</h2>
+<div class="mt-4 space-y-2">
+{% if request.axentra_is_root or "can_submit_asset_intake" in request.axentra_permissions_list %}{% if intake.status == 'DRAFT' or intake.status == 'DEPARTMENT_REJECTED' or intake.status == 'OBSERVED' %}<form method="post" action="{% url 'inventory:intake_submit' intake.id %}">{% csrf_token %}<input type="hidden" name="confirm" value="on">
+<button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Enviar a aceptación</button>
+</form>{% endif %}{% endif %}
+{% if request.axentra_is_root or "can_approve_department_intake" in request.axentra_permissions_list %}{% if intake.status == 'SUBMITTED' %}<form method="post" action="{% url 'inventory:intake_department_decision' intake.id %}" class="space-y-2">{% csrf_token %}<textarea name="comment" placeholder="Comentario o motivo del rechazo" class="w-full">
+</textarea>
+<label class="flex items-center gap-2 text-sm font-bold">
+<input type="checkbox" name="approve"> Aprobar</label>
+<button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Registrar decisión</button>
+</form>{% endif %}{% endif %}
+{% if request.axentra_is_root or "can_submit_asset_intake" in request.axentra_permissions_list %}{% if intake.status == 'DEPARTMENT_APPROVED' %}<form method="post" action="{% url 'inventory:intake_send_to_patrimony' intake.id %}">{% csrf_token %}<input type="hidden" name="confirm" value="on">
+<button class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Enviar a Patrimonio</button>
+</form>{% endif %}{% endif %}
+{% if request.axentra_is_root or "can_validate_patrimony_intake" in request.axentra_permissions_list %}{% if intake.status == 'UNDER_PATRIMONY_REVIEW' %}<form method="post" action="{% url 'inventory:intake_approve' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white">Abrir aprobación</button>
+</form>
+<form method="post" action="{% url 'inventory:intake_observe' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">Emitir observación</button>
+</form>{% endif %}{% endif %}
+{% if request.axentra_is_root or "can_register_asset" in request.axentra_permissions_list %}{% if intake.status == 'APPROVED' %}<form method="post" action="{% url 'inventory:intake_register' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white">Generar folio y registrar</button>
+</form>{% endif %}{% endif %}
+{% if request.axentra_is_root or "can_edit_asset" in request.axentra_permissions_list or request.user.id == intake.submitted_by_id %}{% if intake.status != 'REGISTERED' and intake.status != 'CANCELLED' %}<form method="post" action="{% url 'inventory:intake_cancel' intake.id %}">{% csrf_token %}<button class="w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-black text-red-700">Cancelar solicitud</button>
+</form>{% endif %}{% endif %}
+</div>
+</div>
+<div class="rounded-3xl border border-slate-200 bg-white p-5">
+<h2 class="font-black">Historial</h2>
+<div class="mt-4 space-y-3">{% for decision in intake.decisions.all %}<div class="border-l-2 border-slate-200 pl-3">
+<p class="text-sm font-bold">{{ decision.get_decision_type_display }}</p>
+<p class="text-xs text-slate-400">{{ decision.occurred_at|date:"d/m/Y H:i" }}</p>
+</div>{% empty %}<p class="text-sm text-slate-500">Sin decisiones.</p>{% endfor %}</div>
+</div>
+</aside>
+</div>
+</section>

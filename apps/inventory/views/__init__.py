@@ -1,4 +1,4 @@
-from .asset_views import asset_condition_view, asset_correct_view, asset_detail_view, asset_list_view
+from .asset_views import asset_condition_view, asset_correct_view, asset_detail_view, asset_list_view, asset_loan_create_view
 from .dashboard_views import inventory_dashboard_view
 from .intake_views import (
     intake_approve_view, intake_cancel_view, intake_create_view,
@@ -9,9 +9,17 @@ from .intake_views import (
     intake_submit_view,
 )
 from .registry_views import (
-    custody_detail_view, custody_list_view, disposal_detail_view,
+    custody_accept_view, custody_authorize_view, custody_cancel_view,
+    custody_complete_return_view, custody_create_view, custody_deliver_view,
+    custody_detail_view, custody_list_view, custody_reject_view,
+    custody_request_return_view, custody_submit_view, disposal_detail_view,
     disposal_list_view, document_list_view, financial_dashboard_view,
-    loan_detail_view, loan_list_view, movement_detail_view, movement_list_view,
+    loan_authorize_view, loan_cancel_view, loan_create_view,
+    loan_deliver_view, loan_department_decision_view, loan_detail_view,
+    loan_directory_areas_view, loan_directory_assets_view,
+    loan_directory_departments_view, loan_directory_users_view,
+    loan_list_view, loan_request_return_view, loan_return_view,
+    loan_submit_view, movement_detail_view, movement_list_view,
     physical_audit_detail_view, physical_audit_list_view,
 )
 

@@ -936,7 +936,10 @@ class CustodyAssignmentEvent(InventoryBaseModel):
         if (
             self.previous_status
             and self.previous_status == self.resulting_status
-            and self.event_type != CustodyEventType.CORRECTED
+            and self.event_type not in {
+                CustodyEventType.CORRECTED,
+                CustodyEventType.DELIVERED,
+            }
         ):
             errors["resulting_status"] = (
                 "El evento debe producir una transición de estado."

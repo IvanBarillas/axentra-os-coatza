@@ -1,0 +1,89 @@
+<section class="mx-auto max-w-5xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div>
+        <a href="{% url 'inventory:asset_detail' asset.id %}" hx-get="{% url 'inventory:asset_detail' asset.id %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver al bien</a>
+        <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Préstamo desde expediente</p>
+        <h1 class="mt-2 text-2xl font-black">Prestar este bien</h1>
+        <p class="mt-1 text-sm text-slate-500">El origen se toma automáticamente de la ubicación vigente del expediente.</p>
+    </div>
+
+    <div class="grid gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-5 md:grid-cols-2">
+        <div><p class="text-xs font-black uppercase text-indigo-500">Bien seleccionado</p><p class="mt-1 font-mono font-black text-slate-900">{{ asset.display_inventory_number }}</p><p class="text-sm text-slate-600">{{ asset.name }}</p></div>
+        <div><p class="text-xs font-black uppercase text-indigo-500">Origen protegido</p><p class="mt-1 font-bold text-slate-900">{{ asset.current_dependencia }}</p><p class="text-sm text-slate-600">{{ asset.current_area|default:"Sin área" }} · {{ asset.current_sede|default:"Sin sede" }}</p></div>
+    </div>
+
+    {% include "inventory/partials/generic_form.html" with submit_label="Guardar préstamo en borrador" %}
+</section>
+
+<script>
+(() => {
+    const byId = (id) => document.getElementById(id);
+    const site = byId("id_destination_site_id");
+    const department = byId("id_destination_department_id");
+    const area = byId("id_destination_area_id");
+    const borrower = byId("id_borrower_id");
+    const external = byId("id_external_borrower");
+    if (!site || site.dataset.loanCascadeReady === "true") return;
+    site.dataset.loanCascadeReady = "true";
+
+    const endpoints = {
+        departments: "{% url 'inventory:loan_directory_departments' %}",
+        areas: "{% url 'inventory:loan_directory_areas' %}",
+        users: "{% url 'inventory:loan_directory_users' %}",
+    };
+    const reset = (select, label) => {
+        if (!select) return;
+        select.replaceChildren(new Option(label, ""));
+        select.disabled = true;
+    };
+    const load = async (select, url, label) => {
+        if (!select) return;
+        reset(select, "Cargando...");
+        try {
+            const response = await fetch(url, {
+                headers: {"X-Requested-With": "XMLHttpRequest"},
+                credentials: "same-origin",
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            select.replaceChildren(new Option(label, ""));
+            payload.options.forEach(({value, label: text}) => select.add(new Option(text, value)));
+            select.disabled = false;
+        } catch (error) {
+            reset(select, "No se pudieron cargar las opciones");
+            console.error("Cascada de préstamo:", error);
+        }
+    };
+    const query = (values) => new URLSearchParams(values).toString();
+
+    site.addEventListener("change", async () => {
+        reset(department, "--- Seleccione dependencia ---");
+        reset(area, "--- Seleccione área ---");
+        reset(borrower, "--- Seleccione receptor ---");
+        if (!site.value) return;
+        await load(department, `${endpoints.departments}?${query({site_id: site.value, side: "destination"})}`, "--- Seleccione dependencia ---");
+    });
+    department.addEventListener("change", async () => {
+        reset(area, "--- Seleccione área ---");
+        reset(borrower, "--- Seleccione receptor ---");
+        if (!site.value || !department.value) return;
+        await Promise.all([
+            load(area, `${endpoints.areas}?${query({site_id: site.value, department_id: department.value, side: "destination"})}`, "--- Seleccione área ---"),
+            load(borrower, `${endpoints.users}?${query({department_id: department.value})}`, "--- Seleccione receptor ---"),
+        ]);
+    });
+    area.addEventListener("change", () => {
+        if (!department.value) return;
+        load(borrower, `${endpoints.users}?${query({department_id: department.value, area_id: area.value})}`, "--- Seleccione receptor ---");
+    });
+
+    const externalIds = ["id_borrower_name", "id_borrower_email", "id_borrower_position", "id_external_organization", "id_external_identification", "id_external_destination"];
+    const updateMode = () => {
+        const isExternal = Boolean(external && external.checked);
+        [site, department, area, borrower].forEach((field) => { if (field) field.disabled = isExternal; });
+        externalIds.forEach((id) => { const field = byId(id); if (field) field.disabled = !isExternal; });
+    };
+    if (external) external.addEventListener("change", updateMode);
+    updateMode();
+})();
+</script>

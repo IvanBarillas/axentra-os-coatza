@@ -16,14 +16,20 @@ def render_inventory(request, *, page, content, context, status=200):
         "show_module_sidebar": True,
     }
     base.update(context)
-    if is_htmx(request) and request.headers.get("HX-Target", "") == "workbench":
+    htmx_request = is_htmx(request)
+    if htmx_request and request.headers.get("HX-Target", "") == "workbench":
         template = "inventory/workbench/module_workbench.html"
         base["inventory_content_template"] = content
-    elif is_htmx(request):
+    elif htmx_request:
         template = content
     else:
         template = page
-    return render(request, template, base, status=status)
+
+    # HTMX no intercambia por defecto respuestas 4xx. En una validación 422
+    # necesitamos que sustituya el formulario para mostrar sus errores. La
+    # navegación tradicional conserva el código semántico 422.
+    response_status = 200 if htmx_request and status == 422 else status
+    return render(request, template, base, status=response_status)
 
 
 def form_error(form, exc):
@@ -63,40 +69,7 @@ def selector_or_404(callback):
 def apply_directory_choices(form):
     from apps.inventory.selectors import CoreDirectorySelectors
 
-    def selected(*field_names):
-        for field_name in field_names:
-            if form.is_bound:
-                value = form.data.get(field_name)
-            else:
-                value = form.initial.get(field_name)
-            if value:
-                return value
-        return None
-
-    site_id = selected(
-        "requested_site_id",
-        "site_id",
-        "destination_site_id",
-        "origin_site_id",
-    )
-    department_id = selected(
-        "requested_department_id",
-        "department_id",
-        "destination_department_id",
-        "origin_department_id",
-    )
-    area_id = selected(
-        "requested_area_id",
-        "area_id",
-        "destination_area_id",
-        "origin_area_id",
-    )
-
-    choices = CoreDirectorySelectors.form_choices(
-        site_id=site_id,
-        department_id=department_id,
-        area_id=area_id,
-    )
+    choices = CoreDirectorySelectors.form_choices()
     mapping = {
         "requested_department_id": "department_choices",
         "department_id": "department_choices",

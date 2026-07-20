@@ -76,6 +76,7 @@ from apps.inventory.services.folio_service import (
 
 
 PERMISSION_CREATE = "can_create_asset"
+PERMISSION_CREATE_ANY_DEPARTMENT = "can_create_intake_for_any_department"
 PERMISSION_SUBMIT = "can_submit_asset_intake"
 PERMISSION_PATRIMONY_VALIDATE = "can_validate_patrimony_intake"
 
@@ -298,8 +299,14 @@ def create_intake_draft(
     except CoreDirectoryError as exc:
         raise InventoryValidationError(str(exc)) from exc
 
+    actor_role = get_module_role(actor.id)
+    can_create_for_any_department = bool(
+        actor_role
+        and actor_role.has_permission(PERMISSION_CREATE_ANY_DEPARTMENT)
+    )
     if (
         not actor.has_global_bypass
+        and not can_create_for_any_department
         and org_context.department_id != department.id
     ):
         raise InventoryAuthorizationError(

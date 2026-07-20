@@ -12,5 +12,26 @@ from .intake_service import (
     register_approved_intake, send_to_patrimony, submit_intake,
 )
 from .movement_service import create_movement
+from .custody_service import (
+    accept_custody_assignment,
+    authorize_custody_assignment,
+    cancel_custody_assignment,
+    complete_custody_return,
+    create_custody_assignment,
+    deliver_custody_assignment,
+    reject_custody_assignment,
+    request_custody_return,
+    submit_custody_assignment,
+)
+from .loan_service import (
+    authorize_asset_loan,
+    cancel_asset_loan,
+    create_asset_loan,
+    decide_department_loan,
+    deliver_asset_loan,
+    request_asset_loan_return,
+    return_asset_loan,
+    submit_asset_loan,
+)
 
 __all__ = [name for name in globals() if not name.startswith("_")]

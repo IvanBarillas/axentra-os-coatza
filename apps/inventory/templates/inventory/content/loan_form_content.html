@@ -1,0 +1,117 @@
+<section class="mx-auto max-w-5xl space-y-6">{% include "inventory/partials/messages.html" %}<div><a href="{% url 'inventory:loan_list' %}" class="text-sm font-black text-slate-500">← Volver a préstamos</a><p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Custodia temporal</p><h1 class="mt-2 text-2xl font-black">Nueva solicitud de préstamo</h1><p class="mt-1 text-sm text-slate-500">La adscripción y el resguardo permanente del bien no serán modificados.</p></div>{% include "inventory/partials/generic_form.html" with submit_label="Guardar borrador" %}</section>
+
+<script>
+(() => {
+    const byId = (id) => document.getElementById(id);
+    const fields = {
+        originSite: byId("id_origin_site_id"),
+        originDepartment: byId("id_origin_department_id"),
+        originArea: byId("id_origin_area_id"),
+        asset: byId("id_asset_id"),
+        destinationSite: byId("id_destination_site_id"),
+        destinationDepartment: byId("id_destination_department_id"),
+        destinationArea: byId("id_destination_area_id"),
+        borrower: byId("id_borrower_id"),
+        external: byId("id_external_borrower"),
+    };
+    if (!fields.originSite || fields.originSite.dataset.loanCascadeReady === "true") return;
+    fields.originSite.dataset.loanCascadeReady = "true";
+
+    const endpoints = {
+        departments: "{% url 'inventory:loan_directory_departments' %}",
+        areas: "{% url 'inventory:loan_directory_areas' %}",
+        users: "{% url 'inventory:loan_directory_users' %}",
+        assets: "{% url 'inventory:loan_directory_assets' %}",
+    };
+    const reset = (select, label) => {
+        if (!select) return;
+        select.replaceChildren(new Option(label, ""));
+        select.disabled = true;
+    };
+    const load = async (select, url, label) => {
+        if (!select) return;
+        reset(select, "Cargando...");
+        try {
+            const response = await fetch(url, {
+                headers: {"X-Requested-With": "XMLHttpRequest"},
+                credentials: "same-origin",
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            select.replaceChildren(new Option(label, ""));
+            payload.options.forEach(({value, label: optionLabel}) => {
+                select.add(new Option(optionLabel, value));
+            });
+            select.disabled = false;
+        } catch (error) {
+            reset(select, "No se pudieron cargar las opciones");
+            console.error("Cascada de préstamos:", error);
+        }
+    };
+    const params = (values) => new URLSearchParams(values).toString();
+    const loadOriginAssets = () => {
+        if (!fields.originDepartment.value) {
+            reset(fields.asset, "--- Seleccione un bien ---");
+            return;
+        }
+        return load(
+            fields.asset,
+            `${endpoints.assets}?${params({
+                site_id: fields.originSite.value,
+                department_id: fields.originDepartment.value,
+                area_id: fields.originArea.value,
+            })}`,
+            "--- Seleccione un bien ---",
+        );
+    };
+
+    fields.originSite.addEventListener("change", async () => {
+        reset(fields.originDepartment, "--- Seleccione dependencia ---");
+        reset(fields.originArea, "--- Seleccione área ---");
+        reset(fields.asset, "--- Seleccione un bien ---");
+        if (!fields.originSite.value) return;
+        await load(fields.originDepartment, `${endpoints.departments}?${params({site_id: fields.originSite.value, side: "origin"})}`, "--- Seleccione dependencia ---");
+    });
+    fields.originDepartment.addEventListener("change", async () => {
+        reset(fields.originArea, "--- Seleccione área ---");
+        reset(fields.asset, "--- Seleccione un bien ---");
+        if (!fields.originSite.value || !fields.originDepartment.value) return;
+        await Promise.all([
+            load(fields.originArea, `${endpoints.areas}?${params({site_id: fields.originSite.value, department_id: fields.originDepartment.value, side: "origin"})}`, "--- Seleccione área ---"),
+            loadOriginAssets(),
+        ]);
+    });
+    fields.originArea.addEventListener("change", loadOriginAssets);
+
+    fields.destinationSite.addEventListener("change", async () => {
+        reset(fields.destinationDepartment, "--- Seleccione dependencia ---");
+        reset(fields.destinationArea, "--- Seleccione área ---");
+        reset(fields.borrower, "--- Seleccione receptor ---");
+        if (!fields.destinationSite.value) return;
+        await load(fields.destinationDepartment, `${endpoints.departments}?${params({site_id: fields.destinationSite.value, side: "destination"})}`, "--- Seleccione dependencia ---");
+    });
+    fields.destinationDepartment.addEventListener("change", async () => {
+        reset(fields.destinationArea, "--- Seleccione área ---");
+        reset(fields.borrower, "--- Seleccione receptor ---");
+        if (!fields.destinationSite.value || !fields.destinationDepartment.value) return;
+        await Promise.all([
+            load(fields.destinationArea, `${endpoints.areas}?${params({site_id: fields.destinationSite.value, department_id: fields.destinationDepartment.value, side: "destination"})}`, "--- Seleccione área ---"),
+            load(fields.borrower, `${endpoints.users}?${params({department_id: fields.destinationDepartment.value})}`, "--- Seleccione receptor ---"),
+        ]);
+    });
+    fields.destinationArea.addEventListener("change", () => {
+        if (!fields.destinationDepartment.value) return;
+        load(fields.borrower, `${endpoints.users}?${params({department_id: fields.destinationDepartment.value, area_id: fields.destinationArea.value})}`, "--- Seleccione receptor ---");
+    });
+
+    const externalIds = ["id_borrower_name", "id_borrower_email", "id_borrower_position", "id_external_organization", "id_external_identification", "id_external_destination"];
+    const internalFields = [fields.destinationSite, fields.destinationDepartment, fields.destinationArea, fields.borrower];
+    const updateBorrowerMode = () => {
+        const isExternal = fields.external.checked;
+        internalFields.forEach((field) => { if (field) field.disabled = isExternal; });
+        externalIds.forEach((id) => { const field = byId(id); if (field) field.disabled = !isExternal; });
+    };
+    fields.external.addEventListener("change", updateBorrowerMode);
+    updateBorrowerMode();
+})();
+</script>

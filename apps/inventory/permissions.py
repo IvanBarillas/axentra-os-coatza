@@ -91,9 +91,11 @@ class InventoryPermissions:
             "can_validate_documents", "can_view_restricted_documents", "can_manage_physical_audits",
             "can_scan_physical_audits", "can_view_audit", "can_manage_reconciliation"
         ],
-        "director": _VIEW_PERMISSIONS + _FINANCIAL_VIEW_PERMISSIONS + [
-            "can_approve_department_intake", "can_authorize_movements", "can_request_loans",
-            "can_authorize_loans", "can_request_disposals", "can_accept_custody"
+        "director": _VIEW_PERMISSIONS + [
+            "can_approve_department_intake",
+            "can_accept_custody",
+            "can_request_loans",
+            "can_authorize_loans",
         ],
         "resguardatario": [
             "has_access_module", "can_view_assets", "can_accept_custody", "can_request_loans",

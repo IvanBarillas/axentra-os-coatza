@@ -378,6 +378,13 @@ class InventoryMovement(InventoryBaseModel):
                 MovementType.LOAN,
             }
             and not self.to_user_id
+            and not (
+                self.movement_type == MovementType.LOAN
+                and (
+                    self.payload.get("external_borrower")
+                    or self.to_area_id
+                )
+            )
         ):
             errors["to_user"] = (
                 "Este movimiento requiere un usuario destino."
@@ -386,6 +393,10 @@ class InventoryMovement(InventoryBaseModel):
         if (
             self.movement_type == MovementType.RETURN
             and not self.from_user_id
+            and not (
+                self.payload.get("external_borrower")
+                or self.from_area_id
+            )
         ):
             errors["from_user"] = (
                 "Una devolución requiere un usuario origen."
@@ -410,7 +421,9 @@ class InventoryMovement(InventoryBaseModel):
                 ]
             )
 
-            if not has_destination:
+            if not has_destination and not self.payload.get(
+                "external_destination"
+            ):
                 errors["to_dependencia"] = (
                     "Este movimiento requiere algún destino."
                 )
@@ -709,6 +722,7 @@ class AssetLoan(InventoryBaseModel):
     borrower_name_snapshot = models.CharField(
         "Nombre del receptor",
         max_length=300,
+        blank=True,
     )
     borrower_email_snapshot = models.EmailField(
         "Correo del receptor",
@@ -985,14 +999,14 @@ class AssetLoan(InventoryBaseModel):
                     "Debe indicar la identificación del receptor."
                 )
         else:
-            if not self.borrower_id:
-                errors["borrower"] = (
-                    "Debe seleccionar el receptor interno."
-                )
-
-            if self.borrower_id_snapshot != self.borrower_id:
+            if self.borrower_id and self.borrower_id_snapshot != self.borrower_id:
                 errors["borrower_id_snapshot"] = (
                     "El UUID histórico debe coincidir con el receptor."
+                )
+
+            if not self.borrower_id and self.borrower_id_snapshot:
+                errors["borrower_id_snapshot"] = (
+                    "No debe existir UUID histórico sin receptor."
                 )
 
         if self.origin_area_id:
@@ -1049,6 +1063,19 @@ class AssetLoan(InventoryBaseModel):
             if not has_destination:
                 errors["destination_dependencia"] = (
                     "Debe indicar el destino del préstamo."
+                )
+
+            assignment_statuses = {
+                AssetLoanStatus.DEPARTMENT_APPROVED,
+                AssetLoanStatus.AUTHORIZED,
+                AssetLoanStatus.DELIVERED,
+                AssetLoanStatus.OVERDUE,
+                AssetLoanStatus.RETURN_PENDING,
+                AssetLoanStatus.RETURNED,
+            }
+            if self.status in assignment_statuses and not self.destination_area_id:
+                errors["destination_area"] = (
+                    "La dependencia receptora debe asignar un área antes de aceptar."
                 )
 
         authorization_statuses = {

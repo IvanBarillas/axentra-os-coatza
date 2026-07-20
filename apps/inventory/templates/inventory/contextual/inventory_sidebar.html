@@ -6,16 +6,16 @@
         <p class="mt-1 text-xs text-slate-500">Patrimonio, resguardos y control físico.</p>
     </div>
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {% include "inventory/partials/sidebar_link.html" with url=dashboard_url route="inventory:dashboard" icon="layout-dashboard" label="Panel general" %}
-        {% include "inventory/partials/sidebar_link.html" with url=intake_url route="inventory:intake_list" icon="clipboard-plus" label="Solicitudes de alta" %}
-        {% include "inventory/partials/sidebar_link.html" with url=assets_url route="inventory:asset_list" icon="package-search" label="Bienes patrimoniales" %}
-        {% include "inventory/partials/sidebar_link.html" with url=custody_url route="inventory:custody_list" icon="file-signature" label="Resguardos" %}
-        {% include "inventory/partials/sidebar_link.html" with url=movements_url route="inventory:movement_list" icon="arrow-left-right" label="Movimientos" %}
-        {% include "inventory/partials/sidebar_link.html" with url=loans_url route="inventory:loan_list" icon="handshake" label="Préstamos" %}
-        {% include "inventory/partials/sidebar_link.html" with url=disposals_url route="inventory:disposal_list" icon="archive-x" label="Bajas" %}
-        {% include "inventory/partials/sidebar_link.html" with url=documents_url route="inventory:document_list" icon="folder-check" label="Documentos" %}
-        {% include "inventory/partials/sidebar_link.html" with url=audits_url route="inventory:physical_audit_list" icon="scan-line" label="Auditoría física" %}
-        {% include "inventory/partials/sidebar_link.html" with url=financial_url route="inventory:financial_dashboard" icon="landmark" label="Finanzas / SIGMAVER" %}
+        {% if request.axentra_is_root or "can_view_dashboard" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=dashboard_url route="inventory:dashboard" icon="layout-dashboard" label="Panel general" %}{% endif %}
+        {% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list or "can_approve_department_intake" in request.axentra_permissions_list or "can_validate_patrimony_intake" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=intake_url route="inventory:intake_list" icon="clipboard-plus" label="Solicitudes de alta" %}{% endif %}
+        {% if request.axentra_is_root or "can_view_assets" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=assets_url route="inventory:asset_list" icon="package-search" label="Bienes patrimoniales" %}{% endif %}
+        {% if request.axentra_is_root or "can_manage_custody" in request.axentra_permissions_list or "can_accept_custody" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=custody_url route="inventory:custody_list" icon="file-signature" label="Resguardos" %}{% endif %}
+        {% if request.axentra_is_root or "can_manage_movements" in request.axentra_permissions_list or "can_authorize_movements" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=movements_url route="inventory:movement_list" icon="arrow-left-right" label="Movimientos" %}{% endif %}
+        {% if request.axentra_is_root or "can_request_loans" in request.axentra_permissions_list or "can_manage_loans" in request.axentra_permissions_list or "can_authorize_loans" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=loans_url route="inventory:loan_list" icon="handshake" label="Préstamos" %}{% endif %}
+        {% if request.axentra_is_root or "can_request_disposals" in request.axentra_permissions_list or "can_manage_disposals" in request.axentra_permissions_list or "can_authorize_disposals" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=disposals_url route="inventory:disposal_list" icon="archive-x" label="Bajas" %}{% endif %}
+        {% if request.axentra_is_root or "can_manage_documents" in request.axentra_permissions_list or "can_validate_documents" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=documents_url route="inventory:document_list" icon="folder-check" label="Documentos" %}{% endif %}
+        {% if request.axentra_is_root or "can_manage_physical_audits" in request.axentra_permissions_list or "can_scan_physical_audits" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=audits_url route="inventory:physical_audit_list" icon="scan-line" label="Auditoría física" %}{% endif %}
+        {% if request.axentra_is_root or "can_view_financials" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=financial_url route="inventory:financial_dashboard" icon="landmark" label="Finanzas / SIGMAVER" %}{% endif %}
     </nav>
     <div class="border-t border-slate-200 p-4"><div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs font-black text-slate-600">Núcleo patrimonial</p><p class="mt-1 text-xs text-slate-500">ORFIS · CONAC · SIGMAVER</p></div></div>
 </div>

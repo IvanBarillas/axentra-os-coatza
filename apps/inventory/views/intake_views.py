@@ -17,6 +17,7 @@ from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
 
 from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
+from .access import intake_scope
 
 
 def _detail_url(intake_id):
@@ -100,6 +101,7 @@ def intake_directory_users_view(request):
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
 def intake_list_view(request):
+    scope, scope_department_id = intake_scope(request)
     filters = {
         "q": request.GET.get("q", "").strip(),
         "status": request.GET.get("status", "").strip(),
@@ -107,13 +109,26 @@ def intake_list_view(request):
     }
     return render_inventory(request, page="inventory/pages/intake_list.html", content="inventory/content/intake_list_content.html", context={
         "current_inventory_view": "inventory:intake_list",
-        "intakes": IntakeSelectors.listar(**filters), **filters,
+        "intakes": IntakeSelectors.listar(
+            **filters,
+            scope=scope,
+            actor_id=request.user.pk,
+            scope_department_id=scope_department_id,
+        ),
+        "inventory_scope": scope,
+        **filters,
     })
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
 def intake_detail_view(request, intake_id):
-    intake = selector_or_404(lambda: IntakeSelectors.obtener(intake_id))
+    scope, scope_department_id = intake_scope(request)
+    intake = selector_or_404(lambda: IntakeSelectors.obtener(
+        intake_id,
+        scope=scope,
+        actor_id=request.user.pk,
+        department_id=scope_department_id,
+    ))
     return render_inventory(request, page="inventory/pages/intake_detail.html", content="inventory/content/intake_detail_content.html", context={
         "current_inventory_view": "inventory:intake_list", "intake": intake,
     })
@@ -134,7 +149,13 @@ def intake_create_view(request):
 
 
 def _post_transition(request, intake_id, *, form_class, callback, message):
-    intake = selector_or_404(lambda: IntakeSelectors.obtener(intake_id))
+    scope, scope_department_id = intake_scope(request)
+    intake = selector_or_404(lambda: IntakeSelectors.obtener(
+        intake_id,
+        scope=scope,
+        actor_id=request.user.pk,
+        department_id=scope_department_id,
+    ))
     form = form_class(request.POST)
     if form.is_valid():
         result = run_service(form, lambda: callback(intake, form))
@@ -147,7 +168,7 @@ def _post_transition(request, intake_id, *, form_class, callback, message):
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_create_asset")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_submit_asset_intake")
 def intake_submit_view(request, intake_id):
     from django import forms
     class ConfirmForm(forms.Form):
@@ -156,13 +177,13 @@ def intake_submit_view(request, intake_id):
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_approve_department_intake")
 def intake_department_decision_view(request, intake_id):
     return _post_transition(request, intake_id, form_class=DepartmentIntakeDecisionForm, callback=lambda i, f: decide_department_intake(intake_request_id=i.id, actor_id=request.user.id, approve=f.to_dto().approve, comment=f.to_dto().comment, bypass_reason=f.to_dto().bypass_reason, request=request), message="Decisión departamental registrada.")
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_submit_asset_intake")
 def intake_send_to_patrimony_view(request, intake_id):
     from django import forms
     class ConfirmForm(forms.Form):
@@ -171,19 +192,19 @@ def intake_send_to_patrimony_view(request, intake_id):
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_validate_patrimony_intake")
 def intake_observe_view(request, intake_id):
     return _post_transition(request, intake_id, form_class=PatrimonyObservationForm, callback=lambda i, f: observe_patrimony_intake(intake_request_id=i.id, actor_id=request.user.id, observation=f.to_dto().observation, request=request), message="Observación patrimonial registrada.")
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_validate_patrimony_intake")
 def intake_approve_view(request, intake_id):
     return _post_transition(request, intake_id, form_class=PatrimonyApprovalForm, callback=lambda i, f: approve_patrimony_intake(intake_request_id=i.id, actor_id=request.user.id, data=f.to_dto(), bypass_reason=f.cleaned_data.get("bypass_reason", ""), request=request), message="Solicitud aprobada por Control Patrimonial.")
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_register_asset")
 def intake_register_view(request, intake_id):
     from django import forms
     class RegisterForm(forms.Form):
@@ -192,6 +213,6 @@ def intake_register_view(request, intake_id):
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_edit_asset")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def intake_cancel_view(request, intake_id):
     return _post_transition(request, intake_id, form_class=CancelAssetIntakeForm, callback=lambda i, f: cancel_intake(intake_request_id=i.id, actor_id=request.user.id, reason=f.to_dto().reason, request=request), message="Solicitud cancelada.")

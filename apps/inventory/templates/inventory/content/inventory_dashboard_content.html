@@ -23,7 +23,7 @@
                     </p>
                 </div>
 
-                <a
+                {% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list %}<a
                     href="{% url 'inventory:intake_create' %}"
                     hx-get="{% url 'inventory:intake_create' %}"
                     hx-target="#page-content"
@@ -32,8 +32,8 @@
                     class="inline-flex w-fit items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-slate-950 shadow-sm hover:bg-slate-100"
                 >
                     <i data-lucide="plus" class="h-4 w-4"></i>
-                    Nuevo Activo
-                </a>
+                    Nueva solicitud de alta
+                </a>{% endif %}
             </div>
         </div>
     </div>

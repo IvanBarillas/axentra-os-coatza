@@ -195,7 +195,8 @@ class LoanSelectors:
                 return queryset.none()
 
             return queryset.filter(
-                asset__current_dependencia_id=department_id
+                Q(origin_dependencia_id=department_id)
+                | Q(destination_dependencia_id=department_id)
             )
 
         if not actor_id:
@@ -254,7 +255,11 @@ class LoanSelectors:
 
         if overdue:
             queryset = queryset.filter(
-                status=AssetLoanStatus.ACTIVE,
+                status__in=(
+                    AssetLoanStatus.DELIVERED,
+                    AssetLoanStatus.OVERDUE,
+                    AssetLoanStatus.RETURN_PENDING,
+                ),
                 due_at__lt=timezone.now(),
             )
 

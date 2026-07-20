@@ -1,0 +1,50 @@
+<section class="mx-auto max-w-3xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div>
+        <a href="{% url 'inventory:loan_detail' loan.id %}" class="text-sm font-black text-slate-500">← Volver al préstamo</a>
+        <h1 class="mt-3 text-2xl font-black">{{ form_title }}</h1>
+        <p class="mt-1 font-mono text-sm text-slate-500">{{ loan.folio }}</p>
+        {% if form.destination_area_id %}
+            <p class="mt-2 text-sm text-slate-500">La dependencia receptora define el área; asignar una persona es opcional.</p>
+        {% endif %}
+    </div>
+    {% include "inventory/partials/generic_form.html" with submit_label="Confirmar operación" %}
+</section>
+
+{% if form.destination_area_id %}
+<script>
+(() => {
+    const area = document.getElementById("id_destination_area_id");
+    const borrower = document.getElementById("id_borrower_id");
+    if (!area || !borrower || area.dataset.receiverCascadeReady === "true") return;
+    area.dataset.receiverCascadeReady = "true";
+    area.addEventListener("change", async () => {
+        borrower.replaceChildren(new Option("Cargando responsables...", ""));
+        borrower.disabled = true;
+        if (!area.value) {
+            borrower.replaceChildren(new Option("--- Sin responsable individual ---", ""));
+            borrower.disabled = false;
+            return;
+        }
+        const query = new URLSearchParams({
+            department_id: "{{ loan.destination_dependencia_id }}",
+            area_id: area.value,
+        });
+        try {
+            const response = await fetch(`{% url 'inventory:loan_directory_users' %}?${query}`, {
+                headers: {"X-Requested-With": "XMLHttpRequest"},
+                credentials: "same-origin",
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            borrower.replaceChildren(new Option("--- Sin responsable individual ---", ""));
+            payload.options.forEach(({value, label}) => borrower.add(new Option(label, value)));
+            borrower.disabled = false;
+        } catch (error) {
+            borrower.replaceChildren(new Option("No se pudieron cargar los responsables", ""));
+            console.error("Responsables del préstamo:", error);
+        }
+    });
+})();
+</script>
+{% endif %}
