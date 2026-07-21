@@ -32,6 +32,30 @@ class InventoryPhotoUploadForm(InventoryForm):
         return UploadInventoryPhotoDTO(d["owner_type"],d["owner_id"],d["photo_type"],f,f.name,getattr(f,"content_type","") or "",d.get("caption", ""),d.get("is_required_evidence",False),geo)
 
 
+class AssetPhotoUploadForm(InventoryPhotoUploadForm):
+    """Carga acotada al activo abierto; el propietario no se captura manualmente."""
+
+    def __init__(self, *args, asset_id, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner_type"].initial = InventoryDocumentOwnerType.ASSET
+        self.fields["owner_type"].widget = forms.HiddenInput()
+        self.fields["owner_id"].initial = asset_id
+        self.fields["owner_id"].widget = forms.HiddenInput()
+
+    def clean_image(self):
+        image = self.cleaned_data["image"]
+        if getattr(image, "size", 0) > 15 * 1024 * 1024:
+            raise forms.ValidationError(
+                "La fotografía no puede superar 15 MB."
+            )
+        content_type = str(getattr(image, "content_type", "") or "").lower()
+        if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise forms.ValidationError(
+                "Utilice una imagen JPG, PNG o WEBP."
+            )
+        return image
+
+
 class InventoryPhotoValidationForm(InventoryForm):
     approve=forms.BooleanField(required=False); comment=forms.CharField(required=False,widget=forms.Textarea(attrs={"rows":3}))
     def to_dto(self): d=self.require_cleaned_data(); return ResolvePhotoValidationDTO(d.get("approve",False),d.get("comment", ""))

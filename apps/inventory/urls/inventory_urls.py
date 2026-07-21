@@ -2,17 +2,32 @@
 
 from django.urls import path
 from apps.inventory.views import (
+    asset_audits_view,
     asset_condition_view,
     asset_correct_view,
+    asset_custodies_view,
     asset_detail_view,
+    asset_extended_record_view,
+    asset_disposals_view,
+    asset_documents_view,
+    asset_financials_view,
+    asset_history_view,
     asset_list_view,
     asset_loan_create_view,
+    asset_loans_view,
+    asset_movements_view,
+    asset_photos_view,
+    asset_technical_view,
+    asset_technical_sheet_view,
     custody_accept_view,
     custody_authorize_view,
     custody_cancel_view,
     custody_complete_return_view,
     custody_create_view,
     custody_deliver_view,
+    custody_directory_areas_view,
+    custody_directory_departments_view,
+    custody_directory_users_view,
     custody_detail_view,
     custody_list_view,
     custody_reject_view,
@@ -36,6 +51,8 @@ from apps.inventory.views import (
     intake_send_to_patrimony_view,
     intake_submit_view,
     inventory_dashboard_view,
+    inventory_help_detail_view,
+    inventory_help_view,
     loan_authorize_view,
     loan_cancel_view,
     loan_create_view,
@@ -65,9 +82,21 @@ urlpatterns = [
     # Activos patrimoniales
     path("assets/", asset_list_view, name="asset_list"),
     path("assets/<uuid:asset_id>/", asset_detail_view, name="asset_detail"),
+    path("assets/<uuid:asset_id>/technical/", asset_technical_view, name="asset_technical"),
+    path("assets/<uuid:asset_id>/custodies/", asset_custodies_view, name="asset_custodies"),
+    path("assets/<uuid:asset_id>/loans/", asset_loans_view, name="asset_loans"),
+    path("assets/<uuid:asset_id>/movements/", asset_movements_view, name="asset_movements"),
+    path("assets/<uuid:asset_id>/documents/", asset_documents_view, name="asset_documents"),
+    path("assets/<uuid:asset_id>/photos/", asset_photos_view, name="asset_photos"),
+    path("assets/<uuid:asset_id>/financials/", asset_financials_view, name="asset_financials"),
+    path("assets/<uuid:asset_id>/audits/", asset_audits_view, name="asset_audits"),
+    path("assets/<uuid:asset_id>/disposals/", asset_disposals_view, name="asset_disposals"),
+    path("assets/<uuid:asset_id>/history/", asset_history_view, name="asset_history"),
     path("assets/<uuid:asset_id>/correct/", asset_correct_view, name="asset_correct"),
     path("assets/<uuid:asset_id>/condition/", asset_condition_view, name="asset_condition"),
     path("assets/<uuid:asset_id>/loan/", asset_loan_create_view, name="asset_loan_create"),
+    path("assets/<uuid:asset_id>/technical-sheet/", asset_technical_sheet_view, name="asset_technical_sheet"),
+    path("assets/<uuid:asset_id>/extended-record/", asset_extended_record_view, name="asset_extended_record"),
 
     # Solicitudes de alta (Intakes)
     path("intakes/", intake_list_view, name="intake_list"),
@@ -87,6 +116,9 @@ urlpatterns = [
     # Resguardos
     path("custodies/", custody_list_view, name="custody_list"),
     path("custodies/new/", custody_create_view, name="custody_create"),
+    path("custodies/directory/departments/", custody_directory_departments_view, name="custody_directory_departments"),
+    path("custodies/directory/areas/", custody_directory_areas_view, name="custody_directory_areas"),
+    path("custodies/directory/users/", custody_directory_users_view, name="custody_directory_users"),
     path("custodies/<uuid:custody_id>/", custody_detail_view, name="custody_detail"),
     path("custodies/<uuid:custody_id>/submit/", custody_submit_view, name="custody_submit"),
     path("custodies/<uuid:custody_id>/authorize/", custody_authorize_view, name="custody_authorize"),
@@ -130,4 +162,8 @@ urlpatterns = [
 
     # Finanzas y conciliación
     path("financials/", financial_dashboard_view, name="financial_dashboard"),
+
+    # Centro de ayuda y flujos funcionales
+    path("help/", inventory_help_view, name="help"),
+    path("help/<slug:workflow_code>/", inventory_help_detail_view, name="help_detail"),
 ]

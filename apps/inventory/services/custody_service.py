@@ -180,6 +180,10 @@ def create_custody_assignment(*, data, actor_id, request=None):
         raise InventoryValidationError(
             "El resguardatario no pertenece a la dependencia indicada."
         )
+    if area and assigned_context.area_id != area.id and not actor.has_global_bypass:
+        raise InventoryValidationError(
+            "El resguardatario no pertenece al área operativa indicada."
+        )
     bypass_reason = _text(data.bypass_reason)
     if bypass_reason and not actor.has_global_bypass:
         raise InventoryAuthorizationError(
@@ -214,7 +218,7 @@ def create_custody_assignment(*, data, actor_id, request=None):
 
 
 def _transition(custody_id, actor_id, expected, target, event_type, action, summary, *, request=None, comment="", mutate=None, permission=MANAGE_PERMISSION):
-    actor = _require_permission(actor_id, permission)
+    actor = _require_permission(actor_id, permission) if permission else _actor(actor_id)[0]
     context = build_audit_request_context(request)
     custody = _lock(custody_id)
     if custody.status not in set(expected):
@@ -237,10 +241,26 @@ def submit_custody_assignment(*, custody_id, actor_id, request=None):
 
 @transaction.atomic
 def authorize_custody_assignment(*, custody_id, actor_id, data, request=None):
+    custody = _lock(custody_id)
+    actor, role = _actor(actor_id)
+    manages = actor.has_global_bypass or bool(
+        role and role.has_permission(MANAGE_PERMISSION)
+    )
+    try:
+        authority = core_directory.user_can_approve_department(
+            actor.id,
+            custody.dependencia_id,
+        )
+    except core_directory.CoreDirectoryError as exc:
+        raise InventoryAuthorizationError(str(exc)) from exc
+    if not manages and not authority.allowed:
+        raise InventoryAuthorizationError(
+            "Sólo Patrimonio o el titular de la dependencia puede autorizar el resguardo."
+        )
     def mutate(c, a):
         c.authorized_by_id = a.id
         c.authorized_at = timezone.now()
-    return _transition(custody_id, actor_id, {CustodyStatus.PENDING_AUTHORIZATION}, CustodyStatus.PENDING_ACCEPTANCE, CustodyEventType.AUTHORIZED, InventoryAuditAction.APPROVE, "Resguardo autorizado", request=request, comment=data.comment, mutate=mutate)
+    return _transition(custody_id, actor_id, {CustodyStatus.PENDING_AUTHORIZATION}, CustodyStatus.PENDING_ACCEPTANCE, CustodyEventType.AUTHORIZED, InventoryAuditAction.APPROVE, "Resguardo autorizado", request=request, comment=data.comment, mutate=mutate, permission=None)
 
 
 @transaction.atomic

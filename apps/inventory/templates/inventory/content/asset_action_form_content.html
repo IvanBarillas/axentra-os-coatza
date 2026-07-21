@@ -1,1 +1,10 @@
-<section class="mx-auto max-w-3xl space-y-6">{% include "inventory/partials/messages.html" %}<div><a href="{% url 'inventory:asset_detail' asset.id %}" class="text-sm font-black text-slate-500">← Volver al expediente</a><h1 class="mt-3 text-2xl font-black">{{ form_title }}</h1><p class="mt-1 font-mono text-sm text-slate-500">{{ asset.official_inventory_number }}</p></div>{% include "inventory/partials/generic_form.html" with submit_label="Guardar cambio" %}</section>
+{% include "inventory/partials/asset_sidebar_oob.html" %}
+<section class="mx-auto max-w-3xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div>
+        <a href="{% url 'inventory:asset_detail' asset.id %}" hx-get="{% url 'inventory:asset_detail' asset.id %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver al expediente</a>
+        <h1 class="mt-3 text-2xl font-black">{{ form_title }}</h1>
+        <p class="mt-1 font-mono text-sm text-slate-500">{{ asset.display_inventory_number }}</p>
+    </div>
+    {% include "inventory/partials/generic_form.html" with submit_label="Guardar cambio" %}
+</section>

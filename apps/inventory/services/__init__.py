@@ -8,10 +8,13 @@ from .audit_service import (
 from .folio_service import generate_inventory_folio, preview_inventory_folio
 from .intake_service import (
     approve_patrimony_intake, cancel_intake, classify_capitalization,
-    create_intake_draft, decide_department_intake, observe_patrimony_intake,
+    create_and_submit_intake, create_intake_draft,
+    create_intake_from_external_source, decide_department_intake,
+    observe_patrimony_intake,
     register_approved_intake, send_to_patrimony, submit_intake,
 )
 from .movement_service import create_movement
+from .photo_service import upload_asset_photo
 from .custody_service import (
     accept_custody_assignment,
     authorize_custody_assignment,

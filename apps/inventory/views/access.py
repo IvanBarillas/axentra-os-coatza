@@ -93,6 +93,18 @@ def custody_scope(request):
     return "OWN", None
 
 
+def loan_scope(request):
+    if has_any_permission(request, "can_manage_loans"):
+        return "GLOBAL", None
+    if has_any_permission(
+        request,
+        "can_approve_department_intake",
+        "can_authorize_loans",
+    ):
+        return "DEPARTMENT", department_id(request)
+    return "OWN", None
+
+
 __all__ = [
     "asset_scope",
     "department_id",
@@ -100,6 +112,7 @@ __all__ = [
     "has_any_permission",
     "intake_scope",
     "is_inventory_root",
+    "loan_scope",
     "permission_keys",
     "require_any_permission",
 ]

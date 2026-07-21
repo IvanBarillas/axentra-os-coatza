@@ -7,10 +7,13 @@ from apps.inventory.models import CustodyAcceptanceMethod, PhysicalCondition
 
 class CustodyCreateForm(InventoryForm):
     asset_id=UUIDChoiceField(label="Bien patrimonial")
-    assigned_to_id=UUIDChoiceField(label="Servidor público resguardatario")
+    site_id=UUIDChoiceField(label="Sede física")
     department_id=UUIDChoiceField(label="Dependencia")
     area_id=UUIDChoiceField(label="Área operativa", required=False)
-    site_id=UUIDChoiceField(label="Sede física", required=False)
+    assigned_to_id=UUIDChoiceField(
+        label="Servidor público resguardatario",
+        help_text="Se muestran únicamente servidores adscritos a la dependencia y área seleccionadas.",
+    )
     notes=forms.CharField(label="Notas internas", required=False,widget=forms.Textarea(attrs={"rows":3}))
     bypass_reason=forms.CharField(label="Justificación del bypass", required=False,widget=forms.Textarea(attrs={"rows":2}))
     def to_dto(self):

@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from django.db.models import Count, Q, QuerySet, Sum
+from django.db.models import Count, Exists, OuterRef, Q, QuerySet, Sum
 from django.db.models.functions import Coalesce
 
 from apps.inventory.models import (
@@ -10,6 +10,8 @@ from apps.inventory.models import (
     AssetCategory,
     AssetIntakeRequest,
     AssetIntakeStatus,
+    AssetLoan,
+    AssetLoanStatus,
     AssetOperationalStatus,
     AssetPatrimonialStatus,
 )
@@ -34,9 +36,6 @@ ASSET_RELATED = (
     "category",
     "expenditure_object",
     "accounting_account",
-    "calculated_asset_type",
-    "authorized_asset_type",
-    "classification_authorized_by",
     "manufacturer",
     "model",
     "supplier",
@@ -126,7 +125,21 @@ class AssetSelectors:
             queryset = queryset.filter(
                 current_dependencia_id=department_id
             )
-        return queryset.order_by("-created_at")
+        open_loan = AssetLoan.objects.filter(
+            asset_id=OuterRef("pk"),
+            is_deleted=False,
+            status__in=(
+                AssetLoanStatus.REQUESTED,
+                AssetLoanStatus.DEPARTMENT_APPROVED,
+                AssetLoanStatus.AUTHORIZED,
+                AssetLoanStatus.DELIVERED,
+                AssetLoanStatus.OVERDUE,
+                AssetLoanStatus.RETURN_PENDING,
+            ),
+        )
+        return queryset.annotate(
+            has_active_loan=Exists(open_loan),
+        ).order_by("-created_at")
 
     @classmethod
     def obtener(
@@ -239,7 +252,6 @@ class IntakeSelectors:
             .filter(is_deleted=False)
             .select_related(
                 "category",
-                "proposed_asset_type",
                 "expenditure_object",
                 "accounting_account",
                 "manufacturer",
@@ -250,6 +262,7 @@ class IntakeSelectors:
                 "requested_dependencia",
                 "requested_area",
                 "proposed_custodian",
+                "captured_by",
                 "submitted_by",
             )
         )
@@ -273,7 +286,9 @@ class IntakeSelectors:
             return queryset.filter(requested_dependencia_id=department_id)
         if not actor_id:
             return queryset.none()
-        return queryset.filter(submitted_by_id=actor_id)
+        return queryset.filter(
+            Q(captured_by_id=actor_id) | Q(submitted_by_id=actor_id)
+        )
 
     @classmethod
     def listar(
@@ -306,7 +321,10 @@ class IntakeSelectors:
                 requested_dependencia_id=department_id
             )
         if requested_by_id:
-            queryset = queryset.filter(submitted_by_id=requested_by_id)
+            queryset = queryset.filter(
+                Q(captured_by_id=requested_by_id)
+                | Q(submitted_by_id=requested_by_id)
+            )
         return queryset.order_by("-created_at")
 
     @classmethod
@@ -345,6 +363,10 @@ class IntakeSelectors:
                 AssetIntakeStatus.OBSERVED,
             )
         ).order_by("-created_at")
+
+    @staticmethod
+    def status_choices():
+        return AssetIntakeStatus.choices
 
 
 __all__ = ["AssetSelectors", "IntakeSelectors", "InventoryScope"]

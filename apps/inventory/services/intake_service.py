@@ -2,6 +2,7 @@
 
 """Flujo transaccional de solicitudes de alta patrimonial."""
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
@@ -392,7 +393,14 @@ def create_intake_draft(
         requested_dependencia_id=department.id,
         requested_area_id=data.requested_area_id,
         proposed_custodian_id=data.proposed_custodian_id,
-        submitted_by_id=actor.id,
+        captured_by_id=actor.id,
+        captured_at=timezone.now(),
+        submitted_by_id=None,
+        submitted_at=None,
+        source_app=str(data.source_app or "").strip().lower(),
+        source_model=str(data.source_model or "").strip(),
+        source_object_id=data.source_object_id,
+        source_folio=str(data.source_folio or "").strip().upper(),
         notes=str(data.notes or "").strip(),
         extra_attributes=dict(data.extra_attributes or {}),
     )
@@ -436,6 +444,60 @@ def create_intake_draft(
 
 
 @transaction.atomic
+def create_and_submit_intake(
+    *,
+    data: CreateAssetIntakeDTO,
+    actor_id,
+    request_context: AuditRequestContext | None = None,
+    request=None,
+) -> AssetIntakeRequest:
+    """Crea y envía en una sola transacción; si el envío falla no deja duplicados."""
+
+    context = _context(request_context, request)
+    intake = create_intake_draft(
+        data=data,
+        actor_id=actor_id,
+        request_context=context,
+    )
+    submit_intake(
+        intake_request_id=intake.id,
+        actor_id=actor_id,
+        request_context=context,
+    )
+    intake.refresh_from_db()
+    return intake
+
+
+@transaction.atomic
+def create_intake_from_external_source(
+    *,
+    data: CreateAssetIntakeDTO,
+    actor_id,
+    source_app,
+    source_model,
+    source_object_id,
+    source_folio="",
+    request_context: AuditRequestContext | None = None,
+    request=None,
+) -> AssetIntakeRequest:
+    """Punto de integración futuro para Compras u otra app, siempre enviado."""
+
+    enriched = replace(
+        data,
+        source_app=_require_text(source_app, field_name="source_app").lower(),
+        source_model=_require_text(source_model, field_name="source_model"),
+        source_object_id=source_object_id,
+        source_folio=str(source_folio or "").strip().upper(),
+    )
+    return create_and_submit_intake(
+        data=enriched,
+        actor_id=actor_id,
+        request_context=request_context,
+        request=request,
+    )
+
+
+@transaction.atomic
 def submit_intake(
     *, intake_request_id, actor_id,
     request_context=None, request=None,
@@ -453,14 +515,25 @@ def submit_intake(
             "La solicitud no puede enviarse desde su estado actual."
         )
 
-    actor_context = get_user_organizational_context(
-        actor.id, require_profile=not actor.has_global_bypass
+    role = get_module_role(actor.id)
+    can_submit_for_any_department = bool(
+        role and role.has_permission(PERMISSION_CREATE_ANY_DEPARTMENT)
     )
-    if not actor.has_global_bypass and (
-        actor_context.department_id != intake.requested_dependencia_id
+    owns_capture = intake.captured_by_id == actor.id
+    same_department = False
+    if not actor.has_global_bypass and not can_submit_for_any_department and not owns_capture:
+        actor_context = get_user_organizational_context(
+            actor.id,
+            require_profile=True,
+        )
+        same_department = (
+            actor_context.department_id == intake.requested_dependencia_id
+        )
+    if not actor.has_global_bypass and not (
+        can_submit_for_any_department or owns_capture or same_department
     ):
         raise InventoryAuthorizationError(
-            "No puede enviar solicitudes de otra dependencia."
+            "Sólo el capturista, la dependencia destino o un operador transversal puede enviar la solicitud."
         )
 
     if not intake.acquisition_date or not intake.expenditure_object_id:
@@ -529,7 +602,7 @@ def decide_department_intake(
     intake.department_approved_at = now if approve else None
     intake.department_rejection_reason = "" if approve else str(comment).strip()
     intake.status = (
-        AssetIntakeStatus.DEPARTMENT_APPROVED
+        AssetIntakeStatus.UNDER_PATRIMONY_REVIEW
         if approve else AssetIntakeStatus.DEPARTMENT_REJECTED
     )
     intake.bypass_used = authority.bypass_used
@@ -551,7 +624,7 @@ def decide_department_intake(
     log_inventory_event(
         action=InventoryAuditAction.APPROVE if approve else InventoryAuditAction.REJECT,
         level=InventoryAuditLevel.CRITICAL if authority.bypass_used else InventoryAuditLevel.SUCCESS,
-        summary="Solicitud aceptada por la dependencia" if approve else "Solicitud rechazada por la dependencia",
+        summary="Solicitud aceptada y enviada automáticamente a Patrimonio" if approve else "Solicitud rechazada por la dependencia",
         actor_id=actor_id, intake_request_id=intake.id, target=intake,
         reason=comment, payload={"decision_id": decision.id},
         bypass_used=authority.bypass_used,
@@ -806,7 +879,10 @@ def cancel_intake(
             "La solicitud ya no puede cancelarse."
         )
 
-    is_owner = intake.submitted_by_id == actor.id
+    is_owner = actor.id in {
+        intake.captured_by_id,
+        intake.submitted_by_id,
+    }
     early_status = intake.status in {
         AssetIntakeStatus.DRAFT,
         AssetIntakeStatus.SUBMITTED,

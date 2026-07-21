@@ -115,14 +115,6 @@ class AssetIntakeRequest(InventoryBaseModel):
         related_name="intake_requests",
         verbose_name="Categoría patrimonial propuesta",
     )
-    proposed_asset_type = models.ForeignKey(
-        "inventory.InventoryAssetType",
-        on_delete=models.PROTECT,
-        related_name="intake_requests_proposed",
-        verbose_name="Tipo patrimonial propuesto",
-        null=True,
-        blank=True,
-    )
     expenditure_object = models.ForeignKey(
         "inventory.ExpenditureObject",
         on_delete=models.PROTECT,
@@ -236,16 +228,55 @@ class AssetIntakeRequest(InventoryBaseModel):
         blank=True,
     )
 
+    captured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="inventory_intake_requests_captured",
+        verbose_name="Capturado por",
+        null=True,
+        blank=True,
+    )
+    captured_at = models.DateTimeField(
+        "Fecha de captura",
+        null=True,
+        blank=True,
+    )
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="inventory_intake_requests_submitted",
-        verbose_name="Solicitante / capturista",
+        verbose_name="Enviado por",
+        null=True,
+        blank=True,
     )
     submitted_at = models.DateTimeField(
         "Fecha de envío",
         null=True,
         blank=True,
+    )
+
+    # Referencia desacoplada a Compras, Donaciones u otro módulo productor.
+    source_app = models.CharField(
+        "Aplicación de origen",
+        max_length=80,
+        blank=True,
+    )
+    source_model = models.CharField(
+        "Modelo de origen",
+        max_length=120,
+        blank=True,
+    )
+    source_object_id = models.UUIDField(
+        "UUID del registro de origen",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    source_folio = models.CharField(
+        "Folio del registro de origen",
+        max_length=120,
+        blank=True,
+        db_index=True,
     )
 
     department_approved_by = models.ForeignKey(
@@ -320,6 +351,14 @@ class AssetIntakeRequest(InventoryBaseModel):
             models.Index(fields=["requested_dependencia", "status"]),
             models.Index(fields=["requested_area", "status"]),
             models.Index(fields=["submitted_by", "status"]),
+            models.Index(
+                fields=["captured_by", "status"],
+                name="idx_inv_intake_capture_st",
+            ),
+            models.Index(
+                fields=["source_app", "source_object_id"],
+                name="idx_inv_intake_source_ref",
+            ),
             models.Index(fields=["acquisition_date"]),
             models.Index(fields=["serial_number"]),
             models.Index(fields=["bypass_used"]),
@@ -394,8 +433,34 @@ class AssetIntakeRequest(InventoryBaseModel):
                 "No debe registrar un motivo si no se utilizó bypass."
             )
 
+        if self.status not in {
+            AssetIntakeStatus.DRAFT,
+            AssetIntakeStatus.CANCELLED,
+        }:
+            if not self.submitted_by_id:
+                errors["submitted_by"] = (
+                    "Una solicitud enviada debe indicar quién la remitió."
+                )
+            if not self.submitted_at:
+                errors["submitted_at"] = (
+                    "Una solicitud enviada debe conservar la fecha de envío."
+                )
+
+        source_values = (
+            self.source_app.strip(),
+            self.source_model.strip(),
+            self.source_object_id,
+        )
+        if any(source_values) and not all(source_values):
+            errors["source_object_id"] = (
+                "La referencia externa requiere aplicación, modelo y UUID."
+            )
+
         if (
-            self.status == AssetIntakeStatus.DEPARTMENT_APPROVED
+            self.status in {
+                AssetIntakeStatus.DEPARTMENT_APPROVED,
+                AssetIntakeStatus.UNDER_PATRIMONY_REVIEW,
+            }
             and not self.department_approved_by_id
         ):
             errors["department_approved_by"] = (
@@ -447,6 +512,15 @@ class AssetIntakeRequest(InventoryBaseModel):
 
         if self.bypass_reason:
             self.bypass_reason = self.bypass_reason.strip()
+
+        if self.source_app:
+            self.source_app = self.source_app.strip().lower()
+
+        if self.source_model:
+            self.source_model = self.source_model.strip()
+
+        if self.source_folio:
+            self.source_folio = self.source_folio.strip().upper()
 
         if self.notes:
             self.notes = self.notes.strip()
@@ -991,40 +1065,6 @@ class Asset(InventoryBaseModel):
         AccountingAccount,
         on_delete=models.PROTECT,
         related_name="assets",
-        null=True,
-        blank=True,
-    )
-
-    calculated_asset_type = models.ForeignKey(
-        "inventory.InventoryAssetType",
-        on_delete=models.PROTECT,
-        related_name="assets_calculated",
-        verbose_name="Tipo patrimonial calculado",
-        null=True,
-        blank=True,
-    )
-    authorized_asset_type = models.ForeignKey(
-        "inventory.InventoryAssetType",
-        on_delete=models.PROTECT,
-        related_name="assets_authorized",
-        verbose_name="Tipo patrimonial autorizado",
-        null=True,
-        blank=True,
-    )
-    classification_override_reason = models.TextField(
-        "Justificación de clasificación diferente",
-        blank=True,
-    )
-    classification_authorized_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="inventory_classifications_authorized",
-        verbose_name="Clasificación autorizada por",
-        null=True,
-        blank=True,
-    )
-    classification_authorized_at = models.DateTimeField(
-        "Fecha de autorización de clasificación",
         null=True,
         blank=True,
     )

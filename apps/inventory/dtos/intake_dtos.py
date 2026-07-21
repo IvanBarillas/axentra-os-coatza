@@ -12,7 +12,6 @@ class CreateAssetIntakeDTO:
     requested_department_id: UUID
     acquisition_type: str
     acquisition_cost: Decimal
-    proposed_asset_type_id: UUID | None = None
     description: str = ""
     expenditure_object_id: UUID | None = None
     accounting_account_id: UUID | None = None
@@ -29,6 +28,10 @@ class CreateAssetIntakeDTO:
     proposed_custodian_id: UUID | None = None
     notes: str = ""
     extra_attributes: Mapping[str, Any] = field(default_factory=dict)
+    source_app: str = ""
+    source_model: str = ""
+    source_object_id: UUID | None = None
+    source_folio: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +41,6 @@ class UpdateAssetIntakeDTO:
     requested_department_id: UUID
     acquisition_type: str
     acquisition_cost: Decimal
-    proposed_asset_type_id: UUID | None = None
     description: str = ""
     expenditure_object_id: UUID | None = None
     accounting_account_id: UUID | None = None
@@ -72,8 +74,6 @@ class PatrimonyApprovalDTO:
     residual_value: Decimal | None = None
     useful_life_months: int | None = None
     observation: str = ""
-    authorized_asset_type_id: UUID | None = None
-    classification_override_reason: str = ""
 
 
 @dataclass(frozen=True, slots=True)

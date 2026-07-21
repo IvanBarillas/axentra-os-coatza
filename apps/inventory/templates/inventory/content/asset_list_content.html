@@ -1,3 +1,4 @@
+{% include "inventory/partials/general_sidebar_oob.html" %}
 <section class="space-y-6">{% include "inventory/partials/messages.html" %}
 <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 <div>
@@ -22,7 +23,7 @@
 <th class="px-5 py-4">Folio</th>
 <th class="px-5 py-4">Bien</th>
 <th class="px-5 py-4">Dependencia</th>
-<th class="px-5 py-4">Condición</th>
+<th class="px-5 py-4">Condición y disponibilidad</th>
 <th class="px-5 py-4">
 </th>
 </tr>
@@ -34,7 +35,7 @@
 <p class="text-xs text-slate-500">{{ asset.serial_number|default:"Sin serie" }}</p>
 </td>
 <td class="px-5 py-4 text-sm">{{ asset.current_dependencia|default:"Sin asignar" }}</td>
-<td class="px-5 py-4 text-sm font-bold">{{ asset.get_physical_condition_display }}</td>
+<td class="px-5 py-4"><p class="text-sm font-bold">{{ asset.get_physical_condition_display }}</p><div class="mt-1 flex flex-wrap gap-1"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">{{ asset.get_operational_status_display }}</span>{% if asset.has_active_loan %}<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">En préstamo</span>{% endif %}</div></td>
 <td class="px-5 py-4 text-right">
 <a href="{% url 'inventory:asset_detail' asset.id %}" hx-get="{% url 'inventory:asset_detail' asset.id %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-700">Ver</a>
 </td>

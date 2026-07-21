@@ -1,5 +1,7 @@
 """Consultas de movimientos, préstamos y bajas patrimoniales."""
 
+from datetime import timedelta
+
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
@@ -173,6 +175,12 @@ class LoanSelectors:
                 "asset",
                 "borrower",
                 "requested_by",
+                "origin_dependencia",
+                "origin_area",
+                "origin_sede",
+                "destination_dependencia",
+                "destination_area",
+                "destination_sede",
             )
         )
 
@@ -216,6 +224,8 @@ class LoanSelectors:
         asset_id="",
         borrower_id="",
         overdue=False,
+        bucket="",
+        active_only=False,
         scope=RegistryScope.GLOBAL,
         actor_id=None,
         scope_department_id=None,
@@ -225,6 +235,14 @@ class LoanSelectors:
             actor_id=actor_id,
             department_id=scope_department_id,
         )
+
+        if active_only:
+            queryset = queryset.exclude(
+                status__in=(
+                    AssetLoanStatus.RETURNED,
+                    AssetLoanStatus.CANCELLED,
+                )
+            )
 
         normalized_query = str(q or "").strip()
         if normalized_query:
@@ -252,6 +270,51 @@ class LoanSelectors:
 
         if borrower_id:
             queryset = queryset.filter(borrower_id=borrower_id)
+
+        normalized_bucket = str(bucket or "").strip().lower()
+        if normalized_bucket == "sent":
+            if scope_department_id:
+                queryset = queryset.filter(
+                    origin_dependencia_id=scope_department_id,
+                )
+            elif actor_id and RegistryScope.normalize(scope) == RegistryScope.OWN:
+                queryset = queryset.filter(requested_by_id=actor_id)
+        elif normalized_bucket == "received":
+            if scope_department_id:
+                queryset = queryset.filter(
+                    destination_dependencia_id=scope_department_id,
+                )
+            elif actor_id and RegistryScope.normalize(scope) == RegistryScope.OWN:
+                queryset = queryset.filter(borrower_id=actor_id)
+        elif normalized_bucket == "pending":
+            queryset = queryset.filter(status=AssetLoanStatus.REQUESTED)
+            if scope_department_id:
+                queryset = queryset.filter(
+                    destination_dependencia_id=scope_department_id,
+                )
+        elif normalized_bucket == "authorize":
+            queryset = queryset.filter(
+                status=AssetLoanStatus.DEPARTMENT_APPROVED,
+            )
+        elif normalized_bucket == "expiring":
+            now = timezone.now()
+            queryset = queryset.filter(
+                status__in=(
+                    AssetLoanStatus.DELIVERED,
+                    AssetLoanStatus.RETURN_PENDING,
+                ),
+                due_at__gte=now,
+                due_at__lte=now + timedelta(days=7),
+            )
+        elif normalized_bucket == "overdue":
+            queryset = queryset.filter(
+                status__in=(
+                    AssetLoanStatus.DELIVERED,
+                    AssetLoanStatus.OVERDUE,
+                    AssetLoanStatus.RETURN_PENDING,
+                ),
+                due_at__lt=timezone.now(),
+            )
 
         if overdue:
             queryset = queryset.filter(
@@ -283,6 +346,59 @@ class LoanSelectors:
     @staticmethod
     def status_choices():
         return AssetLoanStatus.choices
+
+    @classmethod
+    def dashboard_metrics(
+        cls,
+        *,
+        scope=RegistryScope.GLOBAL,
+        actor_id=None,
+        department_id=None,
+    ):
+        queryset = cls.visible_queryset(
+            scope=scope,
+            actor_id=actor_id,
+            department_id=department_id,
+        )
+        now = timezone.now()
+        active_statuses = (
+            AssetLoanStatus.DELIVERED,
+            AssetLoanStatus.OVERDUE,
+            AssetLoanStatus.RETURN_PENDING,
+        )
+        pending = queryset.filter(status=AssetLoanStatus.REQUESTED)
+        if department_id:
+            pending = pending.filter(
+                destination_dependencia_id=department_id,
+            )
+        return {
+            "sent_active": queryset.filter(
+                origin_dependencia_id=department_id,
+                status__in=active_statuses,
+            ).count() if department_id else 0,
+            "received_active": queryset.filter(
+                destination_dependencia_id=department_id,
+                status__in=active_statuses,
+            ).count() if department_id else queryset.filter(
+                status__in=active_statuses,
+            ).count(),
+            "pending_acceptance": pending.count(),
+            "pending_authorization": queryset.filter(
+                status=AssetLoanStatus.DEPARTMENT_APPROVED,
+            ).count(),
+            "expiring": queryset.filter(
+                status__in=(
+                    AssetLoanStatus.DELIVERED,
+                    AssetLoanStatus.RETURN_PENDING,
+                ),
+                due_at__gte=now,
+                due_at__lte=now + timedelta(days=7),
+            ).count(),
+            "overdue": queryset.filter(
+                status__in=active_statuses,
+                due_at__lt=now,
+            ).count(),
+        }
 
 
 class DisposalSelectors:

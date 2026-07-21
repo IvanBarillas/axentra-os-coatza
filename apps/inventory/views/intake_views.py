@@ -7,9 +7,11 @@ from apps.inventory.forms import (
     AssetIntakeCreateForm, CancelAssetIntakeForm, DepartmentIntakeDecisionForm,
     PatrimonyApprovalForm, PatrimonyObservationForm,
 )
+from apps.inventory.integrations import core_directory
 from apps.inventory.selectors import CoreDirectorySelectors, IntakeSelectors
 from apps.inventory.services import (
-    approve_patrimony_intake, cancel_intake, create_intake_draft,
+    approve_patrimony_intake, cancel_intake, create_and_submit_intake,
+    create_intake_draft,
     decide_department_intake, observe_patrimony_intake,
     register_approved_intake, send_to_patrimony, submit_intake,
 )
@@ -17,7 +19,7 @@ from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
 
 from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
-from .access import intake_scope
+from .access import has_any_permission, intake_scope
 
 
 def _detail_url(intake_id):
@@ -116,6 +118,7 @@ def intake_list_view(request):
             scope_department_id=scope_department_id,
         ),
         "inventory_scope": scope,
+        "intake_statuses": IntakeSelectors.status_choices(),
         **filters,
     })
 
@@ -129,8 +132,16 @@ def intake_detail_view(request, intake_id):
         actor_id=request.user.pk,
         department_id=scope_department_id,
     ))
+    try:
+        can_decide = core_directory.user_can_approve_department(
+            request.user.pk,
+            intake.requested_dependencia_id,
+        ).allowed
+    except core_directory.CoreDirectoryError:
+        can_decide = False
     return render_inventory(request, page="inventory/pages/intake_detail.html", content="inventory/content/intake_detail_content.html", context={
         "current_inventory_view": "inventory:intake_list", "intake": intake,
+        "can_decide_department_intake": can_decide,
     })
 
 
@@ -138,13 +149,17 @@ def intake_detail_view(request, intake_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_create_asset")
 def intake_create_view(request):
     form = apply_directory_choices(AssetIntakeCreateForm(request.POST or None))
+    can_submit = has_any_permission(request, "can_submit_asset_intake")
     if request.method == "POST" and form.is_valid():
-        intake = run_service(form, lambda: create_intake_draft(data=form.to_dto(), actor_id=request.user.id, request=request))
+        submit_now = request.POST.get("intake_action") == "submit"
+        service = create_and_submit_intake if submit_now else create_intake_draft
+        intake = run_service(form, lambda: service(data=form.to_dto(), actor_id=request.user.id, request=request))
         if intake:
-            success(request, f"Solicitud {intake.request_number} creada en borrador.")
+            success(request, f"Solicitud {intake.request_number} {'enviada para aceptación' if submit_now else 'guardada como borrador'}.")
             return redirect(_detail_url(intake.id))
     return render_inventory(request, page="inventory/pages/intake_form.html", content="inventory/content/intake_form_content.html", context={
         "current_inventory_view": "inventory:intake_create", "form": form,
+        "can_submit_intake": can_submit,
     }, status=422 if request.method == "POST" else 200)
 
 
@@ -177,7 +192,7 @@ def intake_submit_view(request, intake_id):
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_approve_department_intake")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def intake_department_decision_view(request, intake_id):
     return _post_transition(request, intake_id, form_class=DepartmentIntakeDecisionForm, callback=lambda i, f: decide_department_intake(intake_request_id=i.id, actor_id=request.user.id, approve=f.to_dto().approve, comment=f.to_dto().comment, bypass_reason=f.to_dto().bypass_reason, request=request), message="Decisión departamental registrada.")
 

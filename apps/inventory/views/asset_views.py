@@ -1,16 +1,71 @@
-from django.shortcuts import redirect
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from apps.inventory.forms import AssetConditionUpdateForm, AssetCorrectionForm, AssetLoanFromAssetForm
-from apps.inventory.models import AssetOperationalStatus
+from apps.inventory.forms import AssetConditionUpdateForm, AssetCorrectionForm, AssetLoanFromAssetForm, AssetPhotoUploadForm
+from apps.inventory.models import AssetLoanStatus, AssetOperationalStatus
 from apps.inventory.selectors import AssetSelectors, DocumentSelectors
-from apps.inventory.services import correct_asset, create_asset_loan, update_asset_condition
+from apps.inventory.services import correct_asset, create_asset_loan, update_asset_condition, upload_asset_photo
 from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
 
 from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
 from .access import asset_scope, has_any_permission
+
+
+def _visible_asset(request, asset_id):
+    scope, scope_department_id = asset_scope(request)
+    return selector_or_404(lambda: AssetSelectors.obtener_expediente(
+        asset_id,
+        scope=scope,
+        actor_id=request.user.pk,
+        department_id=scope_department_id,
+    ))
+
+
+def _asset_report_context(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return {
+        "asset": asset,
+        "generated_at": timezone.localtime(),
+        "documents": DocumentSelectors.asset_documents(asset.id),
+        "photos": DocumentSelectors.asset_photos(asset.id),
+    }
+
+
+def _asset_context(request, asset, current_view):
+    open_statuses = {
+        AssetLoanStatus.REQUESTED,
+        AssetLoanStatus.DEPARTMENT_APPROVED,
+        AssetLoanStatus.AUTHORIZED,
+        AssetLoanStatus.DELIVERED,
+        AssetLoanStatus.OVERDUE,
+        AssetLoanStatus.RETURN_PENDING,
+    }
+    active_loan = next(
+        (loan for loan in asset.loans.all() if loan.status in open_statuses),
+        None,
+    )
+    return {
+        "asset": asset,
+        "asset_context_sidebar": True,
+        "current_inventory_view": current_view,
+        "active_loan": active_loan,
+    }
+
+
+def _render_asset_section(request, asset, *, current_view, section, extra=None, status=200):
+    context = _asset_context(request, asset, current_view)
+    context.update({"asset_section": section, **(extra or {})})
+    return render_inventory(
+        request,
+        page="inventory/pages/asset_section.html",
+        content="inventory/content/asset_section_content.html",
+        context=context,
+        status=status,
+    )
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
@@ -41,17 +96,11 @@ def asset_list_view(request):
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
 def asset_detail_view(request, asset_id):
-    scope, scope_department_id = asset_scope(request)
-    asset = selector_or_404(lambda: AssetSelectors.obtener_expediente(
-        asset_id,
-        scope=scope,
-        actor_id=request.user.pk,
-        department_id=scope_department_id,
-    ))
+    asset = _visible_asset(request, asset_id)
     can_manage_loans = has_any_permission(request, "can_manage_loans")
     can_authorize_loans = has_any_permission(request, "can_authorize_loans")
-    return render_inventory(request, page="inventory/pages/asset_detail.html", content="inventory/content/asset_detail_content.html", context={
-        "current_inventory_view": "inventory:asset_list", "asset": asset,
+    context = _asset_context(request, asset, "inventory:asset_detail")
+    context.update({
         "documents": DocumentSelectors.asset_documents(asset.id),
         "photos": DocumentSelectors.asset_photos(asset.id),
         "can_edit_asset": has_any_permission(request, "can_edit_asset"),
@@ -64,6 +113,106 @@ def asset_detail_view(request, asset_id):
             }
         ),
     })
+    return render_inventory(request, page="inventory/pages/asset_detail.html", content="inventory/content/asset_detail_content.html", context=context)
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_technical_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(request, asset, current_view="inventory:asset_technical", section="technical")
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_custodies_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(request, asset, current_view="inventory:asset_custodies", section="custodies", extra={"records": asset.custody_assignments.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_loans_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(request, asset, current_view="inventory:asset_loans", section="loans", extra={"records": asset.loans.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_movements_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(request, asset, current_view="inventory:asset_movements", section="movements", extra={"records": asset.movements.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_documents_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(request, asset, current_view="inventory:asset_documents", section="documents", extra={"records": DocumentSelectors.asset_documents(asset.id)})
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_photos_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    can_upload = has_any_permission(request, "can_manage_photos")
+    if request.method == "POST" and not can_upload:
+        raise PermissionDenied("No cuenta con permiso para cargar fotografías.")
+    form = AssetPhotoUploadForm(request.POST or None, request.FILES or None, asset_id=asset.id) if can_upload else None
+    if request.method == "POST" and form and form.is_valid():
+        photo = run_service(form, lambda: upload_asset_photo(asset_id=asset.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if photo:
+            success(request, "Fotografía agregada al expediente.")
+            return redirect(reverse("inventory:asset_photos", kwargs={"asset_id": asset.id}))
+    return _render_asset_section(
+        request,
+        asset,
+        current_view="inventory:asset_photos",
+        section="photos",
+        extra={"records": DocumentSelectors.asset_photos(asset.id), "form": form, "can_upload_photos": can_upload},
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_financials")
+def asset_financials_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(request, asset, current_view="inventory:asset_financials", section="financials", extra={"records": asset.depreciation_records.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_audits_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    if not has_any_permission(request, "can_manage_physical_audits", "can_scan_physical_audits"):
+        raise PermissionDenied
+    return _render_asset_section(request, asset, current_view="inventory:asset_audits", section="audits", extra={"records": asset.physical_audit_items.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_disposals_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    if not has_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals"):
+        raise PermissionDenied
+    return _render_asset_section(request, asset, current_view="inventory:asset_disposals", section="disposals", extra={"records": asset.disposal_requests.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_audit")
+def asset_history_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(request, asset, current_view="inventory:asset_history", section="history", extra={"records": asset.audit_logs.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_technical_sheet_view(request, asset_id):
+    return render(
+        request,
+        "inventory/reports/asset_technical_sheet.html",
+        _asset_report_context(request, asset_id),
+    )
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_extended_record_view(request, asset_id):
+    return render(
+        request,
+        "inventory/reports/asset_extended_record.html",
+        _asset_report_context(request, asset_id),
+    )
 
 
 @require_http_methods(["GET", "POST"])
@@ -102,8 +251,7 @@ def asset_loan_create_view(request, asset_id):
         page="inventory/pages/asset_loan_form.html",
         content="inventory/content/asset_loan_form_content.html",
         context={
-            "current_inventory_view": "inventory:asset_list",
-            "asset": asset,
+            **_asset_context(request, asset, "inventory:asset_loans"),
             "form": form,
         },
         status=422 if request.method == "POST" else 200,
@@ -125,7 +273,7 @@ def _asset_action(request, asset_id, *, form_class, service, title):
             success(request, title)
             return redirect(reverse("inventory:asset_detail", kwargs={"asset_id": asset.id}))
     return render_inventory(request, page="inventory/pages/asset_action_form.html", content="inventory/content/asset_action_form_content.html", context={
-        "current_inventory_view": "inventory:asset_list", "asset": asset, "form": form, "form_title": title,
+        **_asset_context(request, asset, "inventory:asset_detail"), "form": form, "form_title": title,
     }, status=422 if request.method == "POST" else 200)
 
 

@@ -22,6 +22,7 @@ from apps.inventory.forms import (
     AssetLoanReturnRequestForm,
     DepartmentLoanDecisionForm,
 )
+from apps.inventory.integrations import core_directory
 
 from apps.inventory.selectors import (
     AssetSelectors, CoreDirectorySelectors, CustodySelectors, DisposalSelectors, DocumentSelectors, FinancialSelectors,
@@ -49,7 +50,7 @@ from apps.inventory.services import (
     submit_asset_loan,
 )
 
-from .access import custody_scope, department_id, has_any_permission, require_any_permission
+from .access import custody_scope, department_id, has_any_permission, loan_scope, require_any_permission
 from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
 
 
@@ -77,10 +78,20 @@ def _custody_context(request, custody):
     manages = root or "can_manage_custody" in permissions
     owns = custody.assigned_to_id == request.user.pk
     accepts = root or (owns and "can_accept_custody" in permissions)
+    department_authority = False
+    custody_department_id = getattr(custody, "dependencia_id", None)
+    if custody_department_id:
+        try:
+            department_authority = core_directory.user_can_approve_department(
+                request.user.pk,
+                custody_department_id,
+            ).allowed
+        except core_directory.CoreDirectoryError:
+            department_authority = False
     return {
         "custody": custody,
         "can_submit_custody": manages and custody.status in {"DRAFT", "REJECTED"},
-        "can_authorize_custody": manages and custody.status == "PENDING_AUTHORIZATION",
+        "can_authorize_custody": (manages or department_authority) and custody.status == "PENDING_AUTHORIZATION",
         "can_deliver_custody": manages and custody.status == "PENDING_ACCEPTANCE" and not custody.delivered_at,
         "can_accept_custody": accepts and custody.status == "PENDING_ACCEPTANCE" and bool(custody.delivered_at),
         "can_reject_custody": accepts and custody.status == "PENDING_ACCEPTANCE",
@@ -88,6 +99,76 @@ def _custody_context(request, custody):
         "can_complete_custody_return": manages and custody.status == "RETURN_PENDING",
         "can_cancel_custody": manages and custody.status in {"DRAFT", "PENDING_AUTHORIZATION", "REJECTED"},
     }
+
+
+def _custody_options(options, **extra):
+    payload = {
+        "options": [
+            {"value": str(value), "label": label}
+            for value, label in options
+        ]
+    }
+    payload.update(extra)
+    return JsonResponse(payload)
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
+def custody_directory_departments_view(request):
+    site_id = request.GET.get("site_id", "").strip() or None
+    departments = CoreDirectorySelectors.departments(site_id=site_id)
+    return _custody_options(
+        (
+            item.id,
+            f"{item.code or 'SIN-CÓDIGO'} · {item.name}",
+        )
+        for item in departments
+    )
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
+def custody_directory_areas_view(request):
+    site_id = request.GET.get("site_id", "").strip() or None
+    selected_department = request.GET.get("department_id", "").strip() or None
+    return _custody_options(
+        (
+            item.id,
+            f"{item.name} [{item.site_name}]",
+        )
+        for item in CoreDirectorySelectors.areas(
+            site_id=site_id,
+            department_id=selected_department,
+        )
+    )
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
+def custody_directory_users_view(request):
+    selected_department = request.GET.get("department_id", "").strip() or None
+    area_id = request.GET.get("area_id", "").strip() or None
+    department = (
+        core_directory.get_department(selected_department)
+        if selected_department else None
+    )
+    options = (
+        (
+            item.id,
+            f"{item.display_name} · {item.email}" if item.email else item.display_name,
+        )
+        for item in CoreDirectorySelectors.users(
+            department_id=selected_department,
+            area_id=area_id,
+        )
+    )
+    return _custody_options(
+        options,
+        manager_user_id=(
+            str(department.manager_user_id)
+            if department and department.manager_user_id else ""
+        ),
+    )
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -141,7 +222,7 @@ def custody_submit_view(request, custody_id):
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def custody_authorize_view(request, custody_id):
     return _custody_action(request, custody_id, CustodyAuthorizeForm, lambda c, f: authorize_custody_assignment(custody_id=c.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Resguardo autorizado.")
 
@@ -195,15 +276,7 @@ def movement_detail_view(request, movement_id):
 
 
 def _loan_scope(request):
-    if has_any_permission(request, "can_manage_loans"):
-        return RegistryScope.GLOBAL, None
-    if has_any_permission(
-        request,
-        "can_approve_department_intake",
-        "can_authorize_loans",
-    ):
-        return RegistryScope.DEPARTMENT, department_id(request)
-    return RegistryScope.OWN, None
+    return loan_scope(request)
 
 
 def _loan_options(options):
@@ -342,10 +415,10 @@ def loan_list_view(request):
         "can_manage_loans",
         "can_authorize_loans",
     )
-    f = _filters(request, "q", "status", "asset_id", "borrower_id")
+    f = _filters(request, "q", "status", "asset_id", "borrower_id", "bucket")
     f["overdue"] = request.GET.get("overdue") == "1"
     scope, scope_department_id = _loan_scope(request)
-    return render_inventory(request, page="inventory/pages/loan_list.html", content="inventory/content/loan_list_content.html", context={"current_inventory_view":"inventory:loan_list", "loans":LoanSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "can_create_full_loan":has_any_permission(request, "can_manage_loans"), "loan_statuses":LoanSelectors.status_choices(), **f})
+    return render_inventory(request, page="inventory/pages/loan_list.html", content="inventory/content/loan_list_content.html", context={"current_inventory_view":"inventory:loan_list", "loans":LoanSelectors.listar(**f, active_only=True, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "loan_summary":LoanSelectors.dashboard_metrics(scope=scope, actor_id=request.user.pk, department_id=scope_department_id), "can_create_full_loan":has_any_permission(request, "can_manage_loans"), "show_department_tabs":scope == RegistryScope.DEPARTMENT, "show_global_tabs":scope == RegistryScope.GLOBAL, "loan_statuses":LoanSelectors.status_choices(), **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")

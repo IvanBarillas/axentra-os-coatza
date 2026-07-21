@@ -298,6 +298,89 @@ def get_user_organizational_context(
     )
 
 
+def list_sites():
+    return tuple(
+        _site_to_identity(site)
+        for site in Sede.objects.filter(
+            is_active=True,
+            is_deleted=False,
+        ).order_by("nombre")
+    )
+
+
+def list_departments(*, site_id=None):
+    queryset = Dependencia.objects.filter(
+        is_active=True,
+        is_deleted=False,
+    ).select_related("parent", "encargado_departamento")
+    if site_id:
+        queryset = queryset.filter(
+            areas__sede_fisica_id=_as_uuid(site_id, field_name="site_id"),
+            areas__is_active=True,
+            areas__is_deleted=False,
+        )
+    return tuple(
+        _department_to_identity(department)
+        for department in queryset.distinct().order_by("nombre")
+    )
+
+
+def list_areas(*, department_id=None, site_id=None):
+    queryset = AreaOperativa.objects.filter(
+        is_active=True,
+        is_deleted=False,
+        dependencia__is_active=True,
+        dependencia__is_deleted=False,
+        sede_fisica__is_active=True,
+        sede_fisica__is_deleted=False,
+    ).select_related(
+        "dependencia",
+        "dependencia__parent",
+        "dependencia__encargado_departamento",
+        "sede_fisica",
+        "sede_fisica__encargado_sede",
+    )
+    if department_id:
+        queryset = queryset.filter(
+            dependencia_id=_as_uuid(department_id, field_name="department_id")
+        )
+    if site_id:
+        queryset = queryset.filter(
+            sede_fisica_id=_as_uuid(site_id, field_name="site_id")
+        )
+    return tuple(_area_to_context(area) for area in queryset.order_by("nombre"))
+
+
+def list_users(*, department_id=None, area_id=None):
+    queryset = UserProfile.objects.filter(
+        user__is_active=True,
+        user__is_deleted=False,
+        is_active=True,
+        is_deleted=False,
+        area__is_active=True,
+        area__is_deleted=False,
+    ).select_related("user", "area", "area__dependencia")
+    if department_id:
+        queryset = queryset.filter(
+            area__dependencia_id=_as_uuid(
+                department_id,
+                field_name="department_id",
+            )
+        )
+    if area_id:
+        queryset = queryset.filter(
+            area_id=_as_uuid(area_id, field_name="area_id")
+        )
+    return tuple(
+        _user_to_identity(profile.user)
+        for profile in queryset.order_by(
+            "user__first_name",
+            "user__last_name",
+            "user__email",
+        )
+    )
+
+
 def get_module_role(
     user_id,
     *,
@@ -586,136 +669,6 @@ def user_can_approve_department(
         bypass_used=False,
         source="insufficient_authority",
     )
-
-
-def list_departments(
-    *,
-    site_id=None,
-    include_unavailable: bool = False,
-) -> tuple[DepartmentIdentity, ...]:
-    """Lista dependencias sin exponer modelos pertenecientes al Core."""
-
-    queryset = Dependencia.objects.select_related(
-        "parent",
-        "encargado_departamento",
-    )
-
-    if not include_unavailable:
-        queryset = queryset.filter(is_active=True, is_deleted=False)
-
-    if site_id:
-        resolved_site_id = _as_uuid(site_id, field_name="site_id")
-        department_ids = AreaOperativa.objects.filter(
-            sede_fisica_id=resolved_site_id,
-            is_active=True,
-            is_deleted=False,
-        ).values_list("dependencia_id", flat=True)
-        queryset = queryset.filter(pk__in=department_ids)
-
-    queryset = queryset.distinct().order_by(
-        "codigo_presupuestal",
-        "nombre",
-    )
-    return tuple(_department_to_identity(item) for item in queryset)
-
-
-def list_sites(
-    *,
-    include_unavailable: bool = False,
-) -> tuple[SiteIdentity, ...]:
-    """Lista sedes institucionales mediante contratos de Inventory."""
-
-    queryset = Sede.objects.select_related("encargado_sede")
-
-    if not include_unavailable:
-        queryset = queryset.filter(is_active=True, is_deleted=False)
-
-    queryset = queryset.order_by("nombre")
-    return tuple(_site_to_identity(item) for item in queryset)
-
-
-def list_areas(
-    *,
-    department_id=None,
-    site_id=None,
-    include_unavailable: bool = False,
-) -> tuple[AreaContext, ...]:
-    """Lista áreas, con filtros opcionales de dependencia y sede."""
-
-    queryset = AreaOperativa.objects.select_related(
-        "dependencia",
-        "dependencia__parent",
-        "dependencia__encargado_departamento",
-        "sede_fisica",
-        "sede_fisica__encargado_sede",
-    )
-
-    if not include_unavailable:
-        queryset = queryset.filter(
-            is_active=True,
-            is_deleted=False,
-            dependencia__is_active=True,
-            dependencia__is_deleted=False,
-            sede_fisica__is_active=True,
-            sede_fisica__is_deleted=False,
-        )
-
-    if department_id:
-        queryset = queryset.filter(
-            dependencia_id=_as_uuid(
-                department_id,
-                field_name="department_id",
-            )
-        )
-
-    if site_id:
-        queryset = queryset.filter(
-            sede_fisica_id=_as_uuid(site_id, field_name="site_id")
-        )
-
-    queryset = queryset.order_by("dependencia__nombre", "nombre")
-    return tuple(_area_to_context(item) for item in queryset)
-
-
-def list_users(
-    *,
-    department_id=None,
-    area_id=None,
-    include_unavailable: bool = False,
-) -> tuple[UserIdentity, ...]:
-    """Lista usuarios, opcionalmente adscritos a una dependencia."""
-
-    queryset = User.objects.all()
-
-    if not include_unavailable:
-        queryset = queryset.filter(is_active=True, is_deleted=False)
-
-    if department_id:
-        queryset = queryset.filter(
-            axentra_profile__area__dependencia_id=_as_uuid(
-                department_id,
-                field_name="department_id",
-            ),
-            axentra_profile__area__is_active=True,
-            axentra_profile__area__is_deleted=False,
-        )
-
-    if area_id:
-        queryset = queryset.filter(
-            axentra_profile__area_id=_as_uuid(
-                area_id,
-                field_name="area_id",
-            ),
-            axentra_profile__area__is_active=True,
-            axentra_profile__area__is_deleted=False,
-        )
-
-    queryset = queryset.distinct().order_by(
-        "first_name",
-        "last_name",
-        "email",
-    )
-    return tuple(_user_to_identity(item) for item in queryset)
 
 
 def list_department_approvers(
