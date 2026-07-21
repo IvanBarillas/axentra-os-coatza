@@ -1,9 +1,9 @@
 {% load axentra_ui %}
 
 <div class="hidden md:block bg-white rounded-[32px] border border-gray-200/80 shadow-3xs overflow-hidden">
-    <div class="overflow-x-auto w-full">
+    <div class="max-h-[62vh] w-full overflow-auto overscroll-contain [scrollbar-gutter:stable]">
         <table class="w-full text-left border-collapse select-none">
-            <thead>
+            <thead class="sticky top-0 z-10 bg-gray-50 shadow-[0_1px_0_rgba(229,231,235,.9)]">
                 <tr class="border-b border-gray-100 bg-gray-50/70 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-400">
                     <th class="py-4 px-6 font-semibold">Servidor Público</th>
                     <th class="py-4 px-6 font-semibold">Adscripción Estructural Resuelta</th>
@@ -19,7 +19,7 @@
     </div>
 </div>
 
-<div id="funcionario-mobile-container" class="block md:hidden space-y-3 w-full">
+<div id="funcionario-mobile-container" class="block max-h-[65vh] w-full space-y-3 overflow-y-auto overscroll-contain pr-1 md:hidden [scrollbar-gutter:stable]">
     {% include 'accounts/htmx/funcionario_cards.html' %}
 </div>
 

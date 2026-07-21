@@ -15,9 +15,9 @@
             hx-post="{% url 'security:expulsar_usuario_modulo_total' item.usuario.id app.id %}"
             hx-target="#user-row-container-{{ item.usuario.id }}"
             hx-swap="delete"
-            hx-confirm="🚨 ¿EJECUTAR PURGA TOTAL? Esta acción eliminará permanentemente la membresía y todo el árbol de llaves guardado para {{ item.usuario.full_name|upper }}."
+            hx-confirm="¿Confirma retirar a {{ item.usuario.full_name }} de esta aplicación? Se eliminarán su membresía y los permisos asignados."
             class="p-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition duration-150 cursor-pointer shadow-3xs"
-            title="Eliminar del Módulo Permanentemente">
+            title="Retirar de la aplicación">
         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
     </button>
     {% endif %}

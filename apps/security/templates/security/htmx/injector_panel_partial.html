@@ -8,14 +8,14 @@
           class="flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1">
             <select name="user_id" class="w-full h-11 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-950/10 appearance-none cursor-pointer">
-                <option value="" disabled selected>🔍 Seleccionar funcionario para inyección de llaves...</option>
+                <option value="" disabled selected>Seleccionar funcionario...</option>
                 {% for user in disponibles_para_inyectar %}
                     <option value="{{ user.id }}">{{ user.full_name|upper }} ({{ user.email }})</option>
                 {% endfor %}
             </select>
         </div>
         <button type="submit" class="h-11 px-6 bg-slate-950 text-white rounded-xl text-2xs font-black tracking-widest uppercase hover:bg-slate-900 transition flex items-center justify-center gap-2 font-mono shrink-0">
-            Inyectar al módulo →
+            Agregar a la aplicación →
         </button>
     </form>
 </div>

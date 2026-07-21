@@ -1,23 +1,6 @@
 {% load axentra_ui %}{% url 'accounts:funcionario_create' as create_url %}{% url 'accounts:funcionario_list' as list_url %}
 <div id="funcionario-form-workspace" class="w-full max-w-[1200px] mx-auto space-y-5 animate-fade-in select-none">
-    <header class="rounded-2xl border border-gray-200/80 bg-white px-5 py-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex items-start gap-3 min-w-0">
-            <div class="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
-                <i data-lucide="user-plus" class="h-5 w-5"></i>
-            </div>
-            <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">Accounts</span>
-                    <span class="inline-flex items-center rounded-md border border-amber-100 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-amber-700 font-mono">Alta de Expediente</span>
-                </div>
-                <h1 class="mt-2 text-xl font-black text-gray-950 uppercase tracking-tight leading-none font-mono">Nuevo Registro de Funcionario</h1>
-                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono">Aduana de personal, identidad central y adscripción estructural</p>
-            </div>
-        </div>
-        <a href="{{ list_url }}" hx-get="{{ list_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-wider text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-950 active:scale-95 font-mono">
-            <i data-lucide="arrow-left" class="h-4 w-4 text-gray-400"></i><span>Volver al listado</span>
-        </a>
-    </header>
+    {% include "components/form_header.html" with module_label="Usuarios" mode_label="Nuevo expediente" title="Registrar funcionario" description="Capture la identidad, los datos de contacto y la adscripción institucional del servidor público." icon="user-plus" back_url=list_url back_label="Volver al listado" %}
     <form method="POST" action="{{ create_url }}" hx-post="{{ create_url }}" hx-target="#page-content" hx-swap="innerHTML" class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm space-y-7 font-mono text-xs uppercase tracking-wide">
         {% csrf_token %}
         {% if form.non_field_errors %}

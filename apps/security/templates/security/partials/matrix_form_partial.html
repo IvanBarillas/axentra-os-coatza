@@ -13,7 +13,7 @@
         
         <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-4 gap-4 text-left">
             <div class="space-y-2 w-full sm:w-auto">
-                <div class="text-[9px] font-black text-gray-400 font-mono uppercase tracking-widest leading-none">// Inspección del Árbol de Credenciales</div>
+                <div class="text-[9px] font-black text-gray-400 font-mono uppercase tracking-widest leading-none">Permisos del funcionario</div>
                 
                 <div class="inline-flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 bg-slate-950 text-white px-3.5 py-2.5 rounded-xl shadow-sm border border-slate-800 max-w-full">
                     <div class="flex items-center gap-2">
@@ -32,7 +32,7 @@
             </div>
 
             <div class="flex items-center justify-between sm:justify-end gap-2 font-mono text-[10px] bg-gray-50/60 p-2 sm:p-0 rounded-xl border border-gray-100 sm:border-transparent">
-                <span class="text-gray-400 font-black uppercase tracking-wider pl-1 sm:pl-0">Rol de Dominio:</span>
+                <span class="text-gray-400 font-black uppercase tracking-wider pl-1 sm:pl-0">Rol asignado:</span>
                 {% if usuario_enfocado.bloqueo_visual %}
                     <span class="bg-gray-100 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-black uppercase tracking-wide shadow-3xs">
                         {{ usuario_enfocado.rol_actual|upper }}
@@ -51,21 +51,21 @@
         <div class="p-4 bg-amber-50 border border-amber-200 text-amber-950 font-mono text-[11px] rounded-xl flex gap-3 uppercase tracking-wide leading-relaxed text-left animate-fade-in">
             <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
             <div>
-                <strong class="text-amber-950 block font-black text-[10px] tracking-wider mb-0.5">// CONSOLA EN MODO DE LECTURA PROTEGIDO:</strong>
+                <strong class="text-amber-950 block font-black text-[10px] tracking-wider mb-0.5">Edición protegida</strong>
                 {% if usuario_enfocado.motivo_bloqueo == "auto_lock" %}
-                    No puedes auto-modificar tus llaves JSON. Auto-regulación activa.
+                    Por seguridad, no puedes modificar tus propios permisos.
                 {% elif usuario_enfocado.motivo_bloqueo == "owner_lock" %}
-                    El perfil del Owner Supremo es inmutable y se encuentra resguardado por el Core.
+                    El perfil del propietario del sistema está protegido y no puede modificarse aquí.
                 {% elif usuario_enfocado.motivo_bloqueo == "weight_lock" %}
-                    Violación de Escalafón: Este funcionario posee un peso jerárquico igual o superior a tus llaves locales.
+                    Este funcionario tiene un nivel de autoridad igual o superior al tuyo.
                 {% elif usuario_enfocado.motivo_bloqueo == "suspended_lock" %}
-                    La cuenta del funcionario se encuentra suspendida temporalmente. Reactive el switch para operar.
+                    La cuenta está suspendida temporalmente. Actívala para administrar sus permisos.
                 {% endif %}
             </div>
         </div>
         {% endif %}
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+        <div class="grid max-h-[52vh] grid-cols-1 gap-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] sm:grid-cols-2 md:gap-4">
             {% for p in usuario_enfocado.permisos %}
             <div class="p-3.5 border transition duration-150 rounded-xl flex items-start justify-between gap-3.5 select-none text-left {% if p.concedido_total %} bg-slate-50/60 border-gray-200/80 shadow-3xs {% else %} border-gray-100/70 opacity-60 {% endif %}" data-perm-card="{{ p.llave }}">
                 <div class="space-y-1 pr-1 truncate min-w-0 flex-1">
@@ -93,12 +93,12 @@
         <div class="pt-4 border-t border-gray-100 flex justify-end w-full">
             {% if usuario_enfocado.bloqueo_visual %}
                 <div class="w-full sm:w-auto bg-gray-100 text-gray-400 border border-gray-200 font-black py-3.5 px-8 rounded-xl text-[10px] uppercase tracking-widest select-none cursor-not-allowed font-mono text-center">
-                    Escritura Inhabilitada
+                    Edición no disponible
                 </div>
             {% else %}
                 <button type="submit" class="w-full sm:w-auto bg-gray-950 hover:bg-gray-900 text-white font-mono font-black text-[10px] uppercase tracking-widest py-3.5 px-8 rounded-xl transition transform active:scale-95 shadow-sm flex items-center justify-center gap-2 cursor-pointer">
                     <i data-lucide="lock" class="w-3.5 h-3.5 text-gray-400"></i>
-                    <span>Re-grabar Privilegios</span>
+                    <span>Guardar permisos</span>
                 </button>
             {% endif %}
         </div>
@@ -149,7 +149,7 @@
     <div class="w-12 h-12 md:w-14 md:h-14 bg-slate-50 rounded-xl md:rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 mx-auto mb-4 shadow-inner">
         <i data-lucide="fingerprint" class="w-5 h-5 md:w-6 md:h-6 stroke-1.5"></i>
     </div>
-    <h4 class="text-sm md:text-base font-black text-gray-950 tracking-tight font-mono uppercase">Consola de Llaves de Acceso</h4>
-    <p class="text-[10px] md:text-xs text-gray-400 font-bold font-mono mt-2 leading-relaxed uppercase">// Seleccione un funcionario del padrón izquierdo para escanear, auditar o mutar su mapa de privilegios locales en este nodo operativo.</p>
+    <h4 class="text-sm md:text-base font-black text-gray-950 tracking-tight font-mono uppercase">Permisos de acceso</h4>
+    <p class="text-[10px] md:text-xs text-gray-400 font-bold font-mono mt-2 leading-relaxed uppercase">Selecciona un funcionario de la lista para consultar o actualizar sus permisos en esta aplicación.</p>
 </div>
 {% endif %}

@@ -1,5 +1,5 @@
 <div class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden">
-    <div class="divide-y divide-gray-100">
+    <div class="max-h-[62vh] divide-y divide-gray-100 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
         {% for dep in dependencias %}
             {% include "organigrama/htmx/dependencia_row.html" %}
         {% empty %}
@@ -7,9 +7,9 @@
                 <div class="w-12 h-12 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3 text-gray-400">
                     <i data-lucide="building-2" class="w-5 h-5 stroke-1"></i>
                 </div>
-                <span class="text-xs font-black text-gray-950 uppercase tracking-widest block">// SIN DEPENDENCIAS REGISTRADAS</span>
+                <span class="text-xs font-black text-gray-950 uppercase tracking-widest block">Sin dependencias registradas</span>
                 <p class="text-[11px] text-gray-400 font-medium mt-1 uppercase leading-relaxed">
-                    Todavía no existen dependencias administrativas registradas en el organigrama institucional.
+                    Agrega la primera dependencia para construir el organigrama institucional.
                 </p>
             </div>
         {% endfor %}

@@ -40,12 +40,11 @@
                 </div>
 
                 <div class="flex-grow min-w-0">
+                    <p class="text-[10px] font-black uppercase tracking-widest opacity-60">
+                        {% if message.tags == 'error' %}No fue posible completar la acción{% elif message.tags == 'success' %}Acción completada{% elif message.tags == 'warning' %}Atención{% else %}Información{% endif %}
+                    </p>
                     <p class="text-sm font-bold tracking-tight leading-snug">
                         {{ message }}
-                    </p>
-
-                    <p class="mt-0.5 text-[10px] font-mono uppercase tracking-widest opacity-50">
-                        Axentra OS
                     </p>
                 </div>
 

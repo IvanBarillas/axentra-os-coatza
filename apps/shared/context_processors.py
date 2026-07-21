@@ -2,6 +2,8 @@
 
 import logging
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from apps.security.models import TenantConfig, UserAppRole
 from apps.shared.apps_config import AppIdentifier
 from apps.shared.manifest_registry import AxentraOSRegistry
@@ -28,6 +30,68 @@ def _usuario_es_root(request) -> bool:
 
 def _usuario_dado_de_baja(user) -> bool:
     return bool(getattr(user, "is_deleted", False))
+
+
+def _operator_identity(request, modulo_activo="launcher"):
+    """Identidad laboral y membresía visible para la barra global."""
+    user = request.user
+    full_name = (
+        getattr(user, "full_name", "")
+        or user.get_full_name()
+        or user.email
+    )
+    identity = {
+        "name": full_name,
+        "email": user.email,
+        "role": "Sesión activa",
+        "role_code": "",
+        "department": "Sin dependencia asignada",
+        "area": "Sin área asignada",
+        "position": "Sin puesto registrado",
+        "module": modulo_activo,
+        "is_global_admin": _usuario_es_root(request),
+    }
+
+    try:
+        profile = user.axentra_profile
+    except (AttributeError, ObjectDoesNotExist):
+        profile = None
+
+    if profile:
+        identity["position"] = profile.puesto or identity["position"]
+        area = getattr(profile, "area", None)
+        if area:
+            identity["area"] = area.nombre
+            dependencia = getattr(area, "dependencia", None)
+            if dependencia:
+                identity["department"] = dependencia.nombre
+
+    if identity["is_global_admin"]:
+        identity["role"] = "Administrador global"
+        identity["role_code"] = "root"
+        return identity
+
+    if modulo_activo and modulo_activo != "launcher":
+        membership = (
+            UserAppRole.objects
+            .filter(
+                user=user,
+                app__slug=modulo_activo,
+                is_active=True,
+                is_deleted=False,
+                app__is_active=True,
+                app__is_deleted=False,
+            )
+            .only("role")
+            .first()
+        )
+        if membership:
+            identity["role_code"] = membership.role
+            identity["role"] = membership.role.replace("_", " ").title()
+        else:
+            identity["role"] = "Sin rol en este módulo"
+
+    return identity
 
 
 def _normalizar_sidebar_item(item):
@@ -261,6 +325,11 @@ def menu_dinamico_processor(request):
         modulo_activo = request.resolver_match.namespace
 
     modulo_activo = _normalizar_module_identifier(modulo_activo or "launcher")
+
+    context["operator_identity"] = _operator_identity(
+        request,
+        modulo_activo,
+    )
 
     if not modulo_activo or modulo_activo == "launcher":
         return context

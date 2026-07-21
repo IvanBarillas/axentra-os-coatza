@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load axentra_ui %}
 
-{% block title %}Acceso Restringido | {{ tenant.app_name }}{% endblock %}
+{% block title %}Acceso restringido | {{ tenant.app_name }}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 w-full select-none animate-fade-in relative overflow-hidden">
@@ -11,15 +11,15 @@
             <i data-lucide="shield-alert" class="w-6 h-6"></i>
         </div>
         
-        <h2 class="text-2xl font-bold text-gray-950 tracking-tight">Acceso Restringido</h2>
-        <p class="text-[10px] uppercase font-bold tracking-widest text-amber-600 font-mono mb-5">Error 403 - No Autorizado</p>
+        <h2 class="text-2xl font-bold text-gray-950 tracking-tight">No tienes acceso a esta sección</h2>
+        <p class="text-[10px] uppercase font-bold tracking-widest text-amber-600 font-mono mb-5">Acceso restringido · Error 403</p>
         
         <div class="bg-gray-50/60 p-5 rounded-xl border border-gray-200 text-left mb-6 space-y-2.5">
             <p class="text-gray-600 text-xs font-semibold leading-relaxed">
-                Tu cuenta institucional de funcionario no cuenta con las credenciales o el **Rol de Aplicación** necesario para operar este módulo.
+                Tu cuenta institucional no tiene el permiso necesario para realizar esta operación.
             </p>
             <p class="text-gray-400 text-[11px] font-medium leading-relaxed">
-                Si tus funciones requieren colaborar en esta sección, solicita la activación de los privilegios correspondientes al administrador de tu dependencia mediante la Matriz de Permisos.
+                Si necesitas ingresar por tus funciones, solicita acceso al responsable de tu dependencia o al administrador del sistema.
             </p>
         </div>
         
@@ -28,13 +28,13 @@
                 Regresar
             </a>
             <a href="{% url 'index_hub' %}" class="bg-gray-950 hover:bg-gray-900 text-white text-[10px] font-bold py-3 px-6 rounded-xl transition shadow-sm uppercase tracking-wider font-mono">
-                Panel Principal
+                Ir al inicio
             </a>
         </div>
     </div>
     
     <p class="text-center text-[9px] font-bold text-gray-400 mt-6 font-mono uppercase tracking-widest z-10">
-        AXENTRA OS SECURITY • CAPA DE CONTROL INTERNO MUNICIPAL
+        Axentra OS · Control de acceso institucional
     </p>
 </div>
 {% endblock %}

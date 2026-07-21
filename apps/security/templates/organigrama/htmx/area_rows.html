@@ -1,5 +1,5 @@
 <div class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden">
-    <div class="divide-y divide-gray-100">
+    <div class="max-h-[62vh] divide-y divide-gray-100 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
         {% for area in areas %}
             {% include "organigrama/htmx/area_row.html" %}
         {% empty %}
@@ -7,9 +7,9 @@
                 <div class="w-12 h-12 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3 text-gray-400">
                     <i data-lucide="layout-grid" class="w-5 h-5 stroke-1"></i>
                 </div>
-                <span class="text-xs font-black text-gray-950 uppercase tracking-widest block">// SIN ÁREAS OPERATIVAS</span>
+                <span class="text-xs font-black text-gray-950 uppercase tracking-widest block">Sin áreas operativas</span>
                 <p class="text-[11px] text-gray-400 font-medium mt-1 uppercase leading-relaxed">
-                    Todavía no existen áreas operativas vinculando dependencias con sedes físicas.
+                    Agrega la primera área y asígnala a su dependencia y sede correspondiente.
                 </p>
             </div>
         {% endfor %}

@@ -5,36 +5,11 @@
     {% url 'accounts:funcionario_list' as action_url %}
     {% url 'accounts:funcionario_create' as create_url %}
 
-    <header class="rounded-2xl border border-gray-200/80 bg-white px-5 py-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex items-start gap-3 min-w-0">
-            <div class="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
-                <i data-lucide="users" class="h-5 w-5"></i>
-            </div>
-            <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700">
-                        Accounts
-                    </span>
-                    <span class="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">
-                        Padrón Activo
-                    </span>
-                </div>
-                <h1 class="mt-2 text-xl font-black text-gray-950 uppercase tracking-tight leading-none">
-                    Plantilla de Personal
-                </h1>
-                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
-                    Control institucional de funcionarios, adscripción estructural y cuentas de acceso
-                </p>
-            </div>
-        </div>
-
-        {% if request.axentra_is_root or "can_create_user" in request.axentra_permissions_list %}
-            <a href="{{ create_url }}" hx-get="{{ create_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-gray-900 active:scale-95">
-                <i data-lucide="user-plus" class="h-4 w-4 text-gray-400"></i>
-                <span>Nuevo Registro</span>
-            </a>
-        {% endif %}
-    </header>
+    {% if request.axentra_is_root or "can_create_user" in request.axentra_permissions_list %}
+        {% include "components/list_header.html" with module_label="Usuarios" status_label="Directorio activo" title="Plantilla de personal" description="Consulta funcionarios, adscripción institucional y estado de sus cuentas de acceso." icon="users" action_url=create_url action_label="Nuevo funcionario" action_icon="user-plus" %}
+    {% else %}
+        {% include "components/list_header.html" with module_label="Usuarios" status_label="Directorio activo" title="Plantilla de personal" description="Consulta funcionarios, adscripción institucional y estado de sus cuentas de acceso." icon="users" %}
+    {% endif %}
 
     <form method="GET" action="{{ action_url }}" class="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm" hx-get="{{ action_url }}" hx-target="#funcionario-results" hx-swap="innerHTML" hx-include="[name='q'], [name='sede'], [name='dependencia']">
         <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">

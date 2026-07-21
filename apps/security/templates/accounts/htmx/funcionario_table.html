@@ -32,26 +32,26 @@
 
     <td class="py-5 px-6 text-center font-mono align-middle">
         {% if funcionario.is_email_verified %}
-            <span class="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">Verified</span>
+            <span class="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">Verificado</span>
         {% else %}
-            <span class="inline-flex items-center rounded-lg bg-gray-950 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">Pending</span>
+            <span class="inline-flex items-center rounded-lg bg-gray-950 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">Pendiente</span>
         {% endif %}
     </td>
 
     <td class="py-5 px-6 text-center font-mono align-middle">
         {% if funcionario.is_superuser %}
-            <span class="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-700">ROL::ROOT</span>
+            <span class="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-700">Propietario</span>
         {% elif funcionario.is_manager %}
-            <span class="inline-flex items-center rounded-lg border border-purple-200 bg-purple-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-purple-700">ROL::MANAGER</span>
+            <span class="inline-flex items-center rounded-lg border border-purple-200 bg-purple-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-purple-700">Administrador</span>
         {% else %}
-            <span class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">ROL::OPERATOR</span>
+            <span class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">Usuario</span>
         {% endif %}
     </td>
 </tr>
 {% empty %}
 <tr>
     <td colspan="5" class="py-14 text-center text-gray-400 font-mono uppercase text-[11px] font-black tracking-widest border-dashed border-2 border-gray-100 rounded-[24px]">
-        // No se encontraron registros de personal activos bajo los criterios de filtrado.
+        No se encontraron funcionarios con los filtros seleccionados.
     </td>
 </tr>
 {% endfor %}
