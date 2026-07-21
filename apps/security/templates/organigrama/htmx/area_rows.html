@@ -1,5 +1,5 @@
 <div class="bg-white border border-gray-200/80 rounded-[28px] shadow-3xs overflow-hidden">
-    <div class="divide-y divide-gray-100">
+    <div class="max-h-[62vh] divide-y divide-gray-100 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
         {% for area in areas %}
             {% include "organigrama/htmx/area_row.html" %}
         {% empty %}
