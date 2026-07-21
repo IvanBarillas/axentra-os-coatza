@@ -31,7 +31,7 @@
             {% if request.axentra_is_root or "can_change_password" in request.axentra_permissions_list %}
                 <a href="{{ password_url }}" hx-get="{{ password_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-push-url="true" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-gray-900 active:scale-95">
                     <i data-lucide="key-round" class="h-4 w-4 text-gray-400"></i>
-                    <span>Password</span>
+                    <span>Contraseña</span>
                 </a>
             {% endif %}
         </div>
@@ -56,9 +56,9 @@
                     {% if funcionario.is_superuser %}
                         <span class="rounded-md border border-red-100 bg-red-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-700">Root</span>
                     {% elif funcionario.is_manager %}
-                        <span class="rounded-md border border-purple-100 bg-purple-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-purple-700">Manager</span>
+                        <span class="rounded-md border border-purple-100 bg-purple-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-purple-700">Administrador</span>
                     {% else %}
-                        <span class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-600">Operator</span>
+                        <span class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-600">Usuario</span>
                     {% endif %}
                 </div>
 
@@ -137,15 +137,15 @@
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 text-rose-700">
                         <i data-lucide="shield-alert" class="h-4 w-4"></i>
-                        <h3 class="text-sm font-black uppercase tracking-tight">Zona Crítica</h3>
+                        <h3 class="text-sm font-black uppercase tracking-tight">Administración de la cuenta</h3>
                     </div>
                     <p class="mt-1 text-[10px] font-bold uppercase tracking-wider text-rose-700/70">Las acciones de esta sección alteran el ciclo de vida institucional del funcionario.</p>
                 </div>
-                <form method="POST" action="{{ delete_url }}" hx-post="{{ delete_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-confirm="Confirmar Lockdown: ¿Está seguro de aplicar la baja lógica institucional? Se revocarán todos los accesos.">
+                <form method="POST" action="{{ delete_url }}" hx-post="{{ delete_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-confirm="¿Confirma la baja del funcionario? Se revocarán todos sus accesos.">
                     {% csrf_token %}
                     <button type="submit" class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95">
                         <i data-lucide="trash-2" class="h-4 w-4 text-rose-100"></i>
-                        <span>Aplicar Baja Lógica</span>
+                        <span>Dar de baja</span>
                     </button>
                 </form>
             </div>

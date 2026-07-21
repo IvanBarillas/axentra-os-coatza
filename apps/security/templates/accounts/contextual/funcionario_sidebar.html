@@ -16,14 +16,9 @@
                     <i data-lucide="{{ item.icon|default:'circle' }}" class="w-4 h-4 shrink-0"></i>
                     <span class="truncate flex-1">{{ item.title }}</span>
                     {% if item.stub %}
-                        <span class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-700" title="Vista temporal hasta integrar la app {{ item.provider }}">Stub</span>
+                        <span class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-700">Próximamente</span>
                     {% endif %}
                 </a>
-                {% if item.provider and item.provider != "accounts" %}
-                    <div class="pl-9 pr-2 -mt-0.5 mb-1">
-                        <span class="text-[8px] font-black uppercase tracking-[0.16em] text-gray-300">provider::{{ item.provider }}</span>
-                    </div>
-                {% endif %}
             {% empty %}
                 <div class="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-center">
                     <div class="text-[10px] font-black uppercase tracking-widest text-gray-400">Sin accesos contextuales</div>
