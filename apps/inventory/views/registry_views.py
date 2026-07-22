@@ -2,7 +2,7 @@
 
 from django import forms
 from django.core.exceptions import PermissionDenied
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -23,6 +23,9 @@ from apps.inventory.forms import (
     AssetLoanReturnForm,
     AssetLoanReturnRequestForm,
     DepartmentLoanDecisionForm,
+    AssetLocationChangeForm,
+    AssetReassignmentForm,
+    AssetTransferForm,
     DisposalCancelForm,
     DisposalExecuteForm,
     DisposalFinalApprovalForm,
@@ -31,6 +34,7 @@ from apps.inventory.forms import (
     DisposalSubmitForm,
     DisposalStageDocumentUploadForm,
     DocumentValidationResolveForm,
+    ContextDocumentUploadForm,
     PhysicalAuditCancelForm,
     PhysicalAuditCloseForm,
     PhysicalAuditCreateForm,
@@ -46,6 +50,8 @@ from apps.inventory.forms import (
 from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     AssetDocument,
+    AssetMovementRequest,
+    AssetMovementRequestStatus,
     AssetPhoto,
     DisposalStageDocumentRequirement,
     DocumentValidationStatus,
@@ -54,7 +60,7 @@ from apps.inventory.models import (
 )
 
 from apps.inventory.selectors import (
-    AssetSelectors, CoreDirectorySelectors, CustodySelectors, DisposalSelectors, DocumentSelectors, FinancialSelectors,
+    AssetSelectors, CoreDirectorySelectors, CustodySelectors, DisposalSelectors, DocumentSelectors, FinancialSelectors, IntakeSelectors,
     LoanSelectors, MovementSelectors, PhysicalAuditSelectors, RegistryScope,
 )
 from apps.security.decorators import axentra_gate_enforcer
@@ -85,6 +91,7 @@ from apps.inventory.services import (
     submit_disposal_request,
     resolve_inventory_document,
     upload_disposal_stage_document,
+    upload_inventory_document,
     begin_physical_audit_reconciliation,
     cancel_physical_audit,
     close_physical_audit,
@@ -98,9 +105,14 @@ from apps.inventory.services import (
     start_physical_audit,
     upload_physical_audit_document,
     upload_physical_audit_photo,
+    build_audit_request_context,
+    accept_movement_destination,
+    approve_movement_origin,
+    create_movement_request,
+    execute_approved_movement,
 )
 
-from .access import custody_scope, department_id, disposal_scope, has_any_permission, loan_scope, physical_audit_scope, require_any_permission
+from .access import asset_scope, custody_scope, department_id, disposal_scope, has_any_permission, intake_scope, loan_scope, movement_scope, physical_audit_scope, require_any_permission
 from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
 
 
@@ -313,16 +325,122 @@ def custody_cancel_view(request, custody_id):
     return _custody_action(request, custody_id, CustodyCancelForm, lambda c, f: cancel_custody_assignment(custody_id=c.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Resguardo cancelado.")
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_movements")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_list_view(request):
+    require_any_permission(request, "can_manage_movements", "can_authorize_movements")
     f = _filters(request, "q", "asset_id", "movement_type")
-    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "movements":MovementSelectors.listar(**f), "movement_types":MovementType.choices, **f})
+    scope, scope_department_id = movement_scope(request)
+    requests_qs = AssetMovementRequest.objects.filter(is_deleted=False).select_related("asset", "origin_dependencia", "destination_dependencia")
+    if scope == RegistryScope.DEPARTMENT:
+        requests_qs = requests_qs.filter(Q(origin_dependencia_id=scope_department_id) | Q(destination_dependencia_id=scope_department_id))
+    elif scope == RegistryScope.OWN:
+        requests_qs = requests_qs.filter(requested_by_id=request.user.pk)
+    requests_qs = requests_qs.exclude(status__in=[AssetMovementRequestStatus.EXECUTED, AssetMovementRequestStatus.CANCELLED])
+    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "movement_requests":requests_qs.order_by("-requested_at"), "movements":MovementSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "movement_types":MovementType.choices, "can_create_movement":scope in {RegistryScope.GLOBAL, RegistryScope.DEPARTMENT}, **f})
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_movements")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_detail_view(request, movement_id):
-    movement = selector_or_404(lambda: MovementSelectors.obtener(movement_id))
+    require_any_permission(request, "can_manage_movements", "can_authorize_movements")
+    scope, scope_department_id = movement_scope(request)
+    movement = selector_or_404(lambda: MovementSelectors.obtener(movement_id, scope=scope, actor_id=request.user.pk, department_id=scope_department_id))
     return render_inventory(request, page="inventory/pages/movement_detail.html", content="inventory/content/movement_detail_content.html", context={"current_inventory_view":"inventory:movement_list", "movement":movement})
+
+
+_MOVEMENT_FORMS = {
+    "transferencia": (AssetTransferForm, "Transferencia definitiva"),
+    "reasignacion": (AssetReassignmentForm, "Cambio de resguardatario"),
+    "ubicacion": (AssetLocationChangeForm, "Cambio de ubicación"),
+}
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def movement_directory_options_view(request):
+    require_any_permission(request, "can_manage_movements", "can_authorize_movements")
+    site_id = request.GET.get("site_id", "").strip() or None
+    department_id_value = request.GET.get("department_id", "").strip() or None
+    choices = CoreDirectorySelectors.form_choices(site_id=site_id, department_id=department_id_value)
+    return JsonResponse({key:[{"value":str(value),"label":label} for value,label in values] for key,values in choices.items()})
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def movement_create_view(request, movement_kind):
+    require_any_permission(request, "can_manage_movements", "can_authorize_movements")
+    definition = _MOVEMENT_FORMS.get(movement_kind)
+    if not definition:
+        raise PermissionDenied("El tipo de movimiento solicitado no está habilitado.")
+    form_class, title = definition
+    scope, scope_department_id = movement_scope(request)
+    form = apply_directory_choices(form_class(request.POST or None))
+    assets = AssetSelectors.listar_activos(
+        scope=scope,
+        actor_id=request.user.pk,
+        scope_department_id=scope_department_id,
+    )
+    form.fields["asset_id"].choices = [
+        ("", "--- Seleccione un bien ---"),
+        *((str(asset.id), f"{asset.display_inventory_number} · {asset.name}") for asset in assets),
+    ]
+    if request.method == "POST" and form.is_valid():
+        item = run_service(form, lambda: create_movement_request(data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if item:
+            success(request, f"Solicitud {item.folio} registrada correctamente.")
+            return redirect(reverse("inventory:movement_request_detail", kwargs={"request_id":item.id}))
+    return render_inventory(request, page="inventory/pages/movement_form.html", content="inventory/content/movement_form_content.html", context={"current_inventory_view":"inventory:movement_list", "form":form, "form_title":title}, status=422 if request.method == "POST" else 200)
+
+
+def _movement_request(request, request_id):
+    scope, scope_department_id = movement_scope(request)
+    qs = AssetMovementRequest.objects.select_related("asset", "origin_dependencia", "origin_area", "origin_sede", "origin_custodian", "destination_dependencia", "destination_area", "destination_sede", "destination_custodian", "requested_by", "resulting_movement").filter(is_deleted=False)
+    if scope == RegistryScope.DEPARTMENT:
+        qs = qs.filter(Q(origin_dependencia_id=scope_department_id) | Q(destination_dependencia_id=scope_department_id))
+    elif scope == RegistryScope.OWN:
+        qs = qs.filter(requested_by_id=request.user.pk)
+    return selector_or_404(lambda: qs.get(pk=request_id))
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def movement_request_detail_view(request, request_id):
+    item = _movement_request(request, request_id)
+    scope_department_id = department_id(request)
+    root = bool(getattr(request, "axentra_is_root", False))
+    return render_inventory(request, page="inventory/pages/movement_request_detail.html", content="inventory/content/movement_request_detail_content.html", context={"current_inventory_view":"inventory:movement_list", "movement_request":item, "can_approve_origin":item.status == AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL and (root or (item.origin_dependencia_id == scope_department_id and has_any_permission(request,"can_authorize_movements"))), "can_accept_destination":item.status == AssetMovementRequestStatus.PENDING_DESTINATION_ACCEPTANCE and (root or (item.destination_dependencia_id == scope_department_id and has_any_permission(request,"can_authorize_movements"))), "can_execute_movement":item.status == AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION and has_any_permission(request,"can_manage_movements")})
+
+
+class _MovementDecisionForm(forms.Form):
+    approve = forms.BooleanField(required=False, label="Aprobar")
+    comment = forms.CharField(required=False, label="Comentario", widget=forms.Textarea(attrs={"rows":3}))
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_authorize_movements")
+def movement_origin_decision_view(request, request_id):
+    item = _movement_request(request, request_id); form = _MovementDecisionForm(request.POST)
+    if form.is_valid():
+        result = run_service(form, lambda: approve_movement_origin(request_id=item.id, actor_id=request.user.pk, approve=form.cleaned_data["approve"], comment=form.cleaned_data["comment"], request=request))
+        if result: success(request, "Decisión de la dependencia origen registrada.")
+    return redirect(reverse("inventory:movement_request_detail", kwargs={"request_id":item.id}))
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_authorize_movements")
+def movement_destination_decision_view(request, request_id):
+    item = _movement_request(request, request_id); form = _MovementDecisionForm(request.POST)
+    if form.is_valid():
+        result = run_service(form, lambda: accept_movement_destination(request_id=item.id, actor_id=request.user.pk, approve=form.cleaned_data["approve"], comment=form.cleaned_data["comment"], request=request))
+        if result: success(request, "Decisión de la dependencia destino registrada.")
+    return redirect(reverse("inventory:movement_request_detail", kwargs={"request_id":item.id}))
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_movements")
+def movement_execute_view(request, request_id):
+    item = _movement_request(request, request_id)
+    result = execute_approved_movement(request_id=item.id, actor=request.user, request_context=build_audit_request_context(request))
+    success(request, "Movimiento ejecutado y expediente actualizado.")
+    return redirect(reverse("inventory:movement_detail", kwargs={"movement_id":result.resulting_movement_id}))
 
 
 def _loan_scope(request):
@@ -833,10 +951,68 @@ def disposal_document_validate_view(request, disposal_id, document_id):
     return render_inventory(request, page="inventory/pages/disposal_action_form.html", content="inventory/content/disposal_action_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "form":form, "form_title":f"Validar documento · {document.title}"}, status=422 if request.method == "POST" else 200)
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_documents")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def document_list_view(request):
+    require_any_permission(request, "can_manage_documents", "can_validate_documents")
     f = _filters(request, "owner_type", "owner_id", "document_type", "validation_status", "q")
-    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":DocumentSelectors.documents(**f), "validation_statuses":DocumentValidationStatus.choices, **f})
+    scope, scope_department_id = asset_scope(request)
+    include_restricted = has_any_permission(request, "can_view_restricted_documents")
+    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":DocumentSelectors.documents(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id, include_restricted=include_restricted), "validation_statuses":DocumentValidationStatus.choices, "owner_types":InventoryDocumentOwnerType.choices, "can_validate_documents":has_any_permission(request,"can_validate_documents"), **f})
+
+
+def _document_owner_context(request, owner_type, owner_id):
+    if owner_type == InventoryDocumentOwnerType.ASSET:
+        scope, dep = asset_scope(request); owner = selector_or_404(lambda: AssetSelectors.obtener(owner_id, scope=scope, actor_id=request.user.pk, department_id=dep)); return owner, owner.id, str(owner)
+    if owner_type == InventoryDocumentOwnerType.INTAKE_REQUEST:
+        scope, dep = intake_scope(request); owner = selector_or_404(lambda: IntakeSelectors.obtener(owner_id, scope=scope, actor_id=request.user.pk, department_id=dep)); return owner, None, str(owner)
+    if owner_type == InventoryDocumentOwnerType.CUSTODY_ASSIGNMENT:
+        owner = _custody(request, owner_id); return owner, owner.asset_id, str(owner)
+    if owner_type == InventoryDocumentOwnerType.LOAN:
+        scope, dep = loan_scope(request); owner = selector_or_404(lambda: LoanSelectors.obtener(owner_id, scope=scope, actor_id=request.user.pk, department_id=dep)); return owner, owner.asset_id, str(owner)
+    if owner_type == InventoryDocumentOwnerType.MOVEMENT:
+        scope, dep = movement_scope(request); owner = selector_or_404(lambda: MovementSelectors.obtener(owner_id, scope=scope, actor_id=request.user.pk, department_id=dep)); return owner, owner.asset_id, str(owner)
+    if owner_type == InventoryDocumentOwnerType.MOVEMENT_REQUEST:
+        owner = _movement_request(request, owner_id); return owner, owner.asset_id, str(owner)
+    if owner_type == InventoryDocumentOwnerType.DISPOSAL_REQUEST:
+        owner = _disposal(request, owner_id); return owner, owner.asset_id, str(owner)
+    if owner_type == InventoryDocumentOwnerType.PHYSICAL_AUDIT_SESSION:
+        owner = _physical_audit(request, owner_id); return owner, None, str(owner)
+    raise PermissionDenied("Este expediente no admite carga documental desde esta vista.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_documents")
+def document_upload_view(request, owner_type, owner_id):
+    owner_type = str(owner_type).strip().upper()
+    owner, asset_id, owner_label = _document_owner_context(request, owner_type, owner_id)
+    form = ContextDocumentUploadForm(request.POST or None, request.FILES or None, owner_type=owner_type, owner_id=owner.id)
+    if request.method == "POST" and form.is_valid():
+        document = run_service(form, lambda: upload_inventory_document(data=form.to_dto(), actor_id=request.user.pk, authorized_owner=owner, request=request))
+        if document:
+            success(request, "Documento agregado y enviado a validación.")
+            return redirect(reverse("inventory:document_list") + f"?owner_type={owner_type}&owner_id={owner.id}")
+    return render_inventory(request, page="inventory/pages/document_form.html", content="inventory/content/document_form_content.html", context={"current_inventory_view":"inventory:document_list", "form":form, "owner_label":owner_label, "owner_type_label":dict(InventoryDocumentOwnerType.choices).get(owner_type, owner_type)}, status=422 if request.method == "POST" else 200)
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def document_download_view(request, document_id):
+    scope, dep = asset_scope(request)
+    document = selector_or_404(lambda: DocumentSelectors.obtener_documento(document_id, scope=scope, actor_id=request.user.pk, department_id=dep, include_restricted=has_any_permission(request,"can_view_restricted_documents")))
+    return FileResponse(document.file.open("rb"), as_attachment=False, filename=document.original_filename)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_validate_documents")
+def document_validate_view(request, document_id):
+    scope, dep = asset_scope(request)
+    document = selector_or_404(lambda: DocumentSelectors.obtener_documento(document_id, scope=scope, actor_id=request.user.pk, department_id=dep, include_restricted=True))
+    form = DocumentValidationResolveForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: resolve_inventory_document(document_id=document.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if result:
+            success(request, "Validación documental registrada.")
+            return redirect("inventory:document_list")
+    return render_inventory(request, page="inventory/pages/document_form.html", content="inventory/content/document_form_content.html", context={"current_inventory_view":"inventory:document_list", "form":form, "form_title":"Validar documento", "owner_label":document.title, "owner_type_label":"Validación documental"}, status=422 if request.method == "POST" else 200)
 
 
 def _physical_audit(request, session_id):

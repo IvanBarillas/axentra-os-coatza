@@ -13,7 +13,16 @@ from .intake_service import (
     observe_patrimony_intake,
     register_approved_intake, send_to_patrimony, submit_intake,
 )
-from .movement_service import create_movement
+from .movement_service import (
+    accept_movement_destination,
+    approve_movement_origin,
+    create_movement_request,
+    create_movement,
+    execute_location_change,
+    execute_reassignment,
+    execute_transfer,
+    execute_approved_movement,
+)
 from .photo_service import upload_asset_photo
 from .custody_service import (
     accept_custody_assignment,
@@ -47,6 +56,7 @@ from .disposal_service import (
 from .document_service import (
     resolve_inventory_document,
     upload_disposal_stage_document,
+    upload_inventory_document,
 )
 from .physical_audit_service import (
     begin_physical_audit_reconciliation,

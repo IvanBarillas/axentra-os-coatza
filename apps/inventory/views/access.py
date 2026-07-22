@@ -105,6 +105,14 @@ def loan_scope(request):
     return "OWN", None
 
 
+def movement_scope(request):
+    if has_any_permission(request, "can_manage_movements"):
+        return "GLOBAL", None
+    if has_any_permission(request, "can_authorize_movements"):
+        return "DEPARTMENT", department_id(request)
+    return "OWN", None
+
+
 def disposal_scope(request):
     if has_any_permission(
         request,
@@ -137,6 +145,7 @@ __all__ = [
     "intake_scope",
     "is_inventory_root",
     "loan_scope",
+    "movement_scope",
     "physical_audit_scope",
     "permission_keys",
     "require_any_permission",

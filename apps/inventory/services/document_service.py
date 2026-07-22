@@ -8,6 +8,12 @@ from django.utils import timezone
 from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     AssetDocument,
+    Asset,
+    AssetIntakeRequest,
+    AssetLoan,
+    AssetMovementRequest,
+    CustodyAssignment,
+    DisposalRequest,
     DisposalApproval,
     DisposalApprovalDecision,
     DisposalStageDocumentRequirement,
@@ -18,6 +24,8 @@ from apps.inventory.models import (
     DocumentValidationStatus,
     InventoryAuditAction,
     InventoryDocumentOwnerType,
+    InventoryMovement,
+    PhysicalAuditSession,
 )
 from apps.inventory.services.audit_service import (
     build_audit_request_context,
@@ -61,6 +69,38 @@ def _approval(approval_id):
         ).get(pk=approval_id, is_deleted=False)
     except DisposalApproval.DoesNotExist as exc:
         raise InventoryValidationError("La etapa de baja no existe.") from exc
+
+
+_DOCUMENT_OWNER_MODELS = {
+    InventoryDocumentOwnerType.ASSET: Asset,
+    InventoryDocumentOwnerType.INTAKE_REQUEST: AssetIntakeRequest,
+    InventoryDocumentOwnerType.CUSTODY_ASSIGNMENT: CustodyAssignment,
+    InventoryDocumentOwnerType.MOVEMENT: InventoryMovement,
+    InventoryDocumentOwnerType.MOVEMENT_REQUEST: AssetMovementRequest,
+    InventoryDocumentOwnerType.LOAN: AssetLoan,
+    InventoryDocumentOwnerType.DISPOSAL_REQUEST: DisposalRequest,
+    InventoryDocumentOwnerType.PHYSICAL_AUDIT_SESSION: PhysicalAuditSession,
+}
+
+
+def _document_owner(owner_type, owner_id):
+    model = _DOCUMENT_OWNER_MODELS.get(owner_type)
+    if model is None:
+        raise InventoryValidationError("Este tipo de expediente no admite carga documental general.")
+    try:
+        return model.objects.get(pk=owner_id, is_deleted=False)
+    except model.DoesNotExist as exc:
+        raise InventoryValidationError("El expediente propietario no existe o no está disponible.") from exc
+
+
+def _owner_asset_id(owner_type, owner):
+    if owner_type == InventoryDocumentOwnerType.ASSET:
+        return owner.id
+    if hasattr(owner, "asset_id"):
+        return owner.asset_id
+    if owner_type == InventoryDocumentOwnerType.INTAKE_REQUEST:
+        return getattr(getattr(owner, "registered_asset", None), "id", None)
+    return None
 
 
 def _event(document, event_type, previous, actor, request, comment=""):
@@ -172,6 +212,53 @@ def upload_disposal_stage_document(*, approval_id, data, actor_id, request=None)
 
 
 @transaction.atomic
+def upload_inventory_document(*, data, actor_id, authorized_owner, request=None):
+    """Carga un PDF a un expediente interno previamente autorizado por scope."""
+    actor = _actor(actor_id, "can_manage_documents")
+    owner = _document_owner(data.owner_type, data.owner_id)
+    if (
+        authorized_owner.__class__ is not owner.__class__
+        or authorized_owner.pk != owner.pk
+    ):
+        raise InventoryAuthorizationError(
+            "El expediente autorizado no corresponde al documento solicitado."
+        )
+    uploaded = data.file
+    document = AssetDocument(
+        owner_type=data.owner_type,
+        owner_id=data.owner_id,
+        document_type=data.document_type,
+        title=_text(data.title),
+        description=_text(data.description),
+        file=uploaded,
+        original_filename=data.original_filename,
+        content_type=data.content_type,
+        file_size=getattr(uploaded, "size", None),
+        sha256_hash=_hash(uploaded),
+        access_level=data.access_level,
+        is_required_evidence=bool(data.is_required_evidence),
+        external_reference=_text(data.external_reference),
+        uploaded_by_id=actor.id,
+        uploaded_by_name_snapshot=actor.display_name,
+        uploaded_by_email_snapshot=actor.normalized_email,
+        metadata={"source": "inventory_context_upload"},
+    )
+    document.full_clean()
+    document.save()
+    _event(document, DocumentValidationEventType.UPLOADED, "", actor, request)
+    log_inventory_event(
+        action=InventoryAuditAction.UPLOAD,
+        summary="Documento agregado al expediente de Inventory",
+        actor_id=actor.id,
+        asset_id=_owner_asset_id(data.owner_type, owner),
+        target=document,
+        new_value=model_snapshot(document),
+        request_context=build_audit_request_context(request),
+    )
+    return document
+
+
+@transaction.atomic
 def resolve_inventory_document(*, document_id, data, actor_id, request=None):
     actor = _actor(actor_id, "can_validate_documents")
     try:
@@ -208,4 +295,4 @@ def resolve_inventory_document(*, document_id, data, actor_id, request=None):
     return document
 
 
-__all__ = ["resolve_inventory_document", "upload_disposal_stage_document"]
+__all__ = ["resolve_inventory_document", "upload_disposal_stage_document", "upload_inventory_document"]

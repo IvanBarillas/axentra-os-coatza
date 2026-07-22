@@ -68,6 +68,10 @@ class InventoryDocumentOwnerType(models.TextChoices):
         "Resguardo",
     )
     MOVEMENT = "MOVEMENT", "Movimiento patrimonial"
+    MOVEMENT_REQUEST = (
+        "MOVEMENT_REQUEST",
+        "Solicitud de movimiento",
+    )
     LOAN = "LOAN", "Préstamo"
     DISPOSAL_REQUEST = (
         "DISPOSAL_REQUEST",

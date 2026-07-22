@@ -45,6 +45,9 @@ from apps.inventory.views import (
     disposal_stage_document_upload_view,
     disposal_document_validate_view,
     document_list_view,
+    document_upload_view,
+    document_download_view,
+    document_validate_view,
     financial_dashboard_view,
     intake_approve_view,
     intake_cancel_view,
@@ -77,6 +80,12 @@ from apps.inventory.views import (
     loan_return_view,
     loan_submit_view,
     movement_detail_view,
+    movement_create_view,
+    movement_directory_options_view,
+    movement_request_detail_view,
+    movement_origin_decision_view,
+    movement_destination_decision_view,
+    movement_execute_view,
     movement_list_view,
     physical_audit_detail_view,
     physical_audit_cancel_view,
@@ -159,6 +168,12 @@ urlpatterns = [
 
     # Movimientos patrimoniales
     path("movements/", movement_list_view, name="movement_list"),
+    path("movements/new/<str:movement_kind>/", movement_create_view, name="movement_create"),
+    path("movements/directory/options/", movement_directory_options_view, name="movement_directory_options"),
+    path("movements/requests/<uuid:request_id>/", movement_request_detail_view, name="movement_request_detail"),
+    path("movements/requests/<uuid:request_id>/origin-decision/", movement_origin_decision_view, name="movement_origin_decision"),
+    path("movements/requests/<uuid:request_id>/destination-decision/", movement_destination_decision_view, name="movement_destination_decision"),
+    path("movements/requests/<uuid:request_id>/execute/", movement_execute_view, name="movement_execute"),
     path("movements/<uuid:movement_id>/", movement_detail_view, name="movement_detail"),
 
     # Préstamos
@@ -191,6 +206,9 @@ urlpatterns = [
 
     # Documentos y evidencias
     path("documents/", document_list_view, name="document_list"),
+    path("documents/new/<str:owner_type>/<uuid:owner_id>/", document_upload_view, name="document_upload"),
+    path("documents/<uuid:document_id>/open/", document_download_view, name="document_download"),
+    path("documents/<uuid:document_id>/validate/", document_validate_view, name="document_validate"),
 
     # Auditoría física
     path("physical-audits/", physical_audit_list_view, name="physical_audit_list"),

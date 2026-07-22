@@ -87,6 +87,7 @@ def apply_directory_choices(form):
         "origin_area_id": "area_choices",
         "observed_area_id": "area_choices",
         "proposed_custodian_id": "user_choices",
+        "destination_custodian_id": "user_choices",
         "custodian_id": "user_choices",
         "user_id": "user_choices",
         "borrower_id": "user_choices",

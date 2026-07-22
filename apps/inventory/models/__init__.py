@@ -70,6 +70,8 @@ from apps.inventory.models.custody_models import (
 # =============================================================================
 
 from apps.inventory.models.movement_models import (
+    AssetMovementRequest,
+    AssetMovementRequestStatus,
     AssetLoan,
     AssetLoanStatus,
     DisposalApproval,
@@ -172,6 +174,8 @@ __all__ = [
 
     # Movimientos, préstamos y bajas
     "AssetLoan",
+    "AssetMovementRequest",
+    "AssetMovementRequestStatus",
     "AssetLoanStatus",
     "DisposalApproval",
     "DisposalApprovalDecision",

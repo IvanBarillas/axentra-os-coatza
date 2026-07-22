@@ -7,6 +7,7 @@ from apps.inventory.models import (
     AssetDocument,
     AssetIntakeRequest,
     AssetLoan,
+    AssetMovementRequest,
     AssetPhoto,
     CustodyAssignment,
     DisposalRequest,
@@ -88,6 +89,12 @@ class DocumentSelectors:
                 Q(from_dependencia_id=department_id)
                 | Q(to_dependencia_id=department_id)
             ).values("id")
+            movement_request_ids = AssetMovementRequest.objects.filter(
+                is_deleted=False,
+            ).filter(
+                Q(origin_dependencia_id=department_id)
+                | Q(destination_dependencia_id=department_id)
+            ).values("id")
             loan_ids = AssetLoan.objects.filter(
                 is_deleted=False,
                 asset__current_dependencia_id=department_id,
@@ -127,6 +134,10 @@ class DocumentSelectors:
                 | Q(
                     owner_type=InventoryDocumentOwnerType.MOVEMENT,
                     owner_id__in=movement_ids,
+                )
+                | Q(
+                    owner_type=InventoryDocumentOwnerType.MOVEMENT_REQUEST,
+                    owner_id__in=movement_request_ids,
                 )
                 | Q(
                     owner_type=InventoryDocumentOwnerType.LOAN,
@@ -178,6 +189,13 @@ class DocumentSelectors:
             | Q(from_user_id=actor_id)
             | Q(to_user_id=actor_id)
         ).values("id")
+        movement_request_ids = AssetMovementRequest.objects.filter(
+            is_deleted=False,
+        ).filter(
+            Q(requested_by_id=actor_id)
+            | Q(origin_custodian_id=actor_id)
+            | Q(destination_custodian_id=actor_id)
+        ).values("id")
         loan_ids = AssetLoan.objects.filter(
             is_deleted=False,
         ).filter(
@@ -218,6 +236,10 @@ class DocumentSelectors:
             | Q(
                 owner_type=InventoryDocumentOwnerType.MOVEMENT,
                 owner_id__in=movement_ids,
+            )
+            | Q(
+                owner_type=InventoryDocumentOwnerType.MOVEMENT_REQUEST,
+                owner_id__in=movement_request_ids,
             )
             | Q(
                 owner_type=InventoryDocumentOwnerType.LOAN,

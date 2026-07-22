@@ -35,6 +35,56 @@ class MovementReferenceType(models.TextChoices):
     OTHER = "OTHER", "Otro expediente"
 
 
+class AssetMovementRequestStatus(models.TextChoices):
+    PENDING_ORIGIN_APPROVAL = "PENDING_ORIGIN_APPROVAL", "Pendiente de autorización de origen"
+    PENDING_DESTINATION_ACCEPTANCE = "PENDING_DESTINATION_ACCEPTANCE", "Pendiente de aceptación de destino"
+    PENDING_PATRIMONY_EXECUTION = "PENDING_PATRIMONY_EXECUTION", "Pendiente de ejecución por Patrimonio"
+    REJECTED = "REJECTED", "Rechazada"
+    EXECUTED = "EXECUTED", "Ejecutada"
+    CANCELLED = "CANCELLED", "Cancelada"
+
+
+class AssetMovementRequest(InventoryBaseModel):
+    """Expediente previo; el movimiento append-only nace sólo al ejecutarlo."""
+
+    folio = models.CharField("Folio de solicitud", max_length=80, unique=True)
+    asset = models.ForeignKey("inventory.Asset", on_delete=models.PROTECT, related_name="movement_requests")
+    movement_type = models.CharField("Tipo de movimiento", max_length=40, choices=MovementType.choices)
+    status = models.CharField("Estado", max_length=40, choices=AssetMovementRequestStatus.choices, default=AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL, db_index=True)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inventory_movement_requests")
+    requested_at = models.DateTimeField("Fecha de solicitud", default=timezone.now)
+    reason = models.TextField("Justificación")
+    occurred_at = models.DateTimeField("Fecha efectiva propuesta", null=True, blank=True)
+
+    origin_dependencia = models.ForeignKey("security.Dependencia", on_delete=models.PROTECT, related_name="inventory_movement_requests_origin", null=True, blank=True)
+    origin_area = models.ForeignKey("security.AreaOperativa", on_delete=models.PROTECT, related_name="inventory_movement_requests_origin", null=True, blank=True)
+    origin_sede = models.ForeignKey("security.Sede", on_delete=models.PROTECT, related_name="inventory_movement_requests_origin", null=True, blank=True)
+    origin_custodian = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inventory_movement_requests_origin", null=True, blank=True)
+    destination_dependencia = models.ForeignKey("security.Dependencia", on_delete=models.PROTECT, related_name="inventory_movement_requests_destination", null=True, blank=True)
+    destination_area = models.ForeignKey("security.AreaOperativa", on_delete=models.PROTECT, related_name="inventory_movement_requests_destination", null=True, blank=True)
+    destination_sede = models.ForeignKey("security.Sede", on_delete=models.PROTECT, related_name="inventory_movement_requests_destination", null=True, blank=True)
+    destination_custodian = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inventory_movement_requests_destination", null=True, blank=True)
+
+    origin_approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inventory_movement_origin_approvals", null=True, blank=True)
+    origin_approved_at = models.DateTimeField(null=True, blank=True)
+    destination_accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inventory_movement_destination_acceptances", null=True, blank=True)
+    destination_accepted_at = models.DateTimeField(null=True, blank=True)
+    executed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inventory_movement_executions", null=True, blank=True)
+    executed_at = models.DateTimeField(null=True, blank=True)
+    resulting_movement = models.OneToOneField("inventory.InventoryMovement", on_delete=models.PROTECT, related_name="source_request", null=True, blank=True)
+    rejection_reason = models.TextField("Motivo de rechazo", blank=True)
+    bypass_used = models.BooleanField(default=False)
+    bypass_reason = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "inventory_asset_movement_requests"
+        ordering = ["-requested_at"]
+        indexes = [models.Index(fields=["status", "requested_at"], name="inv_mov_req_status_idx"), models.Index(fields=["asset", "requested_at"], name="inv_mov_req_asset_idx")]
+
+    def __str__(self):
+        return f"{self.folio} · {self.asset.display_inventory_number}"
+
+
 class InventoryMovement(InventoryBaseModel):
     """
     Evento patrimonial append-only.

@@ -9,6 +9,27 @@ class InventoryDocumentUploadForm(InventoryForm):
     def to_dto(self):
         d=self.require_cleaned_data(); f=d["file"]; return UploadInventoryDocumentDTO(d["owner_type"],d["owner_id"],d["document_type"],d["title"],f,f.name,getattr(f,"content_type","") or "",d.get("description", ""),d["access_level"],d.get("is_required_evidence",False),d.get("external_reference", ""))
 
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        if getattr(uploaded, "size", 0) > 25 * 1024 * 1024:
+            raise forms.ValidationError("El documento no puede superar 25 MB.")
+        content_type = str(getattr(uploaded, "content_type", "") or "").lower()
+        if content_type not in {"application/pdf", "application/x-pdf"}:
+            raise forms.ValidationError("El expediente documental admite únicamente archivos PDF.")
+        return uploaded
+
+
+class ContextDocumentUploadForm(InventoryDocumentUploadForm):
+    """Carga vinculada a un expediente ya validado por la vista."""
+
+    def __init__(self, *args, owner_type, owner_id, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner_type"].initial = owner_type
+        self.fields["owner_type"].widget = forms.HiddenInput()
+        self.fields["owner_id"].initial = owner_id
+        self.fields["owner_id"].widget = forms.HiddenInput()
+        self.fields["access_level"].initial = DocumentAccessLevel.INTERNAL
+
 
 class DisposalStageDocumentUploadForm(InventoryDocumentUploadForm):
     def __init__(self, *args, approval_id, document_choices=(), **kwargs):
