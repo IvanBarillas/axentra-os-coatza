@@ -5,9 +5,29 @@ from apps.inventory.models import DocumentAccessLevel, DocumentType, InventoryDo
 
 
 class InventoryDocumentUploadForm(InventoryForm):
-    owner_type=forms.ChoiceField(choices=InventoryDocumentOwnerType.choices); owner_id=forms.UUIDField(); document_type=forms.ChoiceField(choices=DocumentType.choices); title=forms.CharField(max_length=180); description=forms.CharField(required=False,widget=forms.Textarea(attrs={"rows":3})); file=forms.FileField(); access_level=forms.ChoiceField(choices=DocumentAccessLevel.choices); is_required_evidence=forms.BooleanField(required=False)
+    owner_type=forms.ChoiceField(choices=InventoryDocumentOwnerType.choices); owner_id=forms.UUIDField(); document_type=forms.ChoiceField(label="Tipo de documento", choices=DocumentType.choices); title=forms.CharField(label="Título", max_length=180); description=forms.CharField(label="Descripción", required=False,widget=forms.Textarea(attrs={"rows":3})); file=forms.FileField(label="Archivo PDF"); external_reference=forms.CharField(label="Folio externo relacionado", required=False, max_length=180, help_text="Ejemplo: ticket, diagnóstico u oficio emitido por otra área."); access_level=forms.ChoiceField(label="Nivel de acceso", choices=DocumentAccessLevel.choices); is_required_evidence=forms.BooleanField(label="Evidencia obligatoria", required=False)
     def to_dto(self):
-        d=self.require_cleaned_data(); f=d["file"]; return UploadInventoryDocumentDTO(d["owner_type"],d["owner_id"],d["document_type"],d["title"],f,f.name,getattr(f,"content_type","") or "",d.get("description", ""),d["access_level"],d.get("is_required_evidence",False))
+        d=self.require_cleaned_data(); f=d["file"]; return UploadInventoryDocumentDTO(d["owner_type"],d["owner_id"],d["document_type"],d["title"],f,f.name,getattr(f,"content_type","") or "",d.get("description", ""),d["access_level"],d.get("is_required_evidence",False),d.get("external_reference", ""))
+
+
+class DisposalStageDocumentUploadForm(InventoryDocumentUploadForm):
+    def __init__(self, *args, approval_id, document_choices=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner_type"].initial = InventoryDocumentOwnerType.DISPOSAL_APPROVAL
+        self.fields["owner_type"].widget = forms.HiddenInput()
+        self.fields["owner_id"].initial = approval_id
+        self.fields["owner_id"].widget = forms.HiddenInput()
+        if document_choices:
+            self.fields["document_type"].choices = list(document_choices)
+
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        if getattr(uploaded, "size", 0) > 25 * 1024 * 1024:
+            raise forms.ValidationError("El documento no puede superar 25 MB.")
+        content_type = str(getattr(uploaded, "content_type", "") or "").lower()
+        if content_type not in {"application/pdf", "application/x-pdf"}:
+            raise forms.ValidationError("Para este expediente debe cargar un archivo PDF.")
+        return uploaded
 
 
 class DocumentValidationSubmitForm(InventoryForm):

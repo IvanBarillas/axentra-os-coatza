@@ -1,0 +1,116 @@
+<section class="mx-auto max-w-4xl space-y-6">{% include "inventory/partials/messages.html" %}<div>{% if audit_session %}<a href="{% url 'inventory:physical_audit_detail' audit_session.id %}" class="text-sm font-black text-slate-500">← Volver a la auditoría</a>{% else %}<a href="{% url 'inventory:physical_audit_list' %}" class="text-sm font-black text-slate-500">← Volver a auditorías</a>{% endif %}<p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-blue-600">Auditoría física</p><h1 class="mt-2 text-2xl font-black">{{ form_title }}</h1>{% if audit_item %}<p class="mt-1 font-mono text-sm text-slate-500">{{ audit_item.target_display }}</p>{% endif %}</div>{% if not audit_session %}<div id="audit-population-notice" class="hidden rounded-2xl border p-4 text-sm font-bold"></div>{% endif %}{% include "inventory/partials/generic_form.html" with submit_label="Guardar y continuar" %}</section>
+<script>
+(() => {
+    const byId = (id) => document.getElementById(id);
+    const fields = {
+        site: byId("id_site_id") || byId("id_observed_site_id"),
+        department: byId("id_department_id") || byId("id_observed_department_id"),
+        area: byId("id_area_id") || byId("id_observed_area_id"),
+        custodian: byId("id_observed_custodian_id"),
+    };
+    if (!fields.site || !fields.department || fields.site.dataset.auditCascadeReady === "true") return;
+    fields.site.dataset.auditCascadeReady = "true";
+
+    const endpoints = {
+        departments: "{% url 'inventory:physical_audit_directory_departments' %}",
+        areas: "{% url 'inventory:physical_audit_directory_areas' %}",
+        users: "{% url 'inventory:physical_audit_directory_users' %}",
+        eligibleAssets: "{% url 'inventory:physical_audit_eligible_assets' %}",
+    };
+    const initial = {
+        department: fields.department.value,
+        area: fields.area.value,
+        custodian: fields.custodian ? fields.custodian.value : "",
+    };
+    const query = (values) => new URLSearchParams(values).toString();
+    const reset = (select, label) => {
+        if (!select) return;
+        select.replaceChildren(new Option(label, ""));
+        select.disabled = true;
+    };
+    const load = async (select, endpoint, values, placeholder, selected = "") => {
+        if (!select) return {options: []};
+        reset(select, "Cargando...");
+        const response = await fetch(`${endpoint}?${query(values)}`, {
+            headers: {"X-Requested-With": "XMLHttpRequest"},
+            credentials: "same-origin",
+        });
+        if (!response.ok) throw new Error(`No fue posible cargar el catálogo (${response.status}).`);
+        const payload = await response.json();
+        select.replaceChildren(new Option(placeholder, ""));
+        (payload.options || []).forEach(({value, label}) => {
+            const option = new Option(label, value);
+            option.selected = String(value) === String(selected);
+            select.add(option);
+        });
+        select.disabled = false;
+        return payload;
+    };
+    const loadCustodians = (selected = "") => {
+        if (!fields.custodian || !fields.department.value) {
+            reset(fields.custodian, "--- Primero seleccione una dependencia ---");
+            return Promise.resolve();
+        }
+        return load(fields.custodian, endpoints.users, {
+            department_id: fields.department.value,
+            area_id: fields.area.value,
+        }, "--- Seleccione resguardatario ---", selected);
+    };
+    const updatePopulation = async () => {
+        const notice = byId("audit-population-notice");
+        if (!notice || !fields.site.value || !fields.department.value) return;
+        const response = await fetch(`${endpoints.eligibleAssets}?${query({
+            site_id: fields.site.value,
+            department_id: fields.department.value,
+        })}`, {headers: {"X-Requested-With": "XMLHttpRequest"}, credentials: "same-origin"});
+        if (!response.ok) return;
+        const payload = await response.json();
+        const total = Number(payload.total || 0);
+        notice.classList.remove("hidden", "border-red-200", "bg-red-50", "text-red-700", "border-emerald-200", "bg-emerald-50", "text-emerald-800");
+        notice.classList.add(...(total > 0 ? ["border-emerald-200", "bg-emerald-50", "text-emerald-800"] : ["border-red-200", "bg-red-50", "text-red-700"]));
+        notice.textContent = total > 0
+            ? `${total} bien${total === 1 ? "" : "es"} activo${total === 1 ? "" : "s"} será${total === 1 ? "" : "n"} incluido${total === 1 ? "" : "s"} en la auditoría.`
+            : "Esta combinación de sede y dependencia no tiene bienes activos; no se puede crear la auditoría.";
+    };
+    const reportError = (error) => console.error("Catálogos de auditoría física:", error);
+
+    fields.site.addEventListener("change", async () => {
+        reset(fields.department, "--- Seleccione dependencia ---");
+        reset(fields.area, "--- Primero seleccione una dependencia ---");
+        reset(fields.custodian, "--- Primero seleccione una dependencia ---");
+        if (!fields.site.value) return;
+        try {
+            await load(fields.department, endpoints.departments, {site_id: fields.site.value}, "--- Seleccione dependencia ---");
+        } catch (error) { reportError(error); }
+    });
+    fields.department.addEventListener("change", async () => {
+        reset(fields.area, "--- Seleccione área ---");
+        reset(fields.custodian, "--- Seleccione resguardatario ---");
+        if (!fields.department.value) return;
+        try {
+            await load(fields.area, endpoints.areas, {
+                site_id: fields.site.value,
+                department_id: fields.department.value,
+            }, "--- Seleccione área ---");
+            await loadCustodians();
+            await updatePopulation();
+        } catch (error) { reportError(error); }
+    });
+    if (fields.area) fields.area.addEventListener("change", () => loadCustodians().catch(reportError));
+
+    if (!fields.site.value) {
+        reset(fields.department, "--- Primero seleccione una sede ---");
+        reset(fields.area, "--- Primero seleccione una dependencia ---");
+        reset(fields.custodian, "--- Primero seleccione un área ---");
+        return;
+    }
+    load(fields.department, endpoints.departments, {site_id: fields.site.value}, "--- Seleccione dependencia ---", initial.department)
+        .then(() => fields.department.value && load(fields.area, endpoints.areas, {
+            site_id: fields.site.value,
+            department_id: fields.department.value,
+        }, "--- Seleccione área ---", initial.area))
+        .then(() => loadCustodians(initial.custodian))
+        .then(updatePopulation)
+        .catch(reportError);
+})();
+</script>

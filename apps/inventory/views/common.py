@@ -75,19 +75,23 @@ def apply_directory_choices(form):
         "department_id": "department_choices",
         "destination_department_id": "department_choices",
         "origin_department_id": "department_choices",
+        "observed_department_id": "department_choices",
         "requested_site_id": "site_choices",
         "site_id": "site_choices",
         "destination_site_id": "site_choices",
         "origin_site_id": "site_choices",
+        "observed_site_id": "site_choices",
         "requested_area_id": "area_choices",
         "area_id": "area_choices",
         "destination_area_id": "area_choices",
         "origin_area_id": "area_choices",
+        "observed_area_id": "area_choices",
         "proposed_custodian_id": "user_choices",
         "custodian_id": "user_choices",
         "user_id": "user_choices",
         "borrower_id": "user_choices",
         "returned_by_id": "user_choices",
+        "observed_custodian_id": "user_choices",
     }
     for field, source in mapping.items():
         if field in form.fields:

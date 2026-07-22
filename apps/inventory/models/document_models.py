@@ -10,9 +10,11 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.inventory.models.catalog_models import (
+    DisposalReason,
     DocumentType,
     InventoryBaseModel,
 )
+from apps.inventory.models.movement_models import DisposalApprovalStage
 
 
 # =============================================================================
@@ -70,6 +72,10 @@ class InventoryDocumentOwnerType(models.TextChoices):
     DISPOSAL_REQUEST = (
         "DISPOSAL_REQUEST",
         "Expediente de baja",
+    )
+    DISPOSAL_APPROVAL = (
+        "DISPOSAL_APPROVAL",
+        "Etapa de aprobación de baja",
     )
     PHYSICAL_AUDIT_SESSION = (
         "PHYSICAL_AUDIT_SESSION",
@@ -154,6 +160,55 @@ class InventoryPhotoType(models.TextChoices):
     )
     DISPOSAL = "DISPOSAL", "Evidencia de baja"
     OTHER = "OTHER", "Otra fotografía"
+
+
+class DocumentRequirementLevel(models.TextChoices):
+    REQUIRED = "REQUIRED", "Obligatorio"
+    OPTIONAL = "OPTIONAL", "Opcional"
+
+
+class DisposalStageDocumentRequirement(InventoryBaseModel):
+    """Documento esperado para una etapa y, opcionalmente, un motivo de baja."""
+
+    stage = models.CharField(
+        "Etapa de baja",
+        max_length=40,
+        choices=DisposalApprovalStage.choices,
+    )
+    disposal_reason = models.CharField(
+        "Motivo específico",
+        max_length=50,
+        choices=DisposalReason.choices,
+        blank=True,
+        help_text="Vacío significa que aplica a todos los motivos.",
+    )
+    document_type = models.CharField(
+        "Tipo de documento",
+        max_length=60,
+        choices=DocumentType.choices,
+    )
+    requirement_level = models.CharField(
+        "Nivel de requisito",
+        max_length=20,
+        choices=DocumentRequirementLevel.choices,
+        default=DocumentRequirementLevel.REQUIRED,
+    )
+    instructions = models.TextField("Indicaciones", blank=True)
+
+    class Meta:
+        db_table = "inventory_disposal_stage_document_requirements"
+        verbose_name = "Requisito documental de baja"
+        verbose_name_plural = "Requisitos documentales de bajas"
+        ordering = ["stage", "disposal_reason", "document_type"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["stage", "disposal_reason", "document_type"],
+                name="uq_inv_disp_doc_requirement",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.get_stage_display()} · {self.get_document_type_display()}"
 
 
 # =============================================================================

@@ -105,14 +105,39 @@ def loan_scope(request):
     return "OWN", None
 
 
+def disposal_scope(request):
+    if has_any_permission(
+        request,
+        "can_manage_disposals",
+        "can_authorize_disposals",
+        "can_execute_disposals",
+    ):
+        return "GLOBAL", None
+    if has_any_permission(request, "can_approve_department_intake"):
+        return "DEPARTMENT", department_id(request)
+    return "OWN", None
+
+
+def physical_audit_scope(request):
+    """Patrimonio administra globalmente; auditores operan lo asignado."""
+    if has_any_permission(request, "can_manage_physical_audits"):
+        return "GLOBAL", None
+    if has_any_permission(request, "can_scan_physical_audits"):
+        department = department_id(request)
+        return ("DEPARTMENT", department) if department else ("OWN", None)
+    return "OWN", None
+
+
 __all__ = [
     "asset_scope",
     "department_id",
+    "disposal_scope",
     "custody_scope",
     "has_any_permission",
     "intake_scope",
     "is_inventory_root",
     "loan_scope",
+    "physical_audit_scope",
     "permission_keys",
     "require_any_permission",
 ]

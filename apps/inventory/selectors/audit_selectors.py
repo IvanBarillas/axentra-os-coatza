@@ -3,6 +3,8 @@
 from django.db.models import Count, Q, QuerySet
 
 from apps.inventory.models import (
+    Asset,
+    AssetPatrimonialStatus,
     PhysicalAuditItem,
     PhysicalAuditResult,
     PhysicalAuditSession,
@@ -26,6 +28,18 @@ class PhysicalAuditVisibilityScope:
 
 
 class PhysicalAuditSelectors:
+    @staticmethod
+    def eligible_assets(*, site_id=None, department_id=None):
+        queryset = Asset.objects.filter(
+            is_deleted=False,
+            patrimonial_status=AssetPatrimonialStatus.ACTIVE,
+        )
+        if site_id:
+            queryset = queryset.filter(current_sede_id=site_id)
+        if department_id:
+            queryset = queryset.filter(current_dependencia_id=department_id)
+        return queryset
+
     @staticmethod
     def base_sessions() -> QuerySet:
         return (
@@ -88,6 +102,8 @@ class PhysicalAuditSelectors:
         q="",
         status="",
         department_id="",
+        site_id="",
+        fiscal_year="",
         scope=PhysicalAuditVisibilityScope.GLOBAL,
         actor_id=None,
         scope_department_id=None,
@@ -118,6 +134,12 @@ class PhysicalAuditSelectors:
 
         if department_id:
             queryset = queryset.filter(dependencia_id=department_id)
+
+        if site_id:
+            queryset = queryset.filter(sede_id=site_id)
+
+        if fiscal_year:
+            queryset = queryset.filter(fiscal_year=fiscal_year)
 
         return queryset.order_by("-created_at")
 

@@ -1,6 +1,7 @@
 """Vistas de expedientes secundarios de Inventory."""
 
 from django import forms
+from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -21,8 +22,26 @@ from apps.inventory.forms import (
     AssetLoanReturnForm,
     AssetLoanReturnRequestForm,
     DepartmentLoanDecisionForm,
+    DisposalCancelForm,
+    DisposalExecuteForm,
+    DisposalFinalApprovalForm,
+    DisposalRequestCreateForm,
+    DisposalStageResolutionForm,
+    DisposalSubmitForm,
+    DisposalStageDocumentUploadForm,
+    DocumentValidationResolveForm,
+    PhysicalAuditCancelForm,
+    PhysicalAuditCloseForm,
+    PhysicalAuditCreateForm,
+    PhysicalAuditFreezeForm,
+    PhysicalAuditNotFoundForm,
+    PhysicalAuditReconcileForm,
+    PhysicalAuditScanForm,
+    PhysicalAuditStartForm,
+    PhysicalAuditUnlistedItemForm,
 )
 from apps.inventory.integrations import core_directory
+from apps.inventory.models import AssetDocument, DisposalStageDocumentRequirement, InventoryDocumentOwnerType
 
 from apps.inventory.selectors import (
     AssetSelectors, CoreDirectorySelectors, CustodySelectors, DisposalSelectors, DocumentSelectors, FinancialSelectors,
@@ -48,9 +67,27 @@ from apps.inventory.services import (
     request_asset_loan_return,
     return_asset_loan,
     submit_asset_loan,
+    cancel_disposal,
+    create_disposal_request,
+    execute_disposal,
+    finalize_disposal_approval,
+    resolve_disposal_stage,
+    submit_disposal_request,
+    resolve_inventory_document,
+    upload_disposal_stage_document,
+    begin_physical_audit_reconciliation,
+    cancel_physical_audit,
+    close_physical_audit,
+    create_physical_audit,
+    freeze_physical_audit,
+    mark_audit_item_not_found,
+    reconcile_physical_audit_item,
+    register_unlisted_audit_item,
+    scan_physical_audit_item,
+    start_physical_audit,
 )
 
-from .access import custody_scope, department_id, has_any_permission, loan_scope, require_any_permission
+from .access import custody_scope, department_id, disposal_scope, has_any_permission, loan_scope, physical_audit_scope, require_any_permission
 from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
 
 
@@ -580,16 +617,207 @@ def loan_cancel_view(request, loan_id):
     return _loan_action(request, loan_id, AssetLoanCancelForm, lambda loan, form: cancel_asset_loan(loan_id=loan.id, actor_id=request.user.pk, data=form.to_dto(), request=request), "Préstamo cancelado.")
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_disposals")
+def _disposal_url(disposal_id):
+    return reverse("inventory:disposal_detail", kwargs={"disposal_id": disposal_id})
+
+
+def _disposal(request, disposal_id):
+    scope, scope_department_id = disposal_scope(request)
+    return selector_or_404(lambda: DisposalSelectors.obtener(
+        disposal_id,
+        scope=scope,
+        actor_id=request.user.pk,
+        department_id=scope_department_id,
+    ))
+
+
+def _disposal_context(request, disposal):
+    permissions = set(getattr(request, "axentra_permissions_list", []) or [])
+    root = bool(getattr(request, "axentra_is_root", False))
+    manages = root or "can_manage_disposals" in permissions
+    authorizes = root or "can_authorize_disposals" in permissions
+    executes = root or "can_execute_disposals" in permissions
+    owns = disposal.requested_by_id == request.user.pk
+    department_authority = False
+    try:
+        department_authority = core_directory.user_can_approve_department(
+            request.user.pk, disposal.asset.current_dependencia_id
+        ).allowed
+    except core_directory.CoreDirectoryError:
+        pass
+    approvals_manager = disposal.approvals
+    pending_stages = approvals_manager.filter(decision="PENDING")
+    allowed_stages = set()
+    if department_authority or manages:
+        allowed_stages.add("DEPARTMENT")
+    if manages or authorizes:
+        allowed_stages.update({"TECHNICAL", "PATRIMONY"})
+    if authorizes:
+        allowed_stages.update({"LEGAL", "INTERNAL_CONTROL", "COUNCIL"})
+    resolvable_stages = pending_stages.filter(stage__in=allowed_stages)
+    # Los selectores entregan normalmente un RelatedManager de Django. Mantener
+    # este contexto tolerante a objetos sin ``all()`` facilita su reutilización
+    # en pruebas unitarias y evita acoplar la visibilidad de botones al ORM.
+    approvals = list(approvals_manager.all()) if hasattr(approvals_manager, "all") else []
+    approval_ids = [approval.id for approval in approvals]
+    documents = AssetDocument.objects.filter(
+        owner_type=InventoryDocumentOwnerType.DISPOSAL_APPROVAL,
+        owner_id__in=approval_ids,
+        is_deleted=False,
+        is_current_version=True,
+    ).select_related("uploaded_by", "validated_by")
+    stage_cards = []
+    for approval in approvals:
+        requirements = DisposalStageDocumentRequirement.objects.filter(
+            is_active=True,
+            is_deleted=False,
+            stage=approval.stage,
+            disposal_reason__in=("", disposal.reason),
+        )
+        stage_cards.append({
+            "approval": approval,
+            "requirements": requirements,
+            "documents": [document for document in documents if document.owner_id == approval.id],
+        })
+    return {
+        "disposal": disposal,
+        "can_submit_disposal": (owns or manages) and disposal.status == "DRAFT",
+        "can_resolve_disposal": resolvable_stages.exists(),
+        "can_finalize_disposal": authorizes and disposal.status == "AUTHORIZATION_PENDING",
+        "can_execute_disposal": executes and disposal.status == "APPROVED",
+        "can_cancel_disposal": (owns or manages) and disposal.status not in {"APPROVED", "EXECUTED", "CANCELLED"},
+        "pending_stages": resolvable_stages,
+        "stage_cards": stage_cards,
+        "can_upload_disposal_document": root or "can_manage_documents" in permissions,
+        "can_validate_disposal_document": root or "can_validate_documents" in permissions,
+    }
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_list_view(request):
+    require_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals", "can_execute_disposals")
     f = _filters(request, "q", "status", "asset_id", "reason")
-    return render_inventory(request, page="inventory/pages/disposal_list.html", content="inventory/content/disposal_list_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposals":DisposalSelectors.listar(**f), **f})
+    scope, scope_department_id = disposal_scope(request)
+    return render_inventory(request, page="inventory/pages/disposal_list.html", content="inventory/content/disposal_list_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposals":DisposalSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "can_create_disposal":has_any_permission(request, "can_request_disposals", "can_manage_disposals"), "disposal_statuses":DisposalSelectors.status_choices(), **f})
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_disposals")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_detail_view(request, disposal_id):
-    disposal = selector_or_404(lambda: DisposalSelectors.obtener(disposal_id))
-    return render_inventory(request, page="inventory/pages/disposal_detail.html", content="inventory/content/disposal_detail_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "documents":DocumentSelectors.documents(owner_type="DISPOSAL_REQUEST", owner_id=disposal.id)})
+    require_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals", "can_execute_disposals")
+    disposal = _disposal(request, disposal_id)
+    context = _disposal_context(request, disposal)
+    context.update({"current_inventory_view":"inventory:disposal_list", "documents":DocumentSelectors.documents(owner_type="DISPOSAL_REQUEST", owner_id=disposal.id)})
+    return render_inventory(request, page="inventory/pages/disposal_detail.html", content="inventory/content/disposal_detail_content.html", context=context)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def disposal_create_view(request):
+    require_any_permission(request, "can_request_disposals", "can_manage_disposals")
+    form = DisposalRequestCreateForm(request.POST or None)
+    scope, scope_department_id = disposal_scope(request)
+    assets = AssetSelectors.listar_activos(scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id).filter(patrimonial_status="ACTIVE")
+    form.fields["asset_id"].choices = [("", "--- Seleccione un bien ---"), *((str(a.id), f"{a.display_inventory_number} · {a.name}") for a in assets)]
+    if request.method == "POST" and form.is_valid():
+        disposal = run_service(form, lambda: create_disposal_request(data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if disposal:
+            success(request, f"Solicitud {disposal.folio} creada en borrador.")
+            return redirect(_disposal_url(disposal.id))
+    return render_inventory(request, page="inventory/pages/disposal_form.html", content="inventory/content/disposal_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "form":form}, status=422 if request.method == "POST" else 200)
+
+
+def _disposal_action(request, disposal_id, form_class, callback, title):
+    disposal = _disposal(request, disposal_id)
+    form = form_class(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: callback(disposal, form))
+        if result:
+            success(request, title)
+            return redirect(_disposal_url(disposal.id))
+    return render_inventory(request, page="inventory/pages/disposal_action_form.html", content="inventory/content/disposal_action_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "form":form, "form_title":title}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def disposal_submit_view(request, disposal_id):
+    return _disposal_action(request, disposal_id, DisposalSubmitForm, lambda d, f: submit_disposal_request(disposal_id=d.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Solicitud enviada a revisión.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def disposal_resolve_stage_view(request, disposal_id):
+    disposal = _disposal(request, disposal_id)
+    context = _disposal_context(request, disposal)
+    if not context["can_resolve_disposal"]:
+        raise PermissionDenied("No tiene etapas de baja pendientes por resolver.")
+    form = DisposalStageResolutionForm(request.POST or None)
+    form.fields["stage"].choices = [
+        (approval.stage, approval.get_stage_display())
+        for approval in context["pending_stages"]
+    ]
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: resolve_disposal_stage(disposal_id=disposal.id, actor_id=request.user.pk, data=form.to_dto(), request=request))
+        if result:
+            success(request, "Etapa de revisión resuelta.")
+            return redirect(_disposal_url(disposal.id))
+    return render_inventory(request, page="inventory/pages/disposal_action_form.html", content="inventory/content/disposal_action_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "form":form, "form_title":"Resolver etapa de revisión"}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_authorize_disposals")
+def disposal_finalize_view(request, disposal_id):
+    return _disposal_action(request, disposal_id, DisposalFinalApprovalForm, lambda d, f: finalize_disposal_approval(disposal_id=d.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Decisión final registrada.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_execute_disposals")
+def disposal_execute_view(request, disposal_id):
+    return _disposal_action(request, disposal_id, DisposalExecuteForm, lambda d, f: execute_disposal(disposal_id=d.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Baja patrimonial ejecutada.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def disposal_cancel_view(request, disposal_id):
+    return _disposal_action(request, disposal_id, DisposalCancelForm, lambda d, f: cancel_disposal(disposal_id=d.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Solicitud de baja cancelada.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_documents")
+def disposal_stage_document_upload_view(request, disposal_id, approval_id):
+    disposal = _disposal(request, disposal_id)
+    approval = selector_or_404(lambda: disposal.approvals.get(pk=approval_id))
+    requirements = DisposalStageDocumentRequirement.objects.filter(
+        is_active=True, is_deleted=False, stage=approval.stage,
+        disposal_reason__in=("", disposal.reason),
+    )
+    choices = [(item.document_type, item.get_document_type_display()) for item in requirements]
+    form = DisposalStageDocumentUploadForm(
+        request.POST or None,
+        request.FILES or None,
+        approval_id=approval.id,
+        document_choices=choices,
+    )
+    if request.method == "POST" and form.is_valid():
+        document = run_service(form, lambda: upload_disposal_stage_document(approval_id=approval.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if document:
+            success(request, "Documento cargado y enviado a validación.")
+            return redirect(_disposal_url(disposal.id))
+    return render_inventory(request, page="inventory/pages/disposal_action_form.html", content="inventory/content/disposal_action_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "form":form, "form_title":f"Agregar documento · {approval.get_stage_display()}"}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_validate_documents")
+def disposal_document_validate_view(request, disposal_id, document_id):
+    disposal = _disposal(request, disposal_id)
+    approval_ids = disposal.approvals.values_list("id", flat=True)
+    document = selector_or_404(lambda: AssetDocument.objects.get(pk=document_id, owner_type=InventoryDocumentOwnerType.DISPOSAL_APPROVAL, owner_id__in=approval_ids, is_deleted=False))
+    form = DocumentValidationResolveForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: resolve_inventory_document(document_id=document.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if result:
+            success(request, "Validación documental registrada.")
+            return redirect(_disposal_url(disposal.id))
+    return render_inventory(request, page="inventory/pages/disposal_action_form.html", content="inventory/content/disposal_action_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "form":form, "form_title":f"Validar documento · {document.title}"}, status=422 if request.method == "POST" else 200)
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_documents")
@@ -598,16 +826,224 @@ def document_list_view(request):
     return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":DocumentSelectors.documents(**f), **f})
 
 
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def _physical_audit(request, session_id):
+    scope, scope_department_id = physical_audit_scope(request)
+    return selector_or_404(lambda: PhysicalAuditSelectors.session_detail(
+        session_id, scope=scope, actor_id=request.user.pk,
+        department_id=scope_department_id,
+    ))
+
+
+def _physical_audit_url(session_id):
+    return reverse("inventory:physical_audit_detail", kwargs={"session_id": session_id})
+
+
+def _physical_audit_context(request, session):
+    manages = has_any_permission(request, "can_manage_physical_audits")
+    scans = has_any_permission(request, "can_scan_physical_audits")
+    scope, scope_department_id = physical_audit_scope(request)
+    return {
+        "audit_session": session,
+        "result_totals": PhysicalAuditSelectors.result_totals(
+            session.id, scope=scope, actor_id=request.user.pk,
+            department_id=scope_department_id,
+        ),
+        "can_freeze_audit": manages and session.status in {"DRAFT", "PREPARING"},
+        "can_start_audit": manages and session.status == "FROZEN",
+        "can_scan_audit": scans and session.status == "IN_PROGRESS",
+        "can_reconcile_audit": manages and session.status == "IN_PROGRESS",
+        "can_close_audit": manages and session.status == "RECONCILIATION",
+        "can_cancel_audit": manages and session.status not in {"CLOSED", "CANCELLED"},
+    }
+
+
+def _require_physical_audit_operator(request):
+    require_any_permission(
+        request,
+        "can_manage_physical_audits",
+        "can_scan_physical_audits",
+    )
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def physical_audit_directory_departments_view(request):
+    _require_physical_audit_operator(request)
+    site_id = request.GET.get("site_id", "").strip() or None
+    return _custody_options(
+        (item.id, f"{item.code or 'SIN-CÓDIGO'} · {item.name}")
+        for item in CoreDirectorySelectors.departments(site_id=site_id)
+    )
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def physical_audit_directory_areas_view(request):
+    _require_physical_audit_operator(request)
+    site_id = request.GET.get("site_id", "").strip() or None
+    selected_department = request.GET.get("department_id", "").strip() or None
+    return _custody_options(
+        (item.id, f"{item.name} [{item.site_name}]")
+        for item in CoreDirectorySelectors.areas(
+            site_id=site_id,
+            department_id=selected_department,
+        )
+    )
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def physical_audit_directory_users_view(request):
+    _require_physical_audit_operator(request)
+    selected_department = request.GET.get("department_id", "").strip() or None
+    area_id = request.GET.get("area_id", "").strip() or None
+    return _custody_options(
+        (
+            item.id,
+            f"{item.display_name} · {item.email}" if item.email else item.display_name,
+        )
+        for item in CoreDirectorySelectors.users(
+            department_id=selected_department,
+            area_id=area_id,
+        )
+    )
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def physical_audit_eligible_assets_view(request):
+    _require_physical_audit_operator(request)
+    site_id = request.GET.get("site_id", "").strip() or None
+    department_id_value = request.GET.get("department_id", "").strip() or None
+    queryset = PhysicalAuditSelectors.eligible_assets(
+        site_id=site_id,
+        department_id=department_id_value,
+    )
+    return JsonResponse({"total": queryset.count()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def physical_audit_list_view(request):
-    f = _filters(request, "q", "status", "department_id")
-    return render_inventory(request, page="inventory/pages/physical_audit_list.html", content="inventory/content/physical_audit_list_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_sessions":PhysicalAuditSelectors.sessions(**f), **f})
+    require_any_permission(request, "can_manage_physical_audits", "can_scan_physical_audits")
+    f = _filters(request, "q", "status", "department_id", "site_id", "fiscal_year")
+    tab = request.GET.get("tab", "active").strip().lower()
+    if tab not in {"active", "history"}:
+        tab = "active"
+    scope, scope_department_id = physical_audit_scope(request)
+    sessions = PhysicalAuditSelectors.sessions(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id)
+    if tab == "history":
+        sessions = sessions.filter(status__in={"CLOSED", "CANCELLED"})
+        statuses = [(value, label) for value, label in PhysicalAuditSelectors.status_choices() if value in {"CLOSED", "CANCELLED"}]
+    else:
+        sessions = sessions.exclude(status__in={"CLOSED", "CANCELLED"})
+        statuses = [(value, label) for value, label in PhysicalAuditSelectors.status_choices() if value not in {"CLOSED", "CANCELLED"}]
+    directory_choices = CoreDirectorySelectors.form_choices()
+    return render_inventory(request, page="inventory/pages/physical_audit_list.html", content="inventory/content/physical_audit_list_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_sessions":sessions, "statuses":statuses, "tab":tab, "site_choices":directory_choices["site_choices"], "department_choices":directory_choices["department_choices"], "can_create_audit":has_any_permission(request, "can_manage_physical_audits"), **f})
 
 
+@require_http_methods(["GET", "POST"])
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_create_view(request):
+    form = apply_directory_choices(PhysicalAuditCreateForm(request.POST or None))
+    if request.method == "POST" and form.is_valid():
+        session = run_service(form, lambda: create_physical_audit(data=form.to_dto(), actor_id=request.user.pk))
+        if session:
+            success(request, "Auditoría física creada en borrador.")
+            return redirect(_physical_audit_url(session.id))
+    return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "form":form, "form_title":"Nueva auditoría física"}, status=422 if request.method == "POST" else 200)
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def physical_audit_detail_view(request, session_id):
-    session = selector_or_404(lambda: PhysicalAuditSelectors.session_detail(session_id))
-    return render_inventory(request, page="inventory/pages/physical_audit_detail.html", content="inventory/content/physical_audit_detail_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "result_totals":PhysicalAuditSelectors.result_totals(session.id)})
+    require_any_permission(request, "can_manage_physical_audits", "can_scan_physical_audits")
+    session = _physical_audit(request, session_id)
+    return render_inventory(request, page="inventory/pages/physical_audit_detail.html", content="inventory/content/physical_audit_detail_content.html", context={"current_inventory_view":"inventory:physical_audit_list", **_physical_audit_context(request, session)})
+
+
+def _physical_audit_action(request, session_id, form_class, callback, title, *, choices=False):
+    session = _physical_audit(request, session_id)
+    form = form_class(request.POST or None)
+    if choices:
+        form = apply_directory_choices(form)
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: callback(session, form))
+        if result:
+            success(request, title)
+            return redirect(_physical_audit_url(session.id))
+    return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "form":form, "form_title":title}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_freeze_view(request, session_id):
+    return _physical_audit_action(request, session_id, PhysicalAuditFreezeForm, lambda s, f: freeze_physical_audit(session_id=s.id, data=f.to_dto(), actor_id=request.user.pk), "Inventario esperado congelado.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_start_view(request, session_id):
+    return _physical_audit_action(request, session_id, PhysicalAuditStartForm, lambda s, f: start_physical_audit(session_id=s.id, data=f.to_dto(), actor_id=request.user.pk), "Levantamiento físico iniciado.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_scan_physical_audits")
+def physical_audit_scan_view(request, session_id):
+    return _physical_audit_action(request, session_id, PhysicalAuditScanForm, lambda s, f: scan_physical_audit_item(session_id=s.id, data=f.to_dto(), actor_id=request.user.pk), "Lectura registrada.", choices=True)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_scan_physical_audits")
+def physical_audit_unlisted_view(request, session_id):
+    return _physical_audit_action(request, session_id, PhysicalAuditUnlistedItemForm, lambda s, f: register_unlisted_audit_item(session_id=s.id, data=f.to_dto(), actor_id=request.user.pk), "Sobrante no registrado agregado.", choices=True)
+
+
+@require_POST
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_reconciliation_view(request, session_id):
+    session = _physical_audit(request, session_id)
+    begin_physical_audit_reconciliation(session_id=session.id, actor_id=request.user.pk)
+    success(request, "La auditoría pasó a conciliación.")
+    return redirect(_physical_audit_url(session.id))
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_not_found_view(request, session_id, item_id):
+    session = _physical_audit(request, session_id)
+    item = selector_or_404(lambda: session.items.get(pk=item_id, is_deleted=False))
+    form = PhysicalAuditNotFoundForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: mark_audit_item_not_found(item_id=item.id, data=form.to_dto(), actor_id=request.user.pk))
+        if result:
+            success(request, "Activo marcado como no localizado.")
+            return redirect(_physical_audit_url(session.id))
+    return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "audit_item":item, "form":form, "form_title":"Marcar activo no localizado"}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_item_reconcile_view(request, session_id, item_id):
+    session = _physical_audit(request, session_id)
+    item = selector_or_404(lambda: session.items.get(pk=item_id, is_deleted=False))
+    form = PhysicalAuditReconcileForm(request.POST or None, initial={"result":item.result})
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: reconcile_physical_audit_item(item_id=item.id, data=form.to_dto(), actor_id=request.user.pk))
+        if result:
+            success(request, "Hallazgo conciliado.")
+            return redirect(_physical_audit_url(session.id))
+    return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "audit_item":item, "form":form, "form_title":"Conciliar hallazgo"}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_close_view(request, session_id):
+    return _physical_audit_action(request, session_id, PhysicalAuditCloseForm, lambda s, f: close_physical_audit(session_id=s.id, data=f.to_dto(), actor_id=request.user.pk), "Auditoría física cerrada.")
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_cancel_view(request, session_id):
+    return _physical_audit_action(request, session_id, PhysicalAuditCancelForm, lambda s, f: cancel_physical_audit(session_id=s.id, data=f.to_dto(), actor_id=request.user.pk), "Auditoría física cancelada.")
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_financials")

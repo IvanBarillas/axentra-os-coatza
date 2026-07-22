@@ -10,6 +10,7 @@ from apps.inventory.models import (
     AssetPhoto,
     CustodyAssignment,
     DisposalRequest,
+    DisposalApproval,
     DocumentAccessLevel,
     DocumentValidationStatus,
     InventoryDocumentOwnerType,
@@ -95,6 +96,10 @@ class DocumentSelectors:
                 is_deleted=False,
                 asset__current_dependencia_id=department_id,
             ).values("id")
+            disposal_approval_ids = DisposalApproval.objects.filter(
+                is_deleted=False,
+                disposal_request__asset__current_dependencia_id=department_id,
+            ).values("id")
             audit_session_ids = PhysicalAuditSession.objects.filter(
                 is_deleted=False,
                 dependencia_id=department_id,
@@ -132,6 +137,10 @@ class DocumentSelectors:
                         InventoryDocumentOwnerType.DISPOSAL_REQUEST
                     ),
                     owner_id__in=disposal_ids,
+                )
+                | Q(
+                    owner_type=InventoryDocumentOwnerType.DISPOSAL_APPROVAL,
+                    owner_id__in=disposal_approval_ids,
                 )
                 | Q(
                     owner_type=(
@@ -179,6 +188,10 @@ class DocumentSelectors:
             is_deleted=False,
             requested_by_id=actor_id,
         ).values("id")
+        disposal_approval_ids = DisposalApproval.objects.filter(
+            is_deleted=False,
+            disposal_request__requested_by_id=actor_id,
+        ).values("id")
         audit_session_ids = PhysicalAuditSession.objects.filter(
             is_deleted=False,
             started_by_id=actor_id,
@@ -213,6 +226,10 @@ class DocumentSelectors:
             | Q(
                 owner_type=InventoryDocumentOwnerType.DISPOSAL_REQUEST,
                 owner_id__in=disposal_ids,
+            )
+            | Q(
+                owner_type=InventoryDocumentOwnerType.DISPOSAL_APPROVAL,
+                owner_id__in=disposal_approval_ids,
             )
             | Q(
                 owner_type=(

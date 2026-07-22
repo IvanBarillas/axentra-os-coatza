@@ -37,7 +37,6 @@ from apps.inventory.models import (
     CapitalizationRule,
     ExpenditureObject,
     InventoryAssetTypeCode,
-    InventoryAssetType,
     InventoryAuditAction,
     InventoryAuditLevel,
     InventoryMovement,
@@ -317,16 +316,6 @@ def create_intake_draft(
     category = _get_active(
         AssetCategory, data.category_id, label="La categoría"
     )
-    proposed_asset_type = _get_active(
-        InventoryAssetType,
-        data.proposed_asset_type_id,
-        label="El tipo patrimonial propuesto",
-        required=False,
-    )
-    if proposed_asset_type and proposed_asset_type.nature != category.nature:
-        raise InventoryValidationError(
-            "El tipo patrimonial propuesto no corresponde a la naturaleza de la categoría."
-        )
     expenditure = _get_active(
         ExpenditureObject,
         data.expenditure_object_id,
@@ -376,7 +365,6 @@ def create_intake_draft(
         name=_require_text(data.name, field_name="name"),
         description=str(data.description or "").strip(),
         category=category,
-        proposed_asset_type=proposed_asset_type,
         expenditure_object=expenditure,
         accounting_account=account,
         acquisition_type=data.acquisition_type,
@@ -729,30 +717,7 @@ def approve_patrimony_intake(
     intake.expenditure_object = expenditure
     intake.accounting_account = account
     calculated = classify_capitalization(intake)
-    calculated_type = _get_active(
-        InventoryAssetType,
-        InventoryAssetType.objects.filter(
-            code=calculated.asset_type_code,
-            is_active=True,
-            is_deleted=False,
-        ).values_list("id", flat=True).first(),
-        label="El tipo patrimonial calculado",
-    )
-    authorized_type = _get_active(
-        InventoryAssetType,
-        data.authorized_asset_type_id,
-        label="El tipo patrimonial autorizado",
-        required=False,
-    ) or calculated_type
-    override_reason = str(data.classification_override_reason or "").strip()
-    if authorized_type.nature != intake.category.nature:
-        raise InventoryValidationError(
-            "El tipo autorizado no corresponde a la naturaleza de la categoría."
-        )
-    if authorized_type.id != calculated_type.id and not override_reason:
-        raise InventoryValidationError(
-            "Debe justificar por qué la clasificación autorizada difiere del cálculo normativo."
-        )
+    calculated_type_code = calculated.asset_type_code
 
     previous = intake.status
     if data.residual_value is not None:
@@ -776,11 +741,9 @@ def approve_patrimony_intake(
         payload={
             "physical_condition": data.physical_condition,
             "useful_life_months": data.useful_life_months,
-            "calculated_asset_type_id": str(calculated_type.id),
-            "calculated_asset_type_code": calculated_type.code,
-            "authorized_asset_type_id": str(authorized_type.id),
-            "authorized_asset_type_code": authorized_type.code,
-            "classification_override_reason": override_reason,
+            "calculated_asset_type_code": calculated_type_code,
+            "authorized_asset_type_code": calculated_type_code,
+            "classification_override_reason": "",
         },
     )
     log_inventory_event(
@@ -990,29 +953,38 @@ def register_approved_intake(
         )
 
     classification = classify_capitalization(intake)
-    calculated_type = _get_active(
-        InventoryAssetType,
-        approved_payload.get("calculated_asset_type_id"),
-        label="El tipo patrimonial calculado",
+    calculated_type_code = approved_payload.get(
+        "calculated_asset_type_code"
     )
-    if calculated_type.code != classification.asset_type_code:
+    if calculated_type_code != classification.asset_type_code:
         raise InventoryConflictError(
             "La clasificación normativa cambió después de la aprobación; debe revisarse nuevamente."
         )
-    authorized_type = _get_active(
-        InventoryAssetType,
-        approved_payload.get("authorized_asset_type_id"),
-        label="El tipo patrimonial autorizado",
-    )
+    authorized_type_code = approved_payload.get(
+        "authorized_asset_type_code"
+    ) or calculated_type_code
+    valid_asset_type_codes = {
+        value for value, _label in InventoryAssetTypeCode.choices
+    }
+    if authorized_type_code not in valid_asset_type_codes:
+        raise InventoryConflictError(
+            "El tipo patrimonial aprobado no es válido."
+        )
     override_reason = str(
         approved_payload.get("classification_override_reason") or ""
     ).strip()
-    classification_was_overridden = authorized_type.id != calculated_type.id
+    classification_was_overridden = (
+        authorized_type_code != calculated_type_code
+    )
     if classification_was_overridden and not override_reason:
         raise InventoryConflictError(
             "La clasificación diferente no cuenta con justificación autorizada."
         )
-    final_is_capitalizable = authorized_type.is_capitalizable_default
+    final_is_capitalizable = (
+        classification.is_capitalizable
+        if not classification_was_overridden
+        else authorized_type_code != InventoryAssetTypeCode.BP
+    )
     final_control_type = (
         AssetControlType.CAPITALIZED_ASSET
         if final_is_capitalizable
@@ -1022,7 +994,7 @@ def register_approved_intake(
         acquisition_date=intake.acquisition_date,
         expenditure_object_id=intake.expenditure_object_id,
         department_id=intake.requested_dependencia_id,
-        asset_type_code=authorized_type.code,
+        asset_type_code=authorized_type_code,
         effective_on=timezone.localdate(),
     )
     department = get_department(intake.requested_dependencia_id)
@@ -1043,11 +1015,6 @@ def register_approved_intake(
         category=intake.category,
         expenditure_object=intake.expenditure_object,
         accounting_account=intake.accounting_account,
-        calculated_asset_type=calculated_type,
-        authorized_asset_type=authorized_type,
-        classification_override_reason=override_reason,
-        classification_authorized_by_id=actor.id,
-        classification_authorized_at=timezone.now(),
         control_type=final_control_type,
         patrimonial_status=AssetPatrimonialStatus.ACTIVE,
         operational_status=AssetOperationalStatus.AVAILABLE,

@@ -28,7 +28,6 @@ from apps.inventory.models.catalog_models import (
     DocumentType,
     ExpenditureObject,
     InventoryAssetTypeCode,
-    InventoryAssetType,
     InventoryBaseModel,
     Manufacturer,
     MovementType,
@@ -90,11 +89,13 @@ from apps.inventory.models.document_models import (
     AssetDocument,
     AssetPhoto,
     DocumentAccessLevel,
+    DocumentRequirementLevel,
     DocumentValidationEvent,
     DocumentValidationEventType,
     DocumentValidationStatus,
     InventoryDocumentOwnerType,
     InventoryPhotoType,
+    DisposalStageDocumentRequirement,
 )
 
 # =============================================================================
@@ -143,7 +144,6 @@ __all__ = [
     "DocumentType",
     "ExpenditureObject",
     "InventoryAssetTypeCode",
-    "InventoryAssetType",
     "InventoryBaseModel",
     "Manufacturer",
     "MovementType",
@@ -185,11 +185,13 @@ __all__ = [
     "AssetDocument",
     "AssetPhoto",
     "DocumentAccessLevel",
+    "DocumentRequirementLevel",
     "DocumentValidationEvent",
     "DocumentValidationEventType",
     "DocumentValidationStatus",
     "InventoryDocumentOwnerType",
     "InventoryPhotoType",
+    "DisposalStageDocumentRequirement",
 
     # Finanzas y contabilidad
     "AccountingExportBatch",

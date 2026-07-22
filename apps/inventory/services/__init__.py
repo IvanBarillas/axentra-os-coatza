@@ -36,5 +36,29 @@ from .loan_service import (
     return_asset_loan,
     submit_asset_loan,
 )
+from .disposal_service import (
+    cancel_disposal,
+    create_disposal_request,
+    execute_disposal,
+    finalize_disposal_approval,
+    resolve_disposal_stage,
+    submit_disposal_request,
+)
+from .document_service import (
+    resolve_inventory_document,
+    upload_disposal_stage_document,
+)
+from .physical_audit_service import (
+    begin_physical_audit_reconciliation,
+    cancel_physical_audit,
+    close_physical_audit,
+    create_physical_audit,
+    freeze_physical_audit,
+    mark_audit_item_not_found,
+    reconcile_physical_audit_item,
+    register_unlisted_audit_item,
+    scan_physical_audit_item,
+    start_physical_audit,
+)
 
 __all__ = [name for name in globals() if not name.startswith("_")]

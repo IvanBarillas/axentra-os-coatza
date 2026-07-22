@@ -17,6 +17,7 @@ class UploadInventoryDocumentDTO:
     description: str = ""
     access_level: str = "INTERNAL"
     is_required_evidence: bool = False
+    external_reference: str = ""
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 

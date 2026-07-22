@@ -1,1 +1,45 @@
-<section class="space-y-6"><div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Verificación anual</p><h1 class="mt-2 text-2xl font-black">Auditorías físicas</h1></div><div class="grid gap-4">{% for session in audit_sessions %}<a href="{% url 'inventory:physical_audit_detail' session.id %}" class="flex justify-between rounded-2xl border border-slate-200 bg-white p-5"><div><p class="font-mono text-sm font-black">{{ session.folio }}</p><p class="mt-1 font-black">{{ session.name }}</p><p class="text-xs text-slate-500">{{ session.dependencia|default:"Alcance general" }}</p></div><span class="h-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-black">{{ session.get_status_display }}</span></a>{% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}</div></section>
+<section class="space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div><p class="text-xs font-black uppercase tracking-[.24em] text-blue-600">Verificación patrimonial</p><h1 class="mt-2 text-2xl font-black text-slate-950">Auditorías físicas</h1><p class="mt-1 text-sm text-slate-500">Compara el inventario registrado con los bienes encontrados.</p></div>
+        {% if can_create_audit %}<a href="{% url 'inventory:physical_audit_create' %}" hx-get="{% url 'inventory:physical_audit_create' %}" hx-target="#page-content" hx-push-url="true" class="rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Nueva auditoría</a>{% endif %}
+    </div>
+    <div class="flex gap-2 border-b border-slate-200"><a href="{% url 'inventory:physical_audit_list' %}?tab=active" hx-get="{% url 'inventory:physical_audit_list' %}?tab=active" hx-target="#page-content" hx-push-url="true" class="border-b-2 px-4 py-3 text-sm font-black {% if tab == 'active' %}border-blue-600 text-blue-700{% else %}border-transparent text-slate-500{% endif %}">En curso</a><a href="{% url 'inventory:physical_audit_list' %}?tab=history" hx-get="{% url 'inventory:physical_audit_list' %}?tab=history" hx-target="#page-content" hx-push-url="true" class="border-b-2 px-4 py-3 text-sm font-black {% if tab == 'history' %}border-blue-600 text-blue-700{% else %}border-transparent text-slate-500{% endif %}">Historial</a></div>
+    <form method="get" hx-get="{% url 'inventory:physical_audit_list' %}" hx-target="#page-content" hx-push-url="true" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-3 xl:grid-cols-6">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <input name="q" value="{{ q }}" placeholder="Buscar folio o nombre">
+        <select id="audit-filter-site" name="site_id"><option value="">Todas las sedes</option>{% for value,label in site_choices %}<option value="{{ value }}" {% if site_id == value|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <select id="audit-filter-department" name="department_id"><option value="">Todas las dependencias</option>{% for value,label in department_choices %}<option value="{{ value }}" {% if department_id == value|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <select name="status"><option value="">Todos los estados</option>{% for value,label in statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <input type="number" min="2000" max="9999" name="fiscal_year" value="{{ fiscal_year }}" placeholder="Ejercicio fiscal">
+        <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">Aplicar filtros</button>
+    </form>
+    <div class="grid gap-3">{% for session in audit_sessions %}
+        <a href="{% url 'inventory:physical_audit_detail' session.id %}" hx-get="{% url 'inventory:physical_audit_detail' session.id %}" hx-target="#page-content" hx-push-url="true" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-400 md:grid-cols-[1fr_auto]">
+            <div><div class="flex flex-wrap items-center gap-2"><p class="font-mono text-sm font-black">{{ session.folio }}</p><span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{{ session.get_status_display }}</span></div><p class="mt-2 font-black text-slate-950">{{ session.name }}</p><p class="mt-1 text-xs text-slate-500">{{ session.get_scope_display }} · {{ session.dependencia|default:"Alcance institucional" }}</p></div>
+            <div class="text-left md:text-right"><p class="text-2xl font-black">{{ session.progress_percentage }}%</p><p class="text-xs text-slate-400">{{ session.expected_assets_count }} bienes esperados</p></div>
+        </a>
+    {% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}</div>
+</section>
+<script>
+(() => {
+    const site = document.getElementById("audit-filter-site");
+    const department = document.getElementById("audit-filter-department");
+    if (!site || !department || site.dataset.auditFilterReady === "true") return;
+    site.dataset.auditFilterReady = "true";
+    site.addEventListener("change", async () => {
+        department.replaceChildren(new Option("Cargando...", ""));
+        department.disabled = true;
+        if (!site.value) {
+            department.replaceChildren(new Option("Todas las dependencias", ""));
+            department.disabled = false;
+            return;
+        }
+        const response = await fetch(`{% url 'inventory:physical_audit_directory_departments' %}?site_id=${encodeURIComponent(site.value)}`, {headers:{"X-Requested-With":"XMLHttpRequest"}, credentials:"same-origin"});
+        const payload = response.ok ? await response.json() : {options:[]};
+        department.replaceChildren(new Option("Todas las dependencias", ""));
+        payload.options.forEach(({value,label}) => department.add(new Option(label,value)));
+        department.disabled = false;
+    });
+})();
+</script>

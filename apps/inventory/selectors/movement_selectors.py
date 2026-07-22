@@ -9,6 +9,7 @@ from apps.inventory.models import (
     AssetLoan,
     AssetLoanStatus,
     DisposalRequest,
+    DisposalStatus,
     InventoryMovement,
 )
 
@@ -506,6 +507,10 @@ class DisposalSelectors:
             .prefetch_related("approvals")
             .get(pk=disposal_id)
         )
+
+    @staticmethod
+    def status_choices():
+        return DisposalStatus.choices
 
 
 __all__ = [
