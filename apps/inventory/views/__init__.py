@@ -52,6 +52,10 @@ from .registry_views import (
     physical_audit_eligible_assets_view,
     physical_audit_freeze_view, physical_audit_item_reconcile_view,
     physical_audit_list_view, physical_audit_not_found_view,
+    physical_audit_pending_not_found_view,
+    physical_audit_document_upload_view,
+    physical_audit_photo_upload_view,
+    physical_audit_report_view,
     physical_audit_reconciliation_view, physical_audit_scan_view,
     physical_audit_start_view, physical_audit_unlisted_view,
 )

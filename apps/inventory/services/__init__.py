@@ -55,10 +55,15 @@ from .physical_audit_service import (
     create_physical_audit,
     freeze_physical_audit,
     mark_audit_item_not_found,
+    mark_pending_audit_items_not_found,
     reconcile_physical_audit_item,
     register_unlisted_audit_item,
     scan_physical_audit_item,
     start_physical_audit,
+)
+from .physical_audit_evidence_service import (
+    upload_physical_audit_document,
+    upload_physical_audit_photo,
 )
 
 __all__ = [name for name in globals() if not name.startswith("_")]

@@ -3,7 +3,8 @@
 from django import forms
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
-from django.shortcuts import redirect
+from django.db.models import Q
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
@@ -39,9 +40,11 @@ from apps.inventory.forms import (
     PhysicalAuditScanForm,
     PhysicalAuditStartForm,
     PhysicalAuditUnlistedItemForm,
+    PhysicalAuditDocumentUploadForm,
+    PhysicalAuditPhotoUploadForm,
 )
 from apps.inventory.integrations import core_directory
-from apps.inventory.models import AssetDocument, DisposalStageDocumentRequirement, InventoryDocumentOwnerType
+from apps.inventory.models import AssetDocument, AssetPhoto, DisposalStageDocumentRequirement, InventoryDocumentOwnerType
 
 from apps.inventory.selectors import (
     AssetSelectors, CoreDirectorySelectors, CustodySelectors, DisposalSelectors, DocumentSelectors, FinancialSelectors,
@@ -81,10 +84,13 @@ from apps.inventory.services import (
     create_physical_audit,
     freeze_physical_audit,
     mark_audit_item_not_found,
+    mark_pending_audit_items_not_found,
     reconcile_physical_audit_item,
     register_unlisted_audit_item,
     scan_physical_audit_item,
     start_physical_audit,
+    upload_physical_audit_document,
+    upload_physical_audit_photo,
 )
 
 from .access import custody_scope, department_id, disposal_scope, has_any_permission, loan_scope, physical_audit_scope, require_any_permission
@@ -1018,6 +1024,90 @@ def physical_audit_not_found_view(request, session_id, item_id):
             success(request, "Activo marcado como no localizado.")
             return redirect(_physical_audit_url(session.id))
     return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "audit_item":item, "form":form, "form_title":"Marcar activo no localizado"}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_physical_audits")
+def physical_audit_pending_not_found_view(request, session_id):
+    session = _physical_audit(request, session_id)
+    form = PhysicalAuditNotFoundForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: mark_pending_audit_items_not_found(
+            session_id=session.id,
+            reason=form.to_dto().reason,
+            actor_id=request.user.pk,
+        ))
+        if result is not None:
+            success(request, f"{result} bienes pendientes fueron marcados como no localizados.")
+            return redirect(_physical_audit_url(session.id))
+    return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "form":form, "form_title":"Cerrar bienes pendientes como no localizados"}, status=422 if request.method == "POST" else 200)
+
+
+def _physical_audit_evidence_target(session, item_id=None):
+    if item_id is None:
+        return InventoryDocumentOwnerType.PHYSICAL_AUDIT_SESSION, session.id, None
+    item = selector_or_404(lambda: session.items.get(pk=item_id, is_deleted=False))
+    return InventoryDocumentOwnerType.PHYSICAL_AUDIT_ITEM, item.id, item
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def physical_audit_document_upload_view(request, session_id, item_id=None):
+    _require_physical_audit_operator(request)
+    session = _physical_audit(request, session_id)
+    owner_type, owner_id, item = _physical_audit_evidence_target(session, item_id)
+    form = PhysicalAuditDocumentUploadForm(
+        request.POST or None, request.FILES or None,
+        owner_type=owner_type, owner_id=owner_id,
+    )
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: upload_physical_audit_document(
+            data=form.to_dto(), actor_id=request.user.pk,
+        ))
+        if result:
+            success(request, "Documento de evidencia agregado.")
+            return redirect(_physical_audit_url(session.id))
+    return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "audit_item":item, "form":form, "form_title":"Agregar documento de evidencia"}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def physical_audit_photo_upload_view(request, session_id, item_id=None):
+    _require_physical_audit_operator(request)
+    session = _physical_audit(request, session_id)
+    owner_type, owner_id, item = _physical_audit_evidence_target(session, item_id)
+    form = PhysicalAuditPhotoUploadForm(
+        request.POST or None, request.FILES or None,
+        owner_type=owner_type, owner_id=owner_id,
+    )
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: upload_physical_audit_photo(
+            data=form.to_dto(), actor_id=request.user.pk,
+        ))
+        if result:
+            success(request, "Fotografía de evidencia agregada.")
+            return redirect(_physical_audit_url(session.id))
+    return render_inventory(request, page="inventory/pages/physical_audit_action_form.html", content="inventory/content/physical_audit_action_form_content.html", context={"current_inventory_view":"inventory:physical_audit_list", "audit_session":session, "audit_item":item, "form":form, "form_title":"Agregar fotografía de evidencia"}, status=422 if request.method == "POST" else 200)
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def physical_audit_report_view(request, session_id):
+    _require_physical_audit_operator(request)
+    session = _physical_audit(request, session_id)
+    item_ids = session.items.filter(is_deleted=False).values_list("id", flat=True)
+    documents = AssetDocument.objects.filter(
+        is_deleted=False,
+        owner_type__in={InventoryDocumentOwnerType.PHYSICAL_AUDIT_SESSION, InventoryDocumentOwnerType.PHYSICAL_AUDIT_ITEM},
+    ).filter(Q(owner_id=session.id) | Q(owner_id__in=item_ids))
+    photos = AssetPhoto.objects.filter(
+        is_deleted=False,
+        owner_type__in={InventoryDocumentOwnerType.PHYSICAL_AUDIT_SESSION, InventoryDocumentOwnerType.PHYSICAL_AUDIT_ITEM},
+    ).filter(Q(owner_id=session.id) | Q(owner_id__in=item_ids))
+    return render(request, "inventory/reports/physical_audit_report.html", {
+        "audit_session": session,
+        "documents": documents,
+        "photos": photos,
+    })
 
 
 @require_http_methods(["GET", "POST"])

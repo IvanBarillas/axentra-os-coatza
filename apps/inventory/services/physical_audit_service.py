@@ -301,6 +301,27 @@ def mark_audit_item_not_found(*, item_id, data, actor_id):
 
 
 @transaction.atomic
+def mark_pending_audit_items_not_found(*, session_id, reason, actor_id):
+    session = _lock_session(session_id)
+    if session.status != PhysicalAuditStatus.IN_PROGRESS:
+        raise InventoryStateError("El levantamiento no está en curso.")
+    normalized_reason = str(reason or "").strip()
+    if not normalized_reason:
+        raise InventoryValidationError("Indique el motivo del cierre de pendientes.")
+    updated = session.items.filter(
+        is_deleted=False,
+        result=PhysicalAuditResult.PENDING,
+        scanned_at__isnull=True,
+    ).update(
+        result=PhysicalAuditResult.NOT_FOUND,
+        discrepancy_reason=normalized_reason,
+        updated_at=timezone.now(),
+    )
+    _refresh_counters(session)
+    return updated
+
+
+@transaction.atomic
 def begin_physical_audit_reconciliation(*, session_id, actor_id):
     session = _lock_session(session_id)
     if session.status != PhysicalAuditStatus.IN_PROGRESS:

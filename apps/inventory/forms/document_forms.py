@@ -76,6 +76,54 @@ class AssetPhotoUploadForm(InventoryPhotoUploadForm):
         return image
 
 
+class PhysicalAuditDocumentUploadForm(InventoryDocumentUploadForm):
+    def __init__(self, *args, owner_type, owner_id, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner_type"].initial = owner_type
+        self.fields["owner_type"].widget = forms.HiddenInput()
+        self.fields["owner_id"].initial = owner_id
+        self.fields["owner_id"].widget = forms.HiddenInput()
+        self.fields["document_type"].choices = [
+            (DocumentType.PHYSICAL_AUDIT_EVIDENCE, "Evidencia de auditoría física"),
+            (DocumentType.OTHER, "Otro documento de soporte"),
+        ]
+        self.fields["access_level"].initial = DocumentAccessLevel.INTERNAL
+
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        if getattr(uploaded, "size", 0) > 25 * 1024 * 1024:
+            raise forms.ValidationError("El documento no puede superar 25 MB.")
+        content_type = str(getattr(uploaded, "content_type", "") or "").lower()
+        if content_type not in {"application/pdf", "application/x-pdf"}:
+            raise forms.ValidationError("La evidencia documental debe estar en formato PDF.")
+        return uploaded
+
+
+class PhysicalAuditPhotoUploadForm(InventoryPhotoUploadForm):
+    def __init__(self, *args, owner_type, owner_id, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner_type"].initial = owner_type
+        self.fields["owner_type"].widget = forms.HiddenInput()
+        self.fields["owner_id"].initial = owner_id
+        self.fields["owner_id"].widget = forms.HiddenInput()
+        self.fields["photo_type"].choices = [
+            (InventoryPhotoType.PHYSICAL_AUDIT, "Evidencia de auditoría física"),
+            (InventoryPhotoType.LOCATION, "Ubicación encontrada"),
+            (InventoryPhotoType.DAMAGE, "Daño encontrado"),
+            (InventoryPhotoType.INVENTORY_LABEL, "Etiqueta de inventario"),
+            (InventoryPhotoType.OTHER, "Otra fotografía"),
+        ]
+
+    def clean_image(self):
+        image = self.cleaned_data["image"]
+        if getattr(image, "size", 0) > 15 * 1024 * 1024:
+            raise forms.ValidationError("La fotografía no puede superar 15 MB.")
+        content_type = str(getattr(image, "content_type", "") or "").lower()
+        if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise forms.ValidationError("Utilice una imagen JPG, PNG o WEBP.")
+        return image
+
+
 class InventoryPhotoValidationForm(InventoryForm):
     approve=forms.BooleanField(required=False); comment=forms.CharField(required=False,widget=forms.Textarea(attrs={"rows":3}))
     def to_dto(self): d=self.require_cleaned_data(); return ResolvePhotoValidationDTO(d.get("approve",False),d.get("comment", ""))

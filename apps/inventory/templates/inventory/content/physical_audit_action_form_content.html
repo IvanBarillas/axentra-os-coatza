@@ -1,6 +1,43 @@
-<section class="mx-auto max-w-4xl space-y-6">{% include "inventory/partials/messages.html" %}<div>{% if audit_session %}<a href="{% url 'inventory:physical_audit_detail' audit_session.id %}" class="text-sm font-black text-slate-500">← Volver a la auditoría</a>{% else %}<a href="{% url 'inventory:physical_audit_list' %}" class="text-sm font-black text-slate-500">← Volver a auditorías</a>{% endif %}<p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-blue-600">Auditoría física</p><h1 class="mt-2 text-2xl font-black">{{ form_title }}</h1>{% if audit_item %}<p class="mt-1 font-mono text-sm text-slate-500">{{ audit_item.target_display }}</p>{% endif %}</div>{% if not audit_session %}<div id="audit-population-notice" class="hidden rounded-2xl border p-4 text-sm font-bold"></div>{% endif %}{% include "inventory/partials/generic_form.html" with submit_label="Guardar y continuar" %}</section>
+<section class="mx-auto max-w-4xl space-y-6">{% include "inventory/partials/messages.html" %}<div>{% if audit_session %}<a href="{% url 'inventory:physical_audit_detail' audit_session.id %}" class="text-sm font-black text-slate-500">← Volver a la auditoría</a>{% else %}<a href="{% url 'inventory:physical_audit_list' %}" class="text-sm font-black text-slate-500">← Volver a auditorías</a>{% endif %}<p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-blue-600">Auditoría física</p><h1 class="mt-2 text-2xl font-black">{{ form_title }}</h1>{% if audit_item %}<p class="mt-1 font-mono text-sm text-slate-500">{{ audit_item.target_display }}</p>{% endif %}</div>{% if not audit_session %}<div id="audit-population-notice" class="hidden rounded-2xl border p-4 text-sm font-bold"></div>{% endif %}{% if form.scanned_inventory_number %}<div class="rounded-2xl border border-blue-200 bg-blue-50 p-4"><div class="flex flex-wrap items-center justify-between gap-3"><div><p class="font-black text-blue-950">Lectura con cámara</p><p class="text-sm text-blue-700">Escanee la etiqueta QR o el código de barras del bien.</p></div><button type="button" id="audit-camera-button" class="rounded-xl bg-blue-700 px-4 py-2 text-sm font-black text-white">Abrir cámara</button></div><video id="audit-camera-preview" class="mt-4 hidden w-full max-h-80 rounded-xl bg-black" playsinline></video><p id="audit-camera-message" class="mt-2 hidden text-sm font-bold text-red-700"></p></div>{% endif %}{% include "inventory/partials/generic_form.html" with submit_label="Guardar y continuar" %}</section>
 <script>
 (() => {
+    const cameraButton = document.getElementById("audit-camera-button");
+    if (cameraButton && cameraButton.dataset.ready !== "true") {
+        cameraButton.dataset.ready = "true";
+        cameraButton.addEventListener("click", async () => {
+            const preview = document.getElementById("audit-camera-preview");
+            const message = document.getElementById("audit-camera-message");
+            const target = document.getElementById("id_scanned_inventory_number");
+            if (!("BarcodeDetector" in window)) {
+                message.textContent = "Este navegador no permite lectura directa. Capture manualmente el folio o utilice un lector externo.";
+                message.classList.remove("hidden");
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+                preview.srcObject = stream;
+                preview.classList.remove("hidden");
+                await preview.play();
+                const detector = new BarcodeDetector({formats:["qr_code","code_128","code_39","ean_13"]});
+                const read = async () => {
+                    const codes = await detector.detect(preview);
+                    if (codes.length) {
+                        target.value = codes[0].rawValue;
+                        stream.getTracks().forEach((track) => track.stop());
+                        preview.classList.add("hidden");
+                        target.focus();
+                        return;
+                    }
+                    if (preview.srcObject) requestAnimationFrame(read);
+                };
+                requestAnimationFrame(read);
+            } catch (error) {
+                message.textContent = "No fue posible abrir la cámara. Revise el permiso del navegador o capture el folio manualmente.";
+                message.classList.remove("hidden");
+            }
+        });
+    }
+
     const byId = (id) => document.getElementById(id);
     const fields = {
         site: byId("id_site_id") || byId("id_observed_site_id"),
