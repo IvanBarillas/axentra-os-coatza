@@ -24,9 +24,6 @@ class CustodySelectors:
             .select_related(
                 "asset",
                 "assigned_to",
-                "dependencia",
-                "area",
-                "sede",
                 "prepared_by",
                 "authorized_by",
                 "delivered_by",
@@ -36,6 +33,9 @@ class CustodySelectors:
                 "returned_by",
                 "received_return_by",
                 "cancelled_by",
+                "dependencia",
+                "area",
+                "sede",
             )
         )
 

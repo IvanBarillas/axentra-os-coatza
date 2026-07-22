@@ -1,4 +1,6 @@
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -6,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 
 from apps.inventory.forms import AssetConditionUpdateForm, AssetCorrectionForm, AssetLoanFromAssetForm, AssetPhotoUploadForm
 from apps.inventory.models import AssetLoanStatus, AssetOperationalStatus
-from apps.inventory.selectors import AssetSelectors, DocumentSelectors
+from apps.inventory.selectors import AssetSelectors, CoreDirectorySelectors, DocumentSelectors, InventoryScope
 from apps.inventory.services import correct_asset, create_asset_loan, update_asset_condition, upload_asset_photo
 from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
@@ -76,21 +78,57 @@ def asset_list_view(request):
         "status": request.GET.get("status", "").strip(),
         "operational_status": request.GET.get("operational_status", "").strip(),
         "category_id": request.GET.get("category", "").strip(),
+        "site_id": request.GET.get("site", "").strip(),
         "department_id": request.GET.get("department", "").strip(),
+        "area_id": request.GET.get("area", "").strip(),
+        "custodian_id": request.GET.get("custodian", "").strip(),
+        "capitalizable": request.GET.get("capitalizable", "").strip(),
+        "loan_status": request.GET.get("loan_status", "").strip(),
+    }
+    queryset = AssetSelectors.listar_activos(
+        **filters,
+        scope=scope,
+        actor_id=request.user.pk,
+        scope_department_id=scope_department_id,
+    )
+    page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
+    is_global_scope = scope == InventoryScope.GLOBAL
+    directory = CoreDirectorySelectors.form_choices(
+        site_id=filters["site_id"] or None,
+        department_id=filters["department_id"] or None,
+    ) if is_global_scope else {
+        "site_choices": [], "department_choices": [],
+        "area_choices": [], "user_choices": [],
     }
     return render_inventory(request, page="inventory/pages/asset_list.html", content="inventory/content/asset_list_content.html", context={
         "current_inventory_view": "inventory:asset_list",
-        "assets": AssetSelectors.listar_activos(
-            **filters,
-            scope=scope,
-            actor_id=request.user.pk,
-            scope_department_id=scope_department_id,
-        ),
+        "assets": page_obj.object_list,
+        "page_obj": page_obj,
         "categories": AssetSelectors.categories(),
         "statuses": AssetSelectors.status_choices(),
         "operational_statuses": AssetSelectors.operational_status_choices(),
         "inventory_scope": scope,
+        "is_global_inventory_scope": is_global_scope,
+        **directory,
         **filters,
+    })
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_directory_options_view(request):
+    """Opciones institucionales dependientes para los filtros de Patrimonio."""
+    scope, _ = asset_scope(request)
+    if scope != InventoryScope.GLOBAL:
+        raise PermissionDenied("Los filtros globales son exclusivos de Patrimonio.")
+    site_id = request.GET.get("site_id", "").strip() or None
+    department_id = request.GET.get("department_id", "").strip() or None
+    choices = CoreDirectorySelectors.form_choices(
+        site_id=site_id,
+        department_id=department_id,
+    )
+    return JsonResponse({
+        key: [{"value": value, "label": label} for value, label in values]
+        for key, values in choices.items()
     })
 
 

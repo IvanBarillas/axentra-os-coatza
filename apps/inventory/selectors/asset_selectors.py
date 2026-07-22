@@ -90,7 +90,12 @@ class AssetSelectors:
         patrimonial_status="",
         operational_status="",
         category_id="",
+        site_id="",
         department_id="",
+        area_id="",
+        custodian_id="",
+        capitalizable="",
+        loan_status="",
         scope=InventoryScope.GLOBAL,
         actor_id=None,
         scope_department_id=None,
@@ -121,10 +126,18 @@ class AssetSelectors:
             )
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+        if site_id:
+            queryset = queryset.filter(current_sede_id=site_id)
         if department_id:
             queryset = queryset.filter(
                 current_dependencia_id=department_id
             )
+        if area_id:
+            queryset = queryset.filter(current_area_id=area_id)
+        if custodian_id:
+            queryset = queryset.filter(current_custodian_id=custodian_id)
+        if capitalizable in {"1", "0"}:
+            queryset = queryset.filter(is_capitalizable=capitalizable == "1")
         open_loan = AssetLoan.objects.filter(
             asset_id=OuterRef("pk"),
             is_deleted=False,
@@ -137,9 +150,14 @@ class AssetSelectors:
                 AssetLoanStatus.RETURN_PENDING,
             ),
         )
-        return queryset.annotate(
+        queryset = queryset.annotate(
             has_active_loan=Exists(open_loan),
-        ).order_by("-created_at")
+        )
+        if loan_status == "ACTIVE":
+            queryset = queryset.filter(has_active_loan=True)
+        elif loan_status == "AVAILABLE":
+            queryset = queryset.filter(has_active_loan=False)
+        return queryset.order_by("current_dependencia__nombre", "name", "official_inventory_number")
 
     @classmethod
     def obtener(

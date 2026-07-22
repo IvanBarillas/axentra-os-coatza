@@ -1,4 +1,5 @@
 from .asset_views import (
+    asset_directory_options_view,
     asset_audits_view,
     asset_condition_view,
     asset_correct_view,

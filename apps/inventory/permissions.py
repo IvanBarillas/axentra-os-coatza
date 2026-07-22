@@ -47,6 +47,8 @@ class InventoryPermissions:
         "can_manage_disposals": "Permite integrar y revisar expedientes de baja patrimonial.",
         "can_authorize_disposals": "Permite autorizar o rechazar bajas patrimoniales.",
         "can_execute_disposals": "Permite ejecutar una baja previamente autorizada.",
+        "can_view_department_intake_inbox": "Permite consultar la bandeja de altas pendientes y el historial de la propia dependencia.",
+        "can_view_own_custody_tasks": "Permite consultar exclusivamente tareas personales de resguardo.",
 
         # Documentos y fotografías
         "can_manage_documents": "Permite cargar y administrar documentos patrimoniales.",
@@ -93,12 +95,14 @@ class InventoryPermissions:
         ],
         "director": _VIEW_PERMISSIONS + [
             "can_approve_department_intake",
+            "can_view_department_intake_inbox",
             "can_accept_custody",
+            "can_view_own_custody_tasks",
             "can_request_loans",
             "can_authorize_loans",
         ],
         "resguardatario": [
-            "has_access_module", "can_view_assets", "can_accept_custody", "can_request_loans",
+            "has_access_module", "can_view_assets", "can_accept_custody", "can_view_own_custody_tasks", "can_request_loans",
             "can_request_disposals", "can_manage_documents", "can_manage_photos"
         ],
         "viewer": _VIEW_PERMISSIONS,

@@ -109,16 +109,30 @@ def intake_list_view(request):
         "status": request.GET.get("status", "").strip(),
         "department_id": request.GET.get("department", "").strip(),
     }
+    tab = request.GET.get("tab", "pending").strip().lower()
+    if tab not in {"pending", "history"}:
+        tab = "pending"
+    intakes = IntakeSelectors.listar(
+        **filters,
+        scope=scope,
+        actor_id=request.user.pk,
+        scope_department_id=scope_department_id,
+    )
+    department_inbox = has_any_permission(
+        request, "can_view_department_intake_inbox"
+    ) and scope == "DEPARTMENT"
+    if department_inbox:
+        if tab == "pending":
+            intakes = intakes.filter(status="SUBMITTED")
+        else:
+            intakes = intakes.exclude(status="SUBMITTED")
     return render_inventory(request, page="inventory/pages/intake_list.html", content="inventory/content/intake_list_content.html", context={
         "current_inventory_view": "inventory:intake_list",
-        "intakes": IntakeSelectors.listar(
-            **filters,
-            scope=scope,
-            actor_id=request.user.pk,
-            scope_department_id=scope_department_id,
-        ),
+        "intakes": intakes,
         "inventory_scope": scope,
         "intake_statuses": IntakeSelectors.status_choices(),
+        "department_inbox": department_inbox,
+        "tab": tab,
         **filters,
     })
 

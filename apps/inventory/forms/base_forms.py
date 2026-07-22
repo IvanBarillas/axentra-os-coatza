@@ -32,6 +32,28 @@ class UUIDChoiceField(forms.ChoiceField):
 
 
 class InventoryFormMixin(AxentraFormStylerMixin):
+    spanish_labels = {
+        "approve": "Aprobar", "comment": "Comentario",
+        "bypass_reason": "Motivo de excepción", "reason": "Justificación",
+        "notes": "Notas", "name": "Nombre", "description": "Descripción",
+        "status": "Estado", "result": "Resultado", "file": "Archivo",
+        "image": "Imagen", "caption": "Descripción de la imagen",
+        "owner_type": "Tipo de expediente", "owner_id": "Expediente relacionado",
+        "photo_type": "Tipo de fotografía", "latitude": "Latitud",
+        "longitude": "Longitud", "period_year": "Ejercicio fiscal",
+        "period_month": "Mes", "period_start": "Inicio del periodo",
+        "period_end": "Fin del periodo", "cutoff_at": "Fecha de corte",
+        "source_file": "Archivo de origen", "source_system": "Sistema de origen",
+        "destination_system": "Sistema de destino", "file_format": "Formato del archivo",
+        "export_type": "Tipo de exportación", "closing_notes": "Conclusiones de cierre",
+        "posting_reference": "Referencia contable", "occurred_at": "Fecha del movimiento",
+        "physical_condition": "Condición física", "operational_status": "Estado operativo",
+        "serial_number": "Número de serie", "acquisition_cost": "Costo de adquisición",
+        "residual_value": "Valor residual", "useful_life_months": "Vida útil en meses",
+        "acquisition_date": "Fecha de adquisición", "reception_date": "Fecha de recepción",
+        "acquisition_type": "Tipo de adquisición", "service_order_id": "Orden de servicio",
+        "service_order_folio": "Folio de la orden de servicio", "asset_id": "Bien patrimonial",
+    }
     core_choice_fields = {
         "department_id": "department_choices",
         "requested_department_id": "department_choices",
@@ -63,6 +85,13 @@ class InventoryFormMixin(AxentraFormStylerMixin):
             for key in set(self.core_choice_fields.values())
         }
         super().__init__(*args, **kwargs)
+
+        for field_name, field in self.fields.items():
+            if field_name in self.spanish_labels and (
+                not field.label
+                or field.label == field_name.replace("_", " ").capitalize()
+            ):
+                field.label = self.spanish_labels[field_name]
 
         for field_name, choices_name in self.core_choice_fields.items():
             if field_name in self.fields:

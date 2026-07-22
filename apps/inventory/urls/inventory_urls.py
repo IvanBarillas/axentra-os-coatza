@@ -4,6 +4,7 @@ from django.urls import path
 from apps.inventory.views import (
     asset_audits_view,
     asset_condition_view,
+    asset_directory_options_view,
     asset_correct_view,
     asset_custodies_view,
     asset_detail_view,
@@ -107,6 +108,7 @@ urlpatterns = [
 
     # Activos patrimoniales
     path("assets/", asset_list_view, name="asset_list"),
+    path("assets/directory/options/", asset_directory_options_view, name="asset_directory_options"),
     path("assets/<uuid:asset_id>/", asset_detail_view, name="asset_detail"),
     path("assets/<uuid:asset_id>/technical/", asset_technical_view, name="asset_technical"),
     path("assets/<uuid:asset_id>/custodies/", asset_custodies_view, name="asset_custodies"),

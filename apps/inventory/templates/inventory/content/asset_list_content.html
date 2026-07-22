@@ -1,48 +1,110 @@
 {% include "inventory/partials/general_sidebar_oob.html" %}
-<section class="space-y-6">{% include "inventory/partials/messages.html" %}
-<div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-<div>
-<p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Padrón patrimonial</p>
-<h1 class="mt-2 text-2xl font-black text-slate-900">Bienes registrados</h1>
-</div>
-{% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list %}<a href="{% url 'inventory:intake_create' %}" hx-get="{% url 'inventory:intake_create' %}" hx-target="#page-content" hx-push-url="true" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Nueva solicitud</a>{% endif %}
-</div>
-<form method="get" hx-get="{% url 'inventory:asset_list' %}" hx-target="#page-content" hx-push-url="true" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-5">
-<input name="q" value="{{ q }}" placeholder="Folio, nombre o serie" class="md:col-span-2">
-<select name="status">
-<option value="">Estado patrimonial</option>{% for value,label in statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-<select name="operational_status">
-<option value="">Estado operativo</option>{% for value,label in operational_statuses %}<option value="{{ value }}" {% if operational_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-<button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">Filtrar</button>
-</form>
-<div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-<div class="overflow-x-auto">
-<table class="min-w-full divide-y divide-slate-200">
-<thead class="bg-slate-50 text-left text-[11px] font-black uppercase text-slate-500">
-<tr>
-<th class="px-5 py-4">Folio</th>
-<th class="px-5 py-4">Bien</th>
-<th class="px-5 py-4">Dependencia</th>
-<th class="px-5 py-4">Condición y disponibilidad</th>
-<th class="px-5 py-4">
-</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-slate-100">{% for asset in assets %}<tr>
-<td class="px-5 py-4 font-mono text-sm font-black">{{ asset.official_inventory_number }}</td>
-<td class="px-5 py-4">
-<p class="text-sm font-black">{{ asset.name }}</p>
-<p class="text-xs text-slate-500">{{ asset.serial_number|default:"Sin serie" }}</p>
-</td>
-<td class="px-5 py-4 text-sm">{{ asset.current_dependencia|default:"Sin asignar" }}</td>
-<td class="px-5 py-4"><p class="text-sm font-bold">{{ asset.get_physical_condition_display }}</p><div class="mt-1 flex flex-wrap gap-1"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">{{ asset.get_operational_status_display }}</span>{% if asset.has_active_loan %}<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">En préstamo</span>{% endif %}</div></td>
-<td class="px-5 py-4 text-right">
-<a href="{% url 'inventory:asset_detail' asset.id %}" hx-get="{% url 'inventory:asset_detail' asset.id %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-700">Ver</a>
-</td>
-</tr>{% empty %}<tr>
-<td colspan="5" class="p-6">{% include "inventory/partials/empty_state.html" %}</td>
-</tr>{% endfor %}</tbody>
-</table>
-</div>
-</div>
+<section class="space-y-5">
+    {% include "inventory/partials/messages.html" %}
+
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Padrón patrimonial</p>
+            <h1 class="mt-2 text-2xl font-black text-slate-900">
+                {% if is_global_inventory_scope %}Inventario institucional{% else %}Bienes de mi dependencia{% endif %}
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ page_obj.paginator.count }} bien{{ page_obj.paginator.count|pluralize:"es" }} encontrado{{ page_obj.paginator.count|pluralize:"s" }}.
+            </p>
+        </div>
+        {% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list %}
+            <a href="{% url 'inventory:intake_create' %}" hx-get="{% url 'inventory:intake_create' %}" hx-target="#page-content" hx-push-url="true" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">
+                <i data-lucide="plus" class="h-4 w-4"></i>Nueva solicitud
+            </a>
+        {% endif %}
+    </div>
+
+    <form id="asset-filter-form" method="get" hx-get="{% url 'inventory:asset_list' %}" hx-target="#page-content" hx-push-url="true" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <h2 class="text-sm font-black text-slate-900">Buscar y filtrar</h2>
+                <p class="mt-1 text-xs text-slate-500">Los filtros respetan automáticamente tu alcance institucional.</p>
+            </div>
+            <a href="{% url 'inventory:asset_list' %}" hx-get="{% url 'inventory:asset_list' %}" hx-target="#page-content" hx-push-url="true" class="text-xs font-black text-slate-500 hover:text-slate-900">Limpiar filtros</a>
+        </div>
+
+        <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <label class="xl:col-span-2">
+                <span class="mb-1.5 block text-xs font-black text-slate-600">Búsqueda</span>
+                <div class="relative"><i data-lucide="search" class="absolute left-3 top-3 h-4 w-4 text-slate-400"></i><input name="q" value="{{ q }}" placeholder="Folio, nombre, serie o número anterior" class="w-full rounded-xl border-slate-200 pl-10"></div>
+            </label>
+            <label><span class="mb-1.5 block text-xs font-black text-slate-600">Estado patrimonial</span><select name="status" class="w-full rounded-xl border-slate-200"><option value="">Todos</option>{% for value,label in statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+            <label><span class="mb-1.5 block text-xs font-black text-slate-600">Estado operativo</span><select name="operational_status" class="w-full rounded-xl border-slate-200"><option value="">Todos</option>{% for value,label in operational_statuses %}<option value="{{ value }}" {% if operational_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+
+            {% if is_global_inventory_scope %}
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Sede</span><select id="asset-site" name="site" class="w-full rounded-xl border-slate-200"><option value="">Todas las sedes</option>{% for value,label in site_choices %}<option value="{{ value }}" {% if site_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Dependencia</span><select id="asset-department" name="department" class="w-full rounded-xl border-slate-200"><option value="">Todas las dependencias</option>{% for value,label in department_choices %}<option value="{{ value }}" {% if department_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Área operativa</span><select id="asset-area" name="area" class="w-full rounded-xl border-slate-200"><option value="">Todas las áreas</option>{% for value,label in area_choices %}<option value="{{ value }}" {% if area_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Resguardatario</span><select id="asset-custodian" name="custodian" class="w-full rounded-xl border-slate-200"><option value="">Todos los servidores públicos</option>{% for value,label in user_choices %}<option value="{{ value }}" {% if custodian_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+            {% endif %}
+
+            <label><span class="mb-1.5 block text-xs font-black text-slate-600">Categoría</span><select name="category" class="w-full rounded-xl border-slate-200"><option value="">Todas las categorías</option>{% for category in categories %}<option value="{{ category.id }}" {% if category_id == category.id|stringformat:'s' %}selected{% endif %}>{{ category.code }} · {{ category.name }}</option>{% endfor %}</select></label>
+            <label><span class="mb-1.5 block text-xs font-black text-slate-600">Clasificación contable</span><select name="capitalizable" class="w-full rounded-xl border-slate-200"><option value="">Todas</option><option value="1" {% if capitalizable == '1' %}selected{% endif %}>Capitalizable</option><option value="0" {% if capitalizable == '0' %}selected{% endif %}>Control interno</option></select></label>
+            <label><span class="mb-1.5 block text-xs font-black text-slate-600">Situación de préstamo</span><select name="loan_status" class="w-full rounded-xl border-slate-200"><option value="">Todas</option><option value="ACTIVE" {% if loan_status == 'ACTIVE' %}selected{% endif %}>En préstamo</option><option value="AVAILABLE" {% if loan_status == 'AVAILABLE' %}selected{% endif %}>Sin préstamo activo</option></select></label>
+            <div class="flex items-end"><button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white"><i data-lucide="list-filter" class="h-4 w-4"></i>Aplicar filtros</button></div>
+        </div>
+    </form>
+
+    <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="max-h-[58vh] overflow-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="sticky top-0 z-10 bg-slate-50 text-left text-[11px] font-black uppercase text-slate-500"><tr><th class="px-5 py-4">Folio</th><th class="px-5 py-4">Bien</th><th class="px-5 py-4">Ubicación responsable</th><th class="px-5 py-4">Estado</th><th class="px-5 py-4"></th></tr></thead>
+                <tbody class="divide-y divide-slate-100">
+                {% for asset in assets %}
+                    <tr class="hover:bg-slate-50/70">
+                        <td class="whitespace-nowrap px-5 py-4 font-mono text-sm font-black">{{ asset.official_inventory_number }}</td>
+                        <td class="px-5 py-4"><p class="text-sm font-black">{{ asset.name }}</p><p class="text-xs text-slate-500">{{ asset.category|default:"Sin categoría" }} · {{ asset.serial_number|default:"Sin serie" }}</p></td>
+                        <td class="px-5 py-4"><p class="text-sm font-bold">{{ asset.current_dependencia|default:"Sin dependencia" }}</p><p class="text-xs text-slate-500">{{ asset.current_sede|default:"Sin sede" }}{% if asset.current_area %} · {{ asset.current_area }}{% endif %}</p></td>
+                        <td class="px-5 py-4"><div class="flex flex-wrap gap-1.5"><span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-700">{{ asset.get_operational_status_display }}</span>{% if asset.has_active_loan %}<span class="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-800">En préstamo</span>{% endif %}{% if asset.is_capitalizable %}<span class="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-black text-blue-800">Capitalizable</span>{% else %}<span class="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black text-violet-800">Control interno</span>{% endif %}</div></td>
+                        <td class="px-5 py-4 text-right"><a href="{% url 'inventory:asset_detail' asset.id %}" hx-get="{% url 'inventory:asset_detail' asset.id %}" hx-target="#page-content" hx-push-url="true" class="inline-flex items-center gap-1 text-sm font-black text-slate-700">Ver expediente<i data-lucide="chevron-right" class="h-4 w-4"></i></a></td>
+                    </tr>
+                {% empty %}<tr><td colspan="5" class="p-8">{% include "inventory/partials/empty_state.html" %}</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="flex items-center justify-between border-t border-slate-200 px-5 py-4 text-sm">
+            <p class="text-slate-500">Página <strong>{{ page_obj.number }}</strong> de <strong>{{ page_obj.paginator.num_pages }}</strong></p>
+            <div class="flex gap-2">
+                {% if page_obj.has_previous %}<button type="submit" form="asset-filter-form" name="page" value="{{ page_obj.previous_page_number }}" class="rounded-lg border border-slate-200 px-3 py-2 font-black">Anterior</button>{% endif %}
+                {% if page_obj.has_next %}<button type="submit" form="asset-filter-form" name="page" value="{{ page_obj.next_page_number }}" class="rounded-lg border border-slate-200 px-3 py-2 font-black">Siguiente</button>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
 </section>
+
+{% if is_global_inventory_scope %}
+<script>
+(function () {
+    const site = document.getElementById('asset-site');
+    const department = document.getElementById('asset-department');
+    const area = document.getElementById('asset-area');
+    const custodian = document.getElementById('asset-custodian');
+    if (!site || !department || !area || !custodian) return;
+    const endpoint = "{% url 'inventory:asset_directory_options' %}";
+    const fill = (select, options, placeholder) => {
+        const previous = select.value;
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+        options.forEach(item => select.add(new Option(item.label, item.value)));
+        if ([...select.options].some(option => option.value === previous)) select.value = previous;
+    };
+    const refresh = async () => {
+        const query = new URLSearchParams({site_id: site.value, department_id: department.value});
+        const response = await fetch(`${endpoint}?${query}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+        if (!response.ok) return;
+        const data = await response.json();
+        fill(department, data.department_choices, 'Todas las dependencias');
+        fill(area, data.area_choices, 'Todas las áreas');
+        fill(custodian, data.user_choices, 'Todos los servidores públicos');
+    };
+    site.addEventListener('change', () => { department.value = ''; area.value = ''; custodian.value = ''; refresh(); });
+    department.addEventListener('change', () => { area.value = ''; custodian.value = ''; refresh(); });
+})();
+</script>
+{% endif %}
