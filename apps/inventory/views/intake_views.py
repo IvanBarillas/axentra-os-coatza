@@ -8,7 +8,7 @@ from apps.inventory.forms import (
     PatrimonyApprovalForm, PatrimonyObservationForm,
 )
 from apps.inventory.integrations import core_directory
-from apps.inventory.selectors import CoreDirectorySelectors, IntakeSelectors
+from apps.inventory.selectors import CatalogSelectors, CoreDirectorySelectors, IntakeSelectors
 from apps.inventory.services import (
     approve_patrimony_intake, cancel_intake, create_and_submit_intake,
     create_intake_draft,
@@ -18,7 +18,7 @@ from apps.inventory.services import (
 from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
 
-from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
+from .common import render_inventory, run_service, selector_or_404, success
 from .access import has_any_permission, intake_scope
 
 
@@ -35,6 +35,67 @@ def _options_response(options):
             ]
         }
     )
+
+
+def _set_choices(field, options):
+    field.choices = [("", "--- Seleccione ---"), *options]
+
+
+def _apply_intake_directory_choices(form, data):
+    """Carga sólo el siguiente nivel válido de la cascada organizacional."""
+    site_id = str(data.get("requested_site_id", "") or "").strip()
+    department_id = str(data.get("requested_department_id", "") or "").strip()
+    area_id = str(data.get("requested_area_id", "") or "").strip()
+
+    _set_choices(
+        form.fields["requested_site_id"],
+        [(str(item.id), item.name) for item in CoreDirectorySelectors.sites()],
+    )
+    departments = CoreDirectorySelectors.departments(site_id=site_id) if site_id else []
+    _set_choices(
+        form.fields["requested_department_id"],
+        [
+            (str(item.id), f"{item.code or 'SIN-CÓDIGO'} · {item.name}")
+            for item in departments
+        ],
+    )
+    areas = (
+        CoreDirectorySelectors.areas(
+            site_id=site_id,
+            department_id=department_id,
+        )
+        if site_id and department_id
+        else []
+    )
+    _set_choices(
+        form.fields["requested_area_id"],
+        [
+            (
+                str(item.id),
+                f"{item.department_name} → {item.name} [{item.site_name}]",
+            )
+            for item in areas
+        ],
+    )
+    users = (
+        CoreDirectorySelectors.users(
+            department_id=department_id,
+            area_id=area_id or None,
+        )
+        if department_id
+        else []
+    )
+    _set_choices(
+        form.fields["proposed_custodian_id"],
+        [
+            (
+                str(item.id),
+                f"{item.display_name} · {item.email}" if item.email else item.display_name,
+            )
+            for item in users
+        ],
+    )
+    return form
 
 
 @axentra_gate_enforcer(
@@ -101,6 +162,17 @@ def intake_directory_users_view(request):
     return _options_response(options)
 
 
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_create_asset",
+)
+@require_GET
+def intake_models_view(request):
+    manufacturer_id = request.GET.get("manufacturer_id", "").strip() or None
+    models = CatalogSelectors.models(manufacturer_id=manufacturer_id) if manufacturer_id else []
+    return _options_response((item.id, item.name) for item in models)
+
+
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
 def intake_list_view(request):
     scope, scope_department_id = intake_scope(request)
@@ -162,7 +234,8 @@ def intake_detail_view(request, intake_id):
 @require_http_methods(["GET", "POST"])
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_create_asset")
 def intake_create_view(request):
-    form = apply_directory_choices(AssetIntakeCreateForm(request.POST or None))
+    form = AssetIntakeCreateForm(request.POST or None)
+    form = _apply_intake_directory_choices(form, request.POST if request.method == "POST" else {})
     can_submit = has_any_permission(request, "can_submit_asset_intake")
     if request.method == "POST" and form.is_valid():
         submit_now = request.POST.get("intake_action") == "submit"

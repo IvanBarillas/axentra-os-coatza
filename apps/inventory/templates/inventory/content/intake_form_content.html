@@ -9,13 +9,16 @@
     const department = document.getElementById("id_requested_department_id");
     const area = document.getElementById("id_requested_area_id");
     const custodian = document.getElementById("id_proposed_custodian_id");
+    const manufacturer = document.getElementById("id_manufacturer");
+    const model = document.getElementById("id_model");
     if (!site || !department || !area || !custodian || site.dataset.cascadeReady === "1") return;
     site.dataset.cascadeReady = "1";
 
     const endpoints = {
         departments: "{% url 'inventory:intake_directory_departments' %}",
         areas: "{% url 'inventory:intake_directory_areas' %}",
-        users: "{% url 'inventory:intake_directory_users' %}"
+        users: "{% url 'inventory:intake_directory_users' %}",
+        models: "{% url 'inventory:intake_models' %}"
     };
     const placeholder = "--- Seleccione ---";
 
@@ -40,11 +43,22 @@
     }
 
     site.addEventListener("change", async function () {
+        if (!site.value) {
+            replaceOptions(department, [], "");
+            replaceOptions(area, [], "");
+            replaceOptions(custodian, [], "");
+            return;
+        }
         await load(department, endpoints.departments, {site_id: site.value}, "");
         replaceOptions(area, [], "");
         replaceOptions(custodian, [], "");
     });
     department.addEventListener("change", async function () {
+        if (!department.value) {
+            replaceOptions(area, [], "");
+            replaceOptions(custodian, [], "");
+            return;
+        }
         await load(area, endpoints.areas, {
             site_id: site.value,
             department_id: department.value
@@ -59,5 +73,16 @@
             area_id: area.value
         }, "");
     });
+    if (manufacturer && model) {
+        manufacturer.addEventListener("change", function () {
+            if (!manufacturer.value) {
+                replaceOptions(model, [], "");
+                return;
+            }
+            load(model, endpoints.models, {
+                manufacturer_id: manufacturer.value
+            }, "");
+        });
+    }
 })();
 </script>

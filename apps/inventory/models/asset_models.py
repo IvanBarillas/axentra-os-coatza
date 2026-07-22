@@ -227,6 +227,12 @@ class AssetIntakeRequest(InventoryBaseModel):
         null=True,
         blank=True,
     )
+    location_detail = models.CharField(
+        "Detalle de ubicación física",
+        max_length=255,
+        blank=True,
+        help_text="Ejemplo: rack del cuarto piso, oficina 204 o almacén norte.",
+    )
 
     captured_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -521,6 +527,9 @@ class AssetIntakeRequest(InventoryBaseModel):
 
         if self.source_folio:
             self.source_folio = self.source_folio.strip().upper()
+
+        if self.location_detail:
+            self.location_detail = self.location_detail.strip()
 
         if self.notes:
             self.notes = self.notes.strip()
@@ -1303,6 +1312,13 @@ class Asset(InventoryBaseModel):
         blank=True,
     )
 
+    location_detail = models.CharField(
+        "Detalle de ubicación física",
+        max_length=255,
+        blank=True,
+        help_text="Referencia precisa dentro de la sede: piso, oficina, rack o almacén.",
+    )
+
     notes = models.TextField(
         "Notas",
         blank=True,
@@ -1484,6 +1500,9 @@ class Asset(InventoryBaseModel):
 
         if self.description:
             self.description = self.description.strip()
+
+        if self.location_detail:
+            self.location_detail = self.location_detail.strip()
 
         if self.notes:
             self.notes = self.notes.strip()

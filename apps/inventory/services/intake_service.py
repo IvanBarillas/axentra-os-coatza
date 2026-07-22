@@ -389,6 +389,7 @@ def create_intake_draft(
         source_model=str(data.source_model or "").strip(),
         source_object_id=data.source_object_id,
         source_folio=str(data.source_folio or "").strip().upper(),
+        location_detail=str(data.location_detail or "").strip(),
         notes=str(data.notes or "").strip(),
         extra_attributes=dict(data.extra_attributes or {}),
     )
@@ -1048,6 +1049,7 @@ def register_approved_intake(
         current_dependencia=intake.requested_dependencia,
         current_area=intake.requested_area,
         current_custodian=None,
+        location_detail=intake.location_detail,
         notes=intake.notes,
         extra_attributes=dict(intake.extra_attributes or {}),
     )

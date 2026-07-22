@@ -26,6 +26,7 @@ class CreateAssetIntakeDTO:
     requested_site_id: UUID | None = None
     requested_area_id: UUID | None = None
     proposed_custodian_id: UUID | None = None
+    location_detail: str = ""
     notes: str = ""
     extra_attributes: Mapping[str, Any] = field(default_factory=dict)
     source_app: str = ""
@@ -55,6 +56,7 @@ class UpdateAssetIntakeDTO:
     requested_site_id: UUID | None = None
     requested_area_id: UUID | None = None
     proposed_custodian_id: UUID | None = None
+    location_detail: str = ""
     notes: str = ""
     extra_attributes: Mapping[str, Any] = field(default_factory=dict)
 

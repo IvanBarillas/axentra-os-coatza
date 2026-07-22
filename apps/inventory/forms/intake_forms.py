@@ -46,6 +46,14 @@ class AssetIntakeBaseForm(InventoryForm):
     requested_department_id = UUIDChoiceField()
     requested_area_id = UUIDChoiceField(required=False)
     proposed_custodian_id = UUIDChoiceField(required=False)
+    location_detail = forms.CharField(
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={"placeholder": "Ej. Rack del cuarto piso, oficina 204"}
+        ),
+        help_text="Indique la ubicación precisa dentro de la sede cuando aplique.",
+    )
     notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
     def __init__(self, *args, **kwargs):
@@ -69,7 +77,8 @@ class AssetIntakeBaseForm(InventoryForm):
             "requested_site_id": "Sede receptora",
             "requested_department_id": "Dependencia receptora",
             "requested_area_id": "Área receptora propuesta",
-            "proposed_custodian_id": "Resguardatario propuesto",
+            "proposed_custodian_id": "Resguardatario propuesto (opcional)",
+            "location_detail": "Detalle de ubicación física",
             "notes": "Notas internas",
         }
         for field_name, label in labels.items():
@@ -79,7 +88,18 @@ class AssetIntakeBaseForm(InventoryForm):
         self.fields["expenditure_object"].queryset = ExpenditureObject.objects.filter(**active).order_by("code")
         self.fields["accounting_account"].queryset = AccountingAccount.objects.filter(**active).order_by("code")
         self.fields["manufacturer"].queryset = Manufacturer.objects.filter(**active).order_by("name")
-        self.fields["model"].queryset = AssetModel.objects.filter(**active).select_related("manufacturer").order_by("manufacturer__name", "name")
+        self.fields["model"].queryset = AssetModel.objects.none()
+        manufacturer_id = (
+            self.data.get("manufacturer")
+            if self.is_bound
+            else self.initial.get("manufacturer")
+        )
+        if manufacturer_id:
+            self.fields["model"].queryset = (
+                AssetModel.objects.filter(**active, manufacturer_id=manufacturer_id)
+                .select_related("manufacturer")
+                .order_by("name")
+            )
         self.fields["supplier"].queryset = Supplier.objects.filter(**active).order_by("razon_social")
         self.fields["contract"].queryset = Contract.objects.filter(**active).select_related("supplier").order_by("-fecha_inicio")
 
@@ -118,7 +138,9 @@ class AssetIntakeBaseForm(InventoryForm):
             "contract_id": d["contract"].id if d.get("contract") else None,
             "requested_department_id": d["requested_department_id"],
             "requested_site_id": d.get("requested_site_id"), "requested_area_id": d.get("requested_area_id"),
-            "proposed_custodian_id": d.get("proposed_custodian_id"), "notes": d.get("notes", ""),
+            "proposed_custodian_id": d.get("proposed_custodian_id"),
+            "location_detail": d.get("location_detail", ""),
+            "notes": d.get("notes", ""),
         }
 
 

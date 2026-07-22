@@ -40,7 +40,7 @@ from .financial_views import (
 from .intake_views import (
     intake_approve_view, intake_cancel_view, intake_create_view,
     intake_directory_areas_view, intake_directory_departments_view,
-    intake_directory_users_view,
+    intake_directory_users_view, intake_models_view,
     intake_department_decision_view, intake_detail_view, intake_list_view,
     intake_observe_view, intake_register_view, intake_send_to_patrimony_view,
     intake_submit_view,
