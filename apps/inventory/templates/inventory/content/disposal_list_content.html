@@ -4,10 +4,13 @@
         <div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Desincorporación controlada</p><h1 class="mt-2 text-2xl font-black">Bajas patrimoniales</h1><p class="mt-1 text-sm text-slate-500">Expedientes sujetos a evidencia, revisión y autorización.</p></div>
         {% if can_create_disposal %}<a href="{% url 'inventory:disposal_create' %}" hx-get="{% url 'inventory:disposal_create' %}" hx-target="#page-content" hx-push-url="true" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Solicitar baja</a>{% endif %}
     </div>
-    <form method="get" hx-get="{% url 'inventory:disposal_list' %}" hx-target="#page-content" hx-push-url="true" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-4">
-        <input name="q" value="{{ q }}" placeholder="Folio, bien o número de serie" class="md:col-span-2">
-        <select name="status"><option value="">Todos los estados</option>{% for value, label in disposal_statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-        <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">Filtrar</button>
+    <form method="get" hx-get="{% url 'inventory:disposal_list' %}" hx-target="#page-content" hx-push-url="true" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="grid gap-3 lg:grid-cols-[minmax(300px,1fr)_240px_auto_auto]">
+            <label class="relative"><span class="sr-only">Buscar bajas</span><i data-lucide="search" class="pointer-events-none absolute left-3.5 top-3.5 h-4 w-4 text-slate-400"></i><input name="q" value="{{ q }}" placeholder="Buscar por folio, bien o serie" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"></label>
+            <select name="status" aria-label="Estado de la baja" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"><option value="">Todos los estados</option>{% for value, label in disposal_statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            <button class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 text-sm font-black text-white"><i data-lucide="search" class="h-4 w-4"></i>Buscar</button>
+            <a href="{% url 'inventory:disposal_list' %}" hx-get="{% url 'inventory:disposal_list' %}" hx-target="#page-content" hx-push-url="true" title="Limpiar filtros" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500"><i data-lucide="rotate-ccw" class="h-4 w-4"></i></a>
+        </div>
     </form>
     <div class="max-h-[62vh] space-y-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
         {% for disposal in disposals %}

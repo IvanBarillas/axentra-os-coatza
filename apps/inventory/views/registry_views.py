@@ -44,7 +44,14 @@ from apps.inventory.forms import (
     PhysicalAuditPhotoUploadForm,
 )
 from apps.inventory.integrations import core_directory
-from apps.inventory.models import AssetDocument, AssetPhoto, DisposalStageDocumentRequirement, InventoryDocumentOwnerType
+from apps.inventory.models import (
+    AssetDocument,
+    AssetPhoto,
+    DisposalStageDocumentRequirement,
+    DocumentValidationStatus,
+    InventoryDocumentOwnerType,
+    MovementType,
+)
 
 from apps.inventory.selectors import (
     AssetSelectors, CoreDirectorySelectors, CustodySelectors, DisposalSelectors, DocumentSelectors, FinancialSelectors,
@@ -309,7 +316,7 @@ def custody_cancel_view(request, custody_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_movements")
 def movement_list_view(request):
     f = _filters(request, "q", "asset_id", "movement_type")
-    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "movements":MovementSelectors.listar(**f), **f})
+    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "movements":MovementSelectors.listar(**f), "movement_types":MovementType.choices, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_movements")
@@ -829,7 +836,7 @@ def disposal_document_validate_view(request, disposal_id, document_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_documents")
 def document_list_view(request):
     f = _filters(request, "owner_type", "owner_id", "document_type", "validation_status", "q")
-    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":DocumentSelectors.documents(**f), **f})
+    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":DocumentSelectors.documents(**f), "validation_statuses":DocumentValidationStatus.choices, **f})
 
 
 def _physical_audit(request, session_id):
