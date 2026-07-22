@@ -13,6 +13,7 @@ WORKFLOWS = {
         "title": "Registrar un bien",
         "summary": "Desde la solicitud hasta el folio oficial.",
         "icon": "clipboard-plus",
+        "registry_code": "inventory.asset_intake",
         "steps": (
             ("Captura", "Adquisiciones o Patrimonio registra los datos y evidencias."),
             ("Aceptación", "El titular de la dependencia confirma que recibirá el bien."),
@@ -25,6 +26,7 @@ WORKFLOWS = {
         "title": "Asignar un resguardo",
         "summary": "Responsabilidad permanente sobre un bien.",
         "icon": "file-signature",
+        "registry_code": "inventory.custody",
         "steps": (
             ("Preparación", "Patrimonio selecciona sede, dependencia, área y resguardatario."),
             ("Autorización", "El titular de la dependencia autoriza la asignación."),
@@ -37,6 +39,7 @@ WORKFLOWS = {
         "title": "Prestar o recibir un bien",
         "summary": "Custodia temporal sin cambiar la propiedad administrativa.",
         "icon": "handshake",
+        "registry_code": "inventory.loan",
         "steps": (
             ("Entrega propuesta", "La dependencia propietaria elige el bien y la dependencia receptora."),
             ("Aceptación receptora", "La dependencia receptora define área y responsable."),
@@ -50,6 +53,7 @@ WORKFLOWS = {
         "title": "Mover o reasignar un bien",
         "summary": "Cambio formal de ubicación, área o adscripción.",
         "icon": "arrow-left-right",
+        "registry_code": "inventory.movement",
         "steps": (
             ("Solicitud", "Se indica el origen, destino y motivo del cambio."),
             ("Autorización", "Las autoridades correspondientes revisan el movimiento."),
@@ -62,6 +66,7 @@ WORKFLOWS = {
         "title": "Dar de baja un bien",
         "summary": "Desincorporación con evidencia obligatoria.",
         "icon": "archive-x",
+        "registry_code": "inventory.disposal",
         "steps": (
             ("Solicitud", "Se registra motivo y justificación."),
             ("Evidencias", "Se carga denuncia, dictamen o acta según el tipo de baja."),
@@ -74,6 +79,7 @@ WORKFLOWS = {
         "title": "Realizar una auditoría física",
         "summary": "Comprobar ubicación, responsable y condición.",
         "icon": "scan-line",
+        "registry_code": "inventory.physical_audit",
         "steps": (
             ("Apertura", "Se define periodo y alcance del levantamiento."),
             ("Congelamiento", "Se conserva una fotografía del inventario esperado."),
@@ -87,6 +93,7 @@ WORKFLOWS = {
         "title": "Agregar documentos y fotografías",
         "summary": "Evidencia del expediente patrimonial.",
         "icon": "folder-check",
+        "registry_code": "inventory.documents",
         "steps": (
             ("Seleccionar expediente", "Abra el bien, préstamo, resguardo o baja correspondiente."),
             ("Cargar", "Indique tipo, descripción y archivo o fotografía."),
@@ -99,6 +106,7 @@ WORKFLOWS = {
         "title": "Depreciación y conciliación",
         "summary": "Control contable y exportación a SIGMAVER.",
         "icon": "landmark",
+        "registry_code": "inventory.financial",
         "steps": (
             ("Clasificar", "Cada bien se relaciona con su cuenta CONAC."),
             ("Calcular", "Se ejecuta la depreciación según la política vigente."),
@@ -107,12 +115,40 @@ WORKFLOWS = {
         ),
         "important": "Una diferencia de centavos debe revisarse antes del cierre contable.",
     },
+    "catalogos": {
+        "title": "Administrar catálogos",
+        "summary": "Clasificaciones disponibles para nuevas capturas.",
+        "icon": "library-big",
+        "registry_code": "inventory.catalogs",
+        "steps": (
+            ("Revisar", "Patrimonio confirma que la categoría o código todavía no existe."),
+            ("Capturar", "Se registran código, nombre, relaciones y reglas aplicables."),
+            ("Validar", "El sistema comprueba duplicados y relaciones contables."),
+            ("Publicar", "El registro activo queda disponible en nuevas solicitudes."),
+            ("Desactivar", "Cuando deja de usarse se oculta sin borrar su historial."),
+        ),
+        "important": "Desactivar un catálogo nunca modifica los bienes que ya lo utilizaron.",
+    },
 }
+
+
+WORKFLOW_GROUPS = (
+    ("Operación cotidiana", ("alta", "resguardo", "prestamo", "movimiento")),
+    ("Control y cumplimiento", ("baja", "auditoria", "documentos")),
+    ("Administración y contabilidad", ("finanzas", "catalogos")),
+)
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def inventory_help_view(request):
-    return render_inventory(request, page="inventory/pages/help.html", content="inventory/content/help_content.html", context={"current_inventory_view": "inventory:help", "workflows": WORKFLOWS})
+    groups = tuple(
+        (
+            title,
+            tuple((code, WORKFLOWS[code]) for code in codes),
+        )
+        for title, codes in WORKFLOW_GROUPS
+    )
+    return render_inventory(request, page="inventory/pages/help.html", content="inventory/content/help_content.html", context={"current_inventory_view": "inventory:help", "workflows": WORKFLOWS, "workflow_groups": groups})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")

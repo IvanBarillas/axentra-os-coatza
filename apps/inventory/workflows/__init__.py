@@ -3,9 +3,10 @@
 from apps.shared.workflows import register_workflow
 
 from .intake_workflow import INVENTORY_INTAKE_WORKFLOW
+from .operational_workflows import OPERATIONAL_WORKFLOWS
 
 
-INVENTORY_WORKFLOWS = (INVENTORY_INTAKE_WORKFLOW,)
+INVENTORY_WORKFLOWS = (INVENTORY_INTAKE_WORKFLOW, *OPERATIONAL_WORKFLOWS)
 
 
 def register_inventory_workflows():
