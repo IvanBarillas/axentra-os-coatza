@@ -1,5 +1,6 @@
 <section class="mx-auto max-w-4xl space-y-6">
     {% include "inventory/partials/messages.html" %}
     <div><a href="{% url 'inventory:financial_dashboard' %}" hx-get="{% url 'inventory:financial_dashboard' %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver a finanzas</a><p class="mt-5 text-xs font-black uppercase tracking-[.24em] text-blue-600">Control financiero</p><h1 class="mt-2 text-2xl font-black">{{ form_title }}</h1><p class="mt-1 text-sm text-slate-500">{{ form_help }}</p></div>
+    {% if show_report_layout_notice %}<div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"><strong>Formato institucional:</strong> los incisos A–G, transparencia, depreciación y saldos generan contenidos diferentes. Antes de enviarlos a SIGMAVER deberá compararse el CSV con el layout oficial vigente del municipio.</div>{% endif %}
     {% include "inventory/partials/generic_form.html" with submit_label="Continuar" %}
 </section>

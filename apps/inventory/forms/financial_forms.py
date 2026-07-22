@@ -1,8 +1,8 @@
 from django import forms
 from django.utils import timezone
-from apps.inventory.dtos import CalculateDepreciationDTO, CloseReconciliationDTO, CompleteDepreciationRunDTO, CreateAccountingExportDTO, CreateDepreciationRunDTO, CreateReconciliationDTO, PostDepreciationRunDTO, ProcessReconciliationDTO, ReviewReconciliationItemDTO
+from apps.inventory.dtos import CalculateDepreciationDTO, CloseDepreciationPolicyDTO, CloseReconciliationDTO, CompleteDepreciationRunDTO, CreateAccountingExportDTO, CreateDepreciationPolicyDTO, CreateDepreciationRunDTO, CreateReconciliationDTO, PostDepreciationRunDTO, ProcessReconciliationDTO, ReviewReconciliationItemDTO
 from apps.inventory.forms.base_forms import DATE_WIDGET, DATETIME_WIDGET, InventoryForm
-from apps.inventory.models import AccountingExportBatch, DepreciationFrequency
+from apps.inventory.models import AccountingAccount, AccountingExportBatch, AssetCategory, DepreciationFrequency, DepreciationMethod
 from apps.inventory.models.financial_models import (
     AccountingExportFormat,
     ReconciliationItemResult,
@@ -17,6 +17,47 @@ class DepreciationRunCreateForm(InventoryForm):
         if d.get("frequency")==DepreciationFrequency.MONTHLY and not d.get("period_month"): self.add_error("period_month","El mes es obligatorio para frecuencia mensual.")
         return d
     def to_dto(self): d=self.require_cleaned_data(); return CreateDepreciationRunDTO(d["frequency"],d["period_year"],d["period_start"],d["period_end"],d["cutoff_at"],d.get("period_month"),d.get("notes", ""))
+
+
+class DepreciationPolicyCreateForm(InventoryForm):
+    policy_code = forms.CharField(label="Código de política", max_length=50)
+    name = forms.CharField(label="Nombre de la política", max_length=180)
+    accounting_account = forms.ModelChoiceField(label="Cuenta contable depreciable", queryset=AccountingAccount.objects.none())
+    category = forms.ModelChoiceField(label="Categoría específica", queryset=AssetCategory.objects.none(), required=False, help_text="Déjela vacía para aplicar a cualquier categoría de la cuenta.")
+    method = forms.ChoiceField(label="Método", choices=DepreciationMethod.choices)
+    frequency = forms.ChoiceField(label="Frecuencia", choices=DepreciationFrequency.choices)
+    useful_life_months = forms.IntegerField(label="Vida útil en meses", min_value=1)
+    residual_percentage = forms.DecimalField(label="Porcentaje residual", min_value=0, max_value=100, max_digits=6, decimal_places=3)
+    effective_from = forms.DateField(label="Vigente desde", widget=DATE_WIDGET)
+    effective_until = forms.DateField(label="Vigente hasta", widget=DATE_WIDGET, required=False)
+    source_reference = forms.CharField(label="Referencia normativa o técnica", required=False, max_length=255)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        active = {"is_active": True, "is_deleted": False}
+        self.fields["accounting_account"].queryset = AccountingAccount.objects.filter(**active, is_depreciable=True).order_by("code")
+        self.fields["category"].queryset = AssetCategory.objects.filter(**active).order_by("name")
+
+    def clean(self):
+        data = super().clean()
+        if data.get("effective_until") and data.get("effective_from") and data["effective_until"] < data["effective_from"]:
+            self.add_error("effective_until", "No puede ser anterior al inicio de vigencia.")
+        account = data.get("accounting_account"); category = data.get("category")
+        if account and category and account.category_id and account.category_id != category.id:
+            self.add_error("category", "La categoría no corresponde a la cuenta contable seleccionada.")
+        return data
+
+    def to_dto(self):
+        d = self.require_cleaned_data()
+        return CreateDepreciationPolicyDTO(d["policy_code"], d["name"], d["accounting_account"].id, d["category"].id if d.get("category") else None, d["method"], d["frequency"], d["useful_life_months"], d["residual_percentage"], d["effective_from"], d.get("effective_until"), d.get("source_reference", ""))
+
+
+class DepreciationPolicyCloseForm(InventoryForm):
+    effective_until = forms.DateField(label="Último día de vigencia", widget=DATE_WIDGET)
+    reason = forms.CharField(label="Motivo del cierre", widget=forms.Textarea(attrs={"rows": 3}))
+
+    def to_dto(self):
+        d = self.require_cleaned_data(); return CloseDepreciationPolicyDTO(d["effective_until"], d["reason"])
 
 
 class DepreciationCalculateForm(InventoryForm):

@@ -8,6 +8,7 @@ from apps.inventory.models import (
     DepreciationPolicy,
     DepreciationRecord,
     DepreciationRun,
+    Asset,
 )
 
 
@@ -37,6 +38,27 @@ class FinancialSelectors:
             .select_related("accounting_account")
             .order_by("name")
         )
+
+    @classmethod
+    def depreciation_policy_detail(cls, policy_id):
+        return cls.depreciation_policies().select_related("category").get(pk=policy_id)
+
+    @classmethod
+    def assets_without_policy(cls):
+        """Bienes capitalizables sin política general o específica vigente."""
+        from django.utils import timezone
+        today = timezone.localdate()
+        assets = Asset.objects.filter(
+            is_deleted=False, is_capitalizable=True,
+            accounting_account__isnull=False,
+        ).select_related("accounting_account", "category", "current_dependencia")
+        policies = cls.depreciation_policies().filter(
+            effective_from__lte=today,
+        ).filter(Q(effective_until__isnull=True) | Q(effective_until__gte=today))
+        coverage = {}
+        for policy in policies:
+            coverage.setdefault(policy.accounting_account_id, set()).add(policy.category_id)
+        return [asset for asset in assets if asset.accounting_account_id not in coverage or (None not in coverage[asset.accounting_account_id] and asset.category_id not in coverage[asset.accounting_account_id])]
 
     @staticmethod
     def _global_only(queryset, *, scope):

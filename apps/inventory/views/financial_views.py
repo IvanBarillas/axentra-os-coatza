@@ -1,15 +1,16 @@
 """Vistas financieras globales de Control Patrimonial."""
 
 from django import forms
+from django.core.paginator import Paginator
 from django.http import FileResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from apps.inventory.forms import AccountingExportCreateForm, DepreciationPostForm, DepreciationRunCreateForm, ReconciliationCloseForm, ReconciliationCreateForm, ReconciliationProcessForm
+from apps.inventory.forms import AccountingExportCreateForm, DepreciationPolicyCloseForm, DepreciationPolicyCreateForm, DepreciationPostForm, DepreciationRunCreateForm, ReconciliationCloseForm, ReconciliationCreateForm, ReconciliationProcessForm
 from apps.inventory.models.financial_models import AccountingExportStatus, DepreciationRunStatus, ReconciliationStatus
 from apps.inventory.selectors import FinancialScope, FinancialSelectors
-from apps.inventory.services import calculate_depreciation_run, close_reconciliation, create_accounting_export, create_depreciation_run, create_reconciliation, post_depreciation_run, process_reconciliation
+from apps.inventory.services import calculate_depreciation_run, close_depreciation_policy, close_reconciliation, create_accounting_export, create_depreciation_policy, create_depreciation_run, create_reconciliation, post_depreciation_run, process_reconciliation
 from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
 
@@ -25,14 +26,68 @@ def financial_dashboard_view(request):
     return render_inventory(request, page="inventory/pages/financial_dashboard.html", content="inventory/content/financial_dashboard_content.html", context={
         "current_inventory_view": "inventory:financial_dashboard",
         "policies": FinancialSelectors.depreciation_policies(),
-        "runs": FinancialSelectors.depreciation_runs(scope=FinancialScope.GLOBAL)[:20],
-        "exports": FinancialSelectors.export_batches(scope=FinancialScope.GLOBAL)[:20],
-        "reconciliations": FinancialSelectors.reconciliations(scope=FinancialScope.GLOBAL)[:20],
+        "runs": FinancialSelectors.depreciation_runs(scope=FinancialScope.GLOBAL)[:5],
+        "exports": FinancialSelectors.export_batches(scope=FinancialScope.GLOBAL)[:5],
+        "reconciliations": FinancialSelectors.reconciliations(scope=FinancialScope.GLOBAL)[:5],
         "can_run_depreciation": "can_run_depreciation" in request.axentra_permissions_list or request.axentra_is_root,
         "can_post_depreciation": "can_post_depreciation" in request.axentra_permissions_list or request.axentra_is_root,
         "can_export_reports": "can_export_reports" in request.axentra_permissions_list or request.axentra_is_root,
         "can_manage_reconciliation": "can_manage_reconciliation" in request.axentra_permissions_list or request.axentra_is_root,
     })
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_financials")
+def financial_history_view(request, section):
+    section = str(section).strip().lower()
+    q = request.GET.get("q", "").strip(); status = request.GET.get("status", "").strip()
+    year = request.GET.get("year", "").strip()
+    if section == "depreciations":
+        queryset = FinancialSelectors.depreciation_runs(q=q, status=status, period_year=int(year) if year.isdigit() else None, scope=FinancialScope.GLOBAL)
+        title = "Histórico de depreciaciones"; statuses = DepreciationRunStatus.choices
+    elif section == "exports":
+        queryset = FinancialSelectors.export_batches(q=q, status=status, scope=FinancialScope.GLOBAL)
+        if year.isdigit(): queryset = queryset.filter(period_start__year=int(year))
+        title = "Histórico de reportes"; statuses = AccountingExportStatus.choices
+    elif section == "reconciliations":
+        queryset = FinancialSelectors.reconciliations(q=q, status=status, scope=FinancialScope.GLOBAL)
+        if year.isdigit(): queryset = queryset.filter(period_start__year=int(year))
+        title = "Histórico de conciliaciones"; statuses = ReconciliationStatus.choices
+    else:
+        from django.http import Http404
+        raise Http404("El histórico financiero solicitado no existe.")
+    page = Paginator(queryset, 25).get_page(request.GET.get("page"))
+    return render_inventory(request, page="inventory/pages/financial_history.html", content="inventory/content/financial_history_content.html", context={"current_inventory_view":"inventory:financial_dashboard", "section":section, "history_title":title, "records":page, "q":q, "status":status, "year":year, "statuses":statuses})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_financials")
+def depreciation_policy_list_view(request):
+    policies = FinancialSelectors.depreciation_policies()
+    uncovered = FinancialSelectors.assets_without_policy()
+    return render_inventory(request, page="inventory/pages/depreciation_policy_list.html", content="inventory/content/depreciation_policy_list_content.html", context={"current_inventory_view":"inventory:financial_dashboard", "policies":policies, "uncovered_assets":uncovered, "can_manage_policies":request.axentra_is_root or "can_run_depreciation" in request.axentra_permissions_list})
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_run_depreciation")
+def depreciation_policy_create_view(request):
+    form = DepreciationPolicyCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        policy = run_service(form, lambda: create_depreciation_policy(data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if policy:
+            success(request, f"Política {policy.policy_code} V{policy.version_number} creada correctamente.")
+            return redirect("inventory:depreciation_policy_list")
+    return render_inventory(request, page="inventory/pages/financial_form.html", content="inventory/content/financial_form_content.html", context={"current_inventory_view":"inventory:financial_dashboard", "form":form, "form_title":"Nueva política de depreciación", "form_help":"La versión se asignará automáticamente y no podrá traslaparse con otra vigencia."}, status=422 if request.method == "POST" else 200)
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_run_depreciation")
+def depreciation_policy_close_view(request, policy_id):
+    policy = selector_or_404(lambda: FinancialSelectors.depreciation_policy_detail(policy_id)); form = DepreciationPolicyCloseForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        result = run_service(form, lambda: close_depreciation_policy(policy_id=policy.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
+        if result:
+            success(request, "Vigencia de la política cerrada correctamente.")
+            return redirect("inventory:depreciation_policy_list")
+    return render_inventory(request, page="inventory/pages/financial_form.html", content="inventory/content/financial_form_content.html", context={"current_inventory_view":"inventory:financial_dashboard", "form":form, "form_title":f"Cerrar vigencia · {policy.policy_code} V{policy.version_number}", "form_help":"Los cálculos históricos conservarán la versión aplicada."}, status=422 if request.method == "POST" else 200)
 
 
 @require_http_methods(["GET", "POST"])
@@ -83,7 +138,7 @@ def accounting_export_create_view(request):
         if batch:
             success(request, "Reporte generado correctamente.")
             return redirect("inventory:financial_dashboard")
-    return render_inventory(request, page="inventory/pages/financial_form.html", content="inventory/content/financial_form_content.html", context={"current_inventory_view":"inventory:financial_dashboard", "form":form, "form_title":"Generar reporte contable", "form_help":"El archivo se genera en CSV compatible con hojas de cálculo y sistemas contables."}, status=422 if request.method == "POST" else 200)
+    return render_inventory(request, page="inventory/pages/financial_form.html", content="inventory/content/financial_form_content.html", context={"current_inventory_view":"inventory:financial_dashboard", "form":form, "form_title":"Generar reporte oficial", "form_help":"Cada tipo utiliza un conjunto específico de datos y columnas. El archivo se genera en CSV UTF-8.", "show_report_layout_notice":True}, status=422 if request.method == "POST" else 200)
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_export_reports")

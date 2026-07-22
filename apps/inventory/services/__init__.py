@@ -77,12 +77,15 @@ from .physical_audit_evidence_service import (
 )
 from .financial_service import (
     calculate_depreciation_run,
+    close_depreciation_policy,
     close_reconciliation,
     create_accounting_export,
+    create_depreciation_policy,
     create_depreciation_run,
     create_reconciliation,
     post_depreciation_run,
     process_reconciliation,
 )
+from .report_service import GeneratedReport, build_accounting_report
 
 __all__ = [name for name in globals() if not name.startswith("_")]

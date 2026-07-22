@@ -43,10 +43,12 @@ from apps.inventory.dtos.document_dtos import (
 )
 from apps.inventory.dtos.financial_dtos import (
     CalculateDepreciationDTO,
+    CloseDepreciationPolicyDTO,
     CloseReconciliationDTO,
     CompleteDepreciationRunDTO,
     CreateAccountingExportDTO,
     CreateDepreciationRunDTO,
+    CreateDepreciationPolicyDTO,
     CreateReconciliationDTO,
     DepreciationRunResultDTO,
     PostDepreciationRunDTO,

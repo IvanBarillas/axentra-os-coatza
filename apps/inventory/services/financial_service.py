@@ -9,6 +9,7 @@ from uuid import uuid4
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Sum
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.inventory.integrations import core_directory
@@ -24,6 +25,7 @@ from apps.inventory.models.financial_models import (
 )
 from apps.inventory.services.audit_service import build_audit_request_context, log_inventory_event, model_snapshot
 from apps.inventory.services.exceptions import InventoryAuthorizationError, InventoryStateError, InventoryValidationError
+from apps.inventory.services.report_service import build_accounting_report
 
 
 MONEY = Decimal("0.01")
@@ -72,6 +74,49 @@ def create_depreciation_run(*, data, actor_id, request=None):
     run.full_clean(); run.save()
     _audit(InventoryAuditAction.CREATE, "Ejecución de depreciación creada", actor, run, request)
     return run
+
+
+@transaction.atomic
+def create_depreciation_policy(*, data, actor_id, request=None):
+    actor = _actor(actor_id, "can_run_depreciation")
+    code = str(data.policy_code).strip().upper()
+    overlaps = DepreciationPolicy.objects.filter(
+        policy_code=code,
+        accounting_account_id=data.accounting_account_id,
+        category_id=data.category_id,
+        is_deleted=False,
+        effective_from__lte=data.effective_until or data.effective_from,
+    ).filter(Q(effective_until__isnull=True) | Q(effective_until__gte=data.effective_from))
+    if overlaps.exists():
+        raise InventoryValidationError("La vigencia se traslapa con otra versión de esta política.")
+    last_version = DepreciationPolicy.objects.filter(policy_code=code, is_deleted=False).order_by("-version_number").values_list("version_number", flat=True).first() or 0
+    policy = DepreciationPolicy(
+        policy_code=code, version_number=last_version + 1, name=data.name,
+        accounting_account_id=data.accounting_account_id,
+        category_id=data.category_id, method=data.method, frequency=data.frequency,
+        useful_life_months=data.useful_life_months,
+        residual_percentage=data.residual_percentage,
+        effective_from=data.effective_from, effective_until=data.effective_until,
+        source_reference=data.source_reference,
+    )
+    policy.full_clean(); policy.save()
+    _audit(InventoryAuditAction.CREATE, "Política de depreciación creada", actor, policy, request)
+    return policy
+
+
+@transaction.atomic
+def close_depreciation_policy(*, policy_id, data, actor_id, request=None):
+    actor = _actor(actor_id, "can_run_depreciation")
+    policy = DepreciationPolicy.objects.select_for_update().get(pk=policy_id, is_deleted=False)
+    if policy.effective_until and policy.effective_until <= data.effective_until:
+        raise InventoryStateError("La política ya tiene una fecha de cierre igual o anterior.")
+    if data.effective_until < policy.effective_from:
+        raise InventoryValidationError("El cierre no puede ser anterior al inicio de vigencia.")
+    policy.effective_until = data.effective_until
+    policy.calculation_settings = {**policy.calculation_settings, "closing_reason": str(data.reason).strip(), "closed_by": str(actor.id)}
+    policy.full_clean(); policy.save()
+    _audit(InventoryAuditAction.UPDATE, "Vigencia de política de depreciación cerrada", actor, policy, request)
+    return policy
 
 
 def _policy_for(asset, run):
@@ -181,16 +226,12 @@ def create_accounting_export(*, data, actor_id, request=None):
         status=AccountingExportStatus.PROCESSING,
     )
     batch.full_clean(); batch.save()
-    rows = Asset.objects.filter(is_deleted=False, registration_date__lte=data.period_end).select_related("accounting_account", "current_dependencia")
-    output = io.StringIO(); writer = csv.writer(output)
-    writer.writerow(["folio", "bien", "cuenta_contable", "dependencia", "costo_adquisicion", "estado_patrimonial"])
-    total = Decimal("0")
-    for asset in rows:
-        writer.writerow([asset.display_inventory_number, asset.name, getattr(asset.accounting_account, "code", ""), str(asset.current_dependencia or ""), asset.acquisition_cost, asset.get_patrimonial_status_display()]); total += asset.acquisition_cost
-    content = output.getvalue().encode("utf-8-sig"); filename = f"{batch.folio}.csv"
+    report = build_accounting_report(export_type=data.export_type, period_start=data.period_start, period_end=data.period_end)
+    content = report.content; filename = f"{batch.folio}-{report.filename_suffix}.csv"
     batch.generated_file.save(filename, ContentFile(content), save=False)
     batch.generated_filename = filename; batch.generated_file_hash = sha256(content).hexdigest()
-    batch.generated_file_size = len(content); batch.record_count = rows.count(); batch.total_amount = total
+    batch.generated_file_size = len(content); batch.record_count = report.record_count; batch.total_amount = report.total_amount
+    batch.metadata = report.metadata
     batch.status = AccountingExportStatus.COMPLETED; batch.completed_by_id = actor.id; batch.completed_at = timezone.now()
     batch.full_clean(); batch.save()
     _audit(InventoryAuditAction.EXPORT, "Reporte patrimonial exportado", actor, batch, request)
@@ -292,4 +333,4 @@ def close_reconciliation(*, reconciliation_id, data, actor_id, request=None):
     return reconciliation
 
 
-__all__ = ["calculate_depreciation_run", "close_reconciliation", "create_accounting_export", "create_depreciation_run", "create_reconciliation", "post_depreciation_run", "process_reconciliation"]
+__all__ = ["calculate_depreciation_run", "close_depreciation_policy", "close_reconciliation", "create_accounting_export", "create_depreciation_policy", "create_depreciation_run", "create_reconciliation", "post_depreciation_run", "process_reconciliation"]

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, BinaryIO, Mapping
 from uuid import UUID
 
@@ -13,6 +14,27 @@ class CreateDepreciationRunDTO:
     cutoff_at: datetime
     period_month: int | None = None
     notes: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class CreateDepreciationPolicyDTO:
+    policy_code: str
+    name: str
+    accounting_account_id: UUID
+    category_id: UUID | None
+    method: str
+    frequency: str
+    useful_life_months: int
+    residual_percentage: Decimal
+    effective_from: date
+    effective_until: date | None = None
+    source_reference: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class CloseDepreciationPolicyDTO:
+    effective_until: date
+    reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +117,8 @@ __all__ = [
     "CompleteDepreciationRunDTO",
     "CreateAccountingExportDTO",
     "CreateDepreciationRunDTO",
+    "CreateDepreciationPolicyDTO",
+    "CloseDepreciationPolicyDTO",
     "CreateReconciliationDTO",
     "DepreciationRunResultDTO",
     "PostDepreciationRunDTO",
