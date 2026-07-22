@@ -1,7 +1,7 @@
 {% if asset_context_sidebar %}
     {% include "inventory/contextual/asset_sidebar.html" %}
 {% else %}
-{% url 'inventory:dashboard' as dashboard_url %}{% url 'inventory:intake_list' as intake_url %}{% url 'inventory:asset_list' as assets_url %}{% url 'inventory:custody_list' as custody_url %}{% url 'inventory:movement_list' as movements_url %}{% url 'inventory:loan_list' as loans_url %}{% url 'inventory:disposal_list' as disposals_url %}{% url 'inventory:document_list' as documents_url %}{% url 'inventory:physical_audit_list' as audits_url %}{% url 'inventory:financial_dashboard' as financial_url %}{% url 'inventory:help' as help_url %}
+{% url 'inventory:dashboard' as dashboard_url %}{% url 'inventory:intake_list' as intake_url %}{% url 'inventory:asset_list' as assets_url %}{% url 'inventory:custody_list' as custody_url %}{% url 'inventory:movement_list' as movements_url %}{% url 'inventory:loan_list' as loans_url %}{% url 'inventory:disposal_list' as disposals_url %}{% url 'inventory:document_list' as documents_url %}{% url 'inventory:physical_audit_list' as audits_url %}{% url 'inventory:financial_dashboard' as financial_url %}{% url 'inventory:catalog_home' as catalog_url %}{% url 'inventory:help' as help_url %}
 <div class="flex h-full w-full flex-col">
     <div class="border-b border-slate-200 px-5 py-5">
         <p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Módulo</p>
@@ -19,6 +19,7 @@
         {% if request.axentra_is_root or "can_manage_documents" in request.axentra_permissions_list or "can_validate_documents" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=documents_url route="inventory:document_list" icon="folder-check" label="Documentos" %}{% endif %}
         {% if request.axentra_is_root or "can_manage_physical_audits" in request.axentra_permissions_list or "can_scan_physical_audits" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=audits_url route="inventory:physical_audit_list" icon="scan-line" label="Auditoría física" %}{% endif %}
         {% if request.axentra_is_root or "can_view_financials" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=financial_url route="inventory:financial_dashboard" icon="landmark" label="Finanzas / SIGMAVER" %}{% endif %}
+        {% if request.axentra_is_root or "can_manage_catalogs" in request.axentra_permissions_list %}{% include "inventory/partials/sidebar_link.html" with url=catalog_url route="inventory:catalog_list" icon="library-big" label="Catálogos" %}{% endif %}
         {% include "inventory/partials/sidebar_link.html" with url=help_url route="inventory:help" icon="circle-help" label="Centro de ayuda" %}
     </nav>
     <div class="border-t border-slate-200 p-4"><div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs font-black text-slate-600">Núcleo patrimonial</p><p class="mt-1 text-xs text-slate-500">ORFIS · CONAC · SIGMAVER</p></div></div>

@@ -1,4 +1,5 @@
 from apps.inventory.forms.asset_forms import *
+from apps.inventory.forms.catalog_forms import *
 from apps.inventory.forms.custody_forms import *
 from apps.inventory.forms.disposal_forms import *
 from apps.inventory.forms.document_forms import *

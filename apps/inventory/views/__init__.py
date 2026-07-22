@@ -19,6 +19,10 @@ from .asset_views import (
     asset_technical_sheet_view,
 )
 from .dashboard_views import inventory_dashboard_view
+from .catalog_views import (
+    catalog_create_view, catalog_deactivate_view, catalog_list_view,
+    catalog_update_view,
+)
 from .help_views import inventory_help_detail_view, inventory_help_view
 from .financial_views import (
     accounting_export_create_view,

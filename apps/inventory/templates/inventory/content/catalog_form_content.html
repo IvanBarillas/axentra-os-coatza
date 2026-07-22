@@ -1,0 +1,5 @@
+<section class="mx-auto max-w-4xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div><a href="{% url 'inventory:catalog_list' catalog %}" hx-get="{% url 'inventory:catalog_list' catalog %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver a {{ catalog_config.title|lower }}</a><p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Catálogo institucional</p><h1 class="mt-2 text-2xl font-black">{% if editing %}Editar{% else %}Agregar{% endif %} {{ catalog_config.singular }}</h1><p class="mt-1 text-sm text-slate-500">Los cambios se reflejarán en nuevas capturas sin alterar expedientes históricos.</p></div>
+    {% include "inventory/partials/generic_form.html" with submit_label="Guardar catálogo" %}
+</section>

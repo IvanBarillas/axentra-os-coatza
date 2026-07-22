@@ -28,6 +28,7 @@ class InventoryPermissions:
         # Expediente patrimonial
         "can_edit_asset": "Permite corregir datos administrativos autorizados del activo.",
         "can_correct_asset": "Permite ejecutar correcciones patrimoniales auditadas.",
+        "can_manage_catalogs": "Permite administrar catálogos maestros de Inventario.",
 
         # Resguardos
         "can_manage_custody": "Permite generar y administrar resguardos.",
@@ -121,6 +122,7 @@ class InventoryPermissions:
         ["layout-dashboard", "Panel de Inventario", "inventory:dashboard", 1, "can_view_dashboard"],
         ["package", "Bienes Patrimoniales", "inventory:asset_list", 2, "can_view_assets"],
         ["circle-plus", "Solicitud de Alta", "inventory:intake_create", 3, "can_create_asset"],
+        ["library-big", "Catálogos", "inventory:catalog_home", 4, "can_manage_catalogs"],
     ]
 
     CAPABILITIES = {

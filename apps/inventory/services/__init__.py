@@ -1,6 +1,7 @@
 """API pública de la capa de servicios de Inventory."""
 
 from .asset_service import correct_asset, delete_asset, update_asset_condition
+from .catalog_service import deactivate_catalog_entry, save_catalog_entry
 from .audit_service import (
     build_audit_request_context, log_bypass_event, log_inventory_event,
     log_model_change, model_snapshot,

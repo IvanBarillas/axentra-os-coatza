@@ -20,6 +20,10 @@ from apps.inventory.views import (
     asset_photos_view,
     asset_technical_view,
     asset_technical_sheet_view,
+    catalog_create_view,
+    catalog_deactivate_view,
+    catalog_list_view,
+    catalog_update_view,
     custody_accept_view,
     custody_authorize_view,
     custody_cancel_view,
@@ -129,6 +133,13 @@ app_name = "inventory"
 urlpatterns = [
     # Panel principal
     path("", inventory_dashboard_view, name="dashboard"),
+
+    # Catálogos institucionales de Inventory
+    path("catalogs/", catalog_list_view, name="catalog_home"),
+    path("catalogs/<slug:catalog>/", catalog_list_view, name="catalog_list"),
+    path("catalogs/<slug:catalog>/new/", catalog_create_view, name="catalog_create"),
+    path("catalogs/<slug:catalog>/<uuid:entry_id>/edit/", catalog_update_view, name="catalog_update"),
+    path("catalogs/<slug:catalog>/<uuid:entry_id>/deactivate/", catalog_deactivate_view, name="catalog_deactivate"),
 
     # Activos patrimoniales
     path("assets/", asset_list_view, name="asset_list"),

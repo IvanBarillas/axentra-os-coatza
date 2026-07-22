@@ -1,4 +1,4 @@
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from apps.inventory.integrations import core_directory
@@ -9,6 +9,33 @@ from apps.inventory.models import (
 
 
 class CatalogSelectors:
+    MANAGED_MODELS = {
+        "categories": AssetCategory,
+        "accounts": AccountingAccount,
+        "expenditure-objects": ExpenditureObject,
+        "manufacturers": Manufacturer,
+        "models": AssetModel,
+    }
+
+    @classmethod
+    def managed_entries(cls, catalog, *, q="", status="active") -> QuerySet:
+        model = cls.MANAGED_MODELS[catalog]
+        qs = model.objects.filter(is_deleted=False)
+        if catalog in {"accounts", "expenditure-objects"}:
+            qs = qs.select_related("category")
+        elif catalog == "models":
+            qs = qs.select_related("manufacturer")
+        if status == "active":
+            qs = qs.filter(is_active=True)
+        elif status == "inactive":
+            qs = qs.filter(is_active=False)
+        if q:
+            query = Q(name__icontains=q)
+            if any(field.name == "code" for field in model._meta.fields):
+                query |= Q(code__icontains=q)
+            qs = qs.filter(query)
+        return qs.order_by(*model._meta.ordering)
+
     @staticmethod
     def categories(*, nature=None) -> QuerySet:
         qs = AssetCategory.objects.filter(is_active=True, is_deleted=False)
