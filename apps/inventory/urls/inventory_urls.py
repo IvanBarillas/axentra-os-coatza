@@ -49,6 +49,16 @@ from apps.inventory.views import (
     document_download_view,
     document_validate_view,
     financial_dashboard_view,
+    accounting_export_create_view,
+    accounting_export_download_view,
+    depreciation_run_calculate_view,
+    depreciation_run_create_view,
+    depreciation_run_detail_view,
+    depreciation_run_post_view,
+    reconciliation_create_view,
+    reconciliation_detail_view,
+    reconciliation_process_view,
+    reconciliation_close_view,
     intake_approve_view,
     intake_cancel_view,
     intake_create_view,
@@ -236,6 +246,16 @@ urlpatterns = [
 
     # Finanzas y conciliación
     path("financials/", financial_dashboard_view, name="financial_dashboard"),
+    path("financials/depreciation/new/", depreciation_run_create_view, name="depreciation_run_create"),
+    path("financials/depreciation/<uuid:run_id>/", depreciation_run_detail_view, name="depreciation_run_detail"),
+    path("financials/depreciation/<uuid:run_id>/calculate/", depreciation_run_calculate_view, name="depreciation_run_calculate"),
+    path("financials/depreciation/<uuid:run_id>/post/", depreciation_run_post_view, name="depreciation_run_post"),
+    path("financials/exports/new/", accounting_export_create_view, name="accounting_export_create"),
+    path("financials/exports/<uuid:batch_id>/download/", accounting_export_download_view, name="accounting_export_download"),
+    path("financials/reconciliations/new/", reconciliation_create_view, name="reconciliation_create"),
+    path("financials/reconciliations/<uuid:reconciliation_id>/", reconciliation_detail_view, name="reconciliation_detail"),
+    path("financials/reconciliations/<uuid:reconciliation_id>/process/", reconciliation_process_view, name="reconciliation_process"),
+    path("financials/reconciliations/<uuid:reconciliation_id>/close/", reconciliation_close_view, name="reconciliation_close"),
 
     # Centro de ayuda y flujos funcionales
     path("help/", inventory_help_view, name="help"),

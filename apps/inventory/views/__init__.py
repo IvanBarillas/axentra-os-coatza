@@ -20,6 +20,19 @@ from .asset_views import (
 )
 from .dashboard_views import inventory_dashboard_view
 from .help_views import inventory_help_detail_view, inventory_help_view
+from .financial_views import (
+    accounting_export_create_view,
+    accounting_export_download_view,
+    depreciation_run_calculate_view,
+    depreciation_run_create_view,
+    depreciation_run_detail_view,
+    depreciation_run_post_view,
+    financial_dashboard_view,
+    reconciliation_create_view,
+    reconciliation_detail_view,
+    reconciliation_process_view,
+    reconciliation_close_view,
+)
 from .intake_views import (
     intake_approve_view, intake_cancel_view, intake_create_view,
     intake_directory_areas_view, intake_directory_departments_view,
@@ -39,7 +52,7 @@ from .registry_views import (
     disposal_finalize_view, disposal_list_view, disposal_resolve_stage_view,
     disposal_stage_document_upload_view, disposal_document_validate_view,
     disposal_submit_view, document_download_view, document_list_view,
-    document_upload_view, document_validate_view, financial_dashboard_view,
+    document_upload_view, document_validate_view,
     loan_authorize_view, loan_cancel_view, loan_create_view,
     loan_deliver_view, loan_department_decision_view, loan_detail_view,
     loan_directory_areas_view, loan_directory_assets_view,

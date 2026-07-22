@@ -10,7 +10,7 @@ from apps.inventory.models.financial_models import (
 
 
 class DepreciationRunCreateForm(InventoryForm):
-    frequency=forms.ChoiceField(choices=DepreciationFrequency.choices); period_year=forms.IntegerField(min_value=2000,max_value=9999); period_month=forms.IntegerField(required=False,min_value=1,max_value=12); period_start=forms.DateField(widget=DATE_WIDGET); period_end=forms.DateField(widget=DATE_WIDGET); cutoff_at=forms.DateTimeField(widget=DATETIME_WIDGET,initial=timezone.now); notes=forms.CharField(required=False,widget=forms.Textarea(attrs={"rows":3}))
+    frequency=forms.ChoiceField(label="Frecuencia", choices=DepreciationFrequency.choices); period_year=forms.IntegerField(label="Ejercicio", min_value=2000,max_value=9999); period_month=forms.IntegerField(label="Mes", required=False,min_value=1,max_value=12); period_start=forms.DateField(label="Inicio del periodo", widget=DATE_WIDGET); period_end=forms.DateField(label="Fin del periodo", widget=DATE_WIDGET); cutoff_at=forms.DateTimeField(label="Fecha y hora de corte", widget=DATETIME_WIDGET,initial=timezone.now); notes=forms.CharField(label="Notas", required=False,widget=forms.Textarea(attrs={"rows":3}))
     def clean(self):
         d=super().clean()
         if d.get("period_start") and d.get("period_end") and d["period_end"]<d["period_start"]: self.add_error("period_end","No puede ser anterior al inicio.")
@@ -37,12 +37,12 @@ class DepreciationCompleteForm(InventoryForm):
 
 
 class DepreciationPostForm(InventoryForm):
-    posting_reference=forms.CharField(max_length=120); notes=forms.CharField(required=False,widget=forms.Textarea(attrs={"rows":3})); bypass_reason=forms.CharField(required=False)
+    posting_reference=forms.CharField(label="Referencia contable", max_length=120); notes=forms.CharField(label="Notas de aplicación", required=False,widget=forms.Textarea(attrs={"rows":3})); bypass_reason=forms.CharField(label="Justificación extraordinaria", required=False)
     def to_dto(self): d=self.require_cleaned_data(); return PostDepreciationRunDTO(d["posting_reference"],d.get("notes", ""),d.get("bypass_reason", ""))
 
 
 class AccountingExportCreateForm(InventoryForm):
-    export_type=forms.ChoiceField(choices=AccountingExportBatch.ExportType.choices); file_format=forms.ChoiceField(choices=AccountingExportFormat.choices); destination_system=forms.CharField(max_length=120,initial="SIGMAVER"); period_start=forms.DateField(widget=DATE_WIDGET); period_end=forms.DateField(widget=DATE_WIDGET); cutoff_at=forms.DateTimeField(widget=DATETIME_WIDGET,initial=timezone.now)
+    export_type=forms.ChoiceField(label="Tipo de reporte", choices=AccountingExportBatch.ExportType.choices); file_format=forms.ChoiceField(label="Formato", choices=[(AccountingExportFormat.CSV, "Archivo CSV")], initial=AccountingExportFormat.CSV); destination_system=forms.CharField(label="Sistema destino", max_length=120,initial="SIGMAVER"); period_start=forms.DateField(label="Inicio del periodo", widget=DATE_WIDGET); period_end=forms.DateField(label="Fin del periodo", widget=DATE_WIDGET); cutoff_at=forms.DateTimeField(label="Fecha y hora de corte", widget=DATETIME_WIDGET,initial=timezone.now)
     def clean(self):
         d=super().clean()
         if d.get("period_start") and d.get("period_end") and d["period_end"]<d["period_start"]: self.add_error("period_end","No puede ser anterior al inicio.")
@@ -51,7 +51,11 @@ class AccountingExportCreateForm(InventoryForm):
 
 
 class ReconciliationCreateForm(InventoryForm):
-    source_system=forms.CharField(max_length=120,initial="SIGMAVER"); period_start=forms.DateField(widget=DATE_WIDGET); period_end=forms.DateField(widget=DATE_WIDGET); cutoff_at=forms.DateTimeField(widget=DATETIME_WIDGET,initial=timezone.now); source_file=forms.FileField()
+    source_system=forms.CharField(label="Sistema contable origen", max_length=120,initial="SIGMAVER"); period_start=forms.DateField(label="Inicio del periodo", widget=DATE_WIDGET); period_end=forms.DateField(label="Fin del periodo", widget=DATE_WIDGET); cutoff_at=forms.DateTimeField(label="Fecha y hora de corte de Inventory", widget=DATETIME_WIDGET,initial=timezone.now); source_file=forms.FileField(label="Balanza o archivo fuente")
+    def clean(self):
+        d=super().clean()
+        if d.get("period_start") and d.get("period_end") and d["period_end"] < d["period_start"]: self.add_error("period_end", "No puede ser anterior al inicio.")
+        return d
     def to_dto(self): d=self.require_cleaned_data(); f=d["source_file"]; return CreateReconciliationDTO(d["source_system"],d["period_start"],d["period_end"],d["cutoff_at"],f,f.name)
 
 
