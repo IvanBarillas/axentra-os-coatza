@@ -50,6 +50,7 @@ from apps.inventory.forms import (
 from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     AssetDocument,
+    CustodyStatus,
     AssetMovementRequest,
     AssetMovementRequestStatus,
     AssetPhoto,
@@ -175,6 +176,76 @@ def _custody_options(options, **extra):
 
 
 @require_GET
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_manage_custody",
+)
+def custody_asset_options_view(request):
+    query = request.GET.get("q", "").strip()
+    asset_id = request.GET.get("asset_id", "").strip()
+
+    assets = (
+        AssetSelectors.listar_activos(q=query)
+        .filter(current_custodian__isnull=True)
+        .exclude(
+            custody_assignments__is_deleted=False,
+            custody_assignments__status__in=(
+                CustodyStatus.PENDING_AUTHORIZATION,
+                CustodyStatus.PENDING_ACCEPTANCE,
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            ),
+        )
+        .distinct()
+    )
+
+    if asset_id:
+        assets = assets.filter(pk=asset_id)
+
+    options = []
+    for asset in assets[:30]:
+        options.append({
+            "value": str(asset.id),
+            "label": (
+                f"{asset.display_inventory_number} · {asset.name}"
+                + (
+                    f" · Serie {asset.serial_number}"
+                    if asset.serial_number else ""
+                )
+            ),
+            "folio": asset.display_inventory_number,
+            "name": asset.name,
+            "serial_number": asset.serial_number or "Sin serie",
+            "site_id": (
+                str(asset.current_sede_id)
+                if asset.current_sede_id else ""
+            ),
+            "site_name": (
+                asset.current_sede.nombre
+                if asset.current_sede_id else "Sin sede"
+            ),
+            "department_id": (
+                str(asset.current_dependencia_id)
+                if asset.current_dependencia_id else ""
+            ),
+            "department_name": (
+                asset.current_dependencia.nombre
+                if asset.current_dependencia_id else "Sin dependencia"
+            ),
+            "area_id": (
+                str(asset.current_area_id)
+                if asset.current_area_id else ""
+            ),
+            "area_name": (
+                asset.current_area.nombre
+                if asset.current_area_id else "Sin área"
+            ),
+        })
+
+    return JsonResponse({"options": options})
+
+
+@require_GET
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
 def custody_directory_departments_view(request):
     site_id = request.GET.get("site_id", "").strip() or None
@@ -206,30 +277,62 @@ def custody_directory_areas_view(request):
 
 
 @require_GET
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_manage_custody",
+)
 def custody_directory_users_view(request):
-    selected_department = request.GET.get("department_id", "").strip() or None
+    selected_department = (
+        request.GET.get("department_id", "").strip() or None
+    )
     area_id = request.GET.get("area_id", "").strip() or None
+
     department = (
         core_directory.get_department(selected_department)
         if selected_department else None
     )
-    options = (
-        (
-            item.id,
-            f"{item.display_name} · {item.email}" if item.email else item.display_name,
-        )
-        for item in CoreDirectorySelectors.users(
+
+    users = list(
+        CoreDirectorySelectors.users(
             department_id=selected_department,
             area_id=area_id,
         )
     )
+
+    manager_user_id = (
+        department.manager_user_id
+        if department and department.manager_user_id else None
+    )
+    manager_user_label = ""
+
+    if manager_user_id:
+        try:
+            manager = core_directory.get_user_identity(manager_user_id)
+            manager_user_label = (
+                f"{manager.display_name} · {manager.normalized_email}"
+                if manager.normalized_email
+                else manager.display_name
+            )
+        except core_directory.CoreDirectoryError:
+            manager_user_id = None
+
+    options = [
+        (
+            item.id,
+            (
+                f"{item.display_name} · {item.email}"
+                if item.email else item.display_name
+            ),
+        )
+        for item in users
+    ]
+
     return _custody_options(
         options,
         manager_user_id=(
-            str(department.manager_user_id)
-            if department and department.manager_user_id else ""
+            str(manager_user_id) if manager_user_id else ""
         ),
+        manager_user_label=manager_user_label,
     )
 
 
@@ -249,17 +352,92 @@ def custody_detail_view(request, custody_id):
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_manage_custody",
+)
 def custody_create_view(request):
-    form = apply_directory_choices(CustodyCreateForm(request.POST or None))
-    assets = AssetSelectors.listar_activos().filter(current_custodian__isnull=True)
-    form.fields["asset_id"].choices = [("", "--- Seleccione un bien ---"), *((str(a.id), f"{a.display_inventory_number} · {a.name}") for a in assets)]
+    selected_asset_id = (
+        request.POST.get("asset_id", "").strip()
+        or request.GET.get("asset_id", "").strip()
+    )
+    selected_user_id = (
+        request.POST.get("assigned_to_id", "").strip()
+    )
+
+    form = CustodyCreateForm(
+        request.POST or None,
+        initial=(
+            {"asset_id": selected_asset_id}
+            if selected_asset_id else None
+        ),
+    )
+
+    if selected_asset_id:
+        try:
+            selected_asset = AssetSelectors.obtener(selected_asset_id)
+        except Exception:
+            selected_asset = None
+
+        if selected_asset:
+            form.fields["asset_id"].choices = [
+                (
+                    str(selected_asset.id),
+                    (
+                        f"{selected_asset.display_inventory_number} · "
+                        f"{selected_asset.name}"
+                    ),
+                )
+            ]
+
+    if selected_user_id:
+        try:
+            selected_user = core_directory.get_user_identity(
+                selected_user_id
+            )
+        except core_directory.CoreDirectoryError:
+            selected_user = None
+
+        if selected_user:
+            form.fields["assigned_to_id"].choices = [
+                (
+                    str(selected_user.id),
+                    (
+                        f"{selected_user.display_name} · "
+                        f"{selected_user.normalized_email}"
+                    ),
+                )
+            ]
+
+    if not getattr(request, "axentra_is_root", False):
+        form.fields.pop("bypass_reason", None)
+
     if request.method == "POST" and form.is_valid():
-        custody = run_service(form, lambda: create_custody_assignment(data=form.to_dto(), actor_id=request.user.pk, request=request))
+        custody = run_service(
+            form,
+            lambda: create_custody_assignment(
+                data=form.to_dto(),
+                actor_id=request.user.pk,
+                request=request,
+            ),
+        )
         if custody:
-            success(request, f"Resguardo {custody.folio} creado en borrador.")
+            success(
+                request,
+                f"Resguardo {custody.folio} creado en borrador.",
+            )
             return redirect(_custody_url(custody.id))
-    return render_inventory(request, page="inventory/pages/custody_form.html", content="inventory/content/custody_form_content.html", context={"current_inventory_view":"inventory:custody_list", "form":form}, status=422 if request.method == "POST" else 200)
+
+    return render_inventory(
+        request,
+        page="inventory/pages/custody_form.html",
+        content="inventory/content/custody_form_content.html",
+        context={
+            "current_inventory_view": "inventory:custody_list",
+            "form": form,
+        },
+        status=422 if request.method == "POST" else 200,
+    )
 
 
 def _custody_action(request, custody_id, form_class, callback, title):

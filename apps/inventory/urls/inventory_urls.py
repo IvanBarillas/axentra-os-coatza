@@ -25,6 +25,7 @@ from apps.inventory.views import (
     catalog_list_view,
     catalog_update_view,
     custody_accept_view,
+    custody_asset_options_view,
     custody_authorize_view,
     custody_cancel_view,
     custody_complete_return_view,
@@ -180,6 +181,7 @@ urlpatterns = [
     # Resguardos
     path("custodies/", custody_list_view, name="custody_list"),
     path("custodies/new/", custody_create_view, name="custody_create"),
+    path("custodies/directory/assets/", custody_asset_options_view, name="custody_asset_options"),
     path("custodies/directory/departments/", custody_directory_departments_view, name="custody_directory_departments"),
     path("custodies/directory/areas/", custody_directory_areas_view, name="custody_directory_areas"),
     path("custodies/directory/users/", custody_directory_users_view, name="custody_directory_users"),
@@ -282,3 +284,4 @@ urlpatterns = [
     path("help/", inventory_help_view, name="help"),
     path("help/<slug:workflow_code>/", inventory_help_detail_view, name="help_detail"),
 ]
+

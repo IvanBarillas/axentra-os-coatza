@@ -1,134 +1,408 @@
 <section class="mx-auto max-w-5xl space-y-6">
     {% include "inventory/partials/messages.html" %}
+
     <div>
-        <a href="{% url 'inventory:custody_list' %}" class="text-sm font-black text-slate-500">← Volver a resguardos</a>
-        <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Responsabilidad patrimonial</p>
+        <a
+            href="{% url 'inventory:custody_list' %}"
+            hx-get="{% url 'inventory:custody_list' %}"
+            hx-target="#page-content"
+            hx-push-url="true"
+            class="text-sm font-black text-slate-500"
+        >
+            ← Volver a resguardos
+        </a>
+
+        <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">
+            Responsabilidad patrimonial
+        </p>
         <h1 class="mt-2 text-2xl font-black">Nuevo resguardo</h1>
-        <p class="mt-1 text-sm text-slate-500">Seleccione primero la sede. Después se mostrarán únicamente sus dependencias, áreas y servidores públicos adscritos.</p>
+        <p class="mt-1 text-sm text-slate-500">
+            Seleccione el bien y defina quién será responsable. La ubicación
+            se tomará automáticamente del expediente patrimonial.
+        </p>
     </div>
-    <div id="custody-manager-notice" class="hidden rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-        El titular o encargado registrado de la dependencia autorizará este resguardo antes de la entrega.
-    </div>
-    {% include "inventory/partials/generic_form.html" with submit_label="Guardar borrador" %}
+
+    <form
+        method="post"
+        action="{{ request.path }}"
+        hx-post="{{ request.path }}"
+        hx-target="#page-content"
+        hx-swap="innerHTML"
+        class="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+    >
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="rounded-xl bg-red-50 p-4 text-sm font-bold text-red-700">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="space-y-3">
+            <label for="custody-asset-search" class="block text-sm font-black text-slate-700">
+                Bien patrimonial
+            </label>
+
+            <div class="relative">
+                <i
+                    data-lucide="search"
+                    class="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-400"
+                ></i>
+                <input
+                    id="custody-asset-search"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Buscar por folio, nombre o número de serie"
+                    class="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"
+                >
+            </div>
+
+            <div
+                id="custody-asset-results"
+                class="hidden max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg"
+            ></div>
+
+            <div class="hidden">
+                {{ form.asset_id }}
+            </div>
+
+            {% if form.asset_id.errors %}
+                <div class="text-sm font-bold text-red-600">
+                    {{ form.asset_id.errors }}
+                </div>
+            {% endif %}
+
+            <p class="text-xs text-slate-500">
+                Sólo aparecen bienes sin resguardo vigente o en proceso.
+            </p>
+        </div>
+
+        <div
+            id="custody-asset-card"
+            class="hidden rounded-2xl border border-indigo-200 bg-indigo-50 p-5"
+        >
+            <div class="flex items-start gap-4">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-700 shadow-sm">
+                    <i data-lucide="package-check" class="h-5 w-5"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-black uppercase tracking-wider text-indigo-500">
+                        Bien seleccionado
+                    </p>
+                    <h2 id="custody-asset-name" class="mt-1 font-black text-indigo-950"></h2>
+                    <p id="custody-asset-folio" class="mt-1 font-mono text-sm text-indigo-800"></p>
+
+                    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                        <div>
+                            <dt class="font-black text-indigo-700">Número de serie</dt>
+                            <dd id="custody-asset-serial" class="text-indigo-950"></dd>
+                        </div>
+                        <div>
+                            <dt class="font-black text-indigo-700">Sede física actual</dt>
+                            <dd id="custody-asset-site" class="text-indigo-950"></dd>
+                        </div>
+                        <div>
+                            <dt class="font-black text-indigo-700">Dependencia actual</dt>
+                            <dd id="custody-asset-department" class="text-indigo-950"></dd>
+                        </div>
+                        <div>
+                            <dt class="font-black text-indigo-700">Área operativa actual</dt>
+                            <dd id="custody-asset-area" class="text-indigo-950"></dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid gap-5 md:grid-cols-2">
+            <div>
+                {% include "inventory/partials/form_field.html" with field=form.assignee_mode %}
+            </div>
+
+            <div id="custody-user-field">
+                {% include "inventory/partials/form_field.html" with field=form.assigned_to_id %}
+            </div>
+
+            <div
+                id="custody-manager-card"
+                class="hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 md:col-span-2"
+            >
+                <p class="text-xs font-black uppercase tracking-wider text-emerald-600">
+                    Titular de la dependencia
+                </p>
+                <p id="custody-manager-name" class="mt-1 font-black text-emerald-950"></p>
+                <p class="mt-1 text-sm text-emerald-800">
+                    El responsable fue obtenido del directorio institucional.
+                </p>
+            </div>
+
+            <div
+                id="custody-manager-error"
+                class="hidden rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 md:col-span-2"
+            >
+                La dependencia actual del bien no tiene un titular o encargado
+                registrado. Asígnelo desde Organización o seleccione un servidor público.
+            </div>
+
+            <div class="md:col-span-2">
+                {% include "inventory/partials/form_field.html" with field=form.notes %}
+            </div>
+
+            {% if form.bypass_reason %}
+                <div class="md:col-span-2">
+                    {% include "inventory/partials/form_field.html" with field=form.bypass_reason %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2">
+            <a
+                href="{% url 'inventory:custody_list' %}"
+                hx-get="{% url 'inventory:custody_list' %}"
+                hx-target="#page-content"
+                hx-push-url="true"
+                class="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700"
+            >
+                Cancelar
+            </a>
+            <button
+                id="custody-submit"
+                type="submit"
+                class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+                Guardar borrador
+            </button>
+        </div>
+    </form>
 </section>
 
 <script>
 (() => {
-    const byId = (id) => document.getElementById(id);
-    const fields = {
-        site: byId("id_site_id"),
-        department: byId("id_department_id"),
-        area: byId("id_area_id"),
-        user: byId("id_assigned_to_id"),
-    };
-    if (!fields.site || fields.site.dataset.custodyCascadeReady === "true") return;
-    fields.site.dataset.custodyCascadeReady = "true";
+    const search = document.getElementById("custody-asset-search");
+    const results = document.getElementById("custody-asset-results");
+    const assetSelect = document.getElementById("id_asset_id");
+    const mode = document.getElementById("id_assignee_mode");
+    const user = document.getElementById("id_assigned_to_id");
+    const userField = document.getElementById("custody-user-field");
+    const assetCard = document.getElementById("custody-asset-card");
+    const managerCard = document.getElementById("custody-manager-card");
+    const managerError = document.getElementById("custody-manager-error");
+    const managerName = document.getElementById("custody-manager-name");
+    const submit = document.getElementById("custody-submit");
 
-    const endpoints = {
-        departments: "{% url 'inventory:custody_directory_departments' %}",
-        areas: "{% url 'inventory:custody_directory_areas' %}",
-        users: "{% url 'inventory:custody_directory_users' %}",
-    };
-    const managerNotice = byId("custody-manager-notice");
-    const initial = {
-        department: fields.department.value,
-        area: fields.area.value,
-        user: fields.user.value,
-    };
-    const params = (values) => new URLSearchParams(values).toString();
-    const reset = (select, label) => {
-        select.replaceChildren(new Option(label, ""));
-        select.disabled = true;
-    };
-    const load = async (select, url, label, selectedValue = "") => {
-        reset(select, "Cargando...");
+    if (!search || search.dataset.ready === "true") return;
+    search.dataset.ready = "true";
+
+    const assetEndpoint = "{% url 'inventory:custody_asset_options' %}";
+    const usersEndpoint = "{% url 'inventory:custody_directory_users' %}";
+
+    let selectedAsset = null;
+    let managerUserId = "";
+    let managerUserLabel = "";
+    const initialUserId = user.value;
+    let searchTimer = null;
+
+    const requestJson = async (url) => {
         const response = await fetch(url, {
             headers: {"X-Requested-With": "XMLHttpRequest"},
             credentials: "same-origin",
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const payload = await response.json();
-        select.replaceChildren(new Option(label, ""));
-        payload.options.forEach(({value, label: optionLabel}) => {
-            const option = new Option(optionLabel, value);
-            option.selected = String(value) === String(selectedValue);
-            select.add(option);
-        });
-        select.disabled = false;
-        return payload;
+        return response.json();
     };
-    const showLoadError = (error) => {
-        console.error("Cascada de resguardos:", error);
+
+    const setText = (id, value) => {
+        const node = document.getElementById(id);
+        if (node) node.textContent = value || "No registrado";
     };
-    const loadUsers = async (selectedValue = "") => {
-        if (!fields.department.value) {
-            reset(fields.user, "--- Seleccione servidor público ---");
+
+    const resetUsers = (label = "--- Seleccione servidor público ---") => {
+        user.replaceChildren(new Option(label, ""));
+        user.disabled = true;
+        managerUserId = "";
+        managerUserLabel = "";
+    };
+
+    const applyMode = () => {
+        const managerMode = mode.value === "DEPARTMENT_MANAGER";
+        userField.classList.toggle("hidden", managerMode);
+        managerCard.classList.add("hidden");
+        managerError.classList.add("hidden");
+
+        if (!selectedAsset) {
+            submit.disabled = true;
             return;
         }
-        const payload = await load(
-            fields.user,
-            `${endpoints.users}?${params({
-                department_id: fields.department.value,
-                area_id: fields.area.value,
-            })}`,
-            "--- Seleccione servidor público ---",
-            selectedValue,
-        );
-        managerNotice.classList.toggle("hidden", !payload.manager_user_id);
+
+        if (managerMode) {
+            if (!managerUserId) {
+                user.value = "";
+                managerError.classList.remove("hidden");
+                submit.disabled = true;
+                return;
+            }
+
+            user.replaceChildren(
+                new Option(managerUserLabel || "Titular registrado", managerUserId)
+            );
+            user.value = managerUserId;
+            managerName.textContent = managerUserLabel || "Titular registrado";
+            managerCard.classList.remove("hidden");
+            submit.disabled = false;
+            return;
+        }
+
+        submit.disabled = !user.value;
     };
 
-    fields.site.addEventListener("change", async () => {
-        reset(fields.department, "--- Seleccione dependencia ---");
-        reset(fields.area, "--- Seleccione área ---");
-        reset(fields.user, "--- Seleccione servidor público ---");
-        managerNotice.classList.add("hidden");
-        if (!fields.site.value) return;
-        try {
-            await load(
-                fields.department,
-                `${endpoints.departments}?${params({site_id: fields.site.value})}`,
-                "--- Seleccione dependencia ---",
-            );
-        } catch (error) { showLoadError(error); }
-    });
-    fields.department.addEventListener("change", async () => {
-        reset(fields.area, "--- Seleccione área ---");
-        reset(fields.user, "--- Seleccione servidor público ---");
-        managerNotice.classList.add("hidden");
-        if (!fields.site.value || !fields.department.value) return;
-        try {
-            await Promise.all([
-                load(
-                    fields.area,
-                    `${endpoints.areas}?${params({site_id: fields.site.value, department_id: fields.department.value})}`,
-                    "--- Seleccione área ---",
-                ),
-                loadUsers(),
-            ]);
-        } catch (error) { showLoadError(error); }
-    });
-    fields.area.addEventListener("change", () => loadUsers().catch(showLoadError));
+    const loadUsers = async () => {
+        resetUsers("Cargando servidores públicos...");
 
-    if (!fields.site.value) {
-        reset(fields.department, "--- Primero seleccione una sede ---");
-        reset(fields.area, "--- Primero seleccione una dependencia ---");
-        reset(fields.user, "--- Primero seleccione un área ---");
-        return;
-    }
-    load(
-        fields.department,
-        `${endpoints.departments}?${params({site_id: fields.site.value})}`,
-        "--- Seleccione dependencia ---",
-        initial.department,
-    ).then(async () => {
-        if (!fields.department.value) return;
-        await load(
-            fields.area,
-            `${endpoints.areas}?${params({site_id: fields.site.value, department_id: fields.department.value})}`,
-            "--- Seleccione área ---",
-            initial.area,
+        if (!selectedAsset || !selectedAsset.department_id) {
+            resetUsers("El bien no tiene dependencia registrada");
+            applyMode();
+            return;
+        }
+
+        const parameters = new URLSearchParams({
+            department_id: selectedAsset.department_id,
+        });
+        const payload = await requestJson(
+            `${usersEndpoint}?${parameters.toString()}`
         );
-        await loadUsers(initial.user);
-    }).catch(showLoadError);
+
+        managerUserId = payload.manager_user_id || "";
+        managerUserLabel = payload.manager_user_label || "";
+
+        user.replaceChildren(
+            new Option("--- Seleccione servidor público ---", "")
+        );
+        payload.options.forEach(({value, label}) => {
+            user.add(new Option(label, value));
+        });
+        if (initialUserId) {
+            user.value = initialUserId;
+        }
+        user.disabled = false;
+        applyMode();
+    };
+
+    const selectAsset = async (asset) => {
+        selectedAsset = asset;
+
+        assetSelect.replaceChildren(
+            new Option(asset.label, asset.value, true, true)
+        );
+
+        search.value = asset.label;
+        results.classList.add("hidden");
+        results.replaceChildren();
+
+        setText("custody-asset-name", asset.name);
+        setText("custody-asset-folio", asset.folio);
+        setText("custody-asset-serial", asset.serial_number);
+        setText("custody-asset-site", asset.site_name);
+        setText("custody-asset-department", asset.department_name);
+        setText("custody-asset-area", asset.area_name);
+
+        assetCard.classList.remove("hidden");
+        submit.disabled = true;
+
+        try {
+            await loadUsers();
+        } catch (error) {
+            console.error("No fue posible cargar el directorio:", error);
+            resetUsers("No fue posible cargar servidores públicos");
+            applyMode();
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+    };
+
+    const renderResults = (options) => {
+        results.replaceChildren();
+
+        if (!options.length) {
+            const empty = document.createElement("p");
+            empty.className = "p-4 text-sm text-slate-500";
+            empty.textContent = "No se encontraron bienes disponibles.";
+            results.appendChild(empty);
+        }
+
+        options.forEach((asset) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = (
+                "block w-full border-b border-slate-100 px-4 py-3 " +
+                "text-left transition last:border-0 hover:bg-slate-50"
+            );
+
+            const name = document.createElement("span");
+            name.className = "block text-sm font-black text-slate-900";
+            name.textContent = asset.name;
+
+            const folio = document.createElement("span");
+            folio.className = (
+                "mt-1 block font-mono text-xs text-slate-500"
+            );
+            folio.textContent = `${asset.folio} · ${asset.serial_number}`;
+
+            const location = document.createElement("span");
+            location.className = "mt-1 block text-xs text-slate-400";
+            location.textContent = (
+                `${asset.department_name} · ${asset.site_name}`
+            );
+
+            button.append(name, folio, location);
+            button.addEventListener("click", () => selectAsset(asset));
+            results.appendChild(button);
+        });
+
+        results.classList.remove("hidden");
+    };
+
+    const searchAssets = async () => {
+        const query = search.value.trim();
+        if (query.length < 2) {
+            results.classList.add("hidden");
+            return;
+        }
+
+        try {
+            const parameters = new URLSearchParams({q: query});
+            const payload = await requestJson(
+                `${assetEndpoint}?${parameters.toString()}`
+            );
+            renderResults(payload.options || []);
+        } catch (error) {
+            console.error("No fue posible buscar bienes:", error);
+        }
+    };
+
+    search.addEventListener("input", () => {
+        window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(searchAssets, 250);
+    });
+
+    mode.addEventListener("change", applyMode);
+    user.addEventListener("change", applyMode);
+
+    if (assetSelect.value) {
+        const parameters = new URLSearchParams({
+            asset_id: assetSelect.value,
+        });
+        requestJson(`${assetEndpoint}?${parameters.toString()}`)
+            .then((payload) => {
+                if (payload.options && payload.options.length) {
+                    return selectAsset(payload.options[0]);
+                }
+            })
+            .catch((error) => {
+                console.error("No fue posible recuperar el bien:", error);
+            });
+    } else {
+        submit.disabled = true;
+        resetUsers();
+    }
 })();
 </script>

@@ -6,11 +6,9 @@ from uuid import UUID
 @dataclass(frozen=True, slots=True)
 class CreateCustodyAssignmentDTO:
     asset_id: UUID
-    assigned_to_id: UUID
-    department_id: UUID
+    assignee_mode: str
     assigned_at: datetime
-    area_id: UUID | None = None
-    site_id: UUID | None = None
+    assigned_to_id: UUID | None = None
     notes: str = ""
     bypass_reason: str = ""
 
@@ -66,3 +64,4 @@ __all__ = [
     "RejectCustodyAssignmentDTO",
     "ReturnCustodyAssignmentDTO",
 ]
+

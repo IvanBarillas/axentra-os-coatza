@@ -12,6 +12,7 @@ from apps.inventory.models import (
     AssetOperationalStatus,
     CustodyAcceptanceMethod,
     CustodyAssignment,
+    CustodyAssigneeMode,
     CustodyAssignmentEvent,
     CustodyEventType,
     CustodyStatus,
@@ -127,13 +128,26 @@ def _audit(custody, actor, action, summary, context, old):
 def create_custody_assignment(*, data, actor_id, request=None):
     actor = _require_permission(actor_id, MANAGE_PERMISSION)
     context = build_audit_request_context(request)
+
     try:
-        asset = Asset.objects.select_for_update().get(
-            pk=data.asset_id,
-            is_deleted=False,
+        asset = (
+            Asset.objects
+            .select_for_update()
+            .select_related(
+                "current_sede",
+                "current_dependencia",
+                "current_area",
+            )
+            .get(
+                pk=data.asset_id,
+                is_deleted=False,
+            )
         )
     except Asset.DoesNotExist as exc:
-        raise InventoryValidationError("El activo no existe.") from exc
+        raise InventoryValidationError(
+            "El activo no existe."
+        ) from exc
+
     if asset.operational_status not in {
         AssetOperationalStatus.AVAILABLE,
         AssetOperationalStatus.ASSIGNED,
@@ -141,6 +155,13 @@ def create_custody_assignment(*, data, actor_id, request=None):
         raise InventoryStateError(
             "El activo no está disponible para generar un resguardo."
         )
+
+    if not asset.current_dependencia_id:
+        raise InventoryValidationError(
+            "El activo no tiene una dependencia actual. "
+            "Registre primero su ubicación institucional."
+        )
+
     if CustodyAssignment.objects.filter(
         asset=asset,
         is_deleted=False,
@@ -154,44 +175,83 @@ def create_custody_assignment(*, data, actor_id, request=None):
         raise InventoryConflictError(
             "El activo ya tiene un resguardo vigente o en proceso."
         )
+
     try:
-        assigned = core_directory.get_user_identity(data.assigned_to_id)
-        assigned_context = core_directory.get_user_organizational_context(
-            assigned.id,
-            require_profile=True,
+        department = core_directory.get_department(
+            asset.current_dependencia_id
         )
-        department = core_directory.get_department(data.department_id)
         area = (
-            core_directory.get_area_context(data.area_id)
-            if data.area_id else None
+            core_directory.get_area_context(asset.current_area_id)
+            if asset.current_area_id else None
         )
         site = (
-            core_directory.get_site(data.site_id)
-            if data.site_id else None
+            core_directory.get_site(asset.current_sede_id)
+            if asset.current_sede_id else None
         )
+
         core_directory.validate_organizational_context(
             department_id=department.id,
             area_id=area.id if area else None,
             site_id=site.id if site else None,
         )
+
+        mode = _text(data.assignee_mode)
+
+        if mode == CustodyAssigneeMode.DEPARTMENT_MANAGER:
+            assigned_to_id = department.manager_user_id
+            if not assigned_to_id:
+                raise InventoryValidationError(
+                    "La dependencia actual del bien no tiene un titular "
+                    "o encargado registrado. Asígnelo desde Organización "
+                    "o seleccione un servidor público."
+                )
+        elif mode == CustodyAssigneeMode.PUBLIC_SERVANT:
+            assigned_to_id = data.assigned_to_id
+            if not assigned_to_id:
+                raise InventoryValidationError(
+                    "Seleccione al servidor público que recibirá "
+                    "el resguardo."
+                )
+        else:
+            raise InventoryValidationError(
+                "El tipo de responsable seleccionado no es válido."
+            )
+
+        assigned = core_directory.get_user_identity(assigned_to_id)
+        assigned_context = (
+            core_directory.get_user_organizational_context(
+                assigned.id,
+                require_profile=True,
+            )
+        )
+    except InventoryValidationError:
+        raise
     except core_directory.CoreDirectoryError as exc:
         raise InventoryValidationError(str(exc)) from exc
-    if assigned_context.department_id != department.id and not actor.has_global_bypass:
-        raise InventoryValidationError(
-            "El resguardatario no pertenece a la dependencia indicada."
-        )
-    if area and assigned_context.area_id != area.id and not actor.has_global_bypass:
-        raise InventoryValidationError(
-            "El resguardatario no pertenece al área operativa indicada."
-        )
+
     bypass_reason = _text(data.bypass_reason)
+
     if bypass_reason and not actor.has_global_bypass:
         raise InventoryAuthorizationError(
             "Sólo un operador con bypass puede justificar una excepción."
         )
+
+    if (
+        assigned_context.department_id != department.id
+        and not actor.has_global_bypass
+    ):
+        raise InventoryValidationError(
+            "El resguardatario no pertenece a la dependencia "
+            "actual del bien."
+        )
+
     custody = CustodyAssignment(
-        folio=f"RES-{timezone.localdate():%Y}-{uuid4().hex[:10].upper()}",
+        folio=(
+            f"RES-{timezone.localdate():%Y}-"
+            f"{uuid4().hex[:10].upper()}"
+        ),
         asset=asset,
+        assignee_mode=mode,
         assigned_to_id=assigned.id,
         assigned_to_name_snapshot=assigned.display_name,
         assigned_to_email_snapshot=assigned.normalized_email,
@@ -212,10 +272,28 @@ def create_custody_assignment(*, data, actor_id, request=None):
         bypass_reason=bypass_reason,
     )
     _validate_save(custody)
-    event = _event(custody, CustodyEventType.CREATED, "", actor, context)
-    _audit(custody, actor, InventoryAuditAction.CREATE, "Resguardo creado", context, {})
-    return custody
 
+    event = _event(
+        custody,
+        CustodyEventType.CREATED,
+        "",
+        actor,
+        context,
+        comment=(
+            "Responsable seleccionado como titular de la dependencia."
+            if mode == CustodyAssigneeMode.DEPARTMENT_MANAGER
+            else "Responsable seleccionado como servidor público."
+        ),
+    )
+    _audit(
+        custody,
+        actor,
+        InventoryAuditAction.CREATE,
+        "Resguardo creado",
+        context,
+        {},
+    )
+    return custody
 
 def _transition(custody_id, actor_id, expected, target, event_type, action, summary, *, request=None, comment="", mutate=None, permission=MANAGE_PERMISSION):
     actor = _require_permission(actor_id, permission) if permission else _actor(actor_id)[0]
@@ -356,3 +434,4 @@ def cancel_custody_assignment(*, custody_id, actor_id, data, request=None):
 
 
 __all__ = [name for name in globals() if name.endswith("custody_assignment") or name in {"deliver_custody_assignment", "request_custody_return", "complete_custody_return"}]
+

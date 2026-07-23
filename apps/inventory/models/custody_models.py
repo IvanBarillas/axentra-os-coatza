@@ -79,6 +79,17 @@ class CustodyEventType(models.TextChoices):
 # =============================================================================
 
 
+class CustodyAssigneeMode(models.TextChoices):
+    DEPARTMENT_MANAGER = (
+        "DEPARTMENT_MANAGER",
+        "Titular de la dependencia",
+    )
+    PUBLIC_SERVANT = (
+        "PUBLIC_SERVANT",
+        "Servidor público",
+    )
+
+
 class CustodyAssignment(InventoryBaseModel):
     """
     Expediente de resguardo oficial de un activo.
@@ -107,6 +118,12 @@ class CustodyAssignment(InventoryBaseModel):
         choices=CustodyStatus.choices,
         default=CustodyStatus.DRAFT,
         db_index=True,
+    )
+    assignee_mode = models.CharField(
+        "Tipo de responsable",
+        max_length=30,
+        choices=CustodyAssigneeMode.choices,
+        default=CustodyAssigneeMode.PUBLIC_SERVANT,
     )
 
     # -------------------------------------------------------------------------
@@ -996,3 +1013,4 @@ class CustodyAssignmentEvent(InventoryBaseModel):
             f"{self.get_event_type_display()}"
         )
         
+

@@ -59,6 +59,7 @@ from apps.inventory.models.asset_models import (
 
 from apps.inventory.models.custody_models import (
     CustodyAcceptanceMethod,
+    CustodyAssigneeMode,
     CustodyAssignment,
     CustodyAssignmentEvent,
     CustodyEventType,
@@ -167,6 +168,7 @@ __all__ = [
 
     # Resguardos
     "CustodyAcceptanceMethod",
+    "CustodyAssigneeMode",
     "CustodyAssignment",
     "CustodyAssignmentEvent",
     "CustodyEventType",
@@ -217,3 +219,4 @@ __all__ = [
     "PhysicalAuditSession",
     "PhysicalAuditStatus",
 ]
+

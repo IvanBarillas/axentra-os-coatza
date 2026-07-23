@@ -50,7 +50,8 @@ from .intake_views import (
     intake_submit_view,
 )
 from .registry_views import (
-    custody_accept_view, custody_authorize_view, custody_cancel_view,
+    custody_accept_view, custody_asset_options_view,
+    custody_authorize_view, custody_cancel_view,
     custody_complete_return_view, custody_create_view, custody_deliver_view,
     custody_directory_areas_view, custody_directory_departments_view,
     custody_directory_users_view,
