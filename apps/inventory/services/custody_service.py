@@ -5,6 +5,10 @@ from uuid import uuid4
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.inventory.workflows.custody_workflow import (
+    uses_simple_custody_workflow,
+)
+
 from apps.inventory.dtos import CustodyTransitionResultDTO
 from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
@@ -33,6 +37,14 @@ from apps.inventory.services.exceptions import (
 
 MANAGE_PERMISSION = "can_manage_custody"
 ACCEPT_PERMISSION = "can_accept_custody"
+
+
+def _require_controlled_custody_workflow():
+    if uses_simple_custody_workflow():
+        raise InventoryStateError(
+            "El municipio utiliza el flujo simplificado de resguardos. "
+            "Imprima el documento, recabe la firma y cargue el PDF firmado."
+        )
 
 
 def _text(value):
@@ -314,11 +326,13 @@ def _transition(custody_id, actor_id, expected, target, event_type, action, summ
 
 @transaction.atomic
 def submit_custody_assignment(*, custody_id, actor_id, request=None):
+    _require_controlled_custody_workflow()
     return _transition(custody_id, actor_id, {CustodyStatus.DRAFT, CustodyStatus.REJECTED}, CustodyStatus.PENDING_AUTHORIZATION, CustodyEventType.SUBMITTED, InventoryAuditAction.SUBMIT, "Resguardo enviado a autorización", request=request)
 
 
 @transaction.atomic
 def authorize_custody_assignment(*, custody_id, actor_id, data, request=None):
+    _require_controlled_custody_workflow()
     custody = _lock(custody_id)
     actor, role = _actor(actor_id)
     manages = actor.has_global_bypass or bool(
@@ -343,6 +357,7 @@ def authorize_custody_assignment(*, custody_id, actor_id, data, request=None):
 
 @transaction.atomic
 def deliver_custody_assignment(*, custody_id, actor_id, comment="", request=None):
+    _require_controlled_custody_workflow()
     def mutate(c, a):
         c.delivered_by_id = a.id
         c.delivered_at = timezone.now()
@@ -352,6 +367,7 @@ def deliver_custody_assignment(*, custody_id, actor_id, comment="", request=None
 
 @transaction.atomic
 def accept_custody_assignment(*, custody_id, actor_id, data, request=None):
+    _require_controlled_custody_workflow()
     identity = _require_permission(actor_id, ACCEPT_PERMISSION)
     custody = _lock(custody_id)
     if custody.assigned_to_id != identity.id and not identity.has_global_bypass:
@@ -379,6 +395,7 @@ def accept_custody_assignment(*, custody_id, actor_id, data, request=None):
 
 @transaction.atomic
 def reject_custody_assignment(*, custody_id, actor_id, data, request=None):
+    _require_controlled_custody_workflow()
     identity = _require_permission(actor_id, ACCEPT_PERMISSION)
     custody = _lock(custody_id)
     if custody.assigned_to_id != identity.id and not identity.has_global_bypass:

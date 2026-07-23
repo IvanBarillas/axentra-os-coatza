@@ -21,6 +21,7 @@ class CreateAssetIntakeDTO:
     manufacturer_id: UUID | None = None
     model_id: UUID | None = None
     serial_number: str | None = None
+    invoice_number: str = ""
     supplier_id: UUID | None = None
     contract_id: UUID | None = None
     requested_site_id: UUID | None = None
@@ -51,6 +52,7 @@ class UpdateAssetIntakeDTO:
     manufacturer_id: UUID | None = None
     model_id: UUID | None = None
     serial_number: str | None = None
+    invoice_number: str = ""
     supplier_id: UUID | None = None
     contract_id: UUID | None = None
     requested_site_id: UUID | None = None

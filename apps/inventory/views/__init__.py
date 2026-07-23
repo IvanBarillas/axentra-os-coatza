@@ -27,6 +27,10 @@ from .custody_document_views import (
     custody_document_print_view,
     custody_document_replace_view,
 )
+from .custody_simple_views import (
+    custody_print_view,
+    custody_signed_upload_view,
+)
 from .catalog_views import (
     catalog_create_view, catalog_deactivate_view, catalog_list_view,
     catalog_update_view,

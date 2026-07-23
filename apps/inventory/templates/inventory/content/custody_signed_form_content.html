@@ -1,0 +1,18 @@
+<section class="mx-auto max-w-3xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div>
+        <a href="{% url 'inventory:custody_detail' custody.id %}" class="text-sm font-black text-slate-500">← Volver al resguardo</a>
+        <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Flujo municipal simplificado</p>
+        <h1 class="mt-2 text-2xl font-black">Agregar resguardo firmado</h1>
+        <p class="mt-1 text-sm text-slate-500">{{ custody.folio }} · {{ custody.asset.display_inventory_number }} · {{ custody.asset.name }}</p>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="rounded-xl bg-red-50 p-4 text-sm font-bold text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+        {% include "inventory/partials/form_field.html" with field=form.signed_at %}
+        {% include "inventory/partials/form_field.html" with field=form.file %}
+        {% include "inventory/partials/form_field.html" with field=form.notes %}
+        <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">Al guardar, el PDF se anexará al expediente del bien y el resguardo quedará vigente.</div>
+        <div class="flex justify-end gap-2"><a href="{% url 'inventory:custody_detail' custody.id %}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-black">Cancelar</a><button class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white">Guardar firmado y activar</button></div>
+    </form>
+</section>
