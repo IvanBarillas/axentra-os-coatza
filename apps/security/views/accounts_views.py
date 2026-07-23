@@ -975,7 +975,7 @@ def funcionario_toggle_status_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
+@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_sub_identidad_view(request, pk: uuid.UUID):
     funcionario = get_object_or_404(User, id=pk)
     perfil = getattr(funcionario, "axentra_profile", None)

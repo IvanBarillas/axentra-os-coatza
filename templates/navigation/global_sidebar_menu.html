@@ -32,7 +32,7 @@
     {% endif %}
 
     {# CONFIGURACIÓN #}
-    {% if is_global_admin or 'security' in allowed_modules %}
+    {% if is_global_admin or 'configuration' in allowed_modules %}
         <div class="space-y-1">
             {% include "navigation/module_group.html" with group_id="config" title="Configuración" icon="settings" %}
 
@@ -44,44 +44,13 @@
                 {% url 'security:tenant_config' as tenant_config_url %}
                 {% include "navigation/module_item.html" with title="Identidad Institucional" icon="landmark" href=tenant_config_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
 
-                {# Próximamente: cuando creemos vista propia #}
-                {% include "navigation/module_item.html" with title="Parámetros Oficiales" icon="badge-dollar-sign" href="#" %}
             </div>
         </div>
     {% endif %}
-    {# INVENTARIO PATRIMONIAL #}
-    
-    {% if is_global_admin or 'inventory' in allowed_modules %}
-        {% url 'inventory:asset_list' as inventory_assets_url %}
 
-        <a href="{{ inventory_assets_url }}"
-           hx-get="{{ inventory_assets_url }}"
-           hx-target="#workbench"
-           hx-swap="innerHTML"
-           hx-push-url="true"
-           class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wider transition-all
-                  {% if modulo_actual == 'inventory' %}
-                      bg-slate-900 text-indigo-400
-                  {% else %}
-                      text-slate-400 hover:bg-slate-900/60 hover:text-slate-100
-                  {% endif %}">
-            <i data-lucide="boxes"
-               class="h-4 w-4 {% if modulo_actual == 'inventory' %}text-indigo-400{% else %}text-slate-400{% endif %}"></i>
-            <span>Inventario</span>
-        </a>
-    {% endif %}
-
-    {# ASISTENCIA TI #}
-    {% if is_global_admin or 'helpdesk' in allowed_modules %}
-        <div class="space-y-1">
-            {% include "navigation/module_group.html" with group_id="helpdesk" title="Asistencia TI" icon="headset" %}
-
-            <div x-show="openMenu === 'helpdesk'"
-                 x-cloak
-                 class="ml-4 pl-3 border-l border-slate-800 space-y-1">
-                {% include "navigation/module_item.html" with title="Mesa de Control" icon="ticket" href="#" %}
-            </div>
-        </div>
-    {% endif %}
+    {# Los satélites instalados y autorizados se descubren dinámicamente. #}
+    {% for satellite in satellite_navigation %}
+        {% include "navigation/module_item.html" with title=satellite.name icon=satellite.icon href=satellite.url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
+    {% endfor %}
 
 </nav>

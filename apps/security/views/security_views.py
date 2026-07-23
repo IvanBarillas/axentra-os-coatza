@@ -1310,7 +1310,7 @@ def expulsar_usuario_modulo_total_ajax_view(request, user_id, app_id):
 
 
 @login_required
-@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 def matrix_capabilities_view(request):
     """
     Master de capacidades institucionales por app.
@@ -1378,7 +1378,7 @@ def matrix_capabilities_view(request):
 
 
 @login_required
-@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def add_capability_node_view(request, app_id):
     """
@@ -1527,7 +1527,7 @@ def add_capability_node_view(request, app_id):
     return redirect(capabilities_url)
 
 @login_required
-@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_configure_tenant")
+@axentra_module_gate(AppIdentifier.SECURITY, required_fine_permission="can_modify_matrix")
 @require_POST
 def toggle_capability_ajax_view(request, dep_id, app_id):
     """
@@ -1763,12 +1763,7 @@ def descargar_auditoria_excel_view(request):
 @login_required
 @axentra_module_gate(
     AppIdentifier.CONFIGURATION,
-    required_fine_permission="can_configure_tenant",
-)
-@login_required
-@axentra_module_gate(
-    AppIdentifier.CONFIGURATION,
-    required_fine_permission="can_configure_tenant",
+    required_fine_permission="can_view_configuration",
 )
 def tenant_config_view(request):
     """
@@ -1796,6 +1791,27 @@ def tenant_config_view(request):
             entidad_nombre="H. Ayuntamiento Constitucional",
             siglas="AXN",
         )
+
+    can_edit_tenant = bool(
+        getattr(request, "axentra_is_root", False)
+        or "can_configure_tenant" in getattr(
+            request,
+            "axentra_permissions_list",
+            (),
+        )
+        or "configuration__can_configure_tenant" in getattr(
+            request,
+            "axentra_permissions_list",
+            (),
+        )
+    )
+
+    if request.method == "POST" and not can_edit_tenant:
+        messages.error(
+            request,
+            "No tiene autorización para modificar la identidad institucional.",
+        )
+        return redirect("security:tenant_config")
 
     if request.method == "POST":
         form = TenantConfigForm(
@@ -1858,6 +1874,7 @@ def tenant_config_view(request):
                 context = {
                     "form": form,
                     "config": config_actualizada,
+                    "can_edit_tenant": can_edit_tenant,
                     "modulo_actual": AppIdentifier.CONFIGURATION,
                     "show_module_sidebar": True,
                     "current_configuration_view": "security:tenant_config",
@@ -1888,6 +1905,7 @@ def tenant_config_view(request):
     context = {
         "form": form,
         "config": config_instancia,
+        "can_edit_tenant": can_edit_tenant,
         "modulo_actual": AppIdentifier.CONFIGURATION,
         "show_module_sidebar": True,
         "current_configuration_view": "security:tenant_config",

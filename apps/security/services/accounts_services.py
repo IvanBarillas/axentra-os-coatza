@@ -1,8 +1,5 @@
 # apps/security/services/accounts_services.py
 import logging
-import sys
-import os
-import traceback
 import uuid
 from typing import Optional, Tuple, Dict, Any
 from django.db import transaction
@@ -13,6 +10,7 @@ from apps.security.models import UserProfile, AreaOperativa
 from apps.security.models.audit import SecurityAuditLog
 from apps.security.dtos import CrearFuncionarioInputDTO, EditarFuncionarioInputDTO
 from apps.security.utils.forensic_auditor import ForensicAuditor
+from apps.shared.utils.telemetry import AxentraRadar
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -232,21 +230,15 @@ class FuncionarioService:
 
     @staticmethod
     def _imprimir_auditoria_mutacion(operacion: str, email: str, estatus: str, detalle: str = ""):
-        try:
-            frame = sys._getframe(2)
-            invocado_desde = f"{os.path.basename(frame.f_code.co_filename)} -> {frame.f_code.co_name}()"
-        except Exception:
-            invocado_desde = "Origen Desconocido"
-
-        print("\n👥 " + "⚡"*25)
-        print(f"📡 AXENTRA OS ACCOUNTS SERVICE - TELEMETRÍA DE MUTACIÓN [{operacion}]")
-        print(f"👤 Funcionario Afectado: {email}")
-        print(f"🎬 Invocador Lógico:     {invocado_desde}")
-        print(f"🚨 Estatus de Transacción: {estatus}")
-        if detalle:
-            print(f"ℹ️  Detalle Técnico:      {detalle}")
-        print("-" * 52)
-        print("📋 TRACEBACK DE ORQUESTACIÓN ATÓMICA DE PERSONAL:")
-        for line in traceback.format_stack()[-4:-1]:
-            print(f"   {line.strip()}")
-        print("⚡"*26 + "\n")
+        AxentraRadar.emitir_evento(
+            componente="accounts_service",
+            titulo=f"Mutación de funcionario: {operacion}",
+            actor_email=email,
+            es_error="ERROR" in estatus.upper(),
+            icono="👥",
+            extra_data={
+                "Funcionario afectado": email,
+                "Estado de transacción": estatus,
+                "Detalle": detalle or "Sin detalle adicional",
+            },
+        )

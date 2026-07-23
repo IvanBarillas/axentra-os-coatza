@@ -60,4 +60,8 @@ LOGGING = {
 # =========================================================================
 # VELOCIDAD CERO: Apagado estricto e inmutable para entorno en vivo
 # =========================================================================
-AXENTRA_CORE_VERBOSE_RADAR = False
+AXENTRA_CORE_VERBOSE_RADAR = config(
+    "AXENTRA_CORE_VERBOSE_RADAR",
+    default=False,
+    cast=bool,
+)

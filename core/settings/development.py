@@ -41,4 +41,8 @@ LOGGING = {
 # =========================================================================
 # INTERRUPTOR LOCAL: Siempre encendido para inspección visual en WSL/Consola
 # =========================================================================
-AXENTRA_CORE_VERBOSE_RADAR = True
+AXENTRA_CORE_VERBOSE_RADAR = config(
+    "AXENTRA_CORE_VERBOSE_RADAR",
+    default=True,
+    cast=bool,
+)

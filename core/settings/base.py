@@ -146,3 +146,17 @@ SECURE_REFERRER_POLICY = 'same-origin'
 # =========================================================================
 # Lee del archivo .env correspondiente; si no existe, por defecto se apaga.
 AXENTRA_CORE_VERBOSE_RADAR = config('AXENTRA_CORE_VERBOSE_RADAR', default=False, cast=bool)
+
+# =========================================================
+# APROVISIONAMIENTO DEL OPERADOR INICIAL
+# =========================================================
+
+AXENTRA_OWNER_EMAIL = config(
+    "AXENTRA_OWNER_EMAIL",
+    default="owner@axentra.com.mx",
+)
+
+AXENTRA_OWNER_DEFAULT_PASSWORD = config(
+    "AXENTRA_OWNER_DEFAULT_PASSWORD",
+    default="",
+)

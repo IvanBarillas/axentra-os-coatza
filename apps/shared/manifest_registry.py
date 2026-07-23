@@ -1,6 +1,8 @@
 # apps/shared/manifest_registry.py
 import importlib
+import inspect
 import logging
+from django.apps import apps
 from apps.shared.apps_config import AppIdentifier
 
 logger = logging.getLogger(__name__)
@@ -44,10 +46,26 @@ class AxentraOSRegistry:
                     logger.debug(f"ℹ️ [Registry] Clase [{class_name}] no localizada en ninguna capa.")
             except ImportError as e:
                 logger.debug(f"⚠️ [Registry Critical] Archivo base de seguridad ausente: {e}")
-                
+
+        # Descubrimiento SDK: cualquier app Django instalada puede publicar
+        # una clase soberana en <app>.permissions sin modificar AppIdentifier.
+        if apps.ready:
+            for app_config in apps.get_app_configs():
+                module_path = f"{app_config.name}.permissions"
+                try:
+                    module = importlib.import_module(module_path)
+                except ModuleNotFoundError as exc:
+                    if exc.name != module_path:
+                        logger.exception("Error importando %s", module_path)
+                    continue
+                for _, candidate in inspect.getmembers(module, inspect.isclass):
+                    app_code = str(getattr(candidate, "APP_CODE", "")).strip().lower()
+                    if not app_code or not hasattr(candidate, "PERMISSIONS"):
+                        continue
+                    manifests[app_code] = candidate
+
         return manifests
 
     @classmethod
     def get_manifest_by_slug(cls, app_code: str):
         return cls.get_all_manifests().get(app_code)
-

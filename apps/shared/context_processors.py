@@ -234,9 +234,14 @@ def user_module_permissions(request):
         return context
 
     if _usuario_es_root(request):
+        from apps.shared.module_sdk.registry import module_registry
+        from apps.security.models import AppModule
         slugs_totales = [
-            choice[0]
-            for choice in AppIdentifier.get_choices()
+            module.slug for module in AppModule.objects.filter(
+                slug__in=module_registry.codes(),
+                is_active=True,
+                is_deleted=False,
+            ).only("slug")
         ]
 
         AxentraRadar.imprimir_auditoria(
