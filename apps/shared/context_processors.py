@@ -364,3 +364,51 @@ def menu_dinamico_processor(request):
     context["sidebar_secundario"] = False
 
     return context
+
+def satellite_navigation(request):
+    """
+    Construye la navegación global de módulos satélite instalados,
+    activos y autorizados para el usuario actual.
+    """
+    context = {"satellite_navigation": []}
+
+    user = getattr(request, "user", None)
+
+    if (
+        not user
+        or not user.is_authenticated
+        or _usuario_dado_de_baja(user)
+    ):
+        return context
+
+    from django.urls import NoReverseMatch, reverse
+
+    from apps.shared.module_sdk.contracts import ModuleKind
+    from apps.shared.module_sdk.registry import module_registry
+    from apps.shared.module_sdk.services import user_can_open_module
+
+    navigation = []
+
+    for manifest in module_registry.discover():
+        if manifest.kind != ModuleKind.SATELLITE:
+            continue
+
+        if not user_can_open_module(user, manifest.code):
+            continue
+
+        try:
+            url = reverse(manifest.entry_url)
+        except NoReverseMatch:
+            continue
+
+        navigation.append(
+            {
+                "code": manifest.code,
+                "name": manifest.name,
+                "icon": manifest.icon,
+                "url": url,
+            }
+        )
+
+    context["satellite_navigation"] = navigation
+    return context
