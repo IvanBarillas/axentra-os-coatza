@@ -1,0 +1,72 @@
+<section class="mx-auto max-w-6xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <a href="{% url 'inventory:custody_document_list' %}" class="text-sm font-black text-slate-500">← Volver a documentos</a>
+            <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Captura agrupada</p>
+            <h1 class="mt-2 text-2xl font-black">Nuevo resguardo masivo</h1>
+            <p class="mt-1 text-sm text-slate-500">Cada bien conservará un resguardo individual, agrupado en un solo documento para firma.</p>
+        </div>
+    </div>
+
+    <form method="post" action="{{ request.path }}" class="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="rounded-xl bg-red-50 p-4 text-sm font-bold text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+
+        <div class="grid gap-5 md:grid-cols-2">
+            <div>{% include "inventory/partials/form_field.html" with field=form.department_id %}</div>
+            <div>{% include "inventory/partials/form_field.html" with field=form.assignee_mode %}</div>
+            <div id="document-user-field" class="md:col-span-2">{% include "inventory/partials/form_field.html" with field=form.assigned_to_id %}</div>
+        </div>
+
+        {% if not selected_department_id %}
+            <div class="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
+                Seleccione primero una dependencia. Después se mostrarán únicamente sus bienes disponibles.
+            </div>
+        {% else %}
+            <div class="rounded-2xl border border-slate-200">
+                <div class="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div><h2 class="font-black">Bienes disponibles</h2><p class="text-sm text-slate-500">No aparecen bienes con resguardo vigente o en proceso.</p></div>
+                    <button type="button" id="select-all-assets" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-black">Seleccionar todos</button>
+                </div>
+                <div class="max-h-[430px] overflow-y-auto p-5">
+                    {{ form.asset_ids }}
+                    {% if form.asset_ids.errors %}<div class="mt-2 text-sm font-bold text-red-600">{{ form.asset_ids.errors }}</div>{% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div>{% include "inventory/partials/form_field.html" with field=form.notes %}</div>
+        {% if form.bypass_reason %}<div>{% include "inventory/partials/form_field.html" with field=form.bypass_reason %}</div>{% endif %}
+        <div class="flex justify-end gap-2">
+            <a href="{% url 'inventory:custody_document_list' %}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-black">Cancelar</a>
+            <button class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white">Crear documento masivo</button>
+        </div>
+    </form>
+</section>
+<script>
+(() => {
+    const department = document.getElementById("id_department_id");
+    const mode = document.getElementById("id_assignee_mode");
+    const userField = document.getElementById("document-user-field");
+    if (department && !department.dataset.ready) {
+        department.dataset.ready = "1";
+        department.addEventListener("change", () => {
+            const url = new URL("{% url 'inventory:custody_document_create' %}", window.location.origin);
+            if (department.value) url.searchParams.set("department_id", department.value);
+            window.location.assign(url.toString());
+        });
+    }
+    const syncMode = () => {
+        if (userField && mode) userField.classList.toggle("hidden", mode.value !== "PUBLIC_SERVANT");
+    };
+    if (mode) { mode.addEventListener("change", syncMode); syncMode(); }
+    const selectAll = document.getElementById("select-all-assets");
+    if (selectAll) selectAll.addEventListener("click", () => {
+        const checks = [...document.querySelectorAll('input[name="asset_ids"]')];
+        const shouldCheck = checks.some(item => !item.checked);
+        checks.forEach(item => { item.checked = shouldCheck; });
+        selectAll.textContent = shouldCheck ? "Quitar selección" : "Seleccionar todos";
+    });
+})();
+</script>

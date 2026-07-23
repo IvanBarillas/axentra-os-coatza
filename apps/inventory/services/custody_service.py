@@ -132,12 +132,12 @@ def create_custody_assignment(*, data, actor_id, request=None):
     try:
         asset = (
             Asset.objects
-            .select_for_update()
             .select_related(
                 "current_sede",
                 "current_dependencia",
                 "current_area",
             )
+            .select_for_update(of=("self",))
             .get(
                 pk=data.asset_id,
                 is_deleted=False,
@@ -434,4 +434,3 @@ def cancel_custody_assignment(*, custody_id, actor_id, data, request=None):
 
 
 __all__ = [name for name in globals() if name.endswith("custody_assignment") or name in {"deliver_custody_assignment", "request_custody_return", "complete_custody_return"}]
-

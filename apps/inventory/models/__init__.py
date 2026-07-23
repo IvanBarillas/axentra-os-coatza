@@ -65,6 +65,11 @@ from apps.inventory.models.custody_models import (
     CustodyEventType,
     CustodyStatus,
 )
+from apps.inventory.models.custody_document_models import (
+    CustodyDocument,
+    CustodyDocumentItem,
+    CustodyDocumentStatus,
+)
 
 # =============================================================================
 # MOVIMIENTOS, PRÉSTAMOS Y BAJAS
@@ -171,6 +176,9 @@ __all__ = [
     "CustodyAssigneeMode",
     "CustodyAssignment",
     "CustodyAssignmentEvent",
+    "CustodyDocument",
+    "CustodyDocumentItem",
+    "CustodyDocumentStatus",
     "CustodyEventType",
     "CustodyStatus",
 
@@ -219,4 +227,3 @@ __all__ = [
     "PhysicalAuditSession",
     "PhysicalAuditStatus",
 ]
-

@@ -1,0 +1,22 @@
+<section class="space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <a href="{% url 'inventory:custody_document_list' %}" class="text-sm font-black text-slate-500">← Volver a documentos</a>
+    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Documento de resguardo</p><h1 class="mt-2 font-mono text-3xl font-black">{{ document.folio }}</h1><p class="mt-1 text-sm text-slate-500">{{ document.department_name_snapshot }}</p></div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'inventory:custody_document_print' document.id %}" target="_blank" rel="noopener" class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black"><i data-lucide="printer" class="mr-2 inline h-4 w-4"></i>Imprimir / Guardar como PDF</a>
+            {% if can_replace %}<form method="post" action="{% url 'inventory:custody_document_close' document.id %}">{% csrf_token %}<input type="hidden" name="reason" value="Todos los resguardos del documento fueron concluidos."><button class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black">Enviar al histórico</button></form><a href="{% url 'inventory:custody_document_replace' document.id %}" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Cambio de responsable</a>{% endif %}
+        </div>
+    </div>
+    <div class="grid gap-5 md:grid-cols-3">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5"><p class="text-xs font-black uppercase text-slate-400">Responsable</p><p class="mt-2 font-black">{{ document.assigned_to_name_snapshot }}</p><p class="text-sm text-slate-500">{{ document.assigned_to_email_snapshot }}</p></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5"><p class="text-xs font-black uppercase text-slate-400">Estado</p><p class="mt-2 font-black">{{ document.get_status_display }}</p><p class="text-sm text-slate-500">{{ document.prepared_at|date:"d/m/Y H:i" }}</p></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5"><p class="text-xs font-black uppercase text-slate-400">Bienes incluidos</p><p class="mt-2 text-3xl font-black">{{ document.items.count }}</p></div>
+    </div>
+    {% if document.is_historical %}<div class="rounded-2xl border border-amber-200 bg-amber-50 p-5"><p class="font-black text-amber-900">Registro histórico inmutable</p><p class="mt-1 text-sm text-amber-800">{{ document.closure_reason }}</p><p class="mt-1 text-xs text-amber-700">Cerrado: {{ document.closed_at|date:"d/m/Y H:i" }}</p></div>{% endif %}
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div class="max-h-[520px] overflow-y-auto">
+            <table class="w-full text-left text-sm"><thead class="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-5 py-3">Folio</th><th class="px-5 py-3">Bien</th><th class="px-5 py-3">Serie</th><th class="px-5 py-3">Resguardo individual</th></tr></thead><tbody class="divide-y divide-slate-100">{% for item in document.items.all %}<tr><td class="px-5 py-4 font-mono font-black">{{ item.inventory_number_snapshot }}</td><td class="px-5 py-4">{{ item.asset_name_snapshot }}</td><td class="px-5 py-4">{{ item.serial_number_snapshot|default:"Sin serie" }}</td><td class="px-5 py-4"><a href="{% url 'inventory:custody_detail' item.custody_assignment_id %}" class="font-black text-blue-700">{{ item.custody_assignment.folio }}</a></td></tr>{% endfor %}</tbody></table>
+        </div>
+    </div>
+</section>

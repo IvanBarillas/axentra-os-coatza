@@ -1,0 +1,19 @@
+<section class="space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Responsabilidad patrimonial</p><h1 class="mt-2 text-2xl font-black">Documentos de resguardo</h1><p class="mt-1 text-sm text-slate-500">Documentos agrupados e histórico institucional.</p></div>
+        <a href="{% url 'inventory:custody_document_create' %}" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Nuevo resguardo masivo</a>
+    </div>
+    <div class="inline-flex rounded-xl bg-slate-100 p-1">
+        <a href="{% url 'inventory:custody_document_list' %}?tab=current" class="rounded-lg px-4 py-2 text-sm font-black {% if tab == 'current' %}bg-white shadow-sm{% else %}text-slate-500{% endif %}">Vigentes y en proceso</a>
+        <a href="{% url 'inventory:custody_document_list' %}?tab=history" class="rounded-lg px-4 py-2 text-sm font-black {% if tab == 'history' %}bg-white shadow-sm{% else %}text-slate-500{% endif %}">Histórico inmutable</a>
+    </div>
+    <div class="grid gap-4">
+        {% for document in documents %}
+            <a href="{% url 'inventory:custody_document_detail' document.id %}" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400 md:grid-cols-[1fr_auto]">
+                <div><p class="font-mono text-sm font-black">{{ document.folio }}</p><p class="mt-1 font-black">{{ document.assigned_to_name_snapshot }}</p><p class="text-sm text-slate-500">{{ document.department_name_snapshot }} · {{ document.items.count }} bienes</p>{% if document.closure_reason %}<p class="mt-2 text-xs text-slate-500">{{ document.closure_reason }}</p>{% endif %}</div>
+                <div class="flex items-center gap-3"><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black">{{ document.get_status_display }}</span><i data-lucide="chevron-right" class="h-4 w-4"></i></div>
+            </a>
+        {% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}
+    </div>
+</section>

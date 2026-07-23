@@ -30,6 +30,12 @@ from apps.inventory.views import (
     custody_cancel_view,
     custody_complete_return_view,
     custody_create_view,
+    custody_document_close_view,
+    custody_document_create_view,
+    custody_document_detail_view,
+    custody_document_list_view,
+    custody_document_print_view,
+    custody_document_replace_view,
     custody_deliver_view,
     custody_directory_areas_view,
     custody_directory_departments_view,
@@ -181,6 +187,12 @@ urlpatterns = [
     # Resguardos
     path("custodies/", custody_list_view, name="custody_list"),
     path("custodies/new/", custody_create_view, name="custody_create"),
+    path("custodies/documents/", custody_document_list_view, name="custody_document_list"),
+    path("custodies/documents/new/", custody_document_create_view, name="custody_document_create"),
+    path("custodies/documents/<uuid:document_id>/", custody_document_detail_view, name="custody_document_detail"),
+    path("custodies/documents/<uuid:document_id>/print/", custody_document_print_view, name="custody_document_print"),
+    path("custodies/documents/<uuid:document_id>/close/", custody_document_close_view, name="custody_document_close"),
+    path("custodies/documents/<uuid:document_id>/replace/", custody_document_replace_view, name="custody_document_replace"),
     path("custodies/directory/assets/", custody_asset_options_view, name="custody_asset_options"),
     path("custodies/directory/departments/", custody_directory_departments_view, name="custody_directory_departments"),
     path("custodies/directory/areas/", custody_directory_areas_view, name="custody_directory_areas"),
@@ -284,4 +296,3 @@ urlpatterns = [
     path("help/", inventory_help_view, name="help"),
     path("help/<slug:workflow_code>/", inventory_help_detail_view, name="help_detail"),
 ]
-

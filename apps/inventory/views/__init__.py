@@ -19,6 +19,14 @@ from .asset_views import (
     asset_technical_sheet_view,
 )
 from .dashboard_views import inventory_dashboard_view
+from .custody_document_views import (
+    custody_document_close_view,
+    custody_document_create_view,
+    custody_document_detail_view,
+    custody_document_list_view,
+    custody_document_print_view,
+    custody_document_replace_view,
+)
 from .catalog_views import (
     catalog_create_view, catalog_deactivate_view, catalog_list_view,
     catalog_update_view,
