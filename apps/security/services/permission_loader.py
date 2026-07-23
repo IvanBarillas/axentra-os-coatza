@@ -1,10 +1,10 @@
 # apps/security/services/permission_loader.py
 import logging
-import traceback
 import sys
 from importlib import import_module
 from django.contrib.auth import get_user_model
 from apps.security.models import UserAppRole
+from apps.shared.utils.telemetry import AxentraRadar
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -87,22 +87,21 @@ def get_user_permissions_for_app(user, app_slug):
     if not user or not user.is_authenticated:
         return permisos
 
-    # Telemetría síncrona: Inspección del hilo de ejecución para pintar el origen exacto
-    try:
-        frame = sys._getframe(1)
-        llamado_desde = f"{frame.f_code.co_filename.split('/')[-1]} -> {frame.f_code.co_name}()"
-    except Exception:
-        llamado_desde = "Origen Desconocido"
+    # La introspección sólo se calcula cuando la telemetría está encendida.
+    llamado_desde = "Telemetría desactivada"
+    if AxentraRadar.enabled():
+        try:
+            frame = sys._getframe(1)
+            llamado_desde = (
+                f"{frame.f_code.co_filename.split('/')[-1]} "
+                f"-> {frame.f_code.co_name}()"
+            )
+        except Exception:
+            llamado_desde = "Origen desconocido"
 
     # Jalamos la configuración perimetral de la app (incluyendo su mapa de pesos)
     config_app = get_app_permissions(app_slug)
     weights_map = config_app.get('weights', {})
-
-    print("\n🕵️‍♂️ " + "🔍"*25)
-    print(f"📡 RADAR EN CALIENTE AXENTRA OS: EVALUADOR DE PERMISOS [{app_slug.upper()}]")
-    print(f"👤 Evaluando a:        {user.email}")
-    print(f"🎬 Invocado desde:     {llamado_desde}")
-    print(f"👑 Estado is_manager:  {getattr(user, 'is_manager', False)}")
 
     # =========================================================================
     # 👑 1. BYPASS MAESTRO (IS_MANAGER GLOBAL)
@@ -125,8 +124,18 @@ def get_user_permissions_for_app(user, app_slug):
         for permiso in lista_maestra:
             permisos[permiso] = True
             
-        print("👑 RESULTADO: Acceso total concedido por regla jerárquica de Manager Supremo [Peso Absoluto: INF].")
-        print("🔍"*26 + "\n")
+        AxentraRadar.emitir_evento(
+            componente="permission_loader",
+            titulo=f"Bypass global concedido en {app_slug}",
+            actor_email=user.email,
+            icono="👑",
+            extra_data={
+                "Módulo": app_slug,
+                "Invocado desde": llamado_desde,
+                "Resultado": "Acceso global",
+                "Permisos efectivos": lista_maestra,
+            },
+        )
         return permisos
 
     # =========================================================================
@@ -141,23 +150,24 @@ def get_user_permissions_for_app(user, app_slug):
         is_deleted=False,
     ).first()
 
-    print(f"📂 Registro UserAppRole en DB: {'🟢 ENCONTRADO Y ACTIVO' if rol else '❌ NO EXISTE O ESTÁ INACTIVO'}")
-    
     if not rol:
-        print(f"❌ RESULTADO: Usuario rechazado. Sin membresía activa en el nodo [{app_slug.upper()}].")
-        print("-" * 52)
-        print("📋 TRACEBACK DEL EVENTO DE SEGURIDAD:")
-        for line in traceback.format_stack()[-3:-1]:
-            print(f"   {line.strip()}")
-        print("🔍"*26 + "\n")
+        AxentraRadar.emitir_evento(
+            componente="permission_loader",
+            titulo=f"Membresía rechazada en {app_slug}",
+            actor_email=user.email,
+            es_error=True,
+            icono="🛡️",
+            extra_data={
+                "Módulo": app_slug,
+                "Invocado desde": llamado_desde,
+                "Resultado": "Sin membresía activa",
+            },
+        )
         return permisos
 
     # Extraemos el peso dinámico del rol leyéndolo desde el manifiesto inyectado
     rol_str = str(rol.role).lower().strip()
     peso_detectado = weights_map.get(rol_str, 0)
-
-    print(f"🎖️ Membresía (role) en DB:   [{rol.role.upper()}] (Peso de Autoridad Local: {peso_detectado})")
-    print(f"📦 JSONField guardado en DB:  {rol.permissions_list}")
 
     # Activamos los flags maestros de entrada general perimetral
     permisos['has_access'] = True
@@ -179,7 +189,6 @@ def get_user_permissions_for_app(user, app_slug):
     # ⚠️ 3. INYECCIÓN HEREDADA EXCLUSIVA PARA OWNERS
     # =========================================================================
     if rol.role in ['owner', 'OWNER']:
-        print("⚠ DETECTOR: El usuario tiene rango de OWNER. Analizando inyección heredada...")
         owner_perms = config_app['roles'].get('owner', []) or config_app['roles'].get('OWNER', [])
         
         for p in owner_perms:
@@ -189,7 +198,18 @@ def get_user_permissions_for_app(user, app_slug):
                 permisos['llaves'].append(p)
 
     llaves_finales_activas = [k for k, v in permisos.items() if v is True and k not in ['has_access', 'has_access_module', 'is_manager']]
-    print(f"🚀 LLAVES FINALES ENTREGADAS AL CONTEXTO EN TIEMPO REAL: {llaves_finales_activas}")
-    print("🕵️‍♂️ " + "🔍"*25 + "\n")
+    AxentraRadar.emitir_evento(
+        componente="permission_loader",
+        titulo=f"Permisos resueltos para {app_slug}",
+        actor_email=user.email,
+        icono="🛡️",
+        extra_data={
+            "Módulo": app_slug,
+            "Invocado desde": llamado_desde,
+            "Rol": rol.role,
+            "Peso del rol": peso_detectado,
+            "Permisos efectivos": llaves_finales_activas,
+        },
+    )
 
     return permisos
