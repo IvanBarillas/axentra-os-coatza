@@ -18,7 +18,6 @@ from apps.inventory.models import (
     DepreciationPolicy,
     ExpenditureObject,
     InventoryAssetTypeCode,
-    InventoryAssetType,
     InventoryFolioPolicy,
     Manufacturer,
     UmaValue,
@@ -33,6 +32,8 @@ class Command(BaseCommand):
 
     MUNICIPALITY_CODE = "039"
     MUNICIPALITY_NAME = "COATZACOALCOS"
+
+    # Estos valores deben validarse antes de cada despliegue anual.
     BASE_YEAR = 2026
     UMA_DAILY_VALUE = Decimal("117.3100")
 
@@ -45,8 +46,8 @@ class Command(BaseCommand):
         )
 
         categories = self._seed_categories()
-        self._seed_asset_types()
         accounts = self._seed_accounting_accounts(categories)
+
         self._seed_expenditure_objects(categories, accounts)
         self._seed_uma_values()
         self._seed_manufacturers_and_models()
@@ -59,49 +60,12 @@ class Command(BaseCommand):
             )
         )
 
-    def _seed_asset_types(self):
-        definitions = (
-            {
-                "code": InventoryAssetTypeCode.BM,
-                "name": "BIEN MUEBLE CAPITALIZABLE",
-                "nature": AssetNature.MOVABLE,
-                "is_capitalizable_default": True,
-                "requires_uma_validation": True,
-                "description": "Bien mueble sujeto a registro patrimonial y depreciación.",
-            },
-            {
-                "code": InventoryAssetTypeCode.BI,
-                "name": "BIEN INMUEBLE",
-                "nature": AssetNature.IMMOVABLE,
-                "is_capitalizable_default": True,
-                "requires_uma_validation": False,
-                "description": "Terreno, edificio u otro bien inmueble.",
-            },
-            {
-                "code": InventoryAssetTypeCode.BP,
-                "name": "BIEN DE CONTROL INTERNO",
-                "nature": AssetNature.MOVABLE,
-                "is_capitalizable_default": False,
-                "requires_uma_validation": True,
-                "description": "Bien controlable que no alcanza el umbral de capitalización.",
-            },
-        )
-        for definition in definitions:
-            code = definition.pop("code")
-            self._upsert(
-                InventoryAssetType,
-                {"code": code},
-                {
-                    **definition,
-                    "allows_user_proposal": True,
-                    "requires_override_approval": True,
-                },
-            )
-
     def _upsert(self, model, lookup, defaults):
         """
-        Crea o actualiza un catálogo y reactiva registros eliminados
-        lógicamente. Ejecuta las validaciones del modelo antes de guardar.
+        Crea o actualiza un catálogo de forma idempotente.
+
+        También reactiva registros que hayan sido eliminados lógicamente
+        y ejecuta las validaciones del modelo antes de guardar.
         """
 
         initial_defaults = {
@@ -122,10 +86,12 @@ class Command(BaseCommand):
         obj.is_active = True
         obj.is_deleted = False
         obj.deleted_at = None
+
         obj.full_clean()
         obj.save()
 
         action = "creado" if created else "actualizado"
+
         self.stdout.write(
             f"  - {model._meta.verbose_name}: {obj} ({action})"
         )
@@ -142,7 +108,10 @@ class Command(BaseCommand):
         rows = [
             {
                 "code": "COMPUTO_TI",
-                "name": "EQUIPO DE CÓMPUTO Y TECNOLOGÍAS DE INFORMACIÓN",
+                "name": (
+                    "EQUIPO DE CÓMPUTO Y TECNOLOGÍAS "
+                    "DE INFORMACIÓN"
+                ),
                 "nature": AssetNature.MOVABLE,
                 "description": (
                     "Computadoras, servidores, periféricos y equipo "
@@ -204,10 +173,15 @@ class Command(BaseCommand):
 
         for row in rows:
             code = row["code"]
+
             categories[code] = self._upsert(
                 AssetCategory,
                 {"code": code},
-                {key: value for key, value in row.items() if key != "code"},
+                {
+                    key: value
+                    for key, value in row.items()
+                    if key != "code"
+                },
             )
 
         return categories
@@ -230,7 +204,9 @@ class Command(BaseCommand):
                 "category": categories["COMPUTO_TI"],
                 "is_depreciable": True,
                 "default_useful_life_months": 36,
-                "default_annual_depreciation_rate": Decimal("33.333"),
+                "default_annual_depreciation_rate": Decimal(
+                    "33.333"
+                ),
                 "external_system_code": "1.2.4.1.3",
             },
             {
@@ -240,7 +216,9 @@ class Command(BaseCommand):
                 "category": categories["MOBILIARIO"],
                 "is_depreciable": True,
                 "default_useful_life_months": 120,
-                "default_annual_depreciation_rate": Decimal("10.000"),
+                "default_annual_depreciation_rate": Decimal(
+                    "10.000"
+                ),
                 "external_system_code": "1.2.4.1.1",
             },
         ]
@@ -249,15 +227,24 @@ class Command(BaseCommand):
 
         for row in rows:
             code = row["code"]
+
             accounts[code] = self._upsert(
                 AccountingAccount,
                 {"code": code},
-                {key: value for key, value in row.items() if key != "code"},
+                {
+                    key: value
+                    for key, value in row.items()
+                    if key != "code"
+                },
             )
 
         return accounts
 
-    def _seed_expenditure_objects(self, categories, accounts):
+    def _seed_expenditure_objects(
+        self,
+        categories,
+        accounts,
+    ):
         self.stdout.write(
             self.style.MIGRATE_HEADING(
                 "\n3. Clasificador por Objeto del Gasto"
@@ -277,8 +264,12 @@ class Command(BaseCommand):
                 ),
                 "category": categories["COMPUTO_TI"],
                 "accounting_account": accounts["1.2.4.1.3"],
-                "default_asset_type_code": InventoryAssetTypeCode.BM,
-                "capitalization_rule": CapitalizationRule.UMA_THRESHOLD,
+                "default_asset_type_code": (
+                    InventoryAssetTypeCode.BM
+                ),
+                "capitalization_rule": (
+                    CapitalizationRule.UMA_THRESHOLD
+                ),
                 "uma_multiplier": Decimal("70.00"),
                 "requires_inventory_control": True,
                 "requires_accounting_reconciliation": True,
@@ -286,15 +277,21 @@ class Command(BaseCommand):
             },
             {
                 "code": "5111",
-                "name": "MUEBLES DE OFICINA Y ESTANTERÍA",
+                "name": (
+                    "MUEBLES DE OFICINA Y ESTANTERÍA"
+                ),
                 "description": (
                     "Objeto del gasto asociado a mobiliario y "
                     "equipo de administración."
                 ),
                 "category": categories["MOBILIARIO"],
                 "accounting_account": accounts["1.2.4.1.1"],
-                "default_asset_type_code": InventoryAssetTypeCode.BM,
-                "capitalization_rule": CapitalizationRule.UMA_THRESHOLD,
+                "default_asset_type_code": (
+                    InventoryAssetTypeCode.BM
+                ),
+                "capitalization_rule": (
+                    CapitalizationRule.UMA_THRESHOLD
+                ),
                 "uma_multiplier": Decimal("70.00"),
                 "requires_inventory_control": True,
                 "requires_accounting_reconciliation": True,
@@ -304,10 +301,15 @@ class Command(BaseCommand):
 
         for row in rows:
             code = row["code"]
+
             self._upsert(
                 ExpenditureObject,
                 {"code": code},
-                {key: value for key, value in row.items() if key != "code"},
+                {
+                    key: value
+                    for key, value in row.items()
+                    if key != "code"
+                },
             )
 
     def _seed_uma_values(self):
@@ -322,8 +324,16 @@ class Command(BaseCommand):
             {"year": self.BASE_YEAR},
             {
                 "daily_value": self.UMA_DAILY_VALUE,
-                "effective_from": date(self.BASE_YEAR, 1, 1),
-                "effective_until": date(self.BASE_YEAR, 12, 31),
+                "effective_from": date(
+                    self.BASE_YEAR,
+                    1,
+                    1,
+                ),
+                "effective_until": date(
+                    self.BASE_YEAR,
+                    12,
+                    31,
+                ),
                 "publication_date": None,
                 "source_reference": (
                     "VALOR BASE DE CONFIGURACIÓN; VALIDAR CONTRA "
@@ -341,9 +351,20 @@ class Command(BaseCommand):
         )
 
         rows = {
-            "DELL": ["OPTIPLEX", "LATITUDE", "POWEREDGE"],
-            "HP": ["PRODESK", "ELITEBOOK", "PROLIANT"],
-            "LENOVO": ["THINKCENTRE", "THINKPAD"],
+            "DELL": [
+                "OPTIPLEX",
+                "LATITUDE",
+                "POWEREDGE",
+            ],
+            "HP": [
+                "PRODESK",
+                "ELITEBOOK",
+                "PROLIANT",
+            ],
+            "LENOVO": [
+                "THINKCENTRE",
+                "THINKPAD",
+            ],
         }
 
         for manufacturer_name, model_names in rows.items():
@@ -360,7 +381,11 @@ class Command(BaseCommand):
                         "manufacturer": manufacturer,
                         "name": model_name,
                     },
-                    {"description": "CATÁLOGO BASE DE DESARROLLO"},
+                    {
+                        "description": (
+                            "CATÁLOGO BASE DE DESARROLLO"
+                        ),
+                    },
                 )
 
     def _seed_folio_policy(self):
@@ -373,12 +398,22 @@ class Command(BaseCommand):
         self._upsert(
             InventoryFolioPolicy,
             {
-                "municipality_code": self.MUNICIPALITY_CODE,
-                "effective_from": date(self.BASE_YEAR, 1, 1),
+                "municipality_code": (
+                    self.MUNICIPALITY_CODE
+                ),
+                "effective_from": date(
+                    self.BASE_YEAR,
+                    1,
+                    1,
+                ),
             },
             {
-                "name": "FOLIO PATRIMONIAL COATZACOALCOS",
-                "municipality_name": self.MUNICIPALITY_NAME,
+                "name": (
+                    "FOLIO PATRIMONIAL COATZACOALCOS"
+                ),
+                "municipality_name": (
+                    self.MUNICIPALITY_NAME
+                ),
                 "format_template": (
                     "{municipality}-{year_short}-{conac}-"
                     "{dependency}-{asset_type}-{progressive}"
@@ -388,7 +423,11 @@ class Command(BaseCommand):
             },
         )
 
-    def _seed_depreciation_policies(self, categories, accounts):
+    def _seed_depreciation_policies(
+        self,
+        categories,
+        accounts,
+    ):
         self.stdout.write(
             self.style.MIGRATE_HEADING(
                 "\n7. Políticas de depreciación"
@@ -399,34 +438,60 @@ class Command(BaseCommand):
             {
                 "policy_code": "DEP-COMPUTO",
                 "version_number": 1,
-                "name": "DEPRECIACIÓN DE EQUIPO DE CÓMPUTO",
-                "accounting_account": accounts["1.2.4.1.3"],
+                "name": (
+                    "DEPRECIACIÓN DE EQUIPO DE CÓMPUTO"
+                ),
+                "accounting_account": (
+                    accounts["1.2.4.1.3"]
+                ),
                 "category": categories["COMPUTO_TI"],
-                "method": DepreciationMethod.STRAIGHT_LINE,
-                "frequency": DepreciationFrequency.MONTHLY,
+                "method": (
+                    DepreciationMethod.STRAIGHT_LINE
+                ),
+                "frequency": (
+                    DepreciationFrequency.MONTHLY
+                ),
                 "useful_life_months": 36,
                 "residual_percentage": Decimal("0.000"),
-                "effective_from": date(self.BASE_YEAR, 1, 1),
+                "effective_from": date(
+                    self.BASE_YEAR,
+                    1,
+                    1,
+                ),
                 "effective_until": None,
                 "source_reference": (
-                    "POLÍTICA BASE; VALIDAR NORMATIVIDAD APLICABLE"
+                    "POLÍTICA BASE; VALIDAR NORMATIVIDAD "
+                    "APLICABLE"
                 ),
                 "calculation_settings": {},
             },
             {
                 "policy_code": "DEP-MOBILIARIO",
                 "version_number": 1,
-                "name": "DEPRECIACIÓN DE MOBILIARIO",
-                "accounting_account": accounts["1.2.4.1.1"],
+                "name": (
+                    "DEPRECIACIÓN DE MOBILIARIO"
+                ),
+                "accounting_account": (
+                    accounts["1.2.4.1.1"]
+                ),
                 "category": categories["MOBILIARIO"],
-                "method": DepreciationMethod.STRAIGHT_LINE,
-                "frequency": DepreciationFrequency.MONTHLY,
+                "method": (
+                    DepreciationMethod.STRAIGHT_LINE
+                ),
+                "frequency": (
+                    DepreciationFrequency.MONTHLY
+                ),
                 "useful_life_months": 120,
                 "residual_percentage": Decimal("0.000"),
-                "effective_from": date(self.BASE_YEAR, 1, 1),
+                "effective_from": date(
+                    self.BASE_YEAR,
+                    1,
+                    1,
+                ),
                 "effective_until": None,
                 "source_reference": (
-                    "POLÍTICA BASE; VALIDAR NORMATIVIDAD APLICABLE"
+                    "POLÍTICA BASE; VALIDAR NORMATIVIDAD "
+                    "APLICABLE"
                 ),
                 "calculation_settings": {},
             },
@@ -437,14 +502,17 @@ class Command(BaseCommand):
                 "policy_code": row["policy_code"],
                 "version_number": row["version_number"],
             }
+
             defaults = {
                 key: value
                 for key, value in row.items()
                 if key not in lookup
             }
+
             self._upsert(
                 DepreciationPolicy,
                 lookup,
                 defaults,
             )
+            
             
