@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 from decouple import config
 from core.views import module_toggle_view
 from core.views import intro_portal_view, index_hub_view
+from apps.shared.module_sdk.routing import satellite_urlpatterns
 
 ADMIN_PATH = config('ADMIN_SECRET_PATH', default='axentra-core-secret-portal-manager-wsl/')
 
@@ -19,18 +20,12 @@ urlpatterns = [
     # ──► 3. Selector Autónomo de Aplicaciones (El Launcher)
     path('index/', index_hub_view, name='index_hub'),
     
-    path(
-        "modules/<slug:module_code>/toggle/",
-        module_toggle_view,
-        name="module_toggle",
-    ),
+    path("modules/<slug:module_code>/toggle/", module_toggle_view, name="module_toggle",),
 
-    # ==========================================================================
-    # 📡 INTERCONEXIÓN DEL PAQUETE MODULAR DE RUTAS (UN SOLA APP EN DISCO)
-    # ==========================================================================
     path('app/', include('apps.security.urls')),
-    
-    path("app/inventory/", include("apps.inventory.urls.inventory_urls")),
+
+    # Satélites instalados mediante su module_manifest.py
+    *satellite_urlpatterns(),
 ]
 
 if settings.DEBUG:
