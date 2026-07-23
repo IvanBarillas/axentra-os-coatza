@@ -12,6 +12,30 @@ class AppModule(AxentraBaseModel):
     name = models.CharField("Nombre del Módulo", max_length=100)
     slug = models.SlugField("Identificador Técnico", unique=True)
     description = models.TextField("Descripción Operativa", blank=True)
+    version = models.CharField("Versión instalada", max_length=40, default="1.0.0")
+    icon = models.CharField("Icono", max_length=80, default="blocks")
+    entry_url_name = models.CharField("Ruta de entrada", max_length=160, blank=True)
+    module_kind = models.CharField(
+        "Tipo de módulo",
+        max_length=20,
+        choices=(("CORE", "Núcleo"), ("SATELLITE", "Satélite")),
+        default="SATELLITE",
+    )
+    dependencies = models.JSONField("Dependencias obligatorias", default=list, blank=True)
+    optional_integrations = models.JSONField("Integraciones opcionales", default=list, blank=True)
+    health_status = models.CharField(
+        "Estado de salud",
+        max_length=20,
+        choices=(
+            ("HEALTHY", "Saludable"),
+            ("WARNING", "Con advertencias"),
+            ("UNAVAILABLE", "No disponible"),
+            ("DISABLED", "Deshabilitado"),
+        ),
+        default="HEALTHY",
+    )
+    health_message = models.CharField("Detalle de salud", max_length=255, blank=True)
+    last_health_check_at = models.DateTimeField("Última comprobación", null=True, blank=True)
 
     class Meta:
         db_table = "axentra_sec_modules"
@@ -239,4 +263,3 @@ class TenantConfig(AxentraBaseModel):
 
         return super().save(*args, **kwargs)
     
-

@@ -1,20 +1,18 @@
 {# templates/navigation/global_sidebar_menu.html #}
 
-<nav
-    id="global-sidebar-menu"
-    class="h-full overflow-y-auto px-5 py-4 space-y-2 font-mono text-left scrollbar-thin scrollbar-thumb-slate-800"
-    x-data="{ openMenu: '{{ modulo_actual|default:"admin" }}' }"
->
+<nav id="global-sidebar-menu"
+     class="h-full overflow-y-auto px-5 py-4 space-y-2 font-mono text-left scrollbar-thin scrollbar-thumb-slate-800"
+     x-data="{ openMenu: '{{ modulo_actual|default:"admin" }}' }">
+
     {# ADMINISTRACIÓN #}
-    {% if is_global_admin or 'accounts' in allowed_modules or 'organigrama' in allowed_modules or 'security' in allowed_modules %}
+    {% if is_global_admin or 'security' in allowed_modules or 'accounts' in allowed_modules or 'organigrama' in allowed_modules %}
         <div class="space-y-1">
             {% include "navigation/module_group.html" with group_id="admin" title="Administración" icon="sliders" %}
 
-            <div
-                x-show="openMenu === 'admin'"
-                x-cloak
-                class="ml-4 pl-3 border-l border-slate-800 space-y-1"
-            >
+            <div x-show="openMenu === 'admin'"
+                 x-cloak
+                 class="ml-4 pl-3 border-l border-slate-800 space-y-1">
+
                 {% if is_global_admin or 'organigrama' in allowed_modules %}
                     {% url 'organigrama:estructura_list' as organigrama_url %}
                     {% include "navigation/module_item.html" with title="Organización" icon="git-fork" href=organigrama_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
@@ -34,7 +32,7 @@
     {% endif %}
 
     {# CONFIGURACIÓN #}
-    {% if is_global_admin or 'security' in allowed_modules %}
+    {% if is_global_admin or 'configuration' in allowed_modules %}
         <div class="space-y-1">
             {% include "navigation/module_group.html" with group_id="config" title="Configuración" icon="settings" %}
 
@@ -46,25 +44,13 @@
                 {% url 'security:tenant_config' as tenant_config_url %}
                 {% include "navigation/module_item.html" with title="Identidad Institucional" icon="landmark" href=tenant_config_url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
 
-                {# Próximamente: cuando creemos vista propia #}
-                {% include "navigation/module_item.html" with title="Parámetros Oficiales" icon="badge-dollar-sign" href="#" %}
             </div>
         </div>
     {% endif %}
 
-    {# ASISTENCIA TI #}
-    {% if is_global_admin or 'helpdesk' in allowed_modules %}
-        <div class="space-y-1">
-            {% include "navigation/module_group.html" with group_id="helpdesk" title="Asistencia TI" icon="headset" %}
-
-            <div
-                x-show="openMenu === 'helpdesk'"
-                x-cloak
-                class="ml-4 pl-3 border-l border-slate-800 space-y-1"
-            >
-                {% include "navigation/module_item.html" with title="Mesa de Control" icon="ticket" href="#" %}
-            </div>
-        </div>
-    {% endif %}
+    {# Los satélites instalados y autorizados se descubren dinámicamente. #}
+    {% for satellite in satellite_navigation %}
+        {% include "navigation/module_item.html" with title=satellite.name icon=satellite.icon href=satellite.url hx_target="#workbench" hx_swap="innerHTML" hx_push_url="true" %}
+    {% endfor %}
 
 </nav>

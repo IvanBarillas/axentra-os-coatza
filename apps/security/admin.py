@@ -479,6 +479,9 @@ class AppModuleAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
     list_display = (
         "name",
         "slug",
+        "version",
+        "module_kind",
+        "health_status",
         "is_active",
         "is_deleted",
         "created_at",
@@ -487,6 +490,8 @@ class AppModuleAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
     )
 
     list_filter = (
+        "module_kind",
+        "health_status",
         "is_active",
         "is_deleted",
         "created_at",
@@ -504,6 +509,15 @@ class AppModuleAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
         "name",
         "slug",
         "description",
+        "version",
+        "icon",
+        "entry_url_name",
+        "module_kind",
+        "dependencies",
+        "optional_integrations",
+        "health_status",
+        "health_message",
+        "last_health_check_at",
         "is_active",
         "is_deleted",
         "deleted_at",
@@ -511,7 +525,19 @@ class AppModuleAdmin(AxentraBaseAdminMixin, admin.ModelAdmin):
         "updated_at",
     )
 
-    readonly_fields = AxentraBaseAdminMixin.readonly_fields
+    readonly_fields = AxentraBaseAdminMixin.readonly_fields + (
+        "slug",
+        "version",
+        "icon",
+        "entry_url_name",
+        "module_kind",
+        "dependencies",
+        "optional_integrations",
+        "health_status",
+        "health_message",
+        "last_health_check_at",
+        "is_active",
+    )
 
 
 @admin.register(UserAppRole)

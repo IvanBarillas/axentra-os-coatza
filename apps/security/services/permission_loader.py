@@ -23,7 +23,7 @@ def get_app_permissions(app_slug):
     fallback_config = {'permissions': {}, 'roles': {}, 'weights': default_weights}
     
     # 🏛️ CATÁLOGO DE SUBMÓDULOS DEL NÚCLEO CORE (UNIFICADOS EN DISCO)
-    CORE_SUBMODULES = ['security', 'accounts', 'organigrama']
+    CORE_SUBMODULES = ['security', 'configuration', 'accounts', 'organigrama']
     
     try:
         # 🟢 CONMUTADOR COMPUESTO DE INFRAESTRUCTURA:
@@ -136,7 +136,9 @@ def get_user_permissions_for_app(user, app_slug):
         user=user,
         app__slug=app_slug,
         app__is_active=True,
-        is_active=True
+        app__is_deleted=False,
+        is_active=True,
+        is_deleted=False,
     ).first()
 
     print(f"📂 Registro UserAppRole en DB: {'🟢 ENCONTRADO Y ACTIVO' if rol else '❌ NO EXISTE O ESTÁ INACTIVO'}")

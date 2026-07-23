@@ -54,6 +54,7 @@ class ConfigurationPermissions:
 
     PERMISSIONS = {
         "has_access_module": "Permite ingresar al módulo de Configuración Institucional.",
+        "can_view_configuration": "Permite consultar la configuración institucional sin modificarla.",
         "can_configure_tenant": "Permite modificar identidad institucional, municipio oficial, logos, RFC y datos legales.",
         "can_manage_official_parameters": "Permite administrar parámetros oficiales como UMA, salario mínimo, tasas y factores anuales.",
     }
@@ -61,24 +62,29 @@ class ConfigurationPermissions:
     ROLE_MAPPING = {
         "owner": [
             "has_access_module",
+            "can_view_configuration",
             "can_configure_tenant",
             "can_manage_official_parameters",
         ],
         "admin": [
             "has_access_module",
+            "can_view_configuration",
             "can_configure_tenant",
             "can_manage_official_parameters",
         ],
         "configuration_manager": [
             "has_access_module",
+            "can_view_configuration",
             "can_configure_tenant",
             "can_manage_official_parameters",
         ],
         "auditor": [
             "has_access_module",
+            "can_view_configuration",
         ],
         "viewer": [
             "has_access_module",
+            "can_view_configuration",
         ],
     }
 
@@ -96,14 +102,7 @@ class ConfigurationPermissions:
             "Identidad Institucional",
             "security:tenant_config",
             1,
-            "can_configure_tenant",
-        ],
-        [
-            "badge-dollar-sign",
-            "Parámetros Oficiales",
-            "#",
-            2,
-            "can_manage_official_parameters",
+            "can_view_configuration",
         ],
     ]
 
@@ -145,7 +144,7 @@ class AccountsPermissions:
         'oficial_rh': ['has_access_module', 'can_view_list', 'can_create_user', 'can_edit_user'],
         'editor': ['has_access_module', 'can_view_list', 'can_create_user', 'can_edit_user'],
         'reviewer': ['has_access_module', 'can_view_list'],
-        'viewer': ['has_access_module'],
+        'viewer': ['has_access_module', 'can_view_list'],
     }
 
     ROLE_WEIGHTS = {'owner': 100, 'director_rh': 85, 'oficial_rh': 65, 'editor': 60, 'reviewer': 45, 'viewer': 20}
@@ -156,7 +155,7 @@ class AccountsPermissions:
     ]
 
     FUNCIONARIO_DETAIL_MENU = [
-        {"icon": "fingerprint", "title": "Ficha de Identidad", "url_name": "accounts:funcionario_sub_identidad", "order": 1, "permission": "can_edit_user", "provider": "accounts", "stub": False},
+        {"icon": "fingerprint", "title": "Ficha de Identidad", "url_name": "accounts:funcionario_sub_identidad", "order": 1, "permission": "can_view_list", "provider": "accounts", "stub": False},
         {"icon": "laptop-2", "title": "Hardware Asignado", "url_name": "accounts:funcionario_sub_hardware", "order": 2, "permission": "can_edit_user", "provider": "assets", "stub": True},
         {"icon": "smartphone", "title": "Línea y Telefonía", "url_name": "accounts:funcionario_sub_telefonia", "order": 3, "permission": "can_edit_user", "provider": "telefonia", "stub": True},
     ]
@@ -202,9 +201,8 @@ class OrganigramaPermissions:
     ROLE_WEIGHTS = {'owner': 100, 'admin': 80, 'planeador_urbano': 65, 'editor': 60, 'reviewer': 40, 'viewer': 20}
 
     SIDEBAR_MENU = [
-        ["layout-dashboard", "Panel Administrativo", "organigrama:control_panel", 1, "has_access_module"],
+        ["git-fork", "Estructura orgánica", "organigrama:estructura_list", 1, "has_access_module"],
         ["map-pin", "Sedes e Inmuebles", "organigrama:sede_list", 2, "can_manage_infrastructure"],
-        ["git-fork", "Dependencias y áreas", "organigrama:estructura_list", 3, "has_access_module"],
         ["bar-chart-3", "Dashboard Analítico", "organigrama:dashboard", 4, "can_view_analytics"],
     ]
     

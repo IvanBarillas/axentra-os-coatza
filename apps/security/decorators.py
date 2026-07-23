@@ -1,7 +1,7 @@
 # apps/security/decorators.py
 from functools import wraps
 from django.contrib import messages
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect
 
 from apps.shared.manifest_registry import AxentraOSRegistry
@@ -23,7 +23,10 @@ def _es_peticion_htmx(request) -> bool:
 
 def _usuario_tiene_baja_logica(user) -> bool:
     """Determina si el usuario autenticado está dado de baja lógica."""
-    return bool(getattr(user, "is_deleted", False))
+    return bool(
+        getattr(user, "is_deleted", False)
+        or not getattr(user, "is_active", False)
+    )
 
 
 def _resolver_is_root(request) -> bool:
@@ -121,6 +124,18 @@ def axentra_module_gate(module_identifier: str, required_fine_permission: str = 
                     return HttpResponseForbidden("Acceso denegado: usuario dado de baja lógica.")
                 messages.error(request, "⚠️ Su cuenta fue dada de baja lógica. Contacte al administrador.")
                 return redirect("accounts:login")
+
+            # El estado institucional del módulo no admite bypass jerárquico.
+            # Un root puede administrarlo desde el launcher, pero no operar
+            # dentro de un satélite expresamente suspendido.
+            from apps.shared.module_sdk.services import get_module_runtime_status
+            runtime = get_module_runtime_status(module_identifier)
+            if runtime and not runtime.available:
+                detail = runtime.message or "El módulo no está disponible."
+                if is_htmx:
+                    return HttpResponse(detail, status=503)
+                messages.warning(request, detail)
+                return redirect("index_hub")
 
             # ==========================================================
             # 3. RESOLUCIÓN DE PERMISOS Y BYPASS

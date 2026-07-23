@@ -91,6 +91,14 @@
             >
                 {% csrf_token %}
 
+                {% if not can_edit_tenant %}
+                    <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-[10px] font-bold normal-case tracking-normal text-blue-900">
+                        Consulta de solo lectura. Su rol no permite modificar la identidad institucional.
+                    </div>
+                {% endif %}
+
+                <fieldset {% if not can_edit_tenant %}disabled{% endif %} class="space-y-5">
+
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="sm:col-span-2 space-y-1.5">
                         <label class="block font-black text-gray-400 text-[10px] tracking-wider px-1">
@@ -303,6 +311,7 @@
                     </div>
                 </div>
 
+                {% if can_edit_tenant %}
                 <div class="flex flex-col sm:flex-row gap-3 pt-2 font-mono text-[10px] uppercase tracking-widest">
                     <a
                         href="{{ tenant_url }}"
@@ -323,6 +332,8 @@
                         <span>Guardar cambios</span>
                     </button>
                 </div>
+                {% endif %}
+                </fieldset>
             </form>
 
         </div>

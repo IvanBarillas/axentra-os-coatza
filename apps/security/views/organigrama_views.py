@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_view_analytics")
 def organigrama_dashboard_view(request):
     """Cabina de mando analítica: Métrica con mapeo plano seguro para evitar fallos de Lookup."""
     
@@ -473,7 +473,7 @@ def sede_soft_delete_view(request, pk: uuid.UUID):
 
 @require_POST
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_mutate_structure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
 def sede_toggle_status_view(request, pk: uuid.UUID):
     """
     Alternador protegido de estado operativo para sedes.
@@ -1562,7 +1562,7 @@ def render_dependencia_contextual_subview(
     )
     
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def dependencia_detail_view(request, pk: uuid.UUID):
     """Expediente contextual de una dependencia administrativa."""
 
@@ -1688,7 +1688,7 @@ def dependencia_detail_view(request, pk: uuid.UUID):
     
     
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def dependencia_sub_identidad_view(request, pk: uuid.UUID):
     """Subvista de identidad del expediente contextual de dependencia."""
 
@@ -1706,7 +1706,7 @@ def dependencia_sub_identidad_view(request, pk: uuid.UUID):
     )
     
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def dependencia_sub_areas_view(request, pk: uuid.UUID):
     """Subvista de áreas operativas adscritas a una dependencia."""
 
@@ -1745,7 +1745,7 @@ def dependencia_sub_areas_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def dependencia_sub_sedes_view(request, pk: uuid.UUID):
     """Subvista de sedes donde opera una dependencia."""
 
@@ -1789,7 +1789,7 @@ def dependencia_sub_sedes_view(request, pk: uuid.UUID):
 
 
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def dependencia_sub_funcionarios_view(request, pk: uuid.UUID):
     """Subvista de funcionarios adscritos a una dependencia."""
 
@@ -2528,7 +2528,7 @@ def render_area_contextual_subview(
     
     
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def area_detail_view(request, pk: uuid.UUID):
     """Expediente contextual de un área operativa."""
 
@@ -2627,7 +2627,7 @@ def area_detail_view(request, pk: uuid.UUID):
     
 
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def area_sub_identidad_view(request, pk: uuid.UUID):
     """Subvista de identidad del expediente contextual de área."""
 
@@ -2649,7 +2649,7 @@ def area_sub_identidad_view(request, pk: uuid.UUID):
     
     
 @login_required
-@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="can_manage_infrastructure")
+@axentra_module_gate(AppIdentifier.ORGANIGRAMA, required_fine_permission="has_access_module")
 def area_sub_funcionarios_view(request, pk: uuid.UUID):
     """Subvista de funcionarios adscritos a un área operativa."""
 
