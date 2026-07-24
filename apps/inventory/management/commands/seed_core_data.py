@@ -53,7 +53,10 @@ class Command(BaseCommand):
             },
             "DIRECCION DE EGRESOS": {
                 "areas": ["PAGOS", "DISPERSIONES VARIAS", "PROVEEDORES"]
-            }
+            },
+            "PATRIMONIO MUNICIPAL": {
+                "areas": ["PARQUE VEHICULAR", "CAPTURISTA"]
+            },
         }
 
         areas_creadas_map = {}
@@ -96,7 +99,8 @@ class Command(BaseCommand):
             {"nombre": "HUGO ARMANDO NAVA", "email": "hugo.nava@gmail.com", "sede": "TESORERIA MUNICIPAL", "area_key": "WEBMASTER", "puesto": "Administrador Web Core"},
             {"nombre": "MIGUEL NARVAEZ", "email": "miguel.narvaez@gmail.com", "sede": "OBRAS PUBLICAS", "area_key": "SOPORTE TECNICO", "puesto": "Técnico de Soporte Extensión"},
             {"nombre": "GABRIEL JUAREZ ROLDAN", "email": "gabriel.juarez@gmail.com", "sede": "PALACIO MUNICIPAL", "area_key": "SOPORTE TECNICO", "puesto": "Técnico Residente Palacio"},
-            {"nombre": "GUILLERMO MAYO", "email": "guillermo.mayo@gmail.com", "sede": "FORANEOS", "area_key": "SOPORTE TECNICO", "puesto": "Soporte Módulos Foráneos"}
+            {"nombre": "GUILLERMO MAYO", "email": "guillermo.mayo@gmail.com", "sede": "FORANEOS", "area_key": "SOPORTE TECNICO", "puesto": "Soporte Módulos Foráneos"},
+            {"nombre": "PATRIMONNIO MUNICIPAL", "email": "pat@gmail.com", "sede": "TESORERIA MUNICIPAL", "area_key": "CAPTURISTA", "puesto": "Administrador de Patrimonio"},
         ]
 
         for emp in personal_oficial:
