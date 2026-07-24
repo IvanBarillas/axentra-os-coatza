@@ -1,5 +1,7 @@
 from types import SimpleNamespace
-from uuid import uuid4
+from datetime import datetime, timezone
+from unittest.mock import patch
+from uuid import UUID, uuid4
 
 from django.test import SimpleTestCase
 
@@ -7,6 +9,7 @@ from apps.inventory.views.registry_views import (
     _loan_context,
     _loan_origin_department_id,
 )
+from apps.inventory.services.loan_service import _loan_folio
 
 
 class LoanButtonVisibilityTests(SimpleTestCase):
@@ -89,3 +92,31 @@ class LoanButtonVisibilityTests(SimpleTestCase):
             "can_manage_loans",
         )
         self.assertIsNone(_loan_origin_department_id(request))
+
+    @patch(
+        "apps.inventory.services.loan_service.get_effective_folio_policy",
+        return_value=SimpleNamespace(municipality_code="39"),
+    )
+    def test_folio_de_prestamo_incluye_municipio_dependencia_y_anio(
+        self,
+        _policy,
+    ):
+        folio = _loan_folio(
+            loan_id=UUID("ca131c0d-0000-0000-0000-000000000000"),
+            requested_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+            department=SimpleNamespace(normalized_code="001"),
+        )
+        self.assertEqual(folio, "PRE-039-001-2026-CA131C0D")
+
+    def test_prestamo_entregado_sin_acuse_se_marca_pendiente(self):
+        request = self._request(
+            uuid4(),
+            uuid4(),
+            "can_manage_loans",
+        )
+        context = _loan_context(
+            request,
+            self._loan(status="DELIVERED"),
+        )
+        self.assertTrue(context["receipt_required"])
+        self.assertIsNone(context["loan_receipt"])

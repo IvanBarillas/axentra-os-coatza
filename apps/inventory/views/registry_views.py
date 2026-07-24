@@ -113,7 +113,7 @@ from apps.inventory.services import (
     execute_approved_movement,
 )
 
-from .access import asset_scope, custody_scope, department_id, disposal_scope, has_any_permission, intake_scope, loan_scope, movement_scope, physical_audit_scope, require_any_permission
+from .access import asset_scope, custody_scope, department_id, disposal_scope, has_any_permission, intake_scope, is_inventory_root, loan_scope, movement_scope, physical_audit_scope, require_any_permission
 from .common import apply_directory_choices, render_inventory, run_service, selector_or_404, success
 
 
@@ -741,8 +741,24 @@ def _loan_context(request, loan):
     own_request = loan.requested_by_id == request.user.pk
     own_receipt = loan.borrower_id == request.user.pk
     destination_matches = department_id(request) == loan.destination_dependencia_id
+    receipt = None
+    if getattr(loan, "id", None):
+        receipt = AssetDocument.objects.filter(
+            owner_type=InventoryDocumentOwnerType.LOAN,
+            owner_id=loan.id,
+            document_type="LOAN_RECEIPT",
+            is_current_version=True,
+            is_deleted=False,
+        ).order_by("-uploaded_at").first()
     return {
         "loan": loan,
+        "loan_receipt": receipt,
+        "receipt_required": loan.status in {
+            "AUTHORIZED", "DELIVERED", "OVERDUE", "RETURN_PENDING", "RETURNED",
+        },
+        "can_upload_loan_receipt": manages and loan.status in {
+            "AUTHORIZED", "DELIVERED", "OVERDUE", "RETURN_PENDING", "RETURNED",
+        },
         "can_submit_loan": requests and own_request and loan.status in {"DRAFT", "REJECTED"},
         "can_decide_department_loan": authorizes and destination_matches and loan.status == "REQUESTED" and not loan.external_borrower,
         "can_authorize_loan": manages and (loan.status == "DEPARTMENT_APPROVED" or (loan.external_borrower and loan.status == "REQUESTED")),
@@ -840,6 +856,8 @@ def loan_create_view(request):
 def _loan_action(request, loan_id, form_class, callback, title):
     loan = _loan(request, loan_id)
     form = apply_directory_choices(form_class(request.POST or None))
+    if not is_inventory_root(request):
+        form.fields.pop("bypass_reason", None)
     if request.method == "POST" and form.is_valid():
         result = run_service(form, lambda: callback(loan, form))
         if result:
@@ -859,6 +877,8 @@ def loan_submit_view(request, loan_id):
 def loan_department_decision_view(request, loan_id):
     loan = _loan(request, loan_id)
     form = apply_directory_choices(DepartmentLoanDecisionForm(request.POST or None))
+    if not is_inventory_root(request):
+        form.fields.pop("bypass_reason", None)
     areas = CoreDirectorySelectors.areas(department_id=loan.destination_dependencia_id)
     users = CoreDirectorySelectors.users(department_id=loan.destination_dependencia_id)
     form.fields["destination_area_id"].choices = [
@@ -924,6 +944,22 @@ def loan_return_view(request, loan_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def loan_cancel_view(request, loan_id):
     return _loan_action(request, loan_id, AssetLoanCancelForm, lambda loan, form: cancel_asset_loan(loan_id=loan.id, actor_id=request.user.pk, data=form.to_dto(), request=request), "Préstamo cancelado.")
+
+
+@require_GET
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
+def loan_print_view(request, loan_id):
+    require_any_permission(
+        request,
+        "can_request_loans",
+        "can_manage_loans",
+        "can_authorize_loans",
+    )
+    return render(
+        request,
+        "inventory/pages/loan_print.html",
+        {"loan": _loan(request, loan_id)},
+    )
 
 
 def _disposal_url(disposal_id):
@@ -1163,11 +1199,33 @@ def _document_owner_context(request, owner_type, owner_id):
 def document_upload_view(request, owner_type, owner_id):
     owner_type = str(owner_type).strip().upper()
     owner, asset_id, owner_label = _document_owner_context(request, owner_type, owner_id)
-    form = ContextDocumentUploadForm(request.POST or None, request.FILES or None, owner_type=owner_type, owner_id=owner.id)
+    requested_type = request.GET.get("document_type", "").strip().upper()
+    is_loan_receipt = (
+        owner_type == InventoryDocumentOwnerType.LOAN
+        and requested_type == "LOAN_RECEIPT"
+    )
+    form_data = request.POST.copy() if request.method == "POST" else None
+    if is_loan_receipt and form_data is not None:
+        form_data["document_type"] = "LOAN_RECEIPT"
+        form_data["is_required_evidence"] = "on"
+    form = ContextDocumentUploadForm(
+        form_data,
+        request.FILES or None,
+        owner_type=owner_type,
+        owner_id=owner.id,
+    )
+    if is_loan_receipt:
+        form.fields["document_type"].initial = "LOAN_RECEIPT"
+        form.fields["document_type"].widget = forms.HiddenInput()
+        form.fields["title"].initial = f"Acuse firmado del préstamo {owner.folio}"
+        form.fields["external_reference"].initial = owner.folio
+        form.fields["is_required_evidence"].initial = True
     if request.method == "POST" and form.is_valid():
         document = run_service(form, lambda: upload_inventory_document(data=form.to_dto(), actor_id=request.user.pk, authorized_owner=owner, request=request))
         if document:
             success(request, "Documento agregado y enviado a validación.")
+            if is_loan_receipt:
+                return redirect(_loan_url(owner.id))
             return redirect(reverse("inventory:document_list") + f"?owner_type={owner_type}&owner_id={owner.id}")
     return render_inventory(request, page="inventory/pages/document_form.html", content="inventory/content/document_form_content.html", context={"current_inventory_view":"inventory:document_list", "form":form, "owner_label":owner_label, "owner_type_label":dict(InventoryDocumentOwnerType.choices).get(owner_type, owner_type)}, status=422 if request.method == "POST" else 200)
 

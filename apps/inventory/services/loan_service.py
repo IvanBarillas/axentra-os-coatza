@@ -29,6 +29,7 @@ from apps.inventory.services.exceptions import (
     InventoryStateError,
     InventoryValidationError,
 )
+from apps.inventory.services.folio_service import get_effective_folio_policy
 
 
 REQUEST_PERMISSION = "can_request_loans"
@@ -38,6 +39,21 @@ MANAGE_PERMISSION = "can_manage_loans"
 
 def _text(value):
     return str(value or "").strip()
+
+
+def _loan_folio(*, loan_id, requested_at, department):
+    """Construye un folio institucional legible y único."""
+    policy = get_effective_folio_policy(effective_on=requested_at.date())
+    municipality_code = _text(policy.municipality_code).upper().zfill(3)
+    department_code = _text(department.normalized_code).upper()
+    if not department_code:
+        raise InventoryValidationError(
+            "La dependencia propietaria no tiene código presupuestal."
+        )
+    return (
+        f"PRE-{municipality_code}-{department_code}-"
+        f"{requested_at:%Y}-{loan_id.hex[:8].upper()}"
+    )
 
 
 def _actor(actor_id):
@@ -289,8 +305,14 @@ def create_asset_loan(*, data, actor_id, request=None):
     now = timezone.now()
     if data.due_at <= now:
         raise InventoryValidationError("La fecha límite debe ser posterior a la solicitud.")
+    loan_id = uuid4()
     loan = AssetLoan(
-        folio=f"PRE-{timezone.localdate():%Y}-{uuid4().hex[:10].upper()}",
+        id=loan_id,
+        folio=_loan_folio(
+            loan_id=loan_id,
+            requested_at=now,
+            department=origin_department,
+        ),
         asset=asset,
         requested_by_id=actor.id,
         requested_at=now,

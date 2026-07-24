@@ -150,9 +150,9 @@ class AssetIntakeUpdateForm(AssetIntakeBaseForm):
 
 
 class DepartmentIntakeDecisionForm(InventoryForm):
-    approve = forms.BooleanField(required=False)
-    comment = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
-    bypass_reason = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    approve = forms.BooleanField(label="Aprobar solicitud", required=False)
+    comment = forms.CharField(label="Comentario o motivo del rechazo", required=False, widget=forms.Textarea(attrs={"rows": 3}))
+    bypass_reason = forms.CharField(label="Motivo de excepción", required=False, widget=forms.Textarea(attrs={"rows": 2}))
     def clean(self):
         data = super().clean()
         if not data.get("approve") and not str(data.get("comment", "")).strip():
@@ -164,13 +164,13 @@ class DepartmentIntakeDecisionForm(InventoryForm):
 
 
 class PatrimonyApprovalForm(InventoryForm):
-    expenditure_object = forms.ModelChoiceField(queryset=ExpenditureObject.objects.none())
-    accounting_account = forms.ModelChoiceField(queryset=AccountingAccount.objects.none(), required=False)
-    physical_condition = forms.ChoiceField(choices=PhysicalCondition.choices, initial=PhysicalCondition.GOOD)
-    residual_value = forms.DecimalField(required=False, min_value=0, max_digits=16, decimal_places=2)
-    useful_life_months = forms.IntegerField(required=False, min_value=1)
-    observation = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
-    bypass_reason = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    expenditure_object = forms.ModelChoiceField(label="Objeto del gasto", queryset=ExpenditureObject.objects.none())
+    accounting_account = forms.ModelChoiceField(label="Cuenta contable", queryset=AccountingAccount.objects.none(), required=False)
+    physical_condition = forms.ChoiceField(label="Condición física", choices=PhysicalCondition.choices, initial=PhysicalCondition.GOOD)
+    residual_value = forms.DecimalField(label="Valor residual", required=False, min_value=0, max_digits=16, decimal_places=2)
+    useful_life_months = forms.IntegerField(label="Vida útil en meses", required=False, min_value=1)
+    observation = forms.CharField(label="Observaciones", required=False, widget=forms.Textarea(attrs={"rows": 3}))
+    bypass_reason = forms.CharField(label="Motivo de excepción", required=False, widget=forms.Textarea(attrs={"rows": 2}))
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         active = {"is_active": True, "is_deleted": False}
@@ -182,13 +182,13 @@ class PatrimonyApprovalForm(InventoryForm):
 
 
 class PatrimonyObservationForm(InventoryForm):
-    observation = forms.CharField(widget=forms.Textarea(attrs={"rows": 4}))
+    observation = forms.CharField(label="Observación patrimonial", widget=forms.Textarea(attrs={"rows": 4}))
     def to_dto(self): return PatrimonyObservationDTO(self.require_cleaned_data()["observation"])
 
 
 class CancelAssetIntakeForm(InventoryForm):
-    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
-    bypass_reason = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    reason = forms.CharField(label="Motivo de cancelación", widget=forms.Textarea(attrs={"rows": 3}))
+    bypass_reason = forms.CharField(label="Motivo de excepción", required=False, widget=forms.Textarea(attrs={"rows": 2}))
     def to_dto(self):
         data = self.require_cleaned_data()
         return CancelAssetIntakeDTO(data["reason"], data.get("bypass_reason", ""))

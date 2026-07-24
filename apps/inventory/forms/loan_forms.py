@@ -140,7 +140,7 @@ class DepartmentLoanDecisionForm(InventoryForm):
     destination_area_id = UUIDChoiceField(label="Área que recibirá el bien", required=False)
     borrower_id = UUIDChoiceField(label="Responsable temporal (opcional)", required=False)
     comment = forms.CharField(label="Comentario o motivo del rechazo", required=False, widget=forms.Textarea(attrs={"rows": 3}))
-    bypass_reason = forms.CharField(label="Justificación del bypass", required=False)
+    bypass_reason = forms.CharField(label="Motivo de excepción", required=False)
 
     def clean(self):
         data = super().clean()
@@ -201,7 +201,7 @@ class AssetLoanReturnForm(InventoryForm):
 
 class AssetLoanCancelForm(InventoryForm):
     reason = forms.CharField(label="Motivo de cancelación", widget=forms.Textarea(attrs={"rows": 3}))
-    bypass_reason = forms.CharField(label="Justificación del bypass", required=False)
+    bypass_reason = forms.CharField(label="Motivo de excepción", required=False)
 
     def to_dto(self):
         data = self.require_cleaned_data()

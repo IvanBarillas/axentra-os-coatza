@@ -1,0 +1,19 @@
+<style>
+    .loan-sheet{width:min(100%,216mm);min-height:279mm;margin:0 auto;background:#fff;color:#0f172a;padding:14mm 15mm;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+    .loan-head{border-bottom:3px solid #0f172a;padding-bottom:5mm}
+    .loan-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3mm 8mm;margin-top:7mm;padding:5mm;background:#f8fafc;border:1px solid #cbd5e1;border-radius:3mm;font-size:10pt}
+    .loan-label{display:block;color:#64748b;font-size:7.5pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    .loan-declaration{margin-top:9mm;font-size:10pt;line-height:1.65;text-align:justify}
+    .loan-signatures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10mm;margin-top:25mm;font-size:8.5pt;text-align:center}
+    .loan-line{border-top:1px solid #0f172a;padding-top:2mm}
+    @page{size:letter portrait;margin:10mm}
+    @media print{body>header,body>footer,aside,nav,.no-print,[data-global-sidebar],[data-module-sidebar]{display:none!important}main,#page-content,#workbench{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important}.loan-sheet{width:100%;min-height:auto;margin:0;padding:0;box-shadow:none}.loan-signatures{break-inside:avoid}}
+</style>
+<div class="no-print mx-auto mb-4 flex max-w-[216mm] items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><a href="{% url 'inventory:loan_detail' loan.id %}" class="text-sm font-black text-slate-600">← Volver al préstamo</a><button type="button" onclick="window.print()" class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white">Imprimir / Guardar como PDF</button></div>
+<article class="loan-sheet">
+    <header class="loan-head"><p style="margin:0;color:#64748b;font-size:8pt;font-weight:700;letter-spacing:.22em;text-transform:uppercase">Axentra OS · Control patrimonial</p><h1 style="margin:3mm 0 0;font-size:18pt">Vale de préstamo temporal</h1><p style="margin:2mm 0 0;font-family:monospace;font-size:11pt;font-weight:700">{{ loan.folio }}</p></header>
+    <section class="loan-meta"><div><span class="loan-label">Folio patrimonial</span><strong>{{ loan.asset.display_inventory_number }}</strong></div><div><span class="loan-label">Bien</span><strong>{{ loan.asset.name }}</strong></div><div><span class="loan-label">Número de serie</span><strong>{{ loan.asset.serial_number|default:"Sin serie" }}</strong></div><div><span class="loan-label">Fecha límite</span><strong>{{ loan.due_at|date:"d/m/Y H:i" }}</strong></div><div><span class="loan-label">Dependencia propietaria</span><strong>{{ loan.origin_dependencia }}</strong></div><div><span class="loan-label">Dependencia receptora</span><strong>{{ loan.destination_dependencia|default:loan.external_organization }}</strong></div><div><span class="loan-label">Área receptora</span><strong>{{ loan.destination_area|default:"Por definir" }}</strong></div><div><span class="loan-label">Responsable temporal</span><strong>{{ loan.borrower_name_snapshot|default:"Sin responsable individual" }}</strong></div></section>
+    <p class="loan-declaration"><strong>Objeto del préstamo:</strong> {{ loan.purpose }}</p>
+    <p class="loan-declaration">La dependencia receptora declara recibir temporalmente el bien descrito y se obliga a conservarlo, utilizarlo exclusivamente para fines institucionales y devolverlo en las condiciones registradas, salvo el desgaste normal por uso autorizado.</p>
+    <section class="loan-signatures"><div class="loan-line"><strong>Dependencia propietaria</strong><br>Entrega</div><div class="loan-line"><strong>Dependencia receptora</strong><br>Recibe</div><div class="loan-line"><strong>Control Patrimonial</strong><br>Autoriza</div></section>
+</article>

@@ -2,15 +2,17 @@
 
 from datetime import timedelta
 
-from django.db.models import Q, QuerySet
+from django.db.models import Exists, OuterRef, Q, QuerySet
 from django.utils import timezone
 
 from apps.inventory.models import (
+    AssetDocument,
     AssetLoan,
     AssetLoanStatus,
     DisposalRequest,
     DisposalStatus,
     InventoryMovement,
+    InventoryDocumentOwnerType,
 )
 
 
@@ -169,9 +171,17 @@ class MovementSelectors:
 class LoanSelectors:
     @staticmethod
     def base_queryset() -> QuerySet:
+        signed_receipts = AssetDocument.objects.filter(
+            owner_type=InventoryDocumentOwnerType.LOAN,
+            owner_id=OuterRef("pk"),
+            document_type="LOAN_RECEIPT",
+            is_current_version=True,
+            is_deleted=False,
+        )
         return (
             AssetLoan.objects
             .filter(is_deleted=False)
+            .annotate(has_signed_receipt=Exists(signed_receipts))
             .select_related(
                 "asset",
                 "borrower",

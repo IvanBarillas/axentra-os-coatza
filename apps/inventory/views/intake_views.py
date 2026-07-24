@@ -19,7 +19,7 @@ from apps.security.decorators import axentra_gate_enforcer
 from apps.shared.apps_config import AppIdentifier
 
 from .common import render_inventory, run_service, selector_or_404, success
-from .access import has_any_permission, intake_scope
+from .access import has_any_permission, intake_scope, is_inventory_root
 
 
 def _detail_url(intake_id):
@@ -259,6 +259,8 @@ def _post_transition(request, intake_id, *, form_class, callback, message):
         department_id=scope_department_id,
     ))
     form = form_class(request.POST)
+    if not is_inventory_root(request):
+        form.fields.pop("bypass_reason", None)
     if form.is_valid():
         result = run_service(form, lambda: callback(intake, form))
         if result:
