@@ -7,6 +7,7 @@ from apps.inventory.forms.custody_document_forms import (
     CustodyDocumentCreateForm,
     CustodyDocumentReplaceForm,
 )
+from apps.inventory.documents import get_acknowledgement_state
 from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     CustodyAssignment,
@@ -193,6 +194,11 @@ def custody_document_detail_view(request, document_id):
             "current_inventory_view": "inventory:custody_list",
             "document": document,
             "can_replace": not document.is_historical,
+            "acknowledgement": get_acknowledgement_state(
+                owner_type="CUSTODY_DOCUMENT",
+                owner_id=document.id,
+                generated_type="CUSTODY_RECEIPT",
+            ),
         },
     )
 

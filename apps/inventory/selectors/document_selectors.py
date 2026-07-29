@@ -10,6 +10,7 @@ from apps.inventory.models import (
     AssetMovementRequest,
     AssetPhoto,
     CustodyAssignment,
+    CustodyDocument,
     DisposalRequest,
     DisposalApproval,
     DocumentAccessLevel,
@@ -83,6 +84,10 @@ class DocumentSelectors:
                 is_deleted=False,
                 dependencia_id=department_id,
             ).values("id")
+            custody_document_ids = CustodyDocument.objects.filter(
+                is_deleted=False,
+                department_id=department_id,
+            ).values("id")
             movement_ids = InventoryMovement.objects.filter(
                 is_deleted=False,
             ).filter(
@@ -130,6 +135,10 @@ class DocumentSelectors:
                         InventoryDocumentOwnerType.CUSTODY_ASSIGNMENT
                     ),
                     owner_id__in=custody_ids,
+                )
+                | Q(
+                    owner_type=InventoryDocumentOwnerType.CUSTODY_DOCUMENT,
+                    owner_id__in=custody_document_ids,
                 )
                 | Q(
                     owner_type=InventoryDocumentOwnerType.MOVEMENT,
@@ -182,6 +191,10 @@ class DocumentSelectors:
             is_deleted=False,
             assigned_to_id=actor_id,
         ).values("id")
+        custody_document_ids = CustodyDocument.objects.filter(
+            is_deleted=False,
+            assigned_to_id_snapshot=actor_id,
+        ).values("id")
         movement_ids = InventoryMovement.objects.filter(
             is_deleted=False,
         ).filter(
@@ -232,6 +245,10 @@ class DocumentSelectors:
             | Q(
                 owner_type=InventoryDocumentOwnerType.CUSTODY_ASSIGNMENT,
                 owner_id__in=custody_ids,
+            )
+            | Q(
+                owner_type=InventoryDocumentOwnerType.CUSTODY_DOCUMENT,
+                owner_id__in=custody_document_ids,
             )
             | Q(
                 owner_type=InventoryDocumentOwnerType.MOVEMENT,

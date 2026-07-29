@@ -4,7 +4,9 @@
     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Documento de resguardo</p><h1 class="mt-2 font-mono text-3xl font-black">{{ document.folio }}</h1><p class="mt-1 text-sm text-slate-500">{{ document.department_name_snapshot }}</p></div>
         <div class="flex flex-wrap gap-2">
+            {% include "inventory/partials/acknowledgement_badge.html" with state=acknowledgement %}
             <a href="{% url 'inventory:custody_document_print' document.id %}" target="_blank" rel="noopener" class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black"><i data-lucide="printer" class="mr-2 inline h-4 w-4"></i>Imprimir / Guardar como PDF</a>
+            {% if acknowledgement.document %}<a href="{% url 'inventory:document_download' acknowledgement.document.id %}" target="_blank" rel="noopener" class="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">Ver acuse firmado</a>{% else %}<a href="{% url 'inventory:document_upload' 'CUSTODY_DOCUMENT' document.id %}?ack_for=CUSTODY_RECEIPT" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">Subir acuse firmado</a>{% endif %}
             {% if can_replace %}<form method="post" action="{% url 'inventory:custody_document_close' document.id %}">{% csrf_token %}<input type="hidden" name="reason" value="Todos los resguardos del documento fueron concluidos."><button class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black">Enviar al histórico</button></form><a href="{% url 'inventory:custody_document_replace' document.id %}" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Cambio de responsable</a>{% endif %}
         </div>
     </div>

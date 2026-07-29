@@ -67,6 +67,10 @@ class InventoryDocumentOwnerType(models.TextChoices):
         "CUSTODY_ASSIGNMENT",
         "Resguardo",
     )
+    CUSTODY_DOCUMENT = (
+        "CUSTODY_DOCUMENT",
+        "Documento agrupador de resguardo",
+    )
     MOVEMENT = "MOVEMENT", "Movimiento patrimonial"
     MOVEMENT_REQUEST = (
         "MOVEMENT_REQUEST",

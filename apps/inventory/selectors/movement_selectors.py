@@ -174,7 +174,7 @@ class LoanSelectors:
         signed_receipts = AssetDocument.objects.filter(
             owner_type=InventoryDocumentOwnerType.LOAN,
             owner_id=OuterRef("pk"),
-            document_type="LOAN_RECEIPT",
+            document_type="SIGNED_LOAN_RECEIPT",
             is_current_version=True,
             is_deleted=False,
         )

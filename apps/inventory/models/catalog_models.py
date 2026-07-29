@@ -291,23 +291,35 @@ class DocumentType(models.TextChoices):
 
     CUSTODY_RECEIPT = (
         "CUSTODY_RECEIPT",
-        "Vale de resguardo",
+        "Vale de resguardo generado",
     )
     SIGNED_CUSTODY_RECEIPT = (
         "SIGNED_CUSTODY_RECEIPT",
-        "Vale de resguardo firmado",
+        "Acuse firmado de resguardo",
     )
     LOAN_RECEIPT = (
         "LOAN_RECEIPT",
-        "Vale de préstamo",
+        "Vale de préstamo generado",
+    )
+    SIGNED_LOAN_RECEIPT = (
+        "SIGNED_LOAN_RECEIPT",
+        "Acuse firmado de préstamo",
     )
     RETURN_RECEIPT = (
         "RETURN_RECEIPT",
-        "Constancia de devolución",
+        "Constancia de devolución generada",
+    )
+    SIGNED_RETURN_RECEIPT = (
+        "SIGNED_RETURN_RECEIPT",
+        "Acuse firmado de devolución",
     )
     TRANSFER_RECEIPT = (
         "TRANSFER_RECEIPT",
-        "Acta de transferencia",
+        "Acta de transferencia generada",
+    )
+    SIGNED_TRANSFER_RECEIPT = (
+        "SIGNED_TRANSFER_RECEIPT",
+        "Acuse firmado de transferencia",
     )
 
     TECHNICAL_DIAGNOSIS = (
@@ -333,7 +345,11 @@ class DocumentType(models.TextChoices):
     )
     DISPOSAL_MINUTES = (
         "DISPOSAL_MINUTES",
-        "Acta circunstanciada",
+        "Acta de baja generada",
+    )
+    SIGNED_DISPOSAL_MINUTES = (
+        "SIGNED_DISPOSAL_MINUTES",
+        "Acuse firmado del acta de baja",
     )
     COUNCIL_MINUTES = (
         "COUNCIL_MINUTES",
@@ -351,6 +367,14 @@ class DocumentType(models.TextChoices):
     PHYSICAL_AUDIT_EVIDENCE = (
         "PHYSICAL_AUDIT_EVIDENCE",
         "Evidencia de auditoría física",
+    )
+    PHYSICAL_AUDIT_REPORT = (
+        "PHYSICAL_AUDIT_REPORT",
+        "Reporte de auditoría física generado",
+    )
+    SIGNED_PHYSICAL_AUDIT_REPORT = (
+        "SIGNED_PHYSICAL_AUDIT_REPORT",
+        "Acuse firmado de auditoría física",
     )
     RECONCILIATION_REPORT = (
         "RECONCILIATION_REPORT",

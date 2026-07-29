@@ -48,6 +48,10 @@ from apps.inventory.forms import (
     PhysicalAuditPhotoUploadForm,
 )
 from apps.inventory.integrations import core_directory
+from apps.inventory.documents import (
+    get_acknowledgement_spec,
+    get_acknowledgement_state,
+)
 from apps.inventory.models import (
     AssetDocument,
     CustodyStatus,
@@ -57,6 +61,7 @@ from apps.inventory.models import (
     DisposalStageDocumentRequirement,
     DocumentValidationStatus,
     InventoryDocumentOwnerType,
+    CustodyDocument,
     MovementType,
 )
 
@@ -742,17 +747,18 @@ def _loan_context(request, loan):
     own_receipt = loan.borrower_id == request.user.pk
     destination_matches = department_id(request) == loan.destination_dependencia_id
     receipt = None
+    acknowledgement = None
     if getattr(loan, "id", None):
-        receipt = AssetDocument.objects.filter(
+        acknowledgement = get_acknowledgement_state(
             owner_type=InventoryDocumentOwnerType.LOAN,
             owner_id=loan.id,
-            document_type="LOAN_RECEIPT",
-            is_current_version=True,
-            is_deleted=False,
-        ).order_by("-uploaded_at").first()
+            generated_type="LOAN_RECEIPT",
+        )
+        receipt = acknowledgement.document
     return {
         "loan": loan,
         "loan_receipt": receipt,
+        "loan_acknowledgement": acknowledgement,
         "receipt_required": loan.status in {
             "AUTHORIZED", "DELIVERED", "OVERDUE", "RETURN_PENDING", "RETURNED",
         },
@@ -1181,6 +1187,15 @@ def _document_owner_context(request, owner_type, owner_id):
         scope, dep = intake_scope(request); owner = selector_or_404(lambda: IntakeSelectors.obtener(owner_id, scope=scope, actor_id=request.user.pk, department_id=dep)); return owner, None, str(owner)
     if owner_type == InventoryDocumentOwnerType.CUSTODY_ASSIGNMENT:
         owner = _custody(request, owner_id); return owner, owner.asset_id, str(owner)
+    if owner_type == InventoryDocumentOwnerType.CUSTODY_DOCUMENT:
+        require_any_permission(request, "can_manage_custody")
+        owner = selector_or_404(
+            lambda: CustodyDocument.objects.get(
+                pk=owner_id,
+                is_deleted=False,
+            )
+        )
+        return owner, None, str(owner)
     if owner_type == InventoryDocumentOwnerType.LOAN:
         scope, dep = loan_scope(request); owner = selector_or_404(lambda: LoanSelectors.obtener(owner_id, scope=scope, actor_id=request.user.pk, department_id=dep)); return owner, owner.asset_id, str(owner)
     if owner_type == InventoryDocumentOwnerType.MOVEMENT:
@@ -1199,14 +1214,22 @@ def _document_owner_context(request, owner_type, owner_id):
 def document_upload_view(request, owner_type, owner_id):
     owner_type = str(owner_type).strip().upper()
     owner, asset_id, owner_label = _document_owner_context(request, owner_type, owner_id)
-    requested_type = request.GET.get("document_type", "").strip().upper()
-    is_loan_receipt = (
-        owner_type == InventoryDocumentOwnerType.LOAN
-        and requested_type == "LOAN_RECEIPT"
+    generated_type = (
+        request.GET.get("ack_for", "").strip().upper()
+        or request.GET.get("document_type", "").strip().upper()
     )
+    acknowledgement_spec = None
+    if generated_type:
+        try:
+            acknowledgement_spec = get_acknowledgement_spec(
+                generated_type,
+                owner_type,
+            )
+        except ValueError:
+            acknowledgement_spec = None
     form_data = request.POST.copy() if request.method == "POST" else None
-    if is_loan_receipt and form_data is not None:
-        form_data["document_type"] = "LOAN_RECEIPT"
+    if acknowledgement_spec and form_data is not None:
+        form_data["document_type"] = acknowledgement_spec.acknowledgement_type
         form_data["is_required_evidence"] = "on"
     form = ContextDocumentUploadForm(
         form_data,
@@ -1214,18 +1237,28 @@ def document_upload_view(request, owner_type, owner_id):
         owner_type=owner_type,
         owner_id=owner.id,
     )
-    if is_loan_receipt:
-        form.fields["document_type"].initial = "LOAN_RECEIPT"
+    if acknowledgement_spec:
+        form.fields["document_type"].initial = (
+            acknowledgement_spec.acknowledgement_type
+        )
         form.fields["document_type"].widget = forms.HiddenInput()
-        form.fields["title"].initial = f"Acuse firmado del préstamo {owner.folio}"
-        form.fields["external_reference"].initial = owner.folio
+        owner_folio = getattr(owner, "folio", str(owner))
+        form.fields["title"].initial = (
+            f"{acknowledgement_spec.acknowledgement_label} {owner_folio}"
+        )
+        form.fields["external_reference"].initial = owner_folio
         form.fields["is_required_evidence"].initial = True
     if request.method == "POST" and form.is_valid():
         document = run_service(form, lambda: upload_inventory_document(data=form.to_dto(), actor_id=request.user.pk, authorized_owner=owner, request=request))
         if document:
             success(request, "Documento agregado y enviado a validación.")
-            if is_loan_receipt:
+            if owner_type == InventoryDocumentOwnerType.LOAN:
                 return redirect(_loan_url(owner.id))
+            if owner_type == InventoryDocumentOwnerType.CUSTODY_DOCUMENT:
+                return redirect(
+                    "inventory:custody_document_detail",
+                    document_id=owner.id,
+                )
             return redirect(reverse("inventory:document_list") + f"?owner_type={owner_type}&owner_id={owner.id}")
     return render_inventory(request, page="inventory/pages/document_form.html", content="inventory/content/document_form_content.html", context={"current_inventory_view":"inventory:document_list", "form":form, "owner_label":owner_label, "owner_type_label":dict(InventoryDocumentOwnerType.choices).get(owner_type, owner_type)}, status=422 if request.method == "POST" else 200)
 
@@ -1267,7 +1300,7 @@ def _physical_audit_context(request, session):
     manages = has_any_permission(request, "can_manage_physical_audits")
     scans = has_any_permission(request, "can_scan_physical_audits")
     scope, scope_department_id = physical_audit_scope(request)
-    return {
+    context = {
         "audit_session": session,
         "result_totals": PhysicalAuditSelectors.result_totals(
             session.id, scope=scope, actor_id=request.user.pk,
@@ -1280,6 +1313,13 @@ def _physical_audit_context(request, session):
         "can_close_audit": manages and session.status == "RECONCILIATION",
         "can_cancel_audit": manages and session.status not in {"CLOSED", "CANCELLED"},
     }
+    if session.status == "CLOSED":
+        context["audit_acknowledgement"] = get_acknowledgement_state(
+            owner_type=InventoryDocumentOwnerType.PHYSICAL_AUDIT_SESSION,
+            owner_id=session.id,
+            generated_type="PHYSICAL_AUDIT_REPORT",
+        )
+    return context
 
 
 def _require_physical_audit_operator(request):
