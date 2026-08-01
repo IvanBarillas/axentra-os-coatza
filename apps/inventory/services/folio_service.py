@@ -1,6 +1,6 @@
 # apps/inventory/services/folio_service.py
 
-"""Generación transaccional de folios patrimoniales oficiales."""
+"""GeneraciÃ³n transaccional de folios patrimoniales oficiales."""
 
 from datetime import date
 import re
@@ -12,6 +12,7 @@ from django.utils import timezone
 from apps.inventory.dtos import FolioScope, GeneratedInventoryFolio
 from apps.inventory.integrations.core_directory import (
     CoreDirectoryError,
+    get_active_tenant,
     get_department,
 )
 from apps.inventory.models import (
@@ -99,12 +100,12 @@ def _validate_fiscal_year(fiscal_year: int) -> int:
         normalized = int(fiscal_year)
     except (TypeError, ValueError) as exc:
         raise InventoryValidationError(
-            "El ejercicio fiscal debe ser numérico."
+            "El ejercicio fiscal debe ser numÃ©rico."
         ) from exc
 
     if normalized < 2000 or normalized > 9999:
         raise InventoryValidationError(
-            "El ejercicio fiscal debe contener cuatro dígitos.",
+            "El ejercicio fiscal debe contener cuatro dÃ­gitos.",
             details={"fiscal_year": normalized},
         )
 
@@ -129,7 +130,7 @@ def _get_expenditure_object(expenditure_object_id):
         TypeError,
     ) as exc:
         raise InventoryValidationError(
-            "El objeto del gasto no existe o no está disponible."
+            "El objeto del gasto no existe o no estÃ¡ disponible."
         ) from exc
 
     if not expenditure_object.requires_inventory_control:
@@ -172,13 +173,13 @@ def get_effective_folio_policy(
 
     if not policies:
         raise FolioPolicyNotFound(
-            "No existe una política de folios vigente.",
+            "No existe una polÃ­tica de folios vigente.",
             details={"effective_on": effective_date.isoformat()},
         )
 
     if len(policies) > 1:
         raise FolioPolicyConflict(
-            "Existe más de una política de folios vigente.",
+            "Existe mÃ¡s de una polÃ­tica de folios vigente.",
             details={
                 "effective_on": effective_date.isoformat(),
                 "policy_ids": [str(policy.pk) for policy in policies],
@@ -197,23 +198,64 @@ def _build_scope(
     asset_type_code: str,
 ) -> FolioScope:
     try:
+        tenant = get_active_tenant()
+    except CoreDirectoryError as exc:
+        raise InventoryConfigurationError(str(exc)) from exc
+
+    try:
         department = get_department(department_id)
     except CoreDirectoryError as exc:
         raise InventoryValidationError(str(exc)) from exc
+
+    if not tenant.is_available:
+        raise InventoryConfigurationError(
+            "La configuraciÃ³n institucional no estÃ¡ disponible."
+        )
+
+    municipality = tenant.municipality
+    if municipality is None:
+        raise InventoryConfigurationError(
+            "La configuraciÃ³n institucional no tiene un municipio asociado."
+        )
+
+    if not municipality.is_available:
+        raise InventoryConfigurationError(
+            "El municipio asociado a la configuraciÃ³n institucional "
+            "no estÃ¡ disponible.",
+            details={"municipality_id": str(municipality.id)},
+        )
 
     dependency_code = department.normalized_code
 
     if not dependency_code:
         raise InventoryConfigurationError(
-            "La dependencia no tiene código presupuestal para el folio.",
+            "La dependencia no tiene cÃ³digo presupuestal para el folio.",
             details={"department_id": str(department.id)},
         )
 
-    municipality_code = _normalize_code(
+    policy_municipality_code = _normalize_code(
         policy.municipality_code,
         field_name="municipality_code",
         max_length=10,
     )
+    core_municipality_code = _normalize_code(
+        municipality.code,
+        field_name="core_municipality_code",
+        max_length=10,
+    )
+
+    if policy_municipality_code.zfill(3) != core_municipality_code.zfill(3):
+        raise InventoryConfigurationError(
+            "La clave municipal de la polÃ­tica de folios no coincide "
+            "con la configuraciÃ³n institucional.",
+            details={
+                "policy_id": str(policy.pk),
+                "policy_municipality_code": policy_municipality_code,
+                "core_municipality_code": core_municipality_code,
+            },
+        )
+
+    municipality_code = core_municipality_code.zfill(3)
     conac_code = _normalize_code(
         expenditure_object.code,
         field_name="conac_code",
@@ -247,7 +289,7 @@ def _render_folio(
 
     if progressive_number > maximum_progressive:
         raise FolioSequenceExhausted(
-            "La secuencia agotó la longitud configurada.",
+            "La secuencia agotÃ³ la longitud configurada.",
             details={
                 "policy_id": str(scope.policy_id),
                 "maximum_progressive": maximum_progressive,
@@ -270,7 +312,7 @@ def _render_folio(
         rendered = policy.format_template.format_map(values)
     except (KeyError, ValueError) as exc:
         raise InventoryConfigurationError(
-            "La plantilla institucional de folios es inválida.",
+            "La plantilla institucional de folios es invÃ¡lida.",
             details={
                 "policy_id": str(policy.pk),
                 "format_template": policy.format_template,
@@ -281,7 +323,7 @@ def _render_folio(
 
     if not normalized:
         raise FolioGenerationError(
-            "La plantilla generó un folio vacío."
+            "La plantilla generÃ³ un folio vacÃ­o."
         )
 
     if len(normalized) > 100:
@@ -305,7 +347,7 @@ def preview_inventory_folio(
 
     if not isinstance(acquisition_date, date):
         raise InventoryValidationError(
-            "acquisition_date debe ser una fecha válida."
+            "acquisition_date debe ser una fecha vÃ¡lida."
         )
 
     policy = get_effective_folio_policy(effective_on=effective_on)
@@ -352,13 +394,13 @@ def generate_inventory_folio(
     """
     Reserva y genera el siguiente folio oficial.
 
-    Bloquear la política serializa también la creación de secuencias nuevas,
-    evitando que dos capturistas creen el mismo scope simultáneamente.
+    Bloquear la polÃ­tica serializa tambiÃ©n la creaciÃ³n de secuencias nuevas,
+    evitando que dos capturistas creen el mismo scope simultÃ¡neamente.
     """
 
     if not isinstance(acquisition_date, date):
         raise InventoryValidationError(
-            "acquisition_date debe ser una fecha válida."
+            "acquisition_date debe ser una fecha vÃ¡lida."
         )
 
     policy = get_effective_folio_policy(
@@ -395,7 +437,7 @@ def generate_inventory_folio(
 
     if sequence.is_deleted or not sequence.is_active:
         raise InventoryConfigurationError(
-            "La secuencia correspondiente está inactiva.",
+            "La secuencia correspondiente estÃ¡ inactiva.",
             details={"sequence_id": str(sequence.pk)},
         )
 

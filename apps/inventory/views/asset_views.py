@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.inventory.forms import AssetConditionUpdateForm, AssetCorrectionForm, AssetLoanFromAssetForm, AssetPhotoUploadForm
+from apps.inventory.integrations import get_external_asset_activity
 from apps.inventory.models import AssetLoanStatus, AssetOperationalStatus
 from apps.inventory.selectors import AssetSelectors, CoreDirectorySelectors, DocumentSelectors, InventoryScope
 from apps.inventory.services import correct_asset, create_asset_loan, update_asset_condition, upload_asset_photo
@@ -50,11 +51,20 @@ def _asset_context(request, asset, current_view):
         (loan for loan in asset.loans.all() if loan.status in open_statuses),
         None,
     )
+    external_activity = get_external_asset_activity(
+        asset.id,
+        actor_id=request.user.pk,
+    )
     return {
         "asset": asset,
         "asset_context_sidebar": True,
         "current_inventory_view": current_view,
         "active_loan": active_loan,
+        "external_activity": external_activity,
+        "blocking_external_activity": (
+            external_activity.blocking_items[0]
+            if external_activity.blocking_items else None
+        ),
     }
 
 
@@ -145,6 +155,7 @@ def asset_detail_view(request, asset_id):
         "can_loan_asset": (
             can_authorize_loans
             and not can_manage_loans
+            and not context["external_activity"].has_blocking_activity
             and asset.operational_status in {
                 AssetOperationalStatus.AVAILABLE,
                 AssetOperationalStatus.ASSIGNED,
@@ -176,6 +187,17 @@ def asset_loans_view(request, asset_id):
 def asset_movements_view(request, asset_id):
     asset = _visible_asset(request, asset_id)
     return _render_asset_section(request, asset, current_view="inventory:asset_movements", section="movements", extra={"records": asset.movements.all()})
+
+
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
+def asset_external_activity_view(request, asset_id):
+    asset = _visible_asset(request, asset_id)
+    return _render_asset_section(
+        request,
+        asset,
+        current_view="inventory:asset_external_activity",
+        section="external_activity",
+    )
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")

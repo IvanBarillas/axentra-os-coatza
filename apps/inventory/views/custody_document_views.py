@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from apps.inventory.forms.custody_document_forms import (
@@ -41,14 +42,21 @@ def _department_choices():
 
 def _configure_dynamic_choices(form, department_id, user_id=""):
     form.fields["department_id"].choices = _department_choices()
+    form.fields["department_id"].widget.attrs.update({
+        "hx-get": reverse("inventory:custody_document_create"),
+        "hx-trigger": "change",
+        "hx-target": "#page-content",
+        "hx-swap": "innerHTML",
+        "hx-push-url": "true",
+    })
     if not department_id:
-        return
+        return []
 
     busy_ids = CustodyAssignment.objects.filter(
         is_deleted=False,
         status__in=OPEN_STATUSES,
     ).values_list("asset_id", flat=True)
-    assets = (
+    assets = list(
         AssetSelectors.listar_activos(department_id=department_id)
         .exclude(id__in=busy_ids)
         .order_by("official_inventory_number", "name")
@@ -77,13 +85,29 @@ def _configure_dynamic_choices(form, department_id, user_id=""):
         try:
             identity = core_directory.get_user_identity(user_id)
         except core_directory.CoreDirectoryError:
-            return
+            return assets
         form.fields["assigned_to_id"].choices.append(
             (
                 str(identity.id),
                 f"{identity.display_name} · {identity.normalized_email}",
             )
         )
+    return assets
+
+
+def _create_document_form(request, department_id):
+    """Conserva visualmente la dependencia elegida al recargar la cascada."""
+    form = CustodyDocumentCreateForm(
+        request.POST or None,
+        initial=(
+            {"department_id": department_id}
+            if request.method == "GET" and department_id
+            else None
+        ),
+    )
+    if not form.is_bound and department_id:
+        form.fields["department_id"].initial = department_id
+    return form
 
 
 @require_http_methods(["GET", "POST"])
@@ -97,10 +121,15 @@ def custody_document_create_view(request):
         or request.GET.get("department_id", "").strip()
     )
     user_id = request.POST.get("assigned_to_id", "").strip()
-    form = CustodyDocumentCreateForm(request.POST or None)
-    _configure_dynamic_choices(form, department_id, user_id)
+    form = _create_document_form(request, department_id)
+    available_assets = _configure_dynamic_choices(
+        form,
+        department_id,
+        user_id,
+    )
     if not getattr(request, "axentra_is_root", False):
         form.fields.pop("bypass_reason", None)
+    selected_asset_ids = set(request.POST.getlist("asset_ids"))
 
     if request.method == "POST" and form.is_valid():
         document = run_service(
@@ -134,6 +163,13 @@ def custody_document_create_view(request):
             "current_inventory_view": "inventory:custody_list",
             "form": form,
             "selected_department_id": department_id,
+            "available_asset_rows": [
+                {
+                    "asset": asset,
+                    "selected": str(asset.id) in selected_asset_ids,
+                }
+                for asset in available_assets
+            ],
         },
         status=422 if request.method == "POST" else 200,
     )

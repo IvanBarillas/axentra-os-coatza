@@ -8,6 +8,7 @@ from .asset_views import (
     asset_disposals_view,
     asset_documents_view,
     asset_extended_record_view,
+    asset_external_activity_view,
     asset_financials_view,
     asset_history_view,
     asset_list_view,

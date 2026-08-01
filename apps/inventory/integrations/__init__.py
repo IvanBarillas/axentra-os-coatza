@@ -36,6 +36,9 @@ from apps.inventory.integrations.core_directory import (
     user_can_manage_inventory,
     validate_organizational_context,
 )
+from apps.inventory.integrations.external_asset_activity import (
+    get_external_asset_activity,
+)
 
 __all__ = [
     "AreaContext",
@@ -53,6 +56,7 @@ __all__ = [
     "UserIdentity",
     "UserOrganizationalContext",
     "get_active_tenant",
+    "get_external_asset_activity",
     "get_area_context",
     "get_department",
     "get_department_capability",

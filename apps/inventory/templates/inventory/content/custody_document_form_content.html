@@ -1,3 +1,74 @@
+<style>
+    .custody-assets-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: .75rem;
+    }
+    .custody-asset-option {
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        align-items: flex-start;
+        gap: .875rem;
+        padding: 1rem;
+        cursor: pointer;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        background: #f8fafc;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+    .custody-asset-option:hover {
+        border-color: #94a3b8;
+        background: #fff;
+    }
+    .custody-asset-option input {
+        width: 1rem;
+        height: 1rem;
+        margin-top: .2rem;
+        flex: 0 0 1rem;
+    }
+    .custody-asset-data {
+        display: block;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+    .custody-asset-folio,
+    .custody-asset-name,
+    .custody-asset-serial {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .custody-asset-folio {
+        color: #475569;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: .75rem;
+        font-weight: 900;
+        line-height: 1.25rem;
+        white-space: nowrap;
+    }
+    .custody-asset-name {
+        margin-top: .2rem;
+        color: #0f172a;
+        font-size: .875rem;
+        font-weight: 900;
+        line-height: 1.25rem;
+        overflow-wrap: anywhere;
+    }
+    .custody-asset-serial {
+        margin-top: .2rem;
+        color: #64748b;
+        font-size: .75rem;
+        line-height: 1rem;
+        white-space: nowrap;
+    }
+    @media (min-width: 1280px) {
+        .custody-assets-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+</style>
 <section class="mx-auto max-w-6xl space-y-6">
     {% include "inventory/partials/messages.html" %}
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -29,8 +100,21 @@
                     <div><h2 class="font-black">Bienes disponibles</h2><p class="text-sm text-slate-500">No aparecen bienes con resguardo vigente o en proceso.</p></div>
                     <button type="button" id="select-all-assets" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-black">Seleccionar todos</button>
                 </div>
-                <div class="max-h-[430px] overflow-y-auto p-5">
-                    {{ form.asset_ids }}
+                <div class="max-h-[430px] overflow-y-auto p-4">
+                    <div class="custody-assets-grid">
+                        {% for row in available_asset_rows %}
+                            <label class="custody-asset-option">
+                                <input type="checkbox" name="asset_ids" value="{{ row.asset.id }}" {% if row.selected %}checked{% endif %}>
+                                <span class="custody-asset-data">
+                                    <span class="custody-asset-folio" title="{{ row.asset.display_inventory_number }}">{{ row.asset.display_inventory_number }}</span>
+                                    <span class="custody-asset-name" title="{{ row.asset.name }}">{{ row.asset.name }}</span>
+                                    <span class="custody-asset-serial" title="{{ row.asset.serial_number|default:'Sin serie' }}">Serie: {{ row.asset.serial_number|default:"Sin serie" }}</span>
+                                </span>
+                            </label>
+                        {% empty %}
+                            <div class="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">Esta dependencia no tiene bienes disponibles para un nuevo resguardo.</div>
+                        {% endfor %}
+                    </div>
                     {% if form.asset_ids.errors %}<div class="mt-2 text-sm font-bold text-red-600">{{ form.asset_ids.errors }}</div>{% endif %}
                 </div>
             </div>
@@ -46,17 +130,8 @@
 </section>
 <script>
 (() => {
-    const department = document.getElementById("id_department_id");
     const mode = document.getElementById("id_assignee_mode");
     const userField = document.getElementById("document-user-field");
-    if (department && !department.dataset.ready) {
-        department.dataset.ready = "1";
-        department.addEventListener("change", () => {
-            const url = new URL("{% url 'inventory:custody_document_create' %}", window.location.origin);
-            if (department.value) url.searchParams.set("department_id", department.value);
-            window.location.assign(url.toString());
-        });
-    }
     const syncMode = () => {
         if (userField && mode) userField.classList.toggle("hidden", mode.value !== "PUBLIC_SERVANT");
     };
