@@ -14,6 +14,7 @@ from apps.inventory.models import (
     AssetMovementRequest,
     CustodyAssignment,
     CustodyDocument,
+    CustodyDocumentType,
     DisposalRequest,
     DisposalApproval,
     DisposalApprovalDecision,
@@ -23,6 +24,7 @@ from apps.inventory.models import (
     DocumentValidationEvent,
     DocumentValidationEventType,
     DocumentValidationStatus,
+    DocumentType,
     InventoryAuditAction,
     InventoryDocumentOwnerType,
     InventoryMovement,
@@ -257,6 +259,21 @@ def upload_inventory_document(*, data, actor_id, authorized_owner, request=None)
         new_value=model_snapshot(document),
         request_context=build_audit_request_context(request),
     )
+    if (
+        data.owner_type == InventoryDocumentOwnerType.CUSTODY_DOCUMENT
+        and owner.document_type == CustodyDocumentType.RELEASE
+        and data.document_type == DocumentType.SIGNED_RETURN_RECEIPT
+    ):
+        # Import local para mantener desacoplados los servicios documentales.
+        from apps.inventory.services.custody_document_service import (
+            finalize_custody_release_document,
+        )
+
+        finalize_custody_release_document(
+            document_id=owner.id,
+            actor_id=actor.id,
+            request=request,
+        )
     return document
 
 

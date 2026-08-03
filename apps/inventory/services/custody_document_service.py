@@ -14,6 +14,7 @@ from apps.inventory.models import (
     CustodyDocument,
     CustodyDocumentItem,
     CustodyDocumentStatus,
+    CustodyDocumentType,
     CustodyEventType,
     CustodyStatus,
 )
@@ -161,6 +162,141 @@ def create_custody_document(
 
 
 @transaction.atomic
+def create_custody_release_document(
+    *, document_id, reason, actor_id, request=None
+):
+    """Prepara una liberación masiva sin cerrar todavía los resguardos."""
+    actor = _require_permission(actor_id, MANAGE_PERMISSION)
+    source = (
+        CustodyDocument.objects.select_for_update()
+        .prefetch_related("items__custody_assignment")
+        .get(pk=document_id, is_deleted=False)
+    )
+    if source.document_type != CustodyDocumentType.ASSIGNMENT:
+        raise InventoryStateError(
+            "Sólo un documento de resguardo puede generar una liberación."
+        )
+    if source.is_historical:
+        raise InventoryStateError("El resguardo ya pertenece al histórico.")
+    if source.release_documents.filter(
+        is_deleted=False,
+        status__in={CustodyDocumentStatus.DRAFT, CustodyDocumentStatus.IN_PROCESS},
+    ).exists():
+        raise InventoryStateError(
+            "Este resguardo ya tiene una liberación pendiente de firma."
+        )
+    active_items = [
+        item for item in source.items.all()
+        if item.custody_assignment.status == CustodyStatus.ACTIVE
+    ]
+    if not active_items:
+        raise InventoryStateError(
+            "El documento no contiene resguardos activos para liberar."
+        )
+    reason = str(reason or "").strip()
+    if not reason:
+        raise InventoryValidationError("Indique el motivo de la liberación.")
+
+    release = CustodyDocument(
+        folio=f"LIB-{timezone.localdate():%Y}-{uuid4().hex[:10].upper()}",
+        document_type=CustodyDocumentType.RELEASE,
+        department_id=source.department_id,
+        department_name_snapshot=source.department_name_snapshot,
+        department_code_snapshot=source.department_code_snapshot,
+        status=CustodyDocumentStatus.IN_PROCESS,
+        assignee_mode=source.assignee_mode,
+        assigned_to_id_snapshot=source.assigned_to_id_snapshot,
+        assigned_to_name_snapshot=source.assigned_to_name_snapshot,
+        assigned_to_email_snapshot=source.assigned_to_email_snapshot,
+        prepared_by_id=actor.id,
+        source_document=source,
+        received_by_id_snapshot=actor.id,
+        received_by_name_snapshot=actor.display_name,
+        received_by_email_snapshot=actor.normalized_email,
+        notes=reason,
+    )
+    release.full_clean()
+    release.save()
+    for item in active_items:
+        CustodyDocumentItem.objects.create(
+            document=release,
+            custody_assignment=item.custody_assignment,
+            asset_id_snapshot=item.asset_id_snapshot,
+            inventory_number_snapshot=item.inventory_number_snapshot,
+            asset_name_snapshot=item.asset_name_snapshot,
+            serial_number_snapshot=item.serial_number_snapshot,
+        )
+    return release
+
+
+@transaction.atomic
+def finalize_custody_release_document(
+    *, document_id, actor_id, request=None
+):
+    """Cierra atómicamente el lote después de integrar el acuse firmado."""
+    actor = _require_permission(actor_id, MANAGE_PERMISSION)
+    context = build_audit_request_context(request)
+    release = (
+        CustodyDocument.objects.select_for_update()
+        .select_related("source_document")
+        .prefetch_related("items__custody_assignment__asset")
+        .get(pk=document_id, is_deleted=False)
+    )
+    if release.document_type != CustodyDocumentType.RELEASE:
+        raise InventoryStateError("El documento no es una liberación.")
+    if release.status != CustodyDocumentStatus.IN_PROCESS:
+        raise InventoryStateError("La liberación ya fue procesada.")
+    items = list(release.items.all())
+    if not items or any(
+        item.custody_assignment.status != CustodyStatus.ACTIVE
+        for item in items
+    ):
+        raise InventoryStateError(
+            "Todos los resguardos deben continuar activos para cerrar el lote."
+        )
+
+    now = timezone.now()
+    for item in items:
+        custody = item.custody_assignment
+        previous = custody.status
+        custody.status = CustodyStatus.RETURNED
+        custody.returned_by_id = custody.assigned_to_id
+        custody.received_return_by_id = actor.id
+        custody.returned_at = now
+        custody.return_condition = custody.asset.physical_condition
+        custody.return_observations = release.notes
+        custody.asset.current_custodian_id = None
+        # La ubicación institucional se conserva; sólo termina la responsabilidad.
+        custody.asset.save(update_fields=["current_custodian", "updated_at"])
+        custody.full_clean()
+        custody.save()
+        _event(
+            custody,
+            CustodyEventType.RETURNED,
+            previous,
+            actor,
+            context,
+            comment=f"Liberación masiva {release.folio}: {release.notes}",
+        )
+
+    source = release.source_document
+    source.status = CustodyDocumentStatus.CLOSED
+    source.closed_by_id = actor.id
+    source.closed_at = now
+    source.closure_reason = f"Liberado mediante {release.folio}."
+    source.full_clean()
+    source.save()
+
+    release.status = CustodyDocumentStatus.CLOSED
+    release.closed_by_id = actor.id
+    release.closed_at = now
+    release.closure_reason = release.notes
+    release.full_clean()
+    release.save()
+    return release
+
+
+@transaction.atomic
 def close_custody_document(*, document_id, reason, actor_id):
     actor = _require_permission(actor_id, MANAGE_PERMISSION)
     document = (
@@ -295,5 +431,7 @@ def replace_custody_document(
 __all__ = [
     "close_custody_document",
     "create_custody_document",
+    "create_custody_release_document",
+    "finalize_custody_release_document",
     "replace_custody_document",
 ]

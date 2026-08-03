@@ -36,6 +36,13 @@ from .custody_service import (
     request_custody_return,
     submit_custody_assignment,
 )
+from .custody_document_service import (
+    close_custody_document,
+    create_custody_document,
+    create_custody_release_document,
+    finalize_custody_release_document,
+    replace_custody_document,
+)
 from .loan_service import (
     authorize_asset_loan,
     cancel_asset_loan,

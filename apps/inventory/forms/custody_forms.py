@@ -139,16 +139,16 @@ class CustodyRejectForm(InventoryForm):
 
 class CustodyReturnForm(InventoryForm):
     returned_at = forms.DateTimeField(
-        label="Fecha de devolución",
+        label="Fecha de retiro o cierre",
         widget=DATETIME_WIDGET,
         initial=timezone.now,
     )
     physical_condition = forms.ChoiceField(
-        label="Condición física al devolver",
+        label="Condición física al recibir el bien",
         choices=PhysicalCondition.choices,
     )
     notes = forms.CharField(
-        label="Observaciones de devolución",
+        label="Motivo y observaciones del cierre",
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
     )
@@ -193,4 +193,3 @@ __all__ = [
     for name in globals()
     if name.startswith("Custody") and name.endswith("Form")
 ]
-

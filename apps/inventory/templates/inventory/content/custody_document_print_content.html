@@ -140,14 +140,14 @@
 <article class="custody-print-sheet">
     <header class="custody-print-header">
         <p style="margin:0;color:#64748b;font-size:8pt;font-weight:700;letter-spacing:.22em;text-transform:uppercase;">Axentra OS · Control patrimonial</p>
-        <h1 style="margin:3mm 0 0;font-size:18pt;line-height:1.1;">Resguardo de bienes patrimoniales</h1>
+        <h1 style="margin:3mm 0 0;font-size:18pt;line-height:1.1;">{% if document.document_type == "RELEASE" %}Constancia de entrega y liberación de bienes{% else %}Resguardo de bienes patrimoniales{% endif %}</h1>
         <p style="margin:2mm 0 0;font-family:monospace;font-size:11pt;font-weight:700;">{{ document.folio }}</p>
     </header>
 
     <section class="custody-print-meta">
         <div><span class="custody-print-label">Dependencia</span><strong>{{ document.department_code_snapshot|default:"SIN-CÓDIGO" }} · {{ document.department_name_snapshot }}</strong></div>
         <div><span class="custody-print-label">Fecha de elaboración</span><strong>{{ document.prepared_at|date:"d/m/Y H:i" }}</strong></div>
-        <div><span class="custody-print-label">Responsable</span><strong>{{ document.assigned_to_name_snapshot }}</strong></div>
+        <div><span class="custody-print-label">{% if document.document_type == "RELEASE" %}Responsable que entrega{% else %}Responsable{% endif %}</span><strong>{{ document.assigned_to_name_snapshot }}</strong></div>
         <div><span class="custody-print-label">Correo institucional</span><strong>{{ document.assigned_to_email_snapshot|default:"No registrado" }}</strong></div>
         <div><span class="custody-print-label">Estado del documento</span><strong>{{ document.get_status_display }}</strong></div>
         <div><span class="custody-print-label">Total de bienes</span><strong>{{ document.items.count }}</strong></div>
@@ -164,16 +164,11 @@
         </tbody>
     </table>
 
-    <p class="custody-print-declaration">
-        Declaro recibir los bienes relacionados en este documento y asumir su
-        custodia, uso exclusivamente institucional y conservación. Me obligo
-        a informar cualquier traslado, daño, pérdida, préstamo o devolución
-        conforme a la normativa patrimonial aplicable.
-    </p>
+    <p class="custody-print-declaration">{% if document.document_type == "RELEASE" %}Quien entrega manifiesta que pone a disposición de Control Patrimonial los bienes relacionados, en la condición indicada y sin que este acto modifique su adscripción institucional. La liberación de responsabilidad surtirá efectos con la firma y recepción de esta constancia.{% else %}Declaro recibir los bienes relacionados en este documento y asumir su custodia, uso exclusivamente institucional y conservación. Me obligo a informar cualquier traslado, daño, pérdida, préstamo o devolución conforme a la normativa patrimonial aplicable.{% endif %}</p>
 
     <section class="custody-print-signatures">
-        <div class="custody-print-signature-line"><strong>{{ document.assigned_to_name_snapshot }}</strong><br>Servidor público resguardatario</div>
-        <div class="custody-print-signature-line"><strong>Control Patrimonial</strong><br>Entrega y validación institucional</div>
+        <div class="custody-print-signature-line"><strong>{{ document.assigned_to_name_snapshot }}</strong><br>{% if document.document_type == "RELEASE" %}Entrega los bienes y solicita liberación{% else %}Servidor público resguardatario{% endif %}</div>
+        <div class="custody-print-signature-line"><strong>{% if document.document_type == "RELEASE" %}{{ document.received_by_name_snapshot }}{% else %}Control Patrimonial{% endif %}</strong><br>{% if document.document_type == "RELEASE" %}Recibe por Control Patrimonial{% else %}Entrega y validación institucional{% endif %}</div>
     </section>
 
     <footer class="custody-print-footer">

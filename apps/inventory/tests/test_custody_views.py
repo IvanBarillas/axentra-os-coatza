@@ -48,3 +48,19 @@ class CustodyButtonVisibilityTests(SimpleTestCase):
         self.assertTrue(context["can_deliver_custody"])
         self.assertFalse(context["can_accept_custody"])
 
+    def test_resguardatario_no_puede_iniciar_retiro_de_resguardo_activo(self):
+        user_id = uuid4()
+        context = _custody_context(
+            self._request(user_id, "can_accept_custody"),
+            self._custody(user_id, "ACTIVE", delivered=True),
+        )
+        self.assertFalse(context["can_request_custody_return"])
+        self.assertFalse(context["can_complete_custody_return"])
+
+    def test_patrimonio_puede_iniciar_retiro_de_resguardo_activo(self):
+        context = _custody_context(
+            self._request(uuid4(), "can_manage_custody"),
+            self._custody(uuid4(), "ACTIVE", delivered=True),
+        )
+        self.assertTrue(context["can_request_custody_return"])
+        self.assertFalse(context["can_complete_custody_return"])

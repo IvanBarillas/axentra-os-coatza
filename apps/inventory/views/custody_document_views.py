@@ -6,6 +6,7 @@ from django.views.decorators.http import require_http_methods
 
 from apps.inventory.forms.custody_document_forms import (
     CustodyDocumentCreateForm,
+    CustodyDocumentReleaseForm,
     CustodyDocumentReplaceForm,
 )
 from apps.inventory.documents import get_acknowledgement_state
@@ -14,6 +15,7 @@ from apps.inventory.models import (
     CustodyAssignment,
     CustodyDocument,
     CustodyDocumentStatus,
+    CustodyDocumentType,
     CustodyStatus,
 )
 from apps.inventory.selectors import (
@@ -24,6 +26,7 @@ from apps.inventory.services.custody_document_service import (
     OPEN_STATUSES,
     close_custody_document,
     create_custody_document,
+    create_custody_release_document,
     replace_custody_document,
 )
 from apps.inventory.services.exceptions import InventoryServiceError
@@ -222,6 +225,11 @@ def custody_document_detail_view(request, document_id):
         .prefetch_related("items__custody_assignment")
         .get(pk=document_id, is_deleted=False)
     )
+    generated_type = (
+        "RETURN_RECEIPT"
+        if document.document_type == CustodyDocumentType.RELEASE
+        else "CUSTODY_RECEIPT"
+    )
     return render_inventory(
         request,
         page="inventory/pages/custody_document_detail.html",
@@ -230,10 +238,18 @@ def custody_document_detail_view(request, document_id):
             "current_inventory_view": "inventory:custody_list",
             "document": document,
             "can_replace": not document.is_historical,
+            "can_release": (
+                document.document_type == CustodyDocumentType.ASSIGNMENT
+                and not document.is_historical
+                and document.items.filter(
+                    custody_assignment__status=CustodyStatus.ACTIVE,
+                ).exists()
+            ),
+            "generated_type": generated_type,
             "acknowledgement": get_acknowledgement_state(
                 owner_type="CUSTODY_DOCUMENT",
                 owner_id=document.id,
-                generated_type="CUSTODY_RECEIPT",
+                generated_type=generated_type,
             ),
         },
     )
@@ -353,6 +369,54 @@ def custody_document_replace_view(request, document_id):
             "current_inventory_view": "inventory:custody_list",
             "document": document,
             "form": form,
+        },
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_manage_custody",
+)
+def custody_document_release_view(request, document_id):
+    document = selector_or_404(
+        lambda: CustodyDocument.objects.prefetch_related(
+            "items__custody_assignment"
+        ).get(pk=document_id, is_deleted=False)
+    )
+    form = CustodyDocumentReleaseForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        release = run_service(
+            form,
+            lambda: create_custody_release_document(
+                document_id=document.id,
+                reason=form.cleaned_data["reason"],
+                actor_id=request.user.pk,
+                request=request,
+            ),
+        )
+        if release:
+            success(
+                request,
+                f"Constancia {release.folio} preparada para firma.",
+            )
+            return redirect(
+                "inventory:custody_document_detail",
+                document_id=release.id,
+            )
+    return render_inventory(
+        request,
+        page="inventory/pages/custody_document_release.html",
+        content="inventory/content/custody_document_release_content.html",
+        context={
+            "current_inventory_view": "inventory:custody_list",
+            "document": document,
+            "form": form,
+            "active_items": [
+                item for item in document.items.all()
+                if item.custody_assignment.status == CustodyStatus.ACTIVE
+            ],
         },
         status=422 if request.method == "POST" else 200,
     )

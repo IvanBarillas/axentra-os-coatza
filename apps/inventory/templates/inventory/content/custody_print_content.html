@@ -1,18 +1,443 @@
 <style>
-    .custody-sheet{width:min(100%,216mm);min-height:279mm;margin:0 auto;background:#fff;color:#0f172a;padding:14mm 15mm;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
-    .custody-head{border-bottom:3px solid #0f172a;padding-bottom:5mm}
-    .custody-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3mm 8mm;margin-top:7mm;padding:5mm;background:#f8fafc;border:1px solid #cbd5e1;border-radius:3mm;font-size:10pt}
-    .custody-label{display:block;color:#64748b;font-size:7.5pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
-    .custody-declaration{margin-top:10mm;font-size:10pt;line-height:1.65;text-align:justify}
-    .custody-signatures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18mm;margin-top:28mm;font-size:8.5pt;text-align:center}
-    .custody-line{border-top:1px solid #0f172a;padding-top:2mm}
-    @page{size:letter portrait;margin:10mm}
-    @media print{body>header,body>footer,aside,nav,.no-print,[data-global-sidebar],[data-module-sidebar]{display:none!important}main,#page-content,#workbench{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important}.custody-sheet{width:100%;min-height:auto;margin:0;padding:0;box-shadow:none}.custody-signatures{break-inside:avoid}}
+    :root {
+        --custody-primary: #8f0000;
+        --custody-border: #202020;
+        --custody-muted: #d4d4d4;
+    }
+
+    .custody-sheet {
+        width: min(100%, 216mm);
+        min-height: 279mm;
+        margin: 0 auto;
+        padding: 10mm 13mm 9mm;
+        box-sizing: border-box;
+        background: #fff;
+        color: #111;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 9pt;
+    }
+
+    .custody-brand {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        align-items: center;
+        gap: 8mm;
+        min-height: 25mm;
+    }
+
+    .custody-logo-placeholder {
+        display: flex;
+        align-items: center;
+        gap: 4mm;
+        color: #7f1d1d;
+    }
+
+    .custody-logo-mark {
+        display: flex;
+        width: 20mm;
+        height: 20mm;
+        align-items: center;
+        justify-content: center;
+        border: 1.2mm solid var(--custody-primary);
+        border-radius: 50%;
+        font-size: 7pt;
+        font-weight: 800;
+        line-height: 1.2;
+        text-align: center;
+    }
+
+    .custody-logo-copy strong,
+    .custody-logo-copy span {
+        display: block;
+    }
+
+    .custody-logo-copy strong {
+        font-size: 12pt;
+        letter-spacing: .02em;
+    }
+
+    .custody-logo-copy span {
+        margin-top: 1mm;
+        color: #444;
+        font-size: 7.5pt;
+        text-transform: uppercase;
+    }
+
+    .custody-institution {
+        text-align: right;
+        font-size: 9.5pt;
+        line-height: 1.45;
+    }
+
+    .custody-title {
+        margin: 4mm 0;
+        text-align: center;
+        font-size: 13pt;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .custody-field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2.5mm 12mm;
+    }
+
+    .custody-field,
+    .custody-department {
+        display: grid;
+        grid-template-columns: 35mm 1fr;
+        min-height: 9mm;
+        align-items: stretch;
+    }
+
+    .custody-department {
+        grid-template-columns: 35mm 1fr;
+        margin-top: 2.5mm;
+    }
+
+    .custody-field-label {
+        display: flex;
+        align-items: center;
+        padding: 1.5mm 3mm;
+        background: var(--custody-primary);
+        color: #fff;
+        font-size: 8.5pt;
+        font-weight: 700;
+    }
+
+    .custody-field-value {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        padding: 1.5mm 3mm;
+        border: .25mm solid var(--custody-border);
+        overflow-wrap: anywhere;
+        font-weight: 700;
+    }
+
+    .custody-department .custody-field-label {
+        background: transparent;
+        color: #111;
+        padding-left: 0;
+    }
+
+    .custody-types {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        margin: 4mm 0 3mm;
+        font-size: 8.5pt;
+        font-weight: 700;
+    }
+
+    .custody-type {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3mm;
+    }
+
+    .custody-checkbox {
+        display: inline-block;
+        width: 5mm;
+        height: 5mm;
+        border: .3mm solid #111;
+        font-size: 9pt;
+        line-height: 4.4mm;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .custody-section {
+        margin-top: 2.5mm;
+        border: .25mm solid var(--custody-border);
+        break-inside: avoid;
+    }
+
+    .custody-section-title {
+        margin: 0;
+        padding: 1mm 3mm;
+        background: var(--custody-primary);
+        color: #fff;
+        text-align: center;
+        font-size: 9pt;
+        font-weight: 400;
+    }
+
+    .custody-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .custody-table th {
+        padding: 1mm 2mm;
+        background: var(--custody-muted);
+        border-right: .25mm solid #fff;
+        font-size: 8pt;
+        font-weight: 400;
+    }
+
+    .custody-table td {
+        height: 11mm;
+        padding: 2mm 2.5mm;
+        border-right: .25mm solid var(--custody-border);
+        vertical-align: middle;
+        overflow-wrap: anywhere;
+    }
+
+    .custody-table th:last-child,
+    .custody-table td:last-child {
+        border-right: 0;
+    }
+
+    .custody-technical td {
+        height: 17mm;
+        vertical-align: top;
+        line-height: 1.35;
+    }
+
+    .custody-person td {
+        height: 14mm;
+    }
+
+    .custody-observations {
+        min-height: 16mm;
+        padding: 3mm;
+        line-height: 1.4;
+        text-align: center;
+        white-space: pre-line;
+    }
+
+    .custody-declaration {
+        margin: 3mm 0 0;
+        font-size: 7.5pt;
+        line-height: 1.35;
+        text-align: justify;
+    }
+
+    .custody-signatures {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 34mm;
+        margin-top: 6mm;
+        break-inside: avoid;
+    }
+
+    .custody-signature {
+        border: .25mm solid var(--custody-border);
+        text-align: center;
+    }
+
+    .custody-signature-title {
+        padding: 1mm 2mm;
+        background: var(--custody-primary);
+        color: #fff;
+        font-size: 8pt;
+    }
+
+    .custody-signature-space {
+        height: 17mm;
+    }
+
+    .custody-signature-name {
+        min-height: 12mm;
+        padding: 1.5mm 2mm;
+        border-top: .25mm solid var(--custody-border);
+        font-size: 7.5pt;
+        line-height: 1.25;
+    }
+
+    .custody-footer {
+        margin-top: 6mm;
+        padding-top: 2mm;
+        border-top: 2mm solid var(--custody-primary);
+        color: #555;
+        font-size: 6.5pt;
+        text-align: center;
+    }
+
+    @page {
+        size: letter portrait;
+        margin: 0;
+    }
+
+    @media print {
+        body > header,
+        body > footer,
+        aside,
+        nav,
+        .no-print,
+        [data-global-sidebar],
+        [data-module-sidebar] {
+            display: none !important;
+        }
+
+        html,
+        body,
+        main,
+        #page-content,
+        #workbench {
+            width: 100% !important;
+            max-width: none !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: #fff !important;
+        }
+
+        .custody-sheet {
+            width: 216mm;
+            min-height: 279mm;
+            margin: 0;
+            box-shadow: none;
+        }
+    }
 </style>
-<div class="no-print mx-auto mb-4 flex max-w-[216mm] items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><a href="{% url 'inventory:custody_detail' custody.id %}" class="text-sm font-black text-slate-600">← Volver</a><button type="button" onclick="window.print()" class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white">Imprimir / Guardar como PDF</button></div>
+
+<div class="no-print mx-auto mb-4 flex max-w-[216mm] items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <a href="{% url 'inventory:custody_detail' custody.id %}" class="text-sm font-black text-slate-600">← Volver</a>
+    <button type="button" onclick="window.print()" class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white">Imprimir / Guardar como PDF</button>
+</div>
+
+{% with asset=custody.asset asset_name=custody.asset.name|lower %}
 <article class="custody-sheet">
-    <header class="custody-head"><p style="margin:0;color:#64748b;font-size:8pt;font-weight:700;letter-spacing:.22em;text-transform:uppercase">Axentra OS · Control patrimonial</p><h1 style="margin:3mm 0 0;font-size:18pt">Vale de resguardo</h1><p style="margin:2mm 0 0;font-family:monospace;font-size:11pt;font-weight:700">{{ custody.folio }}</p></header>
-    <section class="custody-meta"><div><span class="custody-label">Folio patrimonial</span><strong>{{ custody.asset.display_inventory_number }}</strong></div><div><span class="custody-label">Bien</span><strong>{{ custody.asset.name }}</strong></div><div><span class="custody-label">Número de serie</span><strong>{{ custody.asset.serial_number|default:"Sin serie" }}</strong></div><div><span class="custody-label">Responsable</span><strong>{{ custody.assigned_to_name_snapshot }}</strong></div><div><span class="custody-label">Dependencia</span><strong>{{ custody.dependencia_name_snapshot }}</strong></div><div><span class="custody-label">Ubicación</span><strong>{{ custody.sede_name_snapshot|default:"Sin sede" }} · {{ custody.area_name_snapshot|default:"Sin área" }}</strong></div></section>
-    <p class="custody-declaration">Declaro recibir el bien descrito en este documento y asumir su custodia, uso exclusivamente institucional y conservación. Me obligo a informar cualquier traslado, daño, pérdida, préstamo o devolución conforme a la normativa patrimonial aplicable.</p>
-    <section class="custody-signatures"><div class="custody-line"><strong>{{ custody.assigned_to_name_snapshot }}</strong><br>Servidor público resguardatario</div><div class="custody-line"><strong>Control Patrimonial</strong><br>Elaboró y entregó</div></section>
+    <header class="custody-brand">
+        <div class="custody-logo-placeholder">
+            <div class="custody-logo-mark"><span>LOGO<br>MUNICIPAL</span></div>
+            <div class="custody-logo-copy">
+                <strong>{{ tenant.entidad_nombre|default:"H. AYUNTAMIENTO DE COATZACOALCOS" }}</strong>
+                <span>Identidad institucional temporal</span>
+            </div>
+        </div>
+        <div class="custody-institution">
+            <strong>Municipio de Coatzacoalcos, Veracruz</strong><br>
+            Tesorería Municipal<br>
+            Control Patrimonial
+        </div>
+    </header>
+
+    <h1 class="custody-title">Resguardo individual de bien patrimonial</h1>
+
+    <section class="custody-field-grid">
+        <div class="custody-field">
+            <span class="custody-field-label">Fecha de entrega</span>
+            <span class="custody-field-value">{{ custody.delivered_at|default:custody.prepared_at|date:"d/m/Y" }}</span>
+        </div>
+        <div class="custody-field">
+            <span class="custody-field-label">No. de resguardo</span>
+            <span class="custody-field-value">{{ custody.folio }}</span>
+        </div>
+    </section>
+
+    <section class="custody-department">
+        <span class="custody-field-label">Dependencia</span>
+        <span class="custody-field-value">
+            {{ custody.dependencia_code_snapshot|default:"SIN CÓDIGO" }} · {{ custody.dependencia_name_snapshot }}
+            {% if custody.area_name_snapshot %} / {{ custody.area_name_snapshot }}{% endif %}
+            {% if custody.sede_name_snapshot %} / {{ custody.sede_name_snapshot }}{% endif %}
+        </span>
+    </section>
+
+    <section class="custody-types" aria-label="Tipo de equipo">
+        <div class="custody-type">PC <span class="custody-checkbox">{% if "laptop" not in asset_name and "portátil" not in asset_name and "impresora" not in asset_name %}{% if "computadora" in asset_name or "cpu" in asset_name or "pc" in asset_name %}✓{% endif %}{% endif %}</span></div>
+        <div class="custody-type">LAPTOP <span class="custody-checkbox">{% if "laptop" in asset_name or "portátil" in asset_name %}✓{% endif %}</span></div>
+        <div class="custody-type">IMPRESORA <span class="custody-checkbox">{% if "impresora" in asset_name %}✓{% endif %}</span></div>
+        <div class="custody-type">OTRO <span class="custody-checkbox">{% if "computadora" not in asset_name and "cpu" not in asset_name and "pc" not in asset_name and "laptop" not in asset_name and "portátil" not in asset_name and "impresora" not in asset_name %}✓{% endif %}</span></div>
+    </section>
+
+    <section class="custody-section">
+        <h2 class="custody-section-title">Identificación del bien patrimonial</h2>
+        <table class="custody-table">
+            <thead>
+                <tr>
+                    <th style="width:34%">Folio patrimonial</th>
+                    <th style="width:28%">Número de serie</th>
+                    <th>Marca / Modelo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ asset.display_inventory_number }}</td>
+                    <td>{{ asset.serial_number|default:"SIN SERIE" }}</td>
+                    <td>{{ asset.manufacturer|default:"SIN MARCA" }}{% if asset.model %} / {{ asset.model.name }}{% endif %}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="custody-section">
+        <h2 class="custody-section-title">Información técnica y componentes entregados</h2>
+        <table class="custody-table custody-technical">
+            <thead>
+                <tr>
+                    <th style="width:30%">Bien / Categoría</th>
+                    <th style="width:48%">Descripción técnica</th>
+                    <th>Condición</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>{{ asset.name }}</strong><br>{{ asset.category.name|default:asset.category }}</td>
+                    <td>{{ asset.description|default:"Sin descripción técnica adicional." }}</td>
+                    <td>{{ custody.get_delivery_condition_display }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="custody-section">
+        <h2 class="custody-section-title">Nombre del servidor público a quien se asigna el bien</h2>
+        <table class="custody-table custody-person">
+            <thead>
+                <tr>
+                    <th style="width:64%">Nombre y puesto</th>
+                    <th>Firma</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <strong>{{ custody.assigned_to_name_snapshot }}</strong>
+                        {% if custody.assigned_to_position_snapshot %}<br>{{ custody.assigned_to_position_snapshot }}{% endif %}
+                    </td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="custody-section">
+        <h2 class="custody-section-title">Observaciones y accesorios incluidos</h2>
+        <div class="custody-observations">{{ custody.delivery_observations|default:"Sin observaciones ni accesorios adicionales registrados." }}</div>
+    </section>
+
+    <p class="custody-declaration">
+        Declaro recibir el bien descrito en este documento en la condición indicada y asumo su resguardo, conservación y uso exclusivamente institucional. Me comprometo a informar cualquier traslado, préstamo, daño, pérdida o devolución conforme a la normativa patrimonial aplicable.
+    </p>
+
+    <section class="custody-signatures">
+        <div class="custody-signature">
+            <div class="custody-signature-title">Entrega el bien</div>
+            <div class="custody-signature-space"></div>
+            <div class="custody-signature-name">
+                <strong>{% if custody.delivered_by %}{{ custody.delivered_by.get_full_name|default:custody.delivered_by.email }}{% else %}{{ custody.prepared_by.get_full_name|default:custody.prepared_by.email }}{% endif %}</strong><br>
+                Control Patrimonial
+            </div>
+        </div>
+        <div class="custody-signature">
+            <div class="custody-signature-title">Recibe el bien</div>
+            <div class="custody-signature-space"></div>
+            <div class="custody-signature-name">
+                <strong>{{ custody.assigned_to_name_snapshot }}</strong><br>
+                {{ custody.assigned_to_position_snapshot|default:"Servidor público resguardatario" }}
+            </div>
+        </div>
+    </section>
+
+    <footer class="custody-footer">
+        · {{ custody.folio }} · El acuse firmado se integra al expediente electrónico del bien.
+    </footer>
 </article>
+{% endwith %}

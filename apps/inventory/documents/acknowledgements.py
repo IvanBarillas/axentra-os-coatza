@@ -48,7 +48,10 @@ ACKNOWLEDGEMENT_SPECS = {
     DocumentType.RETURN_RECEIPT: AcknowledgementSpec(
         DocumentType.RETURN_RECEIPT,
         DocumentType.SIGNED_RETURN_RECEIPT,
-        (InventoryDocumentOwnerType.LOAN,),
+        (
+            InventoryDocumentOwnerType.LOAN,
+            InventoryDocumentOwnerType.CUSTODY_DOCUMENT,
+        ),
         "Constancia de devolución",
         "Acuse firmado de devolución",
     ),

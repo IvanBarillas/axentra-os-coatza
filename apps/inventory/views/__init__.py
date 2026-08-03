@@ -26,6 +26,7 @@ from .custody_document_views import (
     custody_document_detail_view,
     custody_document_list_view,
     custody_document_print_view,
+    custody_document_release_view,
     custody_document_replace_view,
 )
 from .custody_simple_views import (

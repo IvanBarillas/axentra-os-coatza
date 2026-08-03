@@ -69,6 +69,7 @@ from apps.inventory.models.custody_document_models import (
     CustodyDocument,
     CustodyDocumentItem,
     CustodyDocumentStatus,
+    CustodyDocumentType,
 )
 
 # =============================================================================
@@ -179,6 +180,7 @@ __all__ = [
     "CustodyDocument",
     "CustodyDocumentItem",
     "CustodyDocumentStatus",
+    "CustodyDocumentType",
     "CustodyEventType",
     "CustodyStatus",
 

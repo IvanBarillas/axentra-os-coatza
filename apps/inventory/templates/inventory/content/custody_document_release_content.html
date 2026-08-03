@@ -1,0 +1,21 @@
+<section class="mx-auto max-w-5xl space-y-6">
+    {% include "inventory/partials/messages.html" %}
+    <div>
+        <a href="{% url 'inventory:custody_document_detail' document.id %}" class="text-sm font-black text-slate-500">← Volver al resguardo</a>
+        <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Cierre documental controlado</p>
+        <h1 class="mt-2 text-2xl font-black">Preparar liberación masiva</h1>
+        <p class="mt-1 text-sm text-slate-500">El responsable entregará los bienes y Patrimonio recibirá el lote. Los resguardos continuarán activos hasta cargar el acuse firmado.</p>
+    </div>
+    <form method="post" class="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="overflow-hidden rounded-2xl border border-slate-200">
+            <div class="border-b border-slate-200 bg-slate-50 px-5 py-4"><p class="font-black">Bienes incluidos</p><p class="text-sm text-slate-500">{{ active_items|length }} resguardo{{ active_items|length|pluralize }} activo{{ active_items|length|pluralize }}</p></div>
+            <div class="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                {% for item in active_items %}<div class="grid gap-1 px-5 py-3 text-sm md:grid-cols-[220px_1fr_180px]"><span class="font-mono font-black">{{ item.inventory_number_snapshot }}</span><span>{{ item.asset_name_snapshot }}</span><span class="text-slate-500">{{ item.serial_number_snapshot|default:"Sin serie" }}</span></div>{% empty %}<p class="p-5 text-sm text-red-700">No existen resguardos activos para liberar.</p>{% endfor %}
+            </div>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><b>Importante:</b> generar esta constancia no libera todavía al responsable. El cierre masivo se ejecutará únicamente después de subir el PDF firmado y sellado.</div>
+        <div class="flex justify-end gap-2"><a href="{% url 'inventory:custody_document_detail' document.id %}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-black">Cancelar</a><button {% if not active_items %}disabled{% endif %} class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white disabled:opacity-40">Generar constancia</button></div>
+    </form>
+</section>

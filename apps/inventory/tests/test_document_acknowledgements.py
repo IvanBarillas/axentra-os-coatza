@@ -27,6 +27,14 @@ class DocumentAcknowledgementContractTests(SimpleTestCase):
         )
         self.assertIn("CUSTODY_DOCUMENT", spec.owner_types)
 
+    def test_liberacion_masiva_admite_acuse_en_documento_de_resguardo(self):
+        spec = get_acknowledgement_spec(
+            "RETURN_RECEIPT",
+            "CUSTODY_DOCUMENT",
+        )
+        self.assertEqual(spec.acknowledgement_type, "SIGNED_RETURN_RECEIPT")
+        self.assertIn("CUSTODY_DOCUMENT", spec.owner_types)
+
     def test_rechaza_una_pareja_documental_incompatible(self):
         with self.assertRaises(ValueError):
             get_acknowledgement_spec(

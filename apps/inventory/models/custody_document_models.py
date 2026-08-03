@@ -16,6 +16,11 @@ class CustodyDocumentStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "Cancelado"
 
 
+class CustodyDocumentType(models.TextChoices):
+    ASSIGNMENT = "ASSIGNMENT", "Resguardo de entrega"
+    RELEASE = "RELEASE", "Constancia de entrega y liberación"
+
+
 class CustodyDocument(InventoryBaseModel):
     """Cabecera de un documento que agrupa uno o varios resguardos."""
 
@@ -23,6 +28,13 @@ class CustodyDocument(InventoryBaseModel):
         "Folio del documento",
         max_length=80,
         unique=True,
+    )
+    document_type = models.CharField(
+        "Tipo de documento",
+        max_length=20,
+        choices=CustodyDocumentType.choices,
+        default=CustodyDocumentType.ASSIGNMENT,
+        db_index=True,
     )
     status = models.CharField(
         "Estado",
@@ -94,6 +106,28 @@ class CustodyDocument(InventoryBaseModel):
         null=True,
         blank=True,
     )
+    source_document = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="release_documents",
+        verbose_name="Resguardo que se libera",
+        null=True,
+        blank=True,
+    )
+    received_by_id_snapshot = models.UUIDField(
+        "UUID de quien recibe",
+        null=True,
+        blank=True,
+    )
+    received_by_name_snapshot = models.CharField(
+        "Recibido por",
+        max_length=300,
+        blank=True,
+    )
+    received_by_email_snapshot = models.EmailField(
+        "Correo de quien recibe",
+        blank=True,
+    )
     notes = models.TextField("Notas", blank=True)
 
     class Meta:
@@ -126,6 +160,15 @@ class CustodyDocument(InventoryBaseModel):
 
     def clean(self):
         errors = {}
+        if self.document_type == CustodyDocumentType.RELEASE:
+            if not self.source_document_id:
+                errors["source_document"] = (
+                    "La constancia debe indicar el resguardo que libera."
+                )
+            if not self.received_by_id_snapshot:
+                errors["received_by_id_snapshot"] = (
+                    "La constancia debe indicar quién recibe los bienes."
+                )
         if self.is_historical:
             if not self.closed_at:
                 errors["closed_at"] = "El histórico requiere fecha de cierre."
@@ -167,10 +210,10 @@ class CustodyDocumentItem(InventoryBaseModel):
         related_name="items",
         verbose_name="Documento",
     )
-    custody_assignment = models.OneToOneField(
+    custody_assignment = models.ForeignKey(
         "inventory.CustodyAssignment",
         on_delete=models.PROTECT,
-        related_name="document_item",
+        related_name="document_items",
         verbose_name="Resguardo individual",
     )
     asset_id_snapshot = models.UUIDField("UUID histórico del bien")
@@ -220,4 +263,5 @@ __all__ = [
     "CustodyDocument",
     "CustodyDocumentItem",
     "CustodyDocumentStatus",
+    "CustodyDocumentType",
 ]

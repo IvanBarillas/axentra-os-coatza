@@ -4,6 +4,7 @@ from django.test import SimpleTestCase
 
 from apps.inventory.forms.custody_document_forms import (
     CustodyDocumentCreateForm,
+    CustodyDocumentReleaseForm,
 )
 from apps.inventory.models import CustodyAssigneeMode
 
@@ -56,3 +57,16 @@ class CustodyDocumentCreateFormTests(SimpleTestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn("asset_ids", form.errors)
+
+
+class CustodyDocumentReleaseFormTests(SimpleTestCase):
+    def test_release_requires_reason(self):
+        form = CustodyDocumentReleaseForm(data={"reason": ""})
+        self.assertFalse(form.is_valid())
+        self.assertIn("reason", form.errors)
+
+    def test_release_accepts_institutional_reason(self):
+        form = CustodyDocumentReleaseForm(
+            data={"reason": "Conclusión de la administración municipal."}
+        )
+        self.assertTrue(form.is_valid(), form.errors)

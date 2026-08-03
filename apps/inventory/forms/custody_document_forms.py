@@ -83,7 +83,16 @@ class CustodyDocumentReplaceForm(InventoryForm):
         return data
 
 
+class CustodyDocumentReleaseForm(InventoryForm):
+    reason = forms.CharField(
+        label="Motivo de la entrega y liberación",
+        initial="Cambio de titular o conclusión de la administración.",
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+
+
 __all__ = [
     "CustodyDocumentCreateForm",
     "CustodyDocumentReplaceForm",
+    "CustodyDocumentReleaseForm",
 ]

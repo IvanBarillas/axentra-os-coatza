@@ -163,7 +163,9 @@ def _custody_context(request, custody):
         "can_deliver_custody": manages and custody.status == "PENDING_ACCEPTANCE" and not custody.delivered_at,
         "can_accept_custody": accepts and custody.status == "PENDING_ACCEPTANCE" and bool(custody.delivered_at),
         "can_reject_custody": accepts and custody.status == "PENDING_ACCEPTANCE",
-        "can_request_custody_return": accepts and custody.status == "ACTIVE",
+        # Un resguardo activo es un instrumento de control patrimonial, no un
+        # préstamo. Sólo Patrimonio puede iniciar su retiro o cierre.
+        "can_request_custody_return": manages and custody.status == "ACTIVE",
         "can_complete_custody_return": manages and custody.status == "RETURN_PENDING",
         "can_cancel_custody": manages and custody.status in {"DRAFT", "PENDING_AUTHORIZATION", "REJECTED"},
     }
@@ -491,15 +493,15 @@ def custody_reject_view(request, custody_id):
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_accept_custody")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
 def custody_request_return_view(request, custody_id):
-    return _custody_action(request, custody_id, _ConfirmForm, lambda c, f: request_custody_return(custody_id=c.id, actor_id=request.user.pk, request=request), "Solicitud de devolución registrada.")
+    return _custody_action(request, custody_id, _ConfirmForm, lambda c, f: request_custody_return(custody_id=c.id, actor_id=request.user.pk, request=request), "Retiro del bien iniciado por Patrimonio.")
 
 
 @require_http_methods(["GET", "POST"])
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
 def custody_complete_return_view(request, custody_id):
-    return _custody_action(request, custody_id, CustodyReturnForm, lambda c, f: complete_custody_return(custody_id=c.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Devolución recibida y resguardo cerrado.")
+    return _custody_action(request, custody_id, CustodyReturnForm, lambda c, f: complete_custody_return(custody_id=c.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Bien recibido y resguardo cerrado.")
 
 
 @require_http_methods(["GET", "POST"])
