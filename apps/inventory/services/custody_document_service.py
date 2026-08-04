@@ -187,7 +187,10 @@ def create_custody_release_document(
         )
     active_items = [
         item for item in source.items.all()
-        if item.custody_assignment.status == CustodyStatus.ACTIVE
+        if item.custody_assignment.status in {
+            CustodyStatus.ACTIVE,
+            CustodyStatus.RETURN_PENDING,
+        }
     ]
     if not active_items:
         raise InventoryStateError(
@@ -238,7 +241,6 @@ def finalize_custody_release_document(
     context = build_audit_request_context(request)
     release = (
         CustodyDocument.objects.select_for_update()
-        .select_related("source_document")
         .prefetch_related("items__custody_assignment__asset")
         .get(pk=document_id, is_deleted=False)
     )
@@ -248,11 +250,14 @@ def finalize_custody_release_document(
         raise InventoryStateError("La liberación ya fue procesada.")
     items = list(release.items.all())
     if not items or any(
-        item.custody_assignment.status != CustodyStatus.ACTIVE
+        item.custody_assignment.status not in {
+            CustodyStatus.ACTIVE,
+            CustodyStatus.RETURN_PENDING,
+        }
         for item in items
     ):
         raise InventoryStateError(
-            "Todos los resguardos deben continuar activos para cerrar el lote."
+            "Todos los resguardos deben continuar vigentes para cerrar el lote."
         )
 
     now = timezone.now()
@@ -279,7 +284,10 @@ def finalize_custody_release_document(
             comment=f"Liberación masiva {release.folio}: {release.notes}",
         )
 
-    source = release.source_document
+    source = CustodyDocument.objects.select_for_update().get(
+        pk=release.source_document_id,
+        is_deleted=False,
+    )
     source.status = CustodyDocumentStatus.CLOSED
     source.closed_by_id = actor.id
     source.closed_at = now

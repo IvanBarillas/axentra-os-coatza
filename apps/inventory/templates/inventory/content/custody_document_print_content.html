@@ -1,4 +1,8 @@
 <style>
+    {% if embed_preview %}
+    body > header, body > footer, aside, nav, [data-global-sidebar], [data-module-sidebar], .no-print { display: none !important; }
+    html, body, main, #page-content, #workbench { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #e2e8f0 !important; }
+    {% endif %}
     .custody-print-sheet {
         width: min(100%, 216mm);
         min-height: 279mm;

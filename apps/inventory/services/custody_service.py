@@ -412,31 +412,18 @@ def reject_custody_assignment(*, custody_id, actor_id, data, request=None):
 
 @transaction.atomic
 def request_custody_return(*, custody_id, actor_id, request=None):
-    # El resguardo acredita una responsabilidad patrimonial permanente. Su
-    # cierre no lo solicita el resguardatario como si fuera un préstamo: lo
-    # inicia exclusivamente Patrimonio.
-    identity = _require_permission(actor_id, MANAGE_PERMISSION)
-    custody = _lock(custody_id)
-    def mutate(c, a):
-        c.return_requested_by_id = a.id
-        c.return_requested_at = timezone.now()
-    return _transition(custody_id, actor_id, {CustodyStatus.ACTIVE}, CustodyStatus.RETURN_PENDING, CustodyEventType.RETURN_REQUESTED, InventoryAuditAction.RETURN, "Retiro del bien iniciado por Patrimonio", request=request, mutate=mutate, permission=MANAGE_PERMISSION)
+    raise InventoryStateError(
+        "El retiro debe gestionarse mediante una constancia de liberación "
+        "desde el documento de resguardo."
+    )
 
 
 @transaction.atomic
 def complete_custody_return(*, custody_id, actor_id, data, request=None):
-    def mutate(c, a):
-        c.returned_by_id = c.assigned_to_id
-        c.received_return_by_id = a.id
-        c.returned_at = data.returned_at
-        c.return_condition = data.physical_condition
-        c.return_observations = _text(data.notes)
-        c.asset.current_custodian_id = None
-        c.asset.operational_status = AssetOperationalStatus.AVAILABLE
-        c.asset.physical_condition = data.physical_condition
-        c.asset.full_clean()
-        c.asset.save()
-    return _transition(custody_id, actor_id, {CustodyStatus.RETURN_PENDING}, CustodyStatus.RETURNED, CustodyEventType.RETURNED, InventoryAuditAction.RETURN, "Bien recibido y resguardo cerrado", request=request, comment=data.notes, mutate=mutate)
+    raise InventoryStateError(
+        "El cierre se ejecuta automáticamente al integrar el acuse firmado "
+        "de la constancia de liberación."
+    )
 
 
 @transaction.atomic

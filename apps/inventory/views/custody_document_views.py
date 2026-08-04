@@ -242,7 +242,10 @@ def custody_document_detail_view(request, document_id):
                 document.document_type == CustodyDocumentType.ASSIGNMENT
                 and not document.is_historical
                 and document.items.filter(
-                    custody_assignment__status=CustodyStatus.ACTIVE,
+                    custody_assignment__status__in={
+                        CustodyStatus.ACTIVE,
+                        CustodyStatus.RETURN_PENDING,
+                    },
                 ).exists()
             ),
             "generated_type": generated_type,
@@ -280,6 +283,7 @@ def custody_document_print_view(request, document_id):
             "current_inventory_view": "inventory:custody_list",
             "document": document,
             "print_view": True,
+            "embed_preview": request.GET.get("embed") == "1",
         },
     )
 
@@ -415,7 +419,10 @@ def custody_document_release_view(request, document_id):
             "form": form,
             "active_items": [
                 item for item in document.items.all()
-                if item.custody_assignment.status == CustodyStatus.ACTIVE
+                if item.custody_assignment.status in {
+                    CustodyStatus.ACTIVE,
+                    CustodyStatus.RETURN_PENDING,
+                }
             ],
         },
         status=422 if request.method == "POST" else 200,

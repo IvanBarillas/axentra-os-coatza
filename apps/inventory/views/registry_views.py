@@ -165,8 +165,10 @@ def _custody_context(request, custody):
         "can_reject_custody": accepts and custody.status == "PENDING_ACCEPTANCE",
         # Un resguardo activo es un instrumento de control patrimonial, no un
         # préstamo. Sólo Patrimonio puede iniciar su retiro o cierre.
-        "can_request_custody_return": manages and custody.status == "ACTIVE",
-        "can_complete_custody_return": manages and custody.status == "RETURN_PENDING",
+        # El retiro se formaliza exclusivamente mediante una constancia de
+        # liberación (individual o masiva), nunca desde el resguardo aislado.
+        "can_request_custody_return": False,
+        "can_complete_custody_return": False,
         "can_cancel_custody": manages and custody.status in {"DRAFT", "PENDING_AUTHORIZATION", "REJECTED"},
     }
 
@@ -495,13 +497,19 @@ def custody_reject_view(request, custody_id):
 @require_POST
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
 def custody_request_return_view(request, custody_id):
-    return _custody_action(request, custody_id, _ConfirmForm, lambda c, f: request_custody_return(custody_id=c.id, actor_id=request.user.pk, request=request), "Retiro del bien iniciado por Patrimonio.")
+    raise PermissionDenied(
+        "El retiro debe iniciarse desde el documento de resguardo mediante "
+        "una constancia de liberación."
+    )
 
 
 @require_http_methods(["GET", "POST"])
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_custody")
 def custody_complete_return_view(request, custody_id):
-    return _custody_action(request, custody_id, CustodyReturnForm, lambda c, f: complete_custody_return(custody_id=c.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Bien recibido y resguardo cerrado.")
+    raise PermissionDenied(
+        "El resguardo se cierra automáticamente al integrar el acuse firmado "
+        "de la constancia de liberación."
+    )
 
 
 @require_http_methods(["GET", "POST"])
@@ -1278,6 +1286,8 @@ def document_validate_view(request, document_id):
     scope, dep = asset_scope(request)
     document = selector_or_404(lambda: DocumentSelectors.obtener_documento(document_id, scope=scope, actor_id=request.user.pk, department_id=dep, include_restricted=True))
     form = DocumentValidationResolveForm(request.POST or None)
+    if not getattr(request, "axentra_is_root", False):
+        form.fields.pop("bypass_reason", None)
     if request.method == "POST" and form.is_valid():
         result = run_service(form, lambda: resolve_inventory_document(document_id=document.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
         if result:
