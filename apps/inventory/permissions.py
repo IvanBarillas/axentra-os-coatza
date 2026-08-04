@@ -101,6 +101,7 @@ class InventoryPermissions:
             "can_view_own_custody_tasks",
             "can_request_loans",
             "can_authorize_loans",
+            "can_authorize_movements",
         ],
         "resguardatario": [
             "has_access_module", "can_view_assets", "can_accept_custody", "can_view_own_custody_tasks", "can_request_loans",

@@ -18,15 +18,21 @@ class InventoryDirectorPermissionsTests(SimpleTestCase):
                 "can_view_own_custody_tasks",
                 "can_request_loans",
                 "can_authorize_loans",
+                "can_authorize_movements",
             },
         )
 
-    def test_director_no_opera_finanzas_movimientos_ni_bajas(self):
+    def test_director_no_administra_finanzas_movimientos_ni_bajas(self):
         permissions = set(InventoryPermissions.ROLE_MAPPING["director"])
         forbidden = {
             "can_view_financials",
             "can_export_reports",
-            "can_authorize_movements",
+            "can_manage_movements",
             "can_request_disposals",
         }
         self.assertTrue(permissions.isdisjoint(forbidden))
+
+    def test_director_puede_autorizar_movimientos_de_su_dependencia(self):
+        permissions = set(InventoryPermissions.ROLE_MAPPING["director"])
+        self.assertIn("can_authorize_movements", permissions)
+        self.assertNotIn("can_manage_movements", permissions)

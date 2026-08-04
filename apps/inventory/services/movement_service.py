@@ -15,13 +15,25 @@ from apps.inventory.models import (
     Asset,
     AssetMovementRequest,
     AssetMovementRequestStatus,
+    CustodyAssignment,
+    CustodyDocument,
+    CustodyDocumentStatus,
+    CustodyDocumentType,
+    CustodyEventType,
+    CustodyStatus,
     InventoryAuditAction,
     InventoryMovement,
     MovementType,
 )
-from apps.inventory.services.exceptions import InventoryAuthorizationError, InventoryStateError
+from apps.inventory.services.exceptions import (
+    InventoryAuthorizationError,
+    InventoryStateError,
+    InventoryValidationError,
+)
 from .audit_service import log_inventory_event
+from .audit_service import build_audit_request_context
 from .common import lock_instance, require_text, validate_and_save
+from .custody_service import _event as custody_event
 
 
 @transaction.atomic
@@ -131,6 +143,10 @@ def execute_transfer(*, data: TransferAssetDTO, actor, request_context=None):
 
 
 def execute_reassignment(*, data: ReassignAssetDTO, actor, request_context=None):
+    asset = Asset.objects.get(pk=data.asset_id, is_deleted=False)
+    _, department_id, area_id, site_id, user_id = _request_payload(
+        data, asset,
+    )
     return create_movement(
         data=CreateInventoryMovementDTO(
             asset_id=data.asset_id,
@@ -138,10 +154,10 @@ def execute_reassignment(*, data: ReassignAssetDTO, actor, request_context=None)
             reason=data.reason,
             occurred_at=data.occurred_at or timezone.now(),
             destination=OrganizationalDestinationDTO(
-                department_id=data.department_id,
-                area_id=data.area_id,
-                site_id=data.site_id,
-                user_id=data.new_custodian_id,
+                department_id=department_id,
+                area_id=area_id,
+                site_id=site_id,
+                user_id=user_id,
             ),
         ),
         actor=actor,
@@ -150,6 +166,8 @@ def execute_reassignment(*, data: ReassignAssetDTO, actor, request_context=None)
 
 
 def execute_location_change(*, data: ChangeAssetLocationDTO, actor, request_context=None):
+    asset = Asset.objects.get(pk=data.asset_id, is_deleted=False)
+    _, department_id, area_id, site_id, _ = _request_payload(data, asset)
     return create_movement(
         data=CreateInventoryMovementDTO(
             asset_id=data.asset_id,
@@ -157,9 +175,9 @@ def execute_location_change(*, data: ChangeAssetLocationDTO, actor, request_cont
             reason=data.reason,
             occurred_at=data.occurred_at or timezone.now(),
             destination=OrganizationalDestinationDTO(
-                department_id=data.department_id,
-                area_id=data.area_id,
-                site_id=data.site_id,
+                department_id=department_id,
+                area_id=area_id,
+                site_id=site_id,
             ),
             payload={
                 "latitude": str(data.geolocation.latitude) if data.geolocation and data.geolocation.latitude is not None else None,
@@ -179,19 +197,117 @@ def _movement_actor(actor_id, *permissions):
     return actor
 
 
-def _request_payload(data):
+def can_authorize_department_movement(*, actor_id, department_id):
+    """Resuelve autoridad departamental sin conceder operación global.
+
+    El titular formal conserva autoridad. Además, una persona adscrita a la
+    dependencia puede recibir explícitamente ``can_authorize_movements`` como
+    delegación funcional.
+    """
+    actor = core_directory.get_user_identity(actor_id)
+    if actor.has_global_bypass:
+        return True
+    formal_authority = core_directory.user_can_approve_department(
+        actor.id,
+        department_id,
+    )
+    if formal_authority.allowed:
+        return True
+    try:
+        context = core_directory.get_user_organizational_context(
+            actor.id,
+            require_profile=True,
+        )
+    except core_directory.CoreDirectoryError:
+        return False
+    role = core_directory.get_module_role(actor.id)
+    return bool(
+        context.department_id == department_id
+        and role
+        and role.has_permission("can_authorize_movements")
+    )
+
+
+def _request_payload(data, asset):
     if isinstance(data, TransferAssetDTO):
+        if data.destination_department_id == asset.current_dependencia_id:
+            raise InventoryValidationError(
+                "Para conservar la misma dependencia utilice cambio de ubicación o reasignación."
+            )
+        allowed_department_ids = {
+            item.id for item in core_directory.list_departments(
+                site_id=data.destination_site_id,
+            )
+        }
+        if data.destination_department_id not in allowed_department_ids:
+            raise InventoryValidationError(
+                "La dependencia destino no tiene presencia en la sede seleccionada."
+            )
         return MovementType.TRANSFER, data.destination_department_id, data.destination_area_id, data.destination_site_id, data.destination_custodian_id
     if isinstance(data, ReassignAssetDTO):
-        return MovementType.REASSIGNMENT, data.department_id, data.area_id, data.site_id, data.new_custodian_id
-    return MovementType.LOCATION_CHANGE, data.department_id, data.area_id, data.site_id, None
+        if not asset.current_dependencia_id:
+            raise InventoryValidationError(
+                "El bien no tiene una dependencia vigente para reasignarlo."
+            )
+        if asset.current_custodian_id == data.new_custodian_id:
+            raise InventoryValidationError(
+                "El servidor público seleccionado ya es el resguardatario vigente."
+            )
+        return (
+            MovementType.REASSIGNMENT,
+            asset.current_dependencia_id,
+            asset.current_area_id,
+            asset.current_sede_id,
+            data.new_custodian_id,
+        )
+    if not asset.current_dependencia_id:
+        raise InventoryValidationError(
+            "El bien no tiene una dependencia vigente para cambiar su ubicación."
+        )
+    if not data.site_id or not data.area_id:
+        raise InventoryValidationError(
+            "Seleccione la sede y el área operativa de destino."
+        )
+    allowed_site_ids = {
+        item.id for item in core_directory.list_sites(
+            department_id=asset.current_dependencia_id,
+        )
+    }
+    if data.site_id not in allowed_site_ids:
+        raise InventoryValidationError(
+            "La dependencia vigente no tiene presencia en la sede seleccionada."
+        )
+    area = core_directory.get_area_context(data.area_id)
+    if (
+        area.department_id != asset.current_dependencia_id
+        or area.site_id != data.site_id
+    ):
+        raise InventoryValidationError(
+            "El área seleccionada no pertenece a la dependencia y sede permitidas."
+        )
+    if (
+        asset.current_sede_id == data.site_id
+        and asset.current_area_id == data.area_id
+    ):
+        raise InventoryValidationError(
+            "El bien ya se encuentra en la sede y área seleccionadas."
+        )
+    return (
+        MovementType.LOCATION_CHANGE,
+        asset.current_dependencia_id,
+        data.area_id,
+        data.site_id,
+        None,
+    )
 
 
 @transaction.atomic
 def create_movement_request(*, data, actor_id, request=None):
-    actor = _movement_actor(actor_id, "can_manage_movements", "can_authorize_movements")
+    actor = core_directory.get_user_identity(actor_id)
     asset = lock_instance(Asset, data.asset_id)
-    movement_type, department_id, area_id, site_id, user_id = _request_payload(data)
+    movement_type, department_id, area_id, site_id, user_id = _request_payload(
+        data, asset,
+    )
     core_directory.validate_organizational_context(
         department_id=department_id,
         area_id=area_id,
@@ -201,15 +317,65 @@ def create_movement_request(*, data, actor_id, request=None):
         raise InventoryAuthorizationError("El resguardatario destino no pertenece a la dependencia seleccionada.")
     role = core_directory.get_module_role(actor.id)
     patrimony_operator = actor.has_global_bypass or bool(role and role.has_permission("can_manage_movements"))
+    origin_authority = can_authorize_department_movement(
+        actor_id=actor.id,
+        department_id=asset.current_dependencia_id,
+    )
+    department_transfer = isinstance(data, TransferAssetDTO) and origin_authority
+    if not patrimony_operator and not department_transfer:
+        raise InventoryAuthorizationError(
+            "Sólo Patrimonio o el titular de la dependencia origen pueden solicitar este movimiento."
+        )
+    bypass_reason = str(getattr(data, "bypass_reason", "") or "").strip()
+    if bypass_reason and not actor.has_global_bypass:
+        raise InventoryAuthorizationError(
+            "Sólo un usuario con bypass global puede omitir las aprobaciones."
+        )
     if not patrimony_operator:
         actor_context = core_directory.get_user_organizational_context(actor.id, require_profile=True)
         if actor_context.department_id != asset.current_dependencia_id:
             raise InventoryAuthorizationError("Sólo puede solicitar movimientos de bienes pertenecientes a su dependencia.")
+    request_status = (
+        AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION
+        if patrimony_operator
+        else AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL
+    )
+    origin_approved_by_id = None
+    origin_approved_at = None
+    is_interdepartmental_transfer = (
+        movement_type == MovementType.TRANSFER
+        and department_id != asset.current_dependencia_id
+    )
+    if is_interdepartmental_transfer:
+        # Una transferencia nunca entra directamente al inventario destino.
+        # Si la solicita el propio director de origen, su solicitud equivale a
+        # la autorización de salida; todavía debe aceptar la dependencia destino.
+        if actor.has_global_bypass and bypass_reason:
+            request_status = AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION
+        else:
+            try:
+                actor_context = core_directory.get_user_organizational_context(
+                    actor.id,
+                    require_profile=False,
+                )
+            except core_directory.CoreDirectoryError:
+                actor_context = None
+            actor_is_origin_authority = bool(
+                actor_context
+                and actor_context.department_id == asset.current_dependencia_id
+                and origin_authority
+            )
+            if actor_is_origin_authority:
+                request_status = AssetMovementRequestStatus.PENDING_DESTINATION_ACCEPTANCE
+                origin_approved_by_id = actor.id
+                origin_approved_at = timezone.now()
+            else:
+                request_status = AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL
     movement_request = AssetMovementRequest(
         folio=f"MOV-{timezone.localdate():%Y}-{uuid4().hex[:8].upper()}",
         asset=asset,
         movement_type=movement_type,
-        status=AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION if patrimony_operator else AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL,
+        status=request_status,
         requested_by_id=actor.id,
         reason=require_text(data.reason, "reason"),
         occurred_at=data.occurred_at,
@@ -221,8 +387,10 @@ def create_movement_request(*, data, actor_id, request=None):
         destination_area_id=area_id,
         destination_sede_id=site_id,
         destination_custodian_id=user_id,
-        bypass_used=bool(getattr(data, "bypass_reason", "")),
-        bypass_reason=getattr(data, "bypass_reason", "") or "",
+        origin_approved_by_id=origin_approved_by_id,
+        origin_approved_at=origin_approved_at,
+        bypass_used=bool(bypass_reason),
+        bypass_reason=bypass_reason,
     )
     validate_and_save(movement_request)
     log_inventory_event(action=InventoryAuditAction.CREATE, actor_id=actor.id, asset_id=asset.id, target=movement_request, summary="Solicitud de movimiento creada", request=request)
@@ -231,12 +399,15 @@ def create_movement_request(*, data, actor_id, request=None):
 
 @transaction.atomic
 def approve_movement_origin(*, request_id, actor_id, approve=True, comment="", request=None):
-    actor = _movement_actor(actor_id, "can_authorize_movements")
+    actor = core_directory.get_user_identity(actor_id)
     item = AssetMovementRequest.objects.select_for_update().select_related("asset").get(pk=request_id, is_deleted=False)
     if item.status != AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL:
         raise InventoryStateError("La solicitud no está pendiente de autorización de origen.")
-    authority = core_directory.user_can_approve_department(actor.id, item.origin_dependencia_id)
-    if not authority.allowed and not actor.has_global_bypass:
+    authority = can_authorize_department_movement(
+        actor_id=actor.id,
+        department_id=item.origin_dependencia_id,
+    )
+    if not authority:
         raise InventoryAuthorizationError("Sólo el titular de la dependencia origen puede resolver esta etapa.")
     if not approve:
         item.status = AssetMovementRequestStatus.REJECTED
@@ -252,18 +423,40 @@ def approve_movement_origin(*, request_id, actor_id, approve=True, comment="", r
 
 
 @transaction.atomic
-def accept_movement_destination(*, request_id, actor_id, approve=True, comment="", request=None):
-    actor = _movement_actor(actor_id, "can_authorize_movements")
+def accept_movement_destination(
+    *, request_id, actor_id, approve=True, comment="",
+    destination_area_id=None, destination_custodian_id=None, request=None,
+):
+    actor = core_directory.get_user_identity(actor_id)
     item = AssetMovementRequest.objects.select_for_update().get(pk=request_id, is_deleted=False)
     if item.status != AssetMovementRequestStatus.PENDING_DESTINATION_ACCEPTANCE:
         raise InventoryStateError("La solicitud no está pendiente de aceptación de destino.")
-    authority = core_directory.user_can_approve_department(actor.id, item.destination_dependencia_id)
-    if not authority.allowed and not actor.has_global_bypass:
+    authority = can_authorize_department_movement(
+        actor_id=actor.id,
+        department_id=item.destination_dependencia_id,
+    )
+    if not authority:
         raise InventoryAuthorizationError("Sólo el titular de la dependencia destino puede aceptar esta transferencia.")
     if not approve:
         item.status = AssetMovementRequestStatus.REJECTED
         item.rejection_reason = require_text(comment, "comment")
     else:
+        if destination_area_id:
+            core_directory.validate_organizational_context(
+                department_id=item.destination_dependencia_id,
+                area_id=destination_area_id,
+                site_id=item.destination_sede_id,
+            )
+            item.destination_area_id = destination_area_id
+        if destination_custodian_id:
+            if not core_directory.user_belongs_to_department(
+                destination_custodian_id,
+                item.destination_dependencia_id,
+            ):
+                raise InventoryAuthorizationError(
+                    "El resguardatario no pertenece a la dependencia destino."
+                )
+            item.destination_custodian_id = destination_custodian_id
         item.destination_accepted_by_id = actor.id
         item.destination_accepted_at = timezone.now()
         item.status = AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION
@@ -272,10 +465,88 @@ def accept_movement_destination(*, request_id, actor_id, approve=True, comment="
     return item
 
 
+def _close_transfer_custodies(*, asset_id, actor, reason, request_context):
+    """Cierra la responsabilidad de origen al transferir la propiedad."""
+    context = request_context or build_audit_request_context(None)
+    now = timezone.now()
+    custodies = list(
+        CustodyAssignment.objects.select_for_update().filter(
+            asset_id=asset_id,
+            is_deleted=False,
+            status__in={
+                CustodyStatus.DRAFT,
+                CustodyStatus.PENDING_AUTHORIZATION,
+                CustodyStatus.PENDING_ACCEPTANCE,
+                CustodyStatus.REJECTED,
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            },
+        )
+    )
+    for custody in custodies:
+        previous = custody.status
+        if previous in {CustodyStatus.ACTIVE, CustodyStatus.RETURN_PENDING}:
+            custody.status = CustodyStatus.RETURNED
+            custody.returned_by_id = custody.assigned_to_id
+            custody.received_return_by_id = actor.id
+            custody.returned_at = max(now, custody.assigned_at or now)
+            custody.return_condition = custody.asset.physical_condition
+            custody.return_observations = reason
+            event_type = CustodyEventType.RETURNED
+        else:
+            custody.status = CustodyStatus.CANCELLED
+            custody.cancelled_by_id = actor.id
+            custody.cancelled_at = now
+            custody.cancellation_reason = reason
+            event_type = CustodyEventType.CANCELLED
+        custody.full_clean()
+        custody.save()
+        custody_event(
+            custody,
+            event_type,
+            previous,
+            actor,
+            context,
+            comment=reason,
+        )
+
+    document_ids = {
+        item.document_id
+        for custody in custodies
+        for item in custody.document_items.select_related("document").filter(
+            document__document_type=CustodyDocumentType.ASSIGNMENT,
+            document__is_deleted=False,
+        )
+    }
+    for document in CustodyDocument.objects.select_for_update().filter(
+        id__in=document_ids,
+        is_deleted=False,
+    ):
+        if document.is_historical:
+            continue
+        has_open_items = document.items.filter(
+            custody_assignment__status__in={
+                CustodyStatus.DRAFT,
+                CustodyStatus.PENDING_AUTHORIZATION,
+                CustodyStatus.PENDING_ACCEPTANCE,
+                CustodyStatus.REJECTED,
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            },
+        ).exists()
+        if not has_open_items:
+            document.status = CustodyDocumentStatus.CLOSED
+            document.closed_by_id = actor.id
+            document.closed_at = max(now, document.prepared_at or now)
+            document.closure_reason = reason
+            document.full_clean()
+            document.save()
+
+
 @transaction.atomic
 def execute_approved_movement(*, request_id, actor, request_context=None):
-    _movement_actor(actor.id, "can_manage_movements")
-    item = AssetMovementRequest.objects.select_for_update().get(pk=request_id, is_deleted=False)
+    actor_identity = _movement_actor(actor.id, "can_manage_movements")
+    item = AssetMovementRequest.objects.select_for_update().select_related("asset").get(pk=request_id, is_deleted=False)
     if item.status != AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION:
         raise InventoryStateError("El movimiento todavía no cuenta con todas las autorizaciones.")
     dto = CreateInventoryMovementDTO(
@@ -288,6 +559,13 @@ def execute_approved_movement(*, request_id, actor, request_context=None):
         payload={"movement_request_id": str(item.id), "movement_request_folio": item.folio},
     )
     result = create_movement(data=dto, actor=actor, request_context=request_context)
+    if item.movement_type == MovementType.TRANSFER:
+        _close_transfer_custodies(
+            asset_id=item.asset_id,
+            actor=actor_identity,
+            reason=f"Transferencia {item.folio}: {item.reason}",
+            request_context=request_context,
+        )
     item.status = AssetMovementRequestStatus.EXECUTED
     item.executed_by_id = actor.id
     item.executed_at = timezone.now()
@@ -296,4 +574,4 @@ def execute_approved_movement(*, request_id, actor, request_context=None):
     return item
 
 
-__all__ = ["accept_movement_destination", "approve_movement_origin", "create_movement", "create_movement_request", "execute_approved_movement", "execute_location_change", "execute_reassignment", "execute_transfer"]
+__all__ = ["accept_movement_destination", "approve_movement_origin", "can_authorize_department_movement", "create_movement", "create_movement_request", "execute_approved_movement", "execute_location_change", "execute_reassignment", "execute_transfer"]

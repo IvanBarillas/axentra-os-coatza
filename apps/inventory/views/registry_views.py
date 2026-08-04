@@ -117,6 +117,7 @@ from apps.inventory.services import (
     build_audit_request_context,
     accept_movement_destination,
     approve_movement_origin,
+    can_authorize_department_movement,
     create_movement_request,
     execute_approved_movement,
 )
@@ -644,6 +645,9 @@ def custody_cancel_view(request, custody_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_list_view(request):
     require_any_permission(request, "can_manage_movements", "can_authorize_movements")
+    tab = request.GET.get("tab", "pending").strip().lower()
+    if tab not in {"pending", "history"}:
+        tab = "pending"
     f = _filters(request, "q", "asset_id", "movement_type", "site_id", "department_id", "area_id", "user_id", "date_from", "date_to")
     scope, scope_department_id = movement_scope(request)
     filter_context = _registry_filter_context(f, scope, scope_department_id)
@@ -652,8 +656,23 @@ def movement_list_view(request):
         requests_qs = requests_qs.filter(Q(origin_dependencia_id=scope_department_id) | Q(destination_dependencia_id=scope_department_id))
     elif scope == RegistryScope.OWN:
         requests_qs = requests_qs.filter(requested_by_id=request.user.pk)
-    requests_qs = requests_qs.exclude(status__in=[AssetMovementRequestStatus.EXECUTED, AssetMovementRequestStatus.CANCELLED])
-    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "movement_requests":requests_qs.order_by("-requested_at"), "movements":MovementSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "movement_types":MovementType.choices, "can_create_movement":scope in {RegistryScope.GLOBAL, RegistryScope.DEPARTMENT}, **filter_context, **f})
+    pending_statuses = {
+        AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL,
+        AssetMovementRequestStatus.PENDING_DESTINATION_ACCEPTANCE,
+        AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION,
+    }
+    if tab == "pending":
+        requests_qs = requests_qs.filter(status__in=pending_statuses)
+        movements = ()
+    else:
+        requests_qs = requests_qs.exclude(status__in=pending_statuses)
+        movements = MovementSelectors.listar(
+            **f,
+            scope=scope,
+            actor_id=request.user.pk,
+            scope_department_id=scope_department_id,
+        )
+    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "tab":tab, "movement_requests":requests_qs.order_by("-requested_at"), "movements":movements, "movement_types":MovementType.choices, "can_create_movement":scope in {RegistryScope.GLOBAL, RegistryScope.DEPARTMENT}, **filter_context, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -671,26 +690,193 @@ _MOVEMENT_FORMS = {
 }
 
 
+def _movement_choice(items, label):
+    return [("", f"--- Seleccione {label} ---"), *items]
+
+
+def _movement_asset_context(asset):
+    return {
+        "department_id": str(asset.current_dependencia_id or ""),
+        "department_label": str(asset.current_dependencia or "Sin dependencia"),
+        "site_id": str(asset.current_sede_id or ""),
+        "site_label": str(asset.current_sede or "Sin sede"),
+        "area_id": str(asset.current_area_id or ""),
+        "area_label": str(asset.current_area or "Sin área"),
+        "custodian_id": str(asset.current_custodian_id or ""),
+        "custodian_label": (
+            asset.current_custodian.get_full_name()
+            or asset.current_custodian.email
+            if asset.current_custodian else "Sin resguardatario"
+        ),
+    }
+
+
+def _configure_movement_choices(form, movement_kind, asset, data):
+    """Configura sólo destinos válidos para el bien seleccionado."""
+    if not asset:
+        for field_name in (
+            "site_id", "area_id", "user_id", "destination_site_id",
+            "destination_department_id", "destination_area_id",
+            "destination_custodian_id",
+        ):
+            if field_name in form.fields:
+                form.fields[field_name].choices = [("", "--- Seleccione primero un bien ---")]
+        return
+
+    selected_site_id = str(
+        data.get("site_id") or data.get("destination_site_id") or ""
+    ).strip()
+    if movement_kind == "ubicacion":
+        department_id_value = asset.current_dependencia_id
+        sites = CoreDirectorySelectors.sites(
+            department_id=department_id_value,
+        )
+        areas = CoreDirectorySelectors.areas(
+            department_id=department_id_value,
+            site_id=selected_site_id or None,
+        ) if selected_site_id else ()
+        form.fields["site_id"].choices = _movement_choice(
+            [(str(item.id), item.name) for item in sites], "sede",
+        )
+        form.fields["area_id"].choices = _movement_choice(
+            [(str(item.id), item.name) for item in areas], "área",
+        )
+    elif movement_kind == "reasignacion":
+        users = CoreDirectorySelectors.users(
+            department_id=asset.current_dependencia_id,
+        )
+        form.fields["user_id"].choices = _movement_choice(
+            [(str(item.id), item.display_name) for item in users],
+            "resguardatario",
+        )
+    else:
+        sites = CoreDirectorySelectors.sites()
+        departments = CoreDirectorySelectors.departments(
+            site_id=selected_site_id or None,
+        ) if selected_site_id else ()
+        selected_department_id = str(
+            data.get("destination_department_id") or ""
+        ).strip()
+        areas = CoreDirectorySelectors.areas(
+            department_id=selected_department_id or None,
+            site_id=selected_site_id or None,
+        ) if selected_site_id and selected_department_id else ()
+        users = CoreDirectorySelectors.users(
+            department_id=selected_department_id or None,
+        ) if selected_department_id else ()
+        form.fields["destination_site_id"].choices = _movement_choice(
+            [(str(item.id), item.name) for item in sites], "sede",
+        )
+        form.fields["destination_department_id"].choices = _movement_choice(
+            [(str(item.id), f"{item.code or 'SIN-CÓDIGO'} · {item.name}") for item in departments],
+            "dependencia",
+        )
+        form.fields["destination_area_id"].choices = _movement_choice(
+            [(str(item.id), item.name) for item in areas], "área",
+        )
+        form.fields["destination_custodian_id"].choices = _movement_choice(
+            [(str(item.id), item.display_name) for item in users],
+            "resguardatario",
+        )
+
+
 @require_GET
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_directory_options_view(request):
     require_any_permission(request, "can_manage_movements", "can_authorize_movements")
+    movement_kind = request.GET.get("movement_kind", "transferencia").strip().lower()
+    asset_id = request.GET.get("asset_id", "").strip()
     site_id = request.GET.get("site_id", "").strip() or None
     department_id_value = request.GET.get("department_id", "").strip() or None
-    choices = CoreDirectorySelectors.form_choices(site_id=site_id, department_id=department_id_value)
-    return JsonResponse({key:[{"value":str(value),"label":label} for value,label in values] for key,values in choices.items()})
+    asset = None
+    if asset_id:
+        scope, scope_department_id = movement_scope(request)
+        asset = selector_or_404(lambda: AssetSelectors.obtener(
+            asset_id,
+            scope=scope,
+            actor_id=request.user.pk,
+            department_id=scope_department_id,
+        ))
+    if movement_kind == "ubicacion" and asset:
+        fixed_department_id = asset.current_dependencia_id
+        choices = {
+            "site_choices": [
+                (str(item.id), item.name)
+                for item in CoreDirectorySelectors.sites(
+                    department_id=fixed_department_id,
+                )
+            ],
+            "department_choices": [],
+            "area_choices": [
+                (str(item.id), item.name)
+                for item in CoreDirectorySelectors.areas(
+                    department_id=fixed_department_id,
+                    site_id=site_id,
+                )
+            ] if site_id else [],
+            "user_choices": [],
+        }
+    elif movement_kind == "reasignacion" and asset:
+        choices = {
+            "site_choices": [], "department_choices": [], "area_choices": [],
+            "user_choices": [
+                (str(item.id), item.display_name)
+                for item in CoreDirectorySelectors.users(
+                    department_id=asset.current_dependencia_id,
+                )
+            ],
+        }
+    else:
+        choices = {
+            "site_choices": [
+                (str(item.id), item.name)
+                for item in CoreDirectorySelectors.sites()
+            ],
+            "department_choices": [
+                (str(item.id), f"{item.code or 'SIN-CÓDIGO'} · {item.name}")
+                for item in CoreDirectorySelectors.departments(site_id=site_id)
+            ] if site_id else [],
+            "area_choices": [
+                (str(item.id), item.name)
+                for item in CoreDirectorySelectors.areas(
+                    department_id=department_id_value,
+                    site_id=site_id,
+                )
+            ] if site_id and department_id_value else [],
+            "user_choices": [
+                (str(item.id), item.display_name)
+                for item in CoreDirectorySelectors.users(
+                    department_id=department_id_value,
+                )
+            ] if department_id_value else [],
+        }
+    payload = {
+        key: [{"value": str(value), "label": label} for value, label in values]
+        for key, values in choices.items()
+    }
+    payload["asset_context"] = _movement_asset_context(asset) if asset else None
+    return JsonResponse(payload)
 
 
 @require_http_methods(["GET", "POST"])
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_create_view(request, movement_kind):
-    require_any_permission(request, "can_manage_movements", "can_authorize_movements")
+    if movement_kind == "transferencia":
+        require_any_permission(
+            request,
+            "can_manage_movements",
+            "can_authorize_movements",
+            "can_approve_department_intake",
+        )
+    else:
+        require_any_permission(request, "can_manage_movements", "can_authorize_movements")
     definition = _MOVEMENT_FORMS.get(movement_kind)
     if not definition:
         raise PermissionDenied("El tipo de movimiento solicitado no está habilitado.")
     form_class, title = definition
     scope, scope_department_id = movement_scope(request)
-    form = apply_directory_choices(form_class(request.POST or None))
+    form_data = request.POST or None
+    form = form_class(form_data)
     assets = AssetSelectors.listar_activos(
         scope=scope,
         actor_id=request.user.pk,
@@ -700,12 +886,26 @@ def movement_create_view(request, movement_kind):
         ("", "--- Seleccione un bien ---"),
         *((str(asset.id), f"{asset.display_inventory_number} · {asset.name}") for asset in assets),
     ]
+    selected_asset_id = str(
+        (request.POST.get("asset_id") if request.method == "POST" else request.GET.get("asset_id"))
+        or ""
+    ).strip()
+    assets_by_id = {str(asset.id): asset for asset in assets}
+    selected_asset = assets_by_id.get(selected_asset_id)
+    _configure_movement_choices(
+        form,
+        movement_kind,
+        selected_asset,
+        request.POST if request.method == "POST" else request.GET,
+    )
+    if "bypass_reason" in form.fields and not is_inventory_root(request):
+        form.fields.pop("bypass_reason", None)
     if request.method == "POST" and form.is_valid():
         item = run_service(form, lambda: create_movement_request(data=form.to_dto(), actor_id=request.user.pk, request=request))
         if item:
             success(request, f"Solicitud {item.folio} registrada correctamente.")
             return redirect(reverse("inventory:movement_request_detail", kwargs={"request_id":item.id}))
-    return render_inventory(request, page="inventory/pages/movement_form.html", content="inventory/content/movement_form_content.html", context={"current_inventory_view":"inventory:movement_list", "form":form, "form_title":title}, status=422 if request.method == "POST" else 200)
+    return render_inventory(request, page="inventory/pages/movement_form.html", content="inventory/content/movement_form_content.html", context={"current_inventory_view":"inventory:movement_list", "form":form, "form_title":title, "movement_kind":movement_kind, "selected_asset_context":_movement_asset_context(selected_asset) if selected_asset else None}, status=422 if request.method == "POST" else 200)
 
 
 def _movement_request(request, request_id):
@@ -723,7 +923,26 @@ def movement_request_detail_view(request, request_id):
     item = _movement_request(request, request_id)
     scope_department_id = department_id(request)
     root = bool(getattr(request, "axentra_is_root", False))
-    return render_inventory(request, page="inventory/pages/movement_request_detail.html", content="inventory/content/movement_request_detail_content.html", context={"current_inventory_view":"inventory:movement_list", "movement_request":item, "can_approve_origin":item.status == AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL and (root or (item.origin_dependencia_id == scope_department_id and has_any_permission(request,"can_authorize_movements"))), "can_accept_destination":item.status == AssetMovementRequestStatus.PENDING_DESTINATION_ACCEPTANCE and (root or (item.destination_dependencia_id == scope_department_id and has_any_permission(request,"can_authorize_movements"))), "can_execute_movement":item.status == AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION and has_any_permission(request,"can_manage_movements")})
+    destination_authority = (
+        can_authorize_department_movement(
+            actor_id=request.user.pk,
+            department_id=item.destination_dependencia_id,
+        )
+        if item.destination_dependencia_id else None
+    )
+    origin_authority = can_authorize_department_movement(
+        actor_id=request.user.pk,
+        department_id=item.origin_dependencia_id,
+    )
+    can_accept_destination = item.status == AssetMovementRequestStatus.PENDING_DESTINATION_ACCEPTANCE and bool(destination_authority)
+    destination_area_choices = CoreDirectorySelectors.areas(
+        department_id=item.destination_dependencia_id,
+        site_id=item.destination_sede_id,
+    ) if can_accept_destination and item.destination_dependencia_id else ()
+    destination_user_choices = CoreDirectorySelectors.users(
+        department_id=item.destination_dependencia_id,
+    ) if can_accept_destination and item.destination_dependencia_id else ()
+    return render_inventory(request, page="inventory/pages/movement_request_detail.html", content="inventory/content/movement_request_detail_content.html", context={"current_inventory_view":"inventory:movement_list", "movement_request":item, "can_approve_origin":item.status == AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL and origin_authority, "can_accept_destination":can_accept_destination, "can_execute_movement":item.status == AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION and has_any_permission(request,"can_manage_movements"), "destination_area_choices":destination_area_choices, "destination_user_choices":destination_user_choices})
 
 
 class _MovementDecisionForm(forms.Form):
@@ -731,8 +950,13 @@ class _MovementDecisionForm(forms.Form):
     comment = forms.CharField(required=False, label="Comentario", widget=forms.Textarea(attrs={"rows":3}))
 
 
+class _MovementDestinationDecisionForm(_MovementDecisionForm):
+    destination_area_id = forms.UUIDField(required=False)
+    destination_custodian_id = forms.UUIDField(required=False)
+
+
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_authorize_movements")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_origin_decision_view(request, request_id):
     item = _movement_request(request, request_id); form = _MovementDecisionForm(request.POST)
     if form.is_valid():
@@ -742,11 +966,11 @@ def movement_origin_decision_view(request, request_id):
 
 
 @require_POST
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_authorize_movements")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_destination_decision_view(request, request_id):
-    item = _movement_request(request, request_id); form = _MovementDecisionForm(request.POST)
+    item = _movement_request(request, request_id); form = _MovementDestinationDecisionForm(request.POST)
     if form.is_valid():
-        result = run_service(form, lambda: accept_movement_destination(request_id=item.id, actor_id=request.user.pk, approve=form.cleaned_data["approve"], comment=form.cleaned_data["comment"], request=request))
+        result = run_service(form, lambda: accept_movement_destination(request_id=item.id, actor_id=request.user.pk, approve=form.cleaned_data["approve"], comment=form.cleaned_data["comment"], destination_area_id=form.cleaned_data.get("destination_area_id"), destination_custodian_id=form.cleaned_data.get("destination_custodian_id"), request=request))
         if result: success(request, "Decisión de la dependencia destino registrada.")
     return redirect(reverse("inventory:movement_request_detail", kwargs={"request_id":item.id}))
 

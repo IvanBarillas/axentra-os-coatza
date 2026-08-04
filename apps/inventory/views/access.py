@@ -108,7 +108,11 @@ def loan_scope(request):
 def movement_scope(request):
     if has_any_permission(request, "can_manage_movements"):
         return "GLOBAL", None
-    if has_any_permission(request, "can_authorize_movements"):
+    if has_any_permission(
+        request,
+        "can_authorize_movements",
+        "can_approve_department_intake",
+    ):
         return "DEPARTMENT", department_id(request)
     return "OWN", None
 

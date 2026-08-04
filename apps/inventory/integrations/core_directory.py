@@ -298,13 +298,23 @@ def get_user_organizational_context(
     )
 
 
-def list_sites():
+def list_sites(*, department_id=None):
+    queryset = Sede.objects.filter(
+        is_active=True,
+        is_deleted=False,
+    )
+    if department_id:
+        queryset = queryset.filter(
+            areas__dependencia_id=_as_uuid(
+                department_id,
+                field_name="department_id",
+            ),
+            areas__is_active=True,
+            areas__is_deleted=False,
+        )
     return tuple(
         _site_to_identity(site)
-        for site in Sede.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ).order_by("nombre")
+        for site in queryset.distinct().order_by("nombre")
     )
 
 

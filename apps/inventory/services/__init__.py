@@ -17,6 +17,7 @@ from .intake_service import (
 from .movement_service import (
     accept_movement_destination,
     approve_movement_origin,
+    can_authorize_department_movement,
     create_movement_request,
     create_movement,
     execute_location_change,

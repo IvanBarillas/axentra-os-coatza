@@ -1,16 +1,25 @@
 <section class="mx-auto max-w-5xl space-y-6">
     {% include "inventory/partials/messages.html" %}
     <div><a href="{% url 'inventory:movement_list' %}" hx-get="{% url 'inventory:movement_list' %}" hx-target="#page-content" hx-push-url="true" class="inline-flex items-center gap-2 text-sm font-black text-slate-500"><i data-lucide="arrow-left" class="h-4 w-4"></i>Volver a movimientos</a><p class="mt-5 text-xs font-black uppercase tracking-[.24em] text-slate-400">Operación patrimonial</p><h1 class="mt-2 text-2xl font-black">{{ form_title }}</h1><p class="mt-1 text-sm text-slate-500">La operación actualiza la ubicación vigente y genera un evento inmutable en el expediente.</p></div>
+    <div id="movement-asset-context" class="{% if not selected_asset_context %}hidden {% endif %}rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+        <p class="font-black">Ubicación vigente del bien</p>
+        <p id="movement-asset-context-text" class="mt-1">{% if selected_asset_context %}{{ selected_asset_context.site_label }} · {{ selected_asset_context.department_label }} · {{ selected_asset_context.area_label }} · {{ selected_asset_context.custodian_label }}{% endif %}</p>
+        {% if movement_kind == "ubicacion" %}<p class="mt-2 text-xs font-bold text-blue-700">La dependencia se conservará. Sólo puede elegir sedes y áreas donde esta dependencia tiene presencia.</p>{% elif movement_kind == "reasignacion" %}<p class="mt-2 text-xs font-bold text-blue-700">La sede, dependencia y área se conservarán. Únicamente cambiará el resguardatario.</p>{% endif %}
+    </div>
     {% include "inventory/partials/generic_form.html" with submit_label="Registrar movimiento" %}
 </section>
 <script>
 (() => {
+    const movementKind = "{{ movement_kind|escapejs }}";
+    const asset = document.getElementById('id_asset_id');
     const site = document.getElementById('id_destination_site_id') || document.getElementById('id_site_id');
     const department = document.getElementById('id_destination_department_id') || document.getElementById('id_department_id');
     const area = document.getElementById('id_destination_area_id') || document.getElementById('id_area_id');
     const user = document.getElementById('id_destination_custodian_id') || document.getElementById('id_user_id');
-    if (!site || !department || site.dataset.movementReady === 'true') return;
-    site.dataset.movementReady = 'true';
+    const contextBox = document.getElementById('movement-asset-context');
+    const contextText = document.getElementById('movement-asset-context-text');
+    if (!asset || asset.dataset.movementReady === 'true') return;
+    asset.dataset.movementReady = 'true';
     const endpoint = "{% url 'inventory:movement_directory_options' %}";
     const fill = (field, options, placeholder) => {
         if (!field) return;
@@ -19,16 +28,54 @@
         options.forEach(({value,label}) => field.add(new Option(label,value)));
         if ([...field.options].some(option => option.value === old)) field.value = old;
     };
+    const showContext = value => {
+        if (!value || !contextBox || !contextText) {
+            if (contextBox) contextBox.classList.add('hidden');
+            return;
+        }
+        contextText.textContent = [value.site_label, value.department_label, value.area_label, value.custodian_label].filter(Boolean).join(' · ');
+        contextBox.classList.remove('hidden');
+    };
     const refresh = async () => {
-        const params = new URLSearchParams({site_id:site.value, department_id:department.value});
+        const params = new URLSearchParams({
+            movement_kind: movementKind,
+            asset_id: asset.value,
+            site_id: site ? site.value : '',
+            department_id: department ? department.value : '',
+        });
         const response = await fetch(`${endpoint}?${params}`, {headers:{'X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin'});
         if (!response.ok) return;
         const data = await response.json();
-        fill(department, data.department_choices, '--- Seleccione dependencia ---');
-        fill(area, data.area_choices, '--- Seleccione área ---');
-        fill(user, data.user_choices, '--- Seleccione resguardatario ---');
+        showContext(data.asset_context);
+        if (movementKind === 'ubicacion') {
+            fill(site, data.site_choices, '--- Seleccione sede ---');
+            fill(area, data.area_choices, '--- Seleccione área ---');
+        } else if (movementKind === 'reasignacion') {
+            fill(user, data.user_choices, '--- Seleccione resguardatario ---');
+        } else {
+            fill(site, data.site_choices, '--- Seleccione sede ---');
+            fill(department, data.department_choices, '--- Seleccione dependencia ---');
+            fill(area, data.area_choices, '--- Seleccione área ---');
+            fill(user, data.user_choices, '--- Seleccione resguardatario ---');
+        }
     };
-    site.addEventListener('change', () => { department.value=''; if(area) area.value=''; if(user) user.value=''; refresh(); });
-    department.addEventListener('change', () => { if(area) area.value=''; if(user) user.value=''; refresh(); });
+    asset.addEventListener('change', () => {
+        if (site) site.value = '';
+        if (department) department.value = '';
+        if (area) area.value = '';
+        if (user) user.value = '';
+        refresh();
+    });
+    if (site) site.addEventListener('change', () => {
+        if (department && movementKind === 'transferencia') department.value = '';
+        if (area) area.value = '';
+        if (user) user.value = '';
+        refresh();
+    });
+    if (department) department.addEventListener('change', () => {
+        if (area) area.value = '';
+        if (user) user.value = '';
+        refresh();
+    });
 })();
 </script>

@@ -94,8 +94,8 @@ class CoreDirectorySelectors:
         return core_directory.list_departments(site_id=site_id)
 
     @staticmethod
-    def sites():
-        return core_directory.list_sites()
+    def sites(*, department_id=None):
+        return core_directory.list_sites(department_id=department_id)
 
     @staticmethod
     def areas(*, department_id=None, site_id=None):
