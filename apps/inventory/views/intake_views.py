@@ -9,7 +9,12 @@ from apps.inventory.forms import (
     PatrimonyApprovalForm, PatrimonyObservationForm,
 )
 from apps.inventory.integrations import core_directory
-from apps.inventory.selectors import CatalogSelectors, CoreDirectorySelectors, IntakeSelectors
+from apps.inventory.selectors import (
+    CatalogSelectors,
+    CoreDirectorySelectors,
+    IntakeSelectors,
+    InventoryScope,
+)
 from apps.inventory.services import (
     approve_patrimony_intake, cancel_intake, create_and_submit_intake,
     create_intake_draft,
@@ -187,6 +192,15 @@ def intake_list_view(request):
         "date_from": request.GET.get("date_from", "").strip() or None,
         "date_to": request.GET.get("date_to", "").strip() or None,
     }
+    is_global_scope = scope == InventoryScope.GLOBAL
+    is_department_scope = scope == InventoryScope.DEPARTMENT
+    if not is_global_scope:
+        # Los parámetros GET nunca pueden seleccionar otra adscripción.
+        filters["site_id"] = ""
+        filters["department_id"] = ""
+    if scope == InventoryScope.OWN:
+        filters["area_id"] = ""
+        filters["requested_by_id"] = ""
     tab = request.GET.get("tab", "pending").strip().lower()
     if tab not in {"pending", "history"}:
         tab = "pending"
@@ -211,16 +225,41 @@ def intake_list_view(request):
     page_obj = Paginator(intakes, 30).get_page(request.GET.get("page"))
     pagination_params = request.GET.copy()
     pagination_params.pop("page", None)
-    directory = CoreDirectorySelectors.form_choices(
-        site_id=filters["site_id"] or None,
-        department_id=filters["department_id"] or None,
-    )
+    if is_global_scope:
+        directory = CoreDirectorySelectors.form_choices(
+            site_id=filters["site_id"] or None,
+            department_id=filters["department_id"] or None,
+        )
+    elif is_department_scope:
+        directory = {
+            "site_choices": [],
+            "department_choices": [],
+            "area_choices": [
+                (str(item.id), item.name)
+                for item in CoreDirectorySelectors.areas(
+                    department_id=scope_department_id,
+                )
+            ],
+            "user_choices": [
+                (str(item.id), item.display_name)
+                for item in CoreDirectorySelectors.users(
+                    department_id=scope_department_id,
+                )
+            ],
+        }
+    else:
+        directory = {
+            "site_choices": [], "department_choices": [],
+            "area_choices": [], "user_choices": [],
+        }
     return render_inventory(request, page="inventory/pages/intake_list.html", content="inventory/content/intake_list_content.html", context={
         "current_inventory_view": "inventory:intake_list",
         "intakes": page_obj.object_list,
         "page_obj": page_obj,
         "pagination_query": pagination_params.urlencode(),
         "inventory_scope": scope,
+        "is_global_inventory_scope": is_global_scope,
+        "is_department_inventory_scope": is_department_scope,
         "intake_statuses": IntakeSelectors.status_choices(),
         "department_inbox": department_inbox,
         "tab": tab,

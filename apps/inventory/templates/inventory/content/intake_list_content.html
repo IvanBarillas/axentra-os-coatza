@@ -5,20 +5,29 @@
         {% if request.axentra_is_root or "can_create_asset" in request.axentra_permissions_list %}<a href="{% url 'inventory:intake_create' %}" hx-get="{% url 'inventory:intake_create' %}" hx-target="#page-content" hx-push-url="true" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white">Nueva solicitud</a>{% endif %}
     </div>
     <div class="flex gap-2 border-b border-slate-200"><a href="{% url 'inventory:intake_list' %}?tab=pending" hx-get="{% url 'inventory:intake_list' %}?tab=pending" hx-target="#page-content" hx-push-url="true" class="border-b-2 px-4 py-3 text-sm font-black {% if tab == 'pending' %}border-blue-600 text-blue-700{% else %}border-transparent text-slate-500{% endif %}">{% if department_inbox %}Pendientes de aceptación{% else %}En proceso{% endif %}</a><a href="{% url 'inventory:intake_list' %}?tab=history" hx-get="{% url 'inventory:intake_list' %}?tab=history" hx-target="#page-content" hx-push-url="true" class="border-b-2 px-4 py-3 text-sm font-black {% if tab == 'history' %}border-blue-600 text-blue-700{% else %}border-transparent text-slate-500{% endif %}">Historial</a></div>
-    <form method="get" hx-get="{% url 'inventory:intake_list' %}" hx-target="#page-content" hx-push-url="true" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <form id="intake-filter-form" method="get" hx-get="{% url 'inventory:intake_list' %}" hx-target="#page-content" hx-push-url="true" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <input type="hidden" name="tab" value="{{ tab }}">
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_230px_auto]">
             <label class="relative"><span class="sr-only">Buscar solicitudes</span><i data-lucide="search" class="pointer-events-none absolute left-3.5 top-3.5 h-4 w-4 text-slate-400"></i><input name="q" value="{{ q }}" placeholder="Buscar por folio, nombre o serie" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"></label>
             <select name="status" aria-label="Estado de la solicitud" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"><option value="">Todos los estados</option>{% for value, label in intake_statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-            <select name="site" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Todas las sedes</option>{% for value,label in site_choices %}<option value="{{ value }}" {% if site_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-            <select name="department" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Todas las dependencias</option>{% for value,label in department_choices %}<option value="{{ value }}" {% if department_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-            <select name="area" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Todas las áreas</option>{% for value,label in area_choices %}<option value="{{ value }}" {% if area_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-            <select name="requested_by" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Todos los solicitantes</option>{% for value,label in user_choices %}<option value="{{ value }}" {% if requested_by_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-            <input type="date" name="date_from" value="{{ date_from|default:'' }}" aria-label="Fecha inicial" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm">
-            <input type="date" name="date_to" value="{{ date_to|default:'' }}" aria-label="Fecha final" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm">
             <button class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 text-sm font-black text-white"><i data-lucide="search" class="h-4 w-4"></i>Buscar</button>
-            <a href="{% url 'inventory:intake_list' %}?tab={{ tab }}" hx-get="{% url 'inventory:intake_list' %}?tab={{ tab }}" hx-target="#page-content" hx-push-url="true" title="Limpiar filtros" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500"><i data-lucide="rotate-ccw" class="h-4 w-4"></i></a>
         </div>
+        <details class="group mt-3" {% if site_id or department_id or area_id or requested_by_id or date_from or date_to %}open{% endif %}>
+            <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-100"><span class="inline-flex items-center gap-2"><i data-lucide="sliders-horizontal" class="h-4 w-4"></i>Más filtros</span><i data-lucide="chevron-down" class="h-4 w-4 transition group-open:rotate-180"></i></summary>
+            <div class="mt-3 grid gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-4 md:grid-cols-2 xl:grid-cols-4">
+                {% if is_global_inventory_scope %}
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Sede</span><select id="intake-site" name="site" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="">Todas las sedes</option>{% for value,label in site_choices %}<option value="{{ value }}" {% if site_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Dependencia</span><select id="intake-department" name="department" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="">Todas las dependencias</option>{% for value,label in department_choices %}<option value="{{ value }}" {% if department_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                {% endif %}
+                {% if is_global_inventory_scope or is_department_inventory_scope %}
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Área operativa</span><select id="intake-area" name="area" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="">Todas las áreas autorizadas</option>{% for value,label in area_choices %}<option value="{{ value }}" {% if area_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Solicitante</span><select id="intake-requester" name="requested_by" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="">Todos los solicitantes autorizados</option>{% for value,label in user_choices %}<option value="{{ value }}" {% if requested_by_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                {% endif %}
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Desde</span><input type="date" name="date_from" value="{{ date_from|default:'' }}" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"></label>
+                <label><span class="mb-1.5 block text-xs font-black text-slate-600">Hasta</span><input type="date" name="date_to" value="{{ date_to|default:'' }}" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"></label>
+                <div class="flex items-end gap-2"><button class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-black text-white"><i data-lucide="list-filter" class="h-4 w-4"></i>Aplicar</button><a href="{% url 'inventory:intake_list' %}?tab={{ tab }}" hx-get="{% url 'inventory:intake_list' %}?tab={{ tab }}" hx-target="#page-content" hx-push-url="true" title="Limpiar filtros" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500"><i data-lucide="rotate-ccw" class="h-4 w-4"></i></a></div>
+            </div>
+        </details>
     </form>
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {% for intake in intakes %}
@@ -35,3 +44,15 @@
     </div>
     {% include "inventory/partials/pagination.html" %}
 </section>
+{% if is_global_inventory_scope %}
+<script>
+(function () {
+    const site = document.getElementById('intake-site'), department = document.getElementById('intake-department'), area = document.getElementById('intake-area'), requester = document.getElementById('intake-requester');
+    if (!site || !department || !area || !requester) return;
+    const fill = (element, options, label) => { const previous = element.value; element.innerHTML = `<option value="">${label}</option>`; options.forEach(item => element.add(new Option(item.label, item.value))); if ([...element.options].some(option => option.value === previous)) element.value = previous; };
+    const refresh = async () => { const query = new URLSearchParams({site_id: site.value, department_id: department.value}); const response = await fetch(`{% url 'inventory:asset_directory_options' %}?${query}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}}); if (!response.ok) return; const data = await response.json(); fill(department, data.department_choices, 'Todas las dependencias'); fill(area, data.area_choices, 'Todas las áreas autorizadas'); fill(requester, data.user_choices, 'Todos los solicitantes autorizados'); };
+    site.addEventListener('change', () => { department.value = ''; area.value = ''; requester.value = ''; refresh(); });
+    department.addEventListener('change', () => { area.value = ''; requester.value = ''; refresh(); });
+})();
+</script>
+{% endif %}

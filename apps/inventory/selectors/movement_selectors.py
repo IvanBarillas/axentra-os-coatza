@@ -92,6 +92,10 @@ class MovementSelectors:
         q="",
         asset_id="",
         movement_type="",
+        site_id="",
+        department_id="",
+        area_id="",
+        user_id="",
         date_from=None,
         date_to=None,
         scope=RegistryScope.GLOBAL,
@@ -127,6 +131,24 @@ class MovementSelectors:
 
         if movement_type:
             queryset = queryset.filter(movement_type=movement_type)
+
+        if site_id:
+            queryset = queryset.filter(
+                Q(from_sede_id=site_id) | Q(to_sede_id=site_id)
+            )
+        if department_id:
+            queryset = queryset.filter(
+                Q(from_dependencia_id=department_id)
+                | Q(to_dependencia_id=department_id)
+            )
+        if area_id:
+            queryset = queryset.filter(
+                Q(from_area_id=area_id) | Q(to_area_id=area_id)
+            )
+        if user_id:
+            queryset = queryset.filter(
+                Q(from_user_id=user_id) | Q(to_user_id=user_id)
+            )
 
         if date_from:
             queryset = queryset.filter(occurred_at__date__gte=date_from)
@@ -234,6 +256,9 @@ class LoanSelectors:
         status="",
         asset_id="",
         borrower_id="",
+        site_id="",
+        department_id="",
+        area_id="",
         overdue=False,
         bucket="",
         active_only=False,
@@ -281,6 +306,20 @@ class LoanSelectors:
 
         if borrower_id:
             queryset = queryset.filter(borrower_id=borrower_id)
+
+        if site_id:
+            queryset = queryset.filter(
+                Q(origin_sede_id=site_id) | Q(destination_sede_id=site_id)
+            )
+        if department_id:
+            queryset = queryset.filter(
+                Q(origin_dependencia_id=department_id)
+                | Q(destination_dependencia_id=department_id)
+            )
+        if area_id:
+            queryset = queryset.filter(
+                Q(origin_area_id=area_id) | Q(destination_area_id=area_id)
+            )
 
         normalized_bucket = str(bucket or "").strip().lower()
         if normalized_bucket == "sent":
@@ -459,6 +498,12 @@ class DisposalSelectors:
         status="",
         asset_id="",
         reason="",
+        site_id="",
+        department_id="",
+        area_id="",
+        requested_by_id="",
+        date_from=None,
+        date_to=None,
         scope=RegistryScope.GLOBAL,
         actor_id=None,
         scope_department_id=None,
@@ -496,6 +541,21 @@ class DisposalSelectors:
 
         if reason:
             queryset = queryset.filter(reason=reason)
+
+        if site_id:
+            queryset = queryset.filter(asset__current_sede_id=site_id)
+        if department_id:
+            queryset = queryset.filter(
+                asset__current_dependencia_id=department_id
+            )
+        if area_id:
+            queryset = queryset.filter(asset__current_area_id=area_id)
+        if requested_by_id:
+            queryset = queryset.filter(requested_by_id=requested_by_id)
+        if date_from:
+            queryset = queryset.filter(requested_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(requested_at__date__lte=date_to)
 
         return queryset.order_by("-requested_at", "-created_at")
 

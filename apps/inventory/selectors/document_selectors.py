@@ -330,6 +330,7 @@ class DocumentSelectors:
         actor_id=None,
         scope_department_id=None,
         include_restricted=False,
+        filter_department_id=None,
     ) -> QuerySet:
         queryset = cls.visible_documents(
             scope=scope,
@@ -337,6 +338,15 @@ class DocumentSelectors:
             department_id=scope_department_id,
             include_restricted=include_restricted,
         )
+
+        if filter_department_id:
+            organization_filter = cls._owner_filter(
+                scope=DocumentScope.DEPARTMENT,
+                department_id=filter_department_id,
+            )
+            if organization_filter is None:
+                return queryset.none()
+            queryset = queryset.filter(organization_filter)
 
         if owner_type:
             queryset = queryset.filter(owner_type=owner_type)

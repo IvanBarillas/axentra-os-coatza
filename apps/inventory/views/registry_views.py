@@ -128,6 +128,55 @@ def _filters(request, *names):
     return {name: request.GET.get(name, "").strip() for name in names}
 
 
+def _registry_filter_context(filters, scope, scope_department_id):
+    """Limita filtros institucionales al alcance efectivo del operador."""
+    is_global = scope == RegistryScope.GLOBAL
+    is_department = scope == RegistryScope.DEPARTMENT
+
+    if not is_global:
+        filters["site_id"] = ""
+        filters["department_id"] = ""
+    if scope == RegistryScope.OWN:
+        filters["area_id"] = ""
+        filters["user_id"] = ""
+        filters["borrower_id"] = ""
+        filters["requested_by_id"] = ""
+
+    if is_global:
+        directory = CoreDirectorySelectors.form_choices(
+            site_id=filters.get("site_id") or None,
+            department_id=filters.get("department_id") or None,
+        )
+    elif is_department and scope_department_id:
+        directory = {
+            "site_choices": [],
+            "department_choices": [],
+            "area_choices": [
+                (str(item.id), f"{item.name} [{item.site_name}]")
+                for item in CoreDirectorySelectors.areas(
+                    department_id=scope_department_id,
+                )
+            ],
+            "user_choices": [
+                (str(item.id), item.display_name)
+                for item in CoreDirectorySelectors.users(
+                    department_id=scope_department_id,
+                )
+            ],
+        }
+    else:
+        directory = {
+            "site_choices": [], "department_choices": [],
+            "area_choices": [], "user_choices": [],
+        }
+
+    return {
+        **directory,
+        "is_global_inventory_scope": is_global,
+        "is_department_inventory_scope": is_department,
+    }
+
+
 def _custody_url(custody_id):
     return reverse("inventory:custody_detail", kwargs={"custody_id": custody_id})
 
@@ -352,6 +401,14 @@ def custody_list_view(request):
     require_any_permission(request, "can_manage_custody", "can_accept_custody")
     f = _filters(request, "q", "status", "asset_id", "assigned_to_id", "department_id", "site_id", "area_id", "date_from", "date_to")
     scope, department_id = custody_scope(request)
+    is_global_scope = scope == "GLOBAL"
+    is_department_scope = scope == "DEPARTMENT"
+    if not is_global_scope:
+        f["site_id"] = ""
+        f["department_id"] = ""
+    if scope == "OWN":
+        f["area_id"] = ""
+        f["assigned_to_id"] = ""
     tab = request.GET.get("tab", "current").strip().lower()
     if tab not in {"current", "history"}:
         tab = "current"
@@ -360,11 +417,34 @@ def custody_list_view(request):
     queryset = queryset.filter(status__in=historical) if tab == "history" else queryset.exclude(status__in=historical)
     page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
     pagination_params = request.GET.copy(); pagination_params.pop("page", None)
-    directory = CoreDirectorySelectors.form_choices(
-        site_id=f["site_id"] or None,
-        department_id=f["department_id"] or None,
-    )
-    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **directory, **f})
+    if is_global_scope:
+        directory = CoreDirectorySelectors.form_choices(
+            site_id=f["site_id"] or None,
+            department_id=f["department_id"] or None,
+        )
+    elif is_department_scope:
+        directory = {
+            "site_choices": [],
+            "department_choices": [],
+            "area_choices": [
+                (str(item.id), item.name)
+                for item in CoreDirectorySelectors.areas(
+                    department_id=department_id,
+                )
+            ],
+            "user_choices": [
+                (str(item.id), item.display_name)
+                for item in CoreDirectorySelectors.users(
+                    department_id=department_id,
+                )
+            ],
+        }
+    else:
+        directory = {
+            "site_choices": [], "department_choices": [],
+            "area_choices": [], "user_choices": [],
+        }
+    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "is_global_inventory_scope":is_global_scope, "is_department_inventory_scope":is_department_scope, "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **directory, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -535,15 +615,16 @@ def custody_cancel_view(request, custody_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def movement_list_view(request):
     require_any_permission(request, "can_manage_movements", "can_authorize_movements")
-    f = _filters(request, "q", "asset_id", "movement_type")
+    f = _filters(request, "q", "asset_id", "movement_type", "site_id", "department_id", "area_id", "user_id", "date_from", "date_to")
     scope, scope_department_id = movement_scope(request)
+    filter_context = _registry_filter_context(f, scope, scope_department_id)
     requests_qs = AssetMovementRequest.objects.filter(is_deleted=False).select_related("asset", "origin_dependencia", "destination_dependencia")
     if scope == RegistryScope.DEPARTMENT:
         requests_qs = requests_qs.filter(Q(origin_dependencia_id=scope_department_id) | Q(destination_dependencia_id=scope_department_id))
     elif scope == RegistryScope.OWN:
         requests_qs = requests_qs.filter(requested_by_id=request.user.pk)
     requests_qs = requests_qs.exclude(status__in=[AssetMovementRequestStatus.EXECUTED, AssetMovementRequestStatus.CANCELLED])
-    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "movement_requests":requests_qs.order_by("-requested_at"), "movements":MovementSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "movement_types":MovementType.choices, "can_create_movement":scope in {RegistryScope.GLOBAL, RegistryScope.DEPARTMENT}, **f})
+    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "movement_requests":requests_qs.order_by("-requested_at"), "movements":MovementSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "movement_types":MovementType.choices, "can_create_movement":scope in {RegistryScope.GLOBAL, RegistryScope.DEPARTMENT}, **filter_context, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -807,10 +888,11 @@ def loan_list_view(request):
         "can_manage_loans",
         "can_authorize_loans",
     )
-    f = _filters(request, "q", "status", "asset_id", "borrower_id", "bucket")
+    f = _filters(request, "q", "status", "asset_id", "borrower_id", "bucket", "site_id", "department_id", "area_id")
     f["overdue"] = request.GET.get("overdue") == "1"
     scope, scope_department_id = _loan_scope(request)
-    return render_inventory(request, page="inventory/pages/loan_list.html", content="inventory/content/loan_list_content.html", context={"current_inventory_view":"inventory:loan_list", "loans":LoanSelectors.listar(**f, active_only=True, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "loan_summary":LoanSelectors.dashboard_metrics(scope=scope, actor_id=request.user.pk, department_id=scope_department_id), "can_create_full_loan":has_any_permission(request, "can_manage_loans"), "show_department_tabs":scope == RegistryScope.DEPARTMENT, "show_global_tabs":scope == RegistryScope.GLOBAL, "loan_statuses":LoanSelectors.status_choices(), **f})
+    filter_context = _registry_filter_context(f, scope, scope_department_id)
+    return render_inventory(request, page="inventory/pages/loan_list.html", content="inventory/content/loan_list_content.html", context={"current_inventory_view":"inventory:loan_list", "loans":LoanSelectors.listar(**f, active_only=True, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "loan_summary":LoanSelectors.dashboard_metrics(scope=scope, actor_id=request.user.pk, department_id=scope_department_id), "can_create_full_loan":has_any_permission(request, "can_manage_loans"), "show_department_tabs":scope == RegistryScope.DEPARTMENT, "show_global_tabs":scope == RegistryScope.GLOBAL, "loan_statuses":LoanSelectors.status_choices(), **filter_context, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -1071,9 +1153,10 @@ def _disposal_context(request, disposal):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_list_view(request):
     require_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals", "can_execute_disposals")
-    f = _filters(request, "q", "status", "asset_id", "reason")
+    f = _filters(request, "q", "status", "asset_id", "reason", "site_id", "department_id", "area_id", "requested_by_id", "date_from", "date_to")
     scope, scope_department_id = disposal_scope(request)
-    return render_inventory(request, page="inventory/pages/disposal_list.html", content="inventory/content/disposal_list_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposals":DisposalSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "can_create_disposal":has_any_permission(request, "can_request_disposals", "can_manage_disposals"), "disposal_statuses":DisposalSelectors.status_choices(), **f})
+    filter_context = _registry_filter_context(f, scope, scope_department_id)
+    return render_inventory(request, page="inventory/pages/disposal_list.html", content="inventory/content/disposal_list_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposals":DisposalSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "can_create_disposal":has_any_permission(request, "can_request_disposals", "can_manage_disposals"), "disposal_statuses":DisposalSelectors.status_choices(), **filter_context, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -1198,11 +1281,18 @@ def disposal_document_validate_view(request, disposal_id, document_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def document_list_view(request):
     require_any_permission(request, "can_manage_documents", "can_validate_documents")
-    f = _filters(request, "owner_type", "owner_id", "document_type", "validation_status", "q", "date_from", "date_to")
+    f = _filters(request, "owner_type", "owner_id", "document_type", "validation_status", "q", "date_from", "date_to", "department_id")
     tab = request.GET.get("tab", "pending").strip().lower()
     if tab not in {"pending", "observed", "history"}:
         tab = "pending"
     scope, scope_department_id = asset_scope(request)
+    document_org_filters = {
+        "site_id": "", "department_id": f.get("department_id", ""),
+        "area_id": "", "user_id": "",
+    }
+    filter_context = _registry_filter_context(
+        document_org_filters, scope, scope_department_id,
+    )
     include_restricted = has_any_permission(request, "can_view_restricted_documents")
     bucket = {
         "pending": [DocumentValidationStatus.PENDING],
@@ -1210,10 +1300,11 @@ def document_list_view(request):
         "history": [DocumentValidationStatus.VALIDATED, DocumentValidationStatus.EXPIRED, DocumentValidationStatus.SUPERSEDED, DocumentValidationStatus.CANCELLED],
     }[tab]
     explicit_status = f.pop("validation_status")
-    queryset = DocumentSelectors.documents(**f, validation_status=explicit_status, validation_statuses=None if explicit_status else bucket, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id, include_restricted=include_restricted)
+    filter_department_id = f.pop("department_id") if scope == RegistryScope.GLOBAL else ""
+    queryset = DocumentSelectors.documents(**f, validation_status=explicit_status, validation_statuses=None if explicit_status else bucket, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id, include_restricted=include_restricted, filter_department_id=filter_department_id)
     page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
     pagination_params = request.GET.copy(); pagination_params.pop("page", None)
-    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "validation_statuses":DocumentValidationStatus.choices, "validation_status":explicit_status, "document_types":DocumentType.choices, "owner_types":InventoryDocumentOwnerType.choices, "can_validate_documents":has_any_permission(request,"can_validate_documents"), **f})
+    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "validation_statuses":DocumentValidationStatus.choices, "validation_status":explicit_status, "document_types":DocumentType.choices, "owner_types":InventoryDocumentOwnerType.choices, "can_validate_documents":has_any_permission(request,"can_validate_documents"), "department_id":filter_department_id, **filter_context, **f})
 
 
 def _document_owner_context(request, owner_type, owner_id):
