@@ -1,6 +1,6 @@
 # apps/inventory/services/folio_service.py
 
-"""GeneraciÃ³n transaccional de folios patrimoniales oficiales."""
+"""Generación transaccional de folios patrimoniales oficiales."""
 
 from datetime import date
 import re
@@ -100,12 +100,12 @@ def _validate_fiscal_year(fiscal_year: int) -> int:
         normalized = int(fiscal_year)
     except (TypeError, ValueError) as exc:
         raise InventoryValidationError(
-            "El ejercicio fiscal debe ser numÃ©rico."
+            "El ejercicio fiscal debe ser numérico."
         ) from exc
 
     if normalized < 2000 or normalized > 9999:
         raise InventoryValidationError(
-            "El ejercicio fiscal debe contener cuatro dÃ­gitos.",
+            "El ejercicio fiscal debe contener cuatro dígitos.",
             details={"fiscal_year": normalized},
         )
 
@@ -130,7 +130,7 @@ def _get_expenditure_object(expenditure_object_id):
         TypeError,
     ) as exc:
         raise InventoryValidationError(
-            "El objeto del gasto no existe o no estÃ¡ disponible."
+            "El objeto del gasto no existe o no está disponible."
         ) from exc
 
     if not expenditure_object.requires_inventory_control:
@@ -173,13 +173,13 @@ def get_effective_folio_policy(
 
     if not policies:
         raise FolioPolicyNotFound(
-            "No existe una polÃ­tica de folios vigente.",
+            "No existe una política de folios vigente.",
             details={"effective_on": effective_date.isoformat()},
         )
 
     if len(policies) > 1:
         raise FolioPolicyConflict(
-            "Existe mÃ¡s de una polÃ­tica de folios vigente.",
+            "Existe más de una política de folios vigente.",
             details={
                 "effective_on": effective_date.isoformat(),
                 "policy_ids": [str(policy.pk) for policy in policies],
@@ -209,19 +209,19 @@ def _build_scope(
 
     if not tenant.is_available:
         raise InventoryConfigurationError(
-            "La configuraciÃ³n institucional no estÃ¡ disponible."
+            "La configuración institucional no está disponible."
         )
 
     municipality = tenant.municipality
     if municipality is None:
         raise InventoryConfigurationError(
-            "La configuraciÃ³n institucional no tiene un municipio asociado."
+            "La configuración institucional no tiene un municipio asociado."
         )
 
     if not municipality.is_available:
         raise InventoryConfigurationError(
-            "El municipio asociado a la configuraciÃ³n institucional "
-            "no estÃ¡ disponible.",
+            "El municipio asociado a la configuración institucional "
+            "no está disponible.",
             details={"municipality_id": str(municipality.id)},
         )
 
@@ -229,7 +229,7 @@ def _build_scope(
 
     if not dependency_code:
         raise InventoryConfigurationError(
-            "La dependencia no tiene cÃ³digo presupuestal para el folio.",
+            "La dependencia no tiene código presupuestal para el folio.",
             details={"department_id": str(department.id)},
         )
 
@@ -246,8 +246,8 @@ def _build_scope(
 
     if policy_municipality_code.zfill(3) != core_municipality_code.zfill(3):
         raise InventoryConfigurationError(
-            "La clave municipal de la polÃ­tica de folios no coincide "
-            "con la configuraciÃ³n institucional.",
+            "La clave municipal de la política de folios no coincide "
+            "con la configuración institucional.",
             details={
                 "policy_id": str(policy.pk),
                 "policy_municipality_code": policy_municipality_code,
@@ -289,7 +289,7 @@ def _render_folio(
 
     if progressive_number > maximum_progressive:
         raise FolioSequenceExhausted(
-            "La secuencia agotÃ³ la longitud configurada.",
+            "La secuencia agotó la longitud configurada.",
             details={
                 "policy_id": str(scope.policy_id),
                 "maximum_progressive": maximum_progressive,
@@ -312,7 +312,7 @@ def _render_folio(
         rendered = policy.format_template.format_map(values)
     except (KeyError, ValueError) as exc:
         raise InventoryConfigurationError(
-            "La plantilla institucional de folios es invÃ¡lida.",
+            "La plantilla institucional de folios es inválida.",
             details={
                 "policy_id": str(policy.pk),
                 "format_template": policy.format_template,
@@ -323,7 +323,7 @@ def _render_folio(
 
     if not normalized:
         raise FolioGenerationError(
-            "La plantilla generÃ³ un folio vacÃ­o."
+            "La plantilla generó un folio vacío."
         )
 
     if len(normalized) > 100:
@@ -347,7 +347,7 @@ def preview_inventory_folio(
 
     if not isinstance(acquisition_date, date):
         raise InventoryValidationError(
-            "acquisition_date debe ser una fecha vÃ¡lida."
+            "acquisition_date debe ser una fecha válida."
         )
 
     policy = get_effective_folio_policy(effective_on=effective_on)
@@ -394,13 +394,13 @@ def generate_inventory_folio(
     """
     Reserva y genera el siguiente folio oficial.
 
-    Bloquear la polÃ­tica serializa tambiÃ©n la creaciÃ³n de secuencias nuevas,
-    evitando que dos capturistas creen el mismo scope simultÃ¡neamente.
+    Bloquear la política serializa también la creación de secuencias nuevas,
+    evitando que dos capturistas creen el mismo scope simultáneamente.
     """
 
     if not isinstance(acquisition_date, date):
         raise InventoryValidationError(
-            "acquisition_date debe ser una fecha vÃ¡lida."
+            "acquisition_date debe ser una fecha válida."
         )
 
     policy = get_effective_folio_policy(
@@ -437,7 +437,7 @@ def generate_inventory_folio(
 
     if sequence.is_deleted or not sequence.is_active:
         raise InventoryConfigurationError(
-            "La secuencia correspondiente estÃ¡ inactiva.",
+            "La secuencia correspondiente está inactiva.",
             details={"sequence_id": str(sequence.pk)},
         )
 

@@ -15,6 +15,13 @@
         color: #111;
         font-family: Arial, Helvetica, sans-serif;
         font-size: 9pt;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .custody-sheet * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     .custody-brand {
@@ -292,6 +299,33 @@
             min-height: 279mm;
             margin: 0;
             box-shadow: none;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .custody-field-label,
+        .custody-section-title,
+        .custody-signature-title {
+            background-color: #8f0000 !important;
+            color: #fff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .custody-table th {
+            background-color: #d4d4d4 !important;
+            color: #111 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .custody-department .custody-field-label {
+            background-color: transparent !important;
+            color: #111 !important;
+        }
+
+        .custody-footer {
+            border-top-color: #8f0000 !important;
         }
     }
 </style>
@@ -437,7 +471,7 @@
     </section>
 
     <footer class="custody-footer">
-        · {{ custody.folio }} · El acuse firmado se integra al expediente electrónico del bien.
+        Documento generado por Axentra OS · {{ custody.folio }} · El acuse firmado se integra al expediente electrónico del bien.
     </footer>
 </article>
 {% endwith %}

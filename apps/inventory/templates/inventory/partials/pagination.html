@@ -1,0 +1,9 @@
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+<nav class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm" aria-label="Paginación">
+    <p class="font-bold text-slate-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</p>
+    <div class="flex gap-2">
+        {% if page_obj.has_previous %}<a href="?{{ pagination_query }}{% if pagination_query %}&{% endif %}page={{ page_obj.previous_page_number }}" hx-get="?{{ pagination_query }}{% if pagination_query %}&{% endif %}page={{ page_obj.previous_page_number }}" hx-target="#page-content" hx-push-url="true" class="rounded-xl border border-slate-200 px-4 py-2 font-black">Anterior</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?{{ pagination_query }}{% if pagination_query %}&{% endif %}page={{ page_obj.next_page_number }}" hx-get="?{{ pagination_query }}{% if pagination_query %}&{% endif %}page={{ page_obj.next_page_number }}" hx-target="#page-content" hx-push-url="true" class="rounded-xl bg-slate-900 px-4 py-2 font-black text-white">Siguiente</a>{% endif %}
+    </div>
+</nav>
+{% endif %}

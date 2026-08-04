@@ -37,6 +37,7 @@ from .custody_service import (
     submit_custody_assignment,
 )
 from .custody_document_service import (
+    activate_custody_document,
     close_custody_document,
     create_custody_document,
     create_custody_release_document,

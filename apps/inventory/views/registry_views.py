@@ -2,6 +2,7 @@
 
 from django import forms
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.http import FileResponse, JsonResponse
 from django.db.models import Q
 from django.shortcuts import redirect, render
@@ -59,6 +60,7 @@ from apps.inventory.models import (
     AssetMovementRequestStatus,
     AssetPhoto,
     DisposalStageDocumentRequirement,
+    DocumentType,
     DocumentValidationStatus,
     InventoryDocumentOwnerType,
     CustodyDocument,
@@ -348,9 +350,21 @@ def custody_directory_users_view(request):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def custody_list_view(request):
     require_any_permission(request, "can_manage_custody", "can_accept_custody")
-    f = _filters(request, "q", "status", "asset_id", "assigned_to_id", "department_id")
+    f = _filters(request, "q", "status", "asset_id", "assigned_to_id", "department_id", "site_id", "area_id", "date_from", "date_to")
     scope, department_id = custody_scope(request)
-    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":CustodySelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=department_id), "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **f})
+    tab = request.GET.get("tab", "current").strip().lower()
+    if tab not in {"current", "history"}:
+        tab = "current"
+    queryset = CustodySelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=department_id)
+    historical = {CustodyStatus.RETURNED, CustodyStatus.CANCELLED}
+    queryset = queryset.filter(status__in=historical) if tab == "history" else queryset.exclude(status__in=historical)
+    page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
+    pagination_params = request.GET.copy(); pagination_params.pop("page", None)
+    directory = CoreDirectorySelectors.form_choices(
+        site_id=f["site_id"] or None,
+        department_id=f["department_id"] or None,
+    )
+    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **directory, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -1184,10 +1198,22 @@ def disposal_document_validate_view(request, disposal_id, document_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def document_list_view(request):
     require_any_permission(request, "can_manage_documents", "can_validate_documents")
-    f = _filters(request, "owner_type", "owner_id", "document_type", "validation_status", "q")
+    f = _filters(request, "owner_type", "owner_id", "document_type", "validation_status", "q", "date_from", "date_to")
+    tab = request.GET.get("tab", "pending").strip().lower()
+    if tab not in {"pending", "observed", "history"}:
+        tab = "pending"
     scope, scope_department_id = asset_scope(request)
     include_restricted = has_any_permission(request, "can_view_restricted_documents")
-    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":DocumentSelectors.documents(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id, include_restricted=include_restricted), "validation_statuses":DocumentValidationStatus.choices, "owner_types":InventoryDocumentOwnerType.choices, "can_validate_documents":has_any_permission(request,"can_validate_documents"), **f})
+    bucket = {
+        "pending": [DocumentValidationStatus.PENDING],
+        "observed": [DocumentValidationStatus.REJECTED],
+        "history": [DocumentValidationStatus.VALIDATED, DocumentValidationStatus.EXPIRED, DocumentValidationStatus.SUPERSEDED, DocumentValidationStatus.CANCELLED],
+    }[tab]
+    explicit_status = f.pop("validation_status")
+    queryset = DocumentSelectors.documents(**f, validation_status=explicit_status, validation_statuses=None if explicit_status else bucket, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id, include_restricted=include_restricted)
+    page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
+    pagination_params = request.GET.copy(); pagination_params.pop("page", None)
+    return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "validation_statuses":DocumentValidationStatus.choices, "validation_status":explicit_status, "document_types":DocumentType.choices, "owner_types":InventoryDocumentOwnerType.choices, "can_validate_documents":has_any_permission(request,"can_validate_documents"), **f})
 
 
 def _document_owner_context(request, owner_type, owner_id):

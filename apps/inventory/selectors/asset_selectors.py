@@ -315,7 +315,11 @@ class IntakeSelectors:
         q="",
         status="",
         department_id="",
+        site_id="",
+        area_id="",
         requested_by_id="",
+        date_from=None,
+        date_to=None,
         scope=InventoryScope.GLOBAL,
         actor_id=None,
         scope_department_id=None,
@@ -338,11 +342,19 @@ class IntakeSelectors:
             queryset = queryset.filter(
                 requested_dependencia_id=department_id
             )
+        if site_id:
+            queryset = queryset.filter(requested_sede_id=site_id)
+        if area_id:
+            queryset = queryset.filter(requested_area_id=area_id)
         if requested_by_id:
             queryset = queryset.filter(
                 Q(captured_by_id=requested_by_id)
                 | Q(submitted_by_id=requested_by_id)
             )
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
         return queryset.order_by("-created_at")
 
     @classmethod

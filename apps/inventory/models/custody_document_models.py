@@ -11,6 +11,7 @@ from apps.inventory.models.catalog_models import InventoryBaseModel
 class CustodyDocumentStatus(models.TextChoices):
     DRAFT = "DRAFT", "Borrador"
     IN_PROCESS = "IN_PROCESS", "En proceso"
+    ACTIVE = "ACTIVE", "Vigente"
     CLOSED = "CLOSED", "Finalizado"
     REPLACED = "REPLACED", "Sustituido por cambio de titular"
     CANCELLED = "CANCELLED", "Cancelado"

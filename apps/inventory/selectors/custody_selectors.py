@@ -91,6 +91,10 @@ class CustodySelectors:
         asset_id="",
         assigned_to_id="",
         department_id="",
+        site_id="",
+        area_id="",
+        date_from=None,
+        date_to=None,
         scope=CustodyScope.GLOBAL,
         actor_id=None,
         scope_department_id=None,
@@ -139,6 +143,14 @@ class CustodySelectors:
 
         if department_id:
             queryset = queryset.filter(dependencia_id=department_id)
+        if site_id:
+            queryset = queryset.filter(sede_id=site_id)
+        if area_id:
+            queryset = queryset.filter(area_id=area_id)
+        if date_from:
+            queryset = queryset.filter(prepared_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(prepared_at__date__lte=date_to)
 
         return queryset.order_by("-assigned_at", "-created_at")
 

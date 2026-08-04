@@ -9,6 +9,8 @@ from django.utils import timezone
 from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     Asset,
+    AssetOperationalStatus,
+    CustodyAcceptanceMethod,
     CustodyAssigneeMode,
     CustodyAssignment,
     CustodyDocument,
@@ -17,8 +19,13 @@ from apps.inventory.models import (
     CustodyDocumentType,
     CustodyEventType,
     CustodyStatus,
+    InventoryAuditAction,
 )
-from apps.inventory.services.audit_service import build_audit_request_context
+from apps.inventory.services.audit_service import (
+    build_audit_request_context,
+    log_inventory_event,
+    model_snapshot,
+)
 from apps.inventory.services.custody_service import (
     _event,
     _require_permission,
@@ -38,6 +45,84 @@ OPEN_STATUSES = {
     CustodyStatus.ACTIVE,
     CustodyStatus.RETURN_PENDING,
 }
+
+
+@transaction.atomic
+def activate_custody_document(*, document_id, actor_id, request=None):
+    """Activa todo el lote con el único acuse firmado del documento masivo."""
+    actor = _require_permission(actor_id, MANAGE_PERMISSION)
+    context = build_audit_request_context(request)
+    document = (
+        CustodyDocument.objects.select_for_update()
+        .prefetch_related("items__custody_assignment__asset")
+        .get(pk=document_id, is_deleted=False)
+    )
+    if document.document_type != CustodyDocumentType.ASSIGNMENT:
+        raise InventoryStateError("El documento no es un resguardo de entrega.")
+    if document.status != CustodyDocumentStatus.IN_PROCESS:
+        raise InventoryStateError(
+            "El documento masivo no admite activación desde su estado actual."
+        )
+    items = list(document.items.all())
+    allowed = {
+        CustodyStatus.DRAFT,
+        CustodyStatus.REJECTED,
+        CustodyStatus.PENDING_AUTHORIZATION,
+        CustodyStatus.PENDING_ACCEPTANCE,
+    }
+    if not items or any(
+        item.custody_assignment.status not in allowed for item in items
+    ):
+        raise InventoryStateError(
+            "Todos los resguardos del lote deben continuar pendientes de firma."
+        )
+
+    now = timezone.now()
+    for item in items:
+        custody = item.custody_assignment
+        previous = custody.status
+        custody.status = CustodyStatus.ACTIVE
+        custody.authorized_by_id = actor.id
+        custody.authorized_at = now
+        custody.delivered_by_id = actor.id
+        custody.delivered_at = now
+        custody.accepted_by_id = custody.assigned_to_id
+        custody.accepted_at = now
+        custody.acceptance_method = CustodyAcceptanceMethod.HANDWRITTEN_SIGNATURE
+        custody.assigned_at = now
+        custody.delivery_observations = (
+            f"Activado mediante el acuse masivo {document.folio}."
+        )
+        custody.asset.current_custodian_id = custody.assigned_to_id
+        custody.asset.operational_status = AssetOperationalStatus.ASSIGNED
+        custody.asset.full_clean()
+        custody.asset.save()
+        custody.full_clean()
+        custody.save()
+        _event(
+            custody,
+            CustodyEventType.ACCEPTED,
+            previous,
+            actor,
+            context,
+            comment=f"Acuse masivo {document.folio} integrado y validado.",
+        )
+        log_inventory_event(
+            action=InventoryAuditAction.ASSIGN,
+            summary="Resguardo activado mediante acuse masivo",
+            actor_id=actor.id,
+            asset_id=custody.asset_id,
+            target=custody,
+            old_value={"status": previous},
+            new_value=model_snapshot(custody),
+            payload={"custody_document_id": str(document.id)},
+            request_context=context,
+        )
+
+    document.status = CustodyDocumentStatus.ACTIVE
+    document.full_clean()
+    document.save(update_fields=["status", "updated_at"])
+    return document
 
 
 def _resolve_responsible(*, department, mode, assigned_to_id):

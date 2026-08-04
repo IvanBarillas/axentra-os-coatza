@@ -71,7 +71,7 @@ class FolioMunicipalityConfigurationTests(SimpleTestCase):
 
         with self.assertRaisesMessage(
             InventoryConfigurationError,
-            "no coincide con la configuraciÃ³n institucional",
+            "no coincide con la configuración institucional",
         ):
             _build_scope(
                 policy=self._policy("039"),

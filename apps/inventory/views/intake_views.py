@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from django.core.paginator import Paginator
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
@@ -180,6 +181,11 @@ def intake_list_view(request):
         "q": request.GET.get("q", "").strip(),
         "status": request.GET.get("status", "").strip(),
         "department_id": request.GET.get("department", "").strip(),
+        "site_id": request.GET.get("site", "").strip(),
+        "area_id": request.GET.get("area", "").strip(),
+        "requested_by_id": request.GET.get("requested_by", "").strip(),
+        "date_from": request.GET.get("date_from", "").strip() or None,
+        "date_to": request.GET.get("date_to", "").strip() or None,
     }
     tab = request.GET.get("tab", "pending").strip().lower()
     if tab not in {"pending", "history"}:
@@ -193,18 +199,32 @@ def intake_list_view(request):
     department_inbox = has_any_permission(
         request, "can_view_department_intake_inbox"
     ) and scope == "DEPARTMENT"
-    if department_inbox:
-        if tab == "pending":
-            intakes = intakes.filter(status="SUBMITTED")
-        else:
-            intakes = intakes.exclude(status="SUBMITTED")
+    historical_statuses = {
+        "REGISTERED", "CANCELLED", "DEPARTMENT_REJECTED",
+    }
+    if department_inbox and tab == "pending":
+        intakes = intakes.filter(status="SUBMITTED")
+    elif tab == "history":
+        intakes = intakes.filter(status__in=historical_statuses)
+    else:
+        intakes = intakes.exclude(status__in=historical_statuses)
+    page_obj = Paginator(intakes, 30).get_page(request.GET.get("page"))
+    pagination_params = request.GET.copy()
+    pagination_params.pop("page", None)
+    directory = CoreDirectorySelectors.form_choices(
+        site_id=filters["site_id"] or None,
+        department_id=filters["department_id"] or None,
+    )
     return render_inventory(request, page="inventory/pages/intake_list.html", content="inventory/content/intake_list_content.html", context={
         "current_inventory_view": "inventory:intake_list",
-        "intakes": intakes,
+        "intakes": page_obj.object_list,
+        "page_obj": page_obj,
+        "pagination_query": pagination_params.urlencode(),
         "inventory_scope": scope,
         "intake_statuses": IntakeSelectors.status_choices(),
         "department_inbox": department_inbox,
         "tab": tab,
+        **directory,
         **filters,
     })
 

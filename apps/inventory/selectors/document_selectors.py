@@ -11,6 +11,7 @@ from apps.inventory.models import (
     AssetPhoto,
     CustodyAssignment,
     CustodyDocument,
+    CustodyDocumentItem,
     DisposalRequest,
     DisposalApproval,
     DocumentAccessLevel,
@@ -321,6 +322,9 @@ class DocumentSelectors:
         owner_id=None,
         document_type=None,
         validation_status=None,
+        validation_statuses=None,
+        date_from=None,
+        date_to=None,
         q="",
         scope=DocumentScope.GLOBAL,
         actor_id=None,
@@ -345,6 +349,13 @@ class DocumentSelectors:
 
         if validation_status:
             queryset = queryset.filter(validation_status=validation_status)
+        elif validation_statuses:
+            queryset = queryset.filter(validation_status__in=validation_statuses)
+
+        if date_from:
+            queryset = queryset.filter(uploaded_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(uploaded_at__date__lte=date_to)
 
         normalized_query = str(q or "").strip()
         if normalized_query:
@@ -391,6 +402,68 @@ class DocumentSelectors:
             actor_id=actor_id,
             scope_department_id=department_id,
             include_restricted=include_restricted,
+        )
+
+    @classmethod
+    def asset_expedient_documents(
+        cls,
+        asset_id,
+        *,
+        scope=DocumentScope.GLOBAL,
+        actor_id=None,
+        department_id=None,
+        include_restricted=False,
+    ) -> QuerySet:
+        """Une la evidencia directa y la producida por operaciones del bien."""
+        asset = Asset.objects.filter(pk=asset_id, is_deleted=False).first()
+        if not asset:
+            return cls.document_base_queryset().none()
+        custody_ids = CustodyAssignment.objects.filter(
+            asset_id=asset_id, is_deleted=False
+        ).values("id")
+        custody_document_ids = CustodyDocumentItem.objects.filter(
+            asset_id_snapshot=asset_id, is_deleted=False
+        ).values("document_id")
+        movement_ids = InventoryMovement.objects.filter(
+            asset_id=asset_id, is_deleted=False
+        ).values("id")
+        movement_request_ids = AssetMovementRequest.objects.filter(
+            asset_id=asset_id, is_deleted=False
+        ).values("id")
+        loan_ids = AssetLoan.objects.filter(
+            asset_id=asset_id, is_deleted=False
+        ).values("id")
+        disposal_ids = DisposalRequest.objects.filter(
+            asset_id=asset_id, is_deleted=False
+        ).values("id")
+        disposal_approval_ids = DisposalApproval.objects.filter(
+            disposal_request__asset_id=asset_id, is_deleted=False
+        ).values("id")
+        owner_filter = (
+            Q(owner_type=InventoryDocumentOwnerType.ASSET, owner_id=asset_id)
+            | Q(owner_type=InventoryDocumentOwnerType.CUSTODY_ASSIGNMENT, owner_id__in=custody_ids)
+            | Q(owner_type=InventoryDocumentOwnerType.CUSTODY_DOCUMENT, owner_id__in=custody_document_ids)
+            | Q(owner_type=InventoryDocumentOwnerType.MOVEMENT, owner_id__in=movement_ids)
+            | Q(owner_type=InventoryDocumentOwnerType.MOVEMENT_REQUEST, owner_id__in=movement_request_ids)
+            | Q(owner_type=InventoryDocumentOwnerType.LOAN, owner_id__in=loan_ids)
+            | Q(owner_type=InventoryDocumentOwnerType.DISPOSAL_REQUEST, owner_id__in=disposal_ids)
+            | Q(owner_type=InventoryDocumentOwnerType.DISPOSAL_APPROVAL, owner_id__in=disposal_approval_ids)
+        )
+        if asset.source_intake_request_id:
+            owner_filter |= Q(
+                owner_type=InventoryDocumentOwnerType.INTAKE_REQUEST,
+                owner_id=asset.source_intake_request_id,
+            )
+        return (
+            cls.visible_documents(
+                scope=scope,
+                actor_id=actor_id,
+                department_id=department_id,
+                include_restricted=include_restricted,
+            )
+            .filter(owner_filter)
+            .distinct()
+            .order_by("-uploaded_at", "-created_at")
         )
 
     @classmethod

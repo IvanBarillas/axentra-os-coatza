@@ -5,7 +5,7 @@
         <div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">{{ document.get_document_type_display }}</p><h1 class="mt-2 font-mono text-3xl font-black">{{ document.folio }}</h1><p class="mt-1 text-sm text-slate-500">{{ document.department_name_snapshot }}</p></div>
         <div class="flex flex-wrap gap-2">
             {% include "inventory/partials/acknowledgement_badge.html" with state=acknowledgement %}
-            <button type="button" onclick="document.getElementById('custody-print-preview').showModal()" class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black"><i data-lucide="printer" class="mr-2 inline h-4 w-4"></i>Vista previa e imprimir</button>
+            <button type="button" onclick="document.getElementById('custody-print-preview').showModal()" hx-get="{% url 'inventory:custody_document_print' document.id %}?embed=1" hx-target="#custody-print-preview-body" hx-swap="innerHTML" class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black"><i data-lucide="printer" class="mr-2 inline h-4 w-4"></i>Vista previa e imprimir</button>
             {% if acknowledgement.document %}<a href="{% url 'inventory:document_download' acknowledgement.document.id %}" target="_blank" rel="noopener" class="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">Ver acuse firmado</a>{% else %}<a href="{% url 'inventory:document_upload' 'CUSTODY_DOCUMENT' document.id %}?ack_for={{ generated_type }}" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">Subir acuse firmado</a>{% endif %}
             {% if can_release %}<a href="{% url 'inventory:custody_document_release' document.id %}" class="rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white">Preparar liberación masiva</a>{% endif %}
             {% if can_replace and document.document_type == "ASSIGNMENT" %}<a href="{% url 'inventory:custody_document_replace' document.id %}" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Cambio de responsable</a>{% endif %}
@@ -26,9 +26,28 @@
         <div class="flex h-full flex-col">
             <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <div><p class="text-xs font-black uppercase tracking-wider text-slate-400">Vista previa del documento</p><p class="font-mono font-black">{{ document.folio }}</p></div>
-                <div class="flex gap-2"><button type="button" onclick="document.getElementById('custody-print-frame').contentWindow.print()" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">Imprimir / Guardar PDF</button><button type="button" onclick="document.getElementById('custody-print-preview').close()" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-black">Cerrar</button></div>
+                <div class="flex gap-2"><button type="button" onclick="printCustodyDocument()" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">Imprimir / Guardar PDF</button><button type="button" onclick="document.getElementById('custody-print-preview').close()" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-black">Cerrar</button></div>
             </div>
-            <div class="min-h-0 flex-1 overflow-auto bg-slate-100 p-4"><iframe id="custody-print-frame" title="Vista previa de {{ document.folio }}" src="{% url 'inventory:custody_document_print' document.id %}?embed=1" class="mx-auto h-full min-h-[760px] w-full rounded-xl border border-slate-300 bg-white"></iframe></div>
+            <div id="custody-print-preview-body" class="min-h-0 flex-1 overflow-auto bg-slate-100 p-4"><div class="grid min-h-[360px] place-items-center text-sm font-bold text-slate-500">Cargando vista previa…</div></div>
         </div>
     </dialog>
+    <style>
+        @media print {
+            body.printing-custody-document * { visibility: hidden !important; }
+            body.printing-custody-document #custody-print-preview,
+            body.printing-custody-document #custody-print-preview * { visibility: visible !important; }
+            body.printing-custody-document #custody-print-preview { position: absolute; inset: 0; width: 100%; height: auto; max-height: none; overflow: visible; border: 0; }
+            body.printing-custody-document #custody-print-preview > div > div:first-child { display: none !important; }
+            body.printing-custody-document #custody-print-preview-body { overflow: visible; padding: 0; background: white; }
+        }
+    </style>
+    <script>
+        function printCustodyDocument() {
+            document.body.classList.add('printing-custody-document');
+            window.print();
+            window.setTimeout(function () {
+                document.body.classList.remove('printing-custody-document');
+            }, 250);
+        }
+    </script>
 </section>

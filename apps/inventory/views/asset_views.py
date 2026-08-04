@@ -203,7 +203,23 @@ def asset_external_activity_view(request, asset_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
 def asset_documents_view(request, asset_id):
     asset = _visible_asset(request, asset_id)
-    return _render_asset_section(request, asset, current_view="inventory:asset_documents", section="documents", extra={"records": DocumentSelectors.asset_documents(asset.id)})
+    scope, department_id = asset_scope(request)
+    records = DocumentSelectors.asset_expedient_documents(
+        asset.id,
+        scope=scope,
+        actor_id=request.user.pk,
+        department_id=department_id,
+        include_restricted=has_any_permission(
+            request, "can_view_restricted_documents"
+        ),
+    )
+    return _render_asset_section(
+        request,
+        asset,
+        current_view="inventory:asset_documents",
+        section="documents",
+        extra={"records": records},
+    )
 
 
 @require_http_methods(["GET", "POST"])
