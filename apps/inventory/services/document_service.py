@@ -228,6 +228,34 @@ def upload_inventory_document(*, data, actor_id, authorized_owner, request=None)
             "El expediente autorizado no corresponde al documento solicitado."
         )
     uploaded = data.file
+    replaced = (
+        AssetDocument.objects.select_for_update()
+        .filter(
+            owner_type=data.owner_type,
+            owner_id=data.owner_id,
+            document_type=data.document_type,
+            validation_status=DocumentValidationStatus.REJECTED,
+            is_current_version=True,
+            is_deleted=False,
+        )
+        .order_by("-uploaded_at", "-created_at")
+        .first()
+    )
+    if replaced:
+        previous_status = replaced.validation_status
+        replaced.is_current_version = False
+        replaced.validation_status = DocumentValidationStatus.SUPERSEDED
+        replaced.save(update_fields=[
+            "is_current_version", "validation_status", "updated_at",
+        ])
+        _event(
+            replaced,
+            DocumentValidationEventType.SUPERSEDED,
+            previous_status,
+            actor,
+            request,
+            "Acuse observado sustituido por una nueva versión.",
+        )
     document = AssetDocument(
         owner_type=data.owner_type,
         owner_id=data.owner_id,
@@ -246,7 +274,17 @@ def upload_inventory_document(*, data, actor_id, authorized_owner, request=None)
         uploaded_by_name_snapshot=actor.display_name,
         uploaded_by_email_snapshot=actor.normalized_email,
         metadata={"source": "inventory_context_upload"},
+        document_group_id=(
+            replaced.document_group_id if replaced else None
+        ),
+        version_number=(replaced.version_number + 1 if replaced else 1),
+        replaces_document=replaced,
     )
+    if not replaced:
+        # Se conserva el default UUID del modelo; asignar None lo anularía.
+        document.document_group_id = document._meta.get_field(
+            "document_group_id"
+        ).get_default()
     document.full_clean()
     document.save()
     _event(document, DocumentValidationEventType.UPLOADED, "", actor, request)

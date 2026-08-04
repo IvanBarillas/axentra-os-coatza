@@ -1,19 +1,47 @@
 <section class="space-y-6">
     {% include "inventory/partials/messages.html" %}
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Responsabilidad patrimonial</p><h1 class="mt-2 text-2xl font-black">Documentos de resguardo</h1><p class="mt-1 text-sm text-slate-500">Documentos agrupados e histórico institucional.</p></div>
-        <a href="{% url 'inventory:custody_document_create' %}" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Nuevo resguardo masivo</a>
+        <div><p class="text-xs font-black uppercase tracking-[.24em] text-slate-400">Responsabilidad patrimonial</p><h1 class="mt-2 text-2xl font-black">{% if tab == 'release_individual' %}Preparar retiro individual{% elif tab == 'release_bulk' %}Preparar retiro masivo{% else %}Documentos de resguardo{% endif %}</h1><p class="mt-1 text-sm text-slate-500">{% if selecting_release %}Selecciona el resguardo vigente que será entregado formalmente.{% else %}Documentos relacionados con cada activo e histórico institucional.{% endif %}</p></div>
+        {% if selecting_release %}
+            <a href="{% url 'inventory:custody_list' %}" hx-get="{% url 'inventory:custody_list' %}" hx-target="#page-content" hx-push-url="true" class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700">← Volver a resguardos</a>
+        {% else %}
+            <div class="flex flex-wrap gap-2"><a href="{% url 'inventory:custody_create' %}" class="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black">Resguardo individual</a><a href="{% url 'inventory:custody_document_create' %}" class="rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white">Resguardo masivo</a></div>
+        {% endif %}
     </div>
+    {% if selecting_release %}<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><p class="font-black">Selecciona un resguardo vigente</p><p class="mt-1">No se creará un segundo resguardo. Al seleccionar un registro se preparará su constancia de retiro y el resguardo original permanecerá vigente hasta validar el acuse firmado.</p></div>{% endif %}
     <div class="inline-flex rounded-xl bg-slate-100 p-1">
         <a href="{% url 'inventory:custody_document_list' %}?tab=current" class="rounded-lg px-4 py-2 text-sm font-black {% if tab == 'current' %}bg-white shadow-sm{% else %}text-slate-500{% endif %}">Vigentes y en proceso</a>
         <a href="{% url 'inventory:custody_document_list' %}?tab=history" class="rounded-lg px-4 py-2 text-sm font-black {% if tab == 'history' %}bg-white shadow-sm{% else %}text-slate-500{% endif %}">Histórico inmutable</a>
+        <a href="{% url 'inventory:custody_document_list' %}?tab=release_individual" class="rounded-lg px-4 py-2 text-sm font-black {% if tab == 'release_individual' %}bg-amber-100 text-amber-900 shadow-sm{% else %}text-slate-500{% endif %}">Retiro individual</a>
+        <a href="{% url 'inventory:custody_document_list' %}?tab=release_bulk" class="rounded-lg px-4 py-2 text-sm font-black {% if tab == 'release_bulk' %}bg-amber-100 text-amber-900 shadow-sm{% else %}text-slate-500{% endif %}">Retiro masivo</a>
     </div>
+    {% if selecting_release %}
+    <form method="get" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <div class="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_300px_auto]">
+            <input name="q" value="{{ q }}" placeholder="Buscar por resguardo, bien, folio o responsable" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm">
+            <select name="department_id" class="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Todas las dependencias</option>{% for value,label in department_choices %}<option value="{{ value }}" {% if selected_department_id == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            <button class="h-11 rounded-xl bg-slate-900 px-5 text-sm font-black text-white">Aplicar filtros</button>
+        </div>
+    </form>
+    {% endif %}
+    {% if tab == 'release_individual' %}
     <div class="grid gap-4">
-        {% for document in documents %}
-            <a href="{% url 'inventory:custody_document_detail' document.id %}" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400 md:grid-cols-[1fr_auto]">
-                <div><p class="font-mono text-sm font-black">{{ document.folio }}</p><p class="mt-1 font-black">{{ document.assigned_to_name_snapshot }}</p><p class="text-sm text-slate-500">{{ document.department_name_snapshot }} · {{ document.items.count }} bienes</p>{% if document.closure_reason %}<p class="mt-2 text-xs text-slate-500">{{ document.closure_reason }}</p>{% endif %}</div>
-                <div class="flex items-center gap-3"><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black">{{ document.get_status_display }}</span><i data-lucide="chevron-right" class="h-4 w-4"></i></div>
-            </a>
-        {% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}
+        {% for custody in release_custodies %}<a href="{% if custody.pending_release_id %}{% url 'inventory:custody_document_detail' custody.pending_release_id %}{% else %}{% url 'inventory:custody_release_individual' custody.id %}{% endif %}" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition {% if custody.pending_release_id %}hover:border-red-400{% else %}hover:border-amber-400{% endif %} md:grid-cols-[1fr_auto] md:items-center"><div><p class="font-mono text-sm font-black">{{ custody.folio }}</p><p class="mt-1 font-black">{{ custody.asset.display_inventory_number }} · {{ custody.asset.name }}</p><p class="text-sm text-slate-500">{{ custody.assigned_to_name_snapshot }} · {{ custody.dependencia_name_snapshot }}</p></div>{% if custody.pending_release_id %}<span class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700"><span class="h-2 w-2 rounded-full bg-red-600"></span>Retiro en proceso</span>{% else %}<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900">Preparar retiro</span>{% endif %}</a>{% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}
     </div>
+    {% elif tab == 'release_bulk' %}
+    <form method="post" class="space-y-4">{% csrf_token %}
+        <div class="max-h-[52vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="divide-y divide-slate-100">{% for custody in release_custodies %}<label class="grid gap-3 p-4 md:grid-cols-[auto_1fr_auto] md:items-center {% if custody.pending_release_id %}bg-red-50/40{% else %}cursor-pointer hover:bg-slate-50{% endif %}"><input type="checkbox" name="custody_ids" value="{{ custody.id }}" class="h-5 w-5 rounded border-slate-300" {% if custody.pending_release_id %}disabled{% endif %}><div><p class="font-mono text-xs font-black">{{ custody.folio }}</p><p class="mt-1 font-black">{{ custody.asset.display_inventory_number }} · {{ custody.asset.name }}</p><p class="text-xs text-slate-500">{{ custody.assigned_to_name_snapshot }} · {{ custody.dependencia_name_snapshot }}</p></div>{% if custody.pending_release_id %}<a href="{% url 'inventory:custody_document_detail' custody.pending_release_id %}" class="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-700"><span class="h-2 w-2 rounded-full bg-red-600"></span>Ver retiro pendiente</a>{% else %}<span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Vigente</span>{% endif %}</label>{% empty %}<div class="p-6">{% include "inventory/partials/empty_state.html" %}</div>{% endfor %}</div></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5"><label><span class="mb-2 block text-sm font-black">Motivo del retiro</span>{{ bulk_release_form.reason }}{% for error in bulk_release_form.reason.errors %}<p class="mt-1 text-xs font-bold text-red-600">{{ error }}</p>{% endfor %}</label><div class="mt-4 flex justify-end"><button class="rounded-xl bg-amber-600 px-5 py-3 text-sm font-black text-white">Preparar constancias seleccionadas</button></div></div>
+    </form>
+    {% else %}
+    <div class="grid gap-4">
+        {% for row in document_rows %}{% with document=row.document %}
+            <a href="{% if tab == 'release_bulk' %}{% url 'inventory:custody_document_release' document.id %}?bulk=1{% elif tab == 'release_individual' %}{% url 'inventory:custody_document_release' document.id %}{% else %}{% url 'inventory:custody_document_detail' document.id %}{% endif %}" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400 md:grid-cols-[1fr_auto]">
+                <div><div class="flex flex-wrap items-center gap-2"><p class="font-mono text-sm font-black {% if document.document_type == 'RELEASE' %}text-red-700{% endif %}">{{ document.folio }}</p>{% if document.document_type == 'RELEASE' %}<span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700"><span class="h-1.5 w-1.5 rounded-full bg-red-600"></span>RETIRO</span>{% endif %}{% if row.document_count > 1 %}<span class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">LOTE · {{ row.document_count }}</span>{% endif %}</div><p class="mt-1 font-black">{{ document.assigned_to_name_snapshot }}</p><p class="text-sm text-slate-500">{{ document.department_name_snapshot }} · {% if row.document_count > 1 %}{{ row.active_count }} de {{ row.total }} resguardos vigentes{% else %}1 bien{% endif %}</p>{% if document.closure_reason %}<p class="mt-2 text-xs text-slate-500">{{ document.closure_reason }}</p>{% endif %}</div>
+                <div class="flex items-center gap-3"><span class="rounded-full px-3 py-1 text-xs font-black {% if row.status_color == 'emerald' %}bg-emerald-100 text-emerald-800{% elif row.status_color == 'amber' %}bg-amber-100 text-amber-900{% else %}bg-slate-100 text-slate-700{% endif %}">{{ row.status_label }}</span><i data-lucide="chevron-right" class="h-4 w-4"></i></div>
+            </a>
+        {% endwith %}{% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}
+    </div>
+    {% endif %}
 </section>

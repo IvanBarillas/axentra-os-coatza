@@ -75,7 +75,7 @@
         <div>
             <a href="{% url 'inventory:custody_document_list' %}" class="text-sm font-black text-slate-500">← Volver a documentos</a>
             <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Captura agrupada</p>
-            <h1 class="mt-2 text-2xl font-black">Nuevo resguardo masivo</h1>
+            <h1 class="mt-2 text-2xl font-black">Crear resguardos en lote</h1>
             <p class="mt-1 text-sm text-slate-500">Cada bien conservará un resguardo individual, agrupado en un solo documento para firma.</p>
         </div>
     </div>
@@ -124,7 +124,7 @@
         {% if form.bypass_reason %}<div>{% include "inventory/partials/form_field.html" with field=form.bypass_reason %}</div>{% endif %}
         <div class="flex justify-end gap-2">
             <a href="{% url 'inventory:custody_document_list' %}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-black">Cancelar</a>
-            <button class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white">Crear documento masivo</button>
+            <button class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white">Crear resguardos individuales</button>
         </div>
     </form>
 </section>

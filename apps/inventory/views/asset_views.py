@@ -8,7 +8,14 @@ from django.views.decorators.http import require_http_methods
 
 from apps.inventory.forms import AssetConditionUpdateForm, AssetCorrectionForm, AssetLoanFromAssetForm, AssetPhotoUploadForm
 from apps.inventory.integrations import get_external_asset_activity
-from apps.inventory.models import AssetLoanStatus, AssetOperationalStatus
+from apps.inventory.models import (
+    AssetDocument,
+    AssetLoanStatus,
+    AssetOperationalStatus,
+    CustodyDocumentItem,
+    DocumentType,
+    InventoryDocumentOwnerType,
+)
 from apps.inventory.selectors import AssetSelectors, CoreDirectorySelectors, DocumentSelectors, InventoryScope
 from apps.inventory.services import correct_asset, create_asset_loan, update_asset_condition, upload_asset_photo
 from apps.security.decorators import axentra_gate_enforcer
@@ -174,7 +181,68 @@ def asset_technical_view(request, asset_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
 def asset_custodies_view(request, asset_id):
     asset = _visible_asset(request, asset_id)
-    return _render_asset_section(request, asset, current_view="inventory:asset_custodies", section="custodies", extra={"records": asset.custody_assignments.all()})
+    custodies = list(asset.custody_assignments.all())
+    custody_ids = [custody.id for custody in custodies]
+    document_items = list(
+        CustodyDocumentItem.objects.filter(
+            custody_assignment_id__in=custody_ids,
+            is_deleted=False,
+            document__is_deleted=False,
+        ).select_related("document")
+    )
+    document_ids = [item.document_id for item in document_items]
+    document_evidences = list(
+        AssetDocument.objects.filter(
+            owner_type=InventoryDocumentOwnerType.CUSTODY_DOCUMENT,
+            owner_id__in=document_ids,
+            document_type__in={
+                DocumentType.SIGNED_CUSTODY_RECEIPT,
+                DocumentType.SIGNED_RETURN_RECEIPT,
+            },
+            is_deleted=False,
+            is_current_version=True,
+        ).order_by("-created_at")
+    )
+    custody_evidences = list(
+        AssetDocument.objects.filter(
+            owner_type=InventoryDocumentOwnerType.CUSTODY_ASSIGNMENT,
+            owner_id__in=custody_ids,
+            document_type__in={
+                DocumentType.SIGNED_CUSTODY_RECEIPT,
+                DocumentType.SIGNED_RETURN_RECEIPT,
+            },
+            is_deleted=False,
+            is_current_version=True,
+        ).order_by("-created_at")
+    )
+    evidences_by_owner = {}
+    for evidence in document_evidences:
+        evidences_by_owner.setdefault(evidence.owner_id, []).append(evidence)
+    evidences_by_custody = {}
+    for evidence in custody_evidences:
+        evidences_by_custody.setdefault(evidence.owner_id, []).append(evidence)
+    items_by_custody = {}
+    for item in document_items:
+        items_by_custody.setdefault(item.custody_assignment_id, []).append(item)
+    custody_rows = []
+    for custody in custodies:
+        related_items = items_by_custody.get(custody.id, [])
+        custody_rows.append({
+            "custody": custody,
+            "documents": [item.document for item in related_items],
+            "evidences": [
+                evidence
+                for item in related_items
+                for evidence in evidences_by_owner.get(item.document_id, [])
+            ] + evidences_by_custody.get(custody.id, []),
+        })
+    return _render_asset_section(
+        request,
+        asset,
+        current_view="inventory:asset_custodies",
+        section="custodies",
+        extra={"records": custodies, "custody_rows": custody_rows},
+    )
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")

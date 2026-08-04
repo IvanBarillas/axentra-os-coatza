@@ -1,0 +1,9 @@
+<style>
+    .custody-batch-page { break-after: page; page-break-after: always; }
+    .custody-batch-page:last-child { break-after: auto; page-break-after: auto; }
+</style>
+{% for document in documents %}
+    <div class="custody-batch-page">
+        {% include "inventory/content/custody_document_print_content.html" with document=document embed_preview=True %}
+    </div>
+{% endfor %}

@@ -198,27 +198,32 @@ def create_custody_document(
             "Uno o más bienes ya tienen un resguardo vigente o en proceso."
         )
 
-    document = CustodyDocument(
-        folio=(
-            f"RMG-{timezone.localdate():%Y}-"
-            f"{uuid4().hex[:10].upper()}"
-        ),
-        department_id=department.id,
-        department_name_snapshot=department.name,
-        department_code_snapshot=department.code or "",
-        status=CustodyDocumentStatus.IN_PROCESS,
-        assignee_mode=assignee_mode,
-        assigned_to_id_snapshot=responsible.id,
-        assigned_to_name_snapshot=responsible.display_name,
-        assigned_to_email_snapshot=responsible.normalized_email,
-        prepared_by_id=actor.id,
-        replacement_of=replacement_of,
-        notes=str(notes or "").strip(),
-    )
-    document.full_clean()
-    document.save()
-
-    for asset in assets:
+    batch_id = uuid4()
+    batch_size = len(assets)
+    documents = []
+    for position, asset in enumerate(assets, start=1):
+        document = CustodyDocument(
+            folio=(
+                f"RES-{timezone.localdate():%Y}-"
+                f"{uuid4().hex[:10].upper()}"
+            ),
+            batch_id=batch_id,
+            batch_size=batch_size,
+            batch_position=position,
+            department_id=department.id,
+            department_name_snapshot=department.name,
+            department_code_snapshot=department.code or "",
+            status=CustodyDocumentStatus.IN_PROCESS,
+            assignee_mode=assignee_mode,
+            assigned_to_id_snapshot=responsible.id,
+            assigned_to_name_snapshot=responsible.display_name,
+            assigned_to_email_snapshot=responsible.normalized_email,
+            prepared_by_id=actor.id,
+            replacement_of=(replacement_of if batch_size == 1 else None),
+            notes=str(notes or "").strip(),
+        )
+        document.full_clean()
+        document.save()
         custody = create_custody_assignment(
             data=SimpleNamespace(
                 asset_id=asset.id,
@@ -242,8 +247,11 @@ def create_custody_document(
             asset_name_snapshot=asset.name,
             serial_number_snapshot=asset.serial_number or "",
         )
+        documents.append(document)
 
-    return document
+    # La vista abre el primer documento, pero el lote completo se recupera
+    # mediante batch_id para imprimirlo sin mezclar los expedientes.
+    return documents[0]
 
 
 @transaction.atomic
@@ -318,6 +326,154 @@ def create_custody_release_document(
 
 
 @transaction.atomic
+def create_custody_release_batch(
+    *, source_document_id, reason, actor_id, request=None
+):
+    """Genera una constancia individual por cada resguardo del lote."""
+    source = CustodyDocument.objects.get(
+        pk=source_document_id,
+        is_deleted=False,
+        document_type=CustodyDocumentType.ASSIGNMENT,
+    )
+    sources = list(
+        CustodyDocument.objects.filter(
+            batch_id=source.batch_id,
+            document_type=CustodyDocumentType.ASSIGNMENT,
+            items__custody_assignment__status__in={
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            },
+            is_deleted=False,
+        ).exclude(
+            status__in={
+                CustodyDocumentStatus.CLOSED,
+                CustodyDocumentStatus.REPLACED,
+                CustodyDocumentStatus.CANCELLED,
+            }
+        ).distinct().order_by("batch_position", "prepared_at")
+    )
+    if not sources:
+        raise InventoryStateError(
+            "El lote no contiene resguardos vigentes para retirar."
+        )
+
+    release_batch_id = uuid4()
+    releases = []
+    for position, source_item in enumerate(sources, start=1):
+        release = create_custody_release_document(
+            document_id=source_item.id,
+            reason=reason,
+            actor_id=actor_id,
+            request=request,
+        )
+        release.batch_id = release_batch_id
+        release.batch_size = len(sources)
+        release.batch_position = position
+        release.save(update_fields=[
+            "batch_id", "batch_size", "batch_position", "updated_at",
+        ])
+        releases.append(release)
+    return releases[0]
+
+
+@transaction.atomic
+def create_custody_releases_from_assignments(
+    *, custody_ids, reason, actor_id, request=None
+):
+    """Prepara una constancia individual desde cada resguardo seleccionado."""
+    actor = _require_permission(actor_id, MANAGE_PERMISSION)
+    unique_ids = list(dict.fromkeys(custody_ids))
+    if not unique_ids:
+        raise InventoryValidationError(
+            "Seleccione al menos un resguardo vigente."
+        )
+    custodies = list(
+        CustodyAssignment.objects.select_for_update()
+        .select_related("asset")
+        .filter(
+            id__in=unique_ids,
+            status__in={CustodyStatus.ACTIVE, CustodyStatus.RETURN_PENDING},
+            is_deleted=False,
+        )
+        .order_by("dependencia_name_snapshot", "folio")
+    )
+    if len(custodies) != len(unique_ids):
+        raise InventoryStateError(
+            "Uno o más resguardos ya no están vigentes."
+        )
+    responsibility_groups = {
+        (item.dependencia_id, item.assigned_to_id) for item in custodies
+    }
+    if len(responsibility_groups) > 1:
+        raise InventoryValidationError(
+            "El retiro masivo debe corresponder a una sola dependencia y "
+            "al mismo responsable."
+        )
+    reason = str(reason or "").strip()
+    if not reason:
+        raise InventoryValidationError("Indique el motivo del retiro.")
+
+    batch_id = uuid4()
+    releases = []
+    for position, custody in enumerate(custodies, start=1):
+        if CustodyDocumentItem.objects.filter(
+            custody_assignment_id=custody.id,
+            document__document_type=CustodyDocumentType.RELEASE,
+            document__status__in={
+                CustodyDocumentStatus.DRAFT,
+                CustodyDocumentStatus.IN_PROCESS,
+            },
+            document__is_deleted=False,
+        ).exists():
+            raise InventoryStateError(
+                f"El resguardo {custody.folio} ya tiene un retiro pendiente."
+            )
+        source_item = (
+            CustodyDocumentItem.objects.select_related("document")
+            .filter(
+                custody_assignment_id=custody.id,
+                document__document_type=CustodyDocumentType.ASSIGNMENT,
+                document__is_deleted=False,
+            )
+            .order_by("-document__prepared_at")
+            .first()
+        )
+        release = CustodyDocument(
+            folio=f"LIB-{timezone.localdate():%Y}-{uuid4().hex[:10].upper()}",
+            batch_id=batch_id,
+            batch_size=len(custodies),
+            batch_position=position,
+            document_type=CustodyDocumentType.RELEASE,
+            department_id=custody.dependencia_id_snapshot,
+            department_name_snapshot=custody.dependencia_name_snapshot,
+            department_code_snapshot=custody.dependencia_code_snapshot,
+            status=CustodyDocumentStatus.IN_PROCESS,
+            assignee_mode=custody.assignee_mode,
+            assigned_to_id_snapshot=custody.assigned_to_id,
+            assigned_to_name_snapshot=custody.assigned_to_name_snapshot,
+            assigned_to_email_snapshot=custody.assigned_to_email_snapshot,
+            prepared_by_id=actor.id,
+            source_document=(source_item.document if source_item else None),
+            received_by_id_snapshot=actor.id,
+            received_by_name_snapshot=actor.display_name,
+            received_by_email_snapshot=actor.normalized_email,
+            notes=reason,
+        )
+        release.full_clean()
+        release.save()
+        CustodyDocumentItem.objects.create(
+            document=release,
+            custody_assignment=custody,
+            asset_id_snapshot=custody.asset_id,
+            inventory_number_snapshot=custody.asset.display_inventory_number,
+            asset_name_snapshot=custody.asset.name,
+            serial_number_snapshot=custody.asset.serial_number or "",
+        )
+        releases.append(release)
+    return releases[0]
+
+
+@transaction.atomic
 def finalize_custody_release_document(
     *, document_id, actor_id, request=None
 ):
@@ -348,11 +504,15 @@ def finalize_custody_release_document(
     now = timezone.now()
     for item in items:
         custody = item.custody_assignment
+        # El cierre documental es automático. Su marca debe ser igual o
+        # posterior al inicio del resguardo, incluso si la fecha de firma fue
+        # capturada desde otra zona horaria.
+        transition_at = max(now, custody.assigned_at or now)
         previous = custody.status
         custody.status = CustodyStatus.RETURNED
         custody.returned_by_id = custody.assigned_to_id
         custody.received_return_by_id = actor.id
-        custody.returned_at = now
+        custody.returned_at = transition_at
         custody.return_condition = custody.asset.physical_condition
         custody.return_observations = release.notes
         custody.asset.current_custodian_id = None
@@ -369,20 +529,21 @@ def finalize_custody_release_document(
             comment=f"Liberación masiva {release.folio}: {release.notes}",
         )
 
-    source = CustodyDocument.objects.select_for_update().get(
-        pk=release.source_document_id,
-        is_deleted=False,
-    )
-    source.status = CustodyDocumentStatus.CLOSED
-    source.closed_by_id = actor.id
-    source.closed_at = now
-    source.closure_reason = f"Liberado mediante {release.folio}."
-    source.full_clean()
-    source.save()
+    if release.source_document_id:
+        source = CustodyDocument.objects.select_for_update().get(
+            pk=release.source_document_id,
+            is_deleted=False,
+        )
+        source.status = CustodyDocumentStatus.CLOSED
+        source.closed_by_id = actor.id
+        source.closed_at = max(now, source.prepared_at or now)
+        source.closure_reason = f"Liberado mediante {release.folio}."
+        source.full_clean()
+        source.save()
 
     release.status = CustodyDocumentStatus.CLOSED
     release.closed_by_id = actor.id
-    release.closed_at = now
+    release.closed_at = max(now, release.prepared_at or now)
     release.closure_reason = release.notes
     release.full_clean()
     release.save()
@@ -525,6 +686,8 @@ __all__ = [
     "close_custody_document",
     "create_custody_document",
     "create_custody_release_document",
+    "create_custody_release_batch",
+    "create_custody_releases_from_assignments",
     "finalize_custody_release_document",
     "replace_custody_document",
 ]

@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -14,6 +15,7 @@ from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     CustodyAssignment,
     CustodyDocument,
+    CustodyDocumentItem,
     CustodyDocumentStatus,
     CustodyDocumentType,
     CustodyStatus,
@@ -26,7 +28,9 @@ from apps.inventory.services.custody_document_service import (
     OPEN_STATUSES,
     close_custody_document,
     create_custody_document,
+    create_custody_release_batch,
     create_custody_release_document,
+    create_custody_releases_from_assignments,
     replace_custody_document,
 )
 from apps.inventory.services.exceptions import InventoryServiceError
@@ -41,6 +45,52 @@ def _department_choices():
         (str(item.id), f"{item.code or 'SIN-CÓDIGO'} · {item.name}")
         for item in CoreDirectorySelectors.departments()
     ]
+
+
+def _group_document_rows(documents):
+    """Agrupa documentos individuales sin perder su expediente propio."""
+    groups = {}
+    for document in documents:
+        key = (document.document_type, document.batch_id)
+        groups.setdefault(key, []).append(document)
+
+    rows = []
+    active_statuses = {CustodyStatus.ACTIVE, CustodyStatus.RETURN_PENDING}
+    historical_statuses = {CustodyStatus.RETURNED, CustodyStatus.CANCELLED}
+    for siblings in groups.values():
+        siblings.sort(key=lambda item: (item.batch_position, item.prepared_at))
+        representative = siblings[0]
+        custodies = [
+            item.custody_assignment
+            for document in siblings
+            for item in document.items.all()
+        ]
+        active_count = sum(
+            custody.status in active_statuses for custody in custodies
+        )
+        historical_count = sum(
+            custody.status in historical_statuses for custody in custodies
+        )
+        total = len(custodies) or len(siblings)
+        if total and historical_count == total:
+            status_label = "Finalizado"
+            status_color = "slate"
+        elif total and active_count == total:
+            status_label = "Vigente"
+            status_color = "emerald"
+        else:
+            status_label = f"En proceso · {active_count} de {total} vigentes"
+            status_color = "amber"
+        rows.append({
+            "document": representative,
+            "siblings": siblings,
+            "document_count": len(siblings),
+            "active_count": active_count,
+            "total": total,
+            "status_label": status_label,
+            "status_color": status_color,
+        })
+    return rows
 
 
 def _configure_dynamic_choices(form, department_id, user_id=""):
@@ -60,7 +110,10 @@ def _configure_dynamic_choices(form, department_id, user_id=""):
         status__in=OPEN_STATUSES,
     ).values_list("asset_id", flat=True)
     assets = list(
-        AssetSelectors.listar_activos(department_id=department_id)
+        AssetSelectors.listar_activos(
+            department_id=department_id,
+            capitalizable="",
+        )
         .exclude(id__in=busy_ids)
         .order_by("official_inventory_number", "name")
     )
@@ -149,9 +202,14 @@ def custody_document_create_view(request):
             ),
         )
         if document:
+            quantity = document.batch_size
             success(
                 request,
-                f"Documento masivo {document.folio} creado correctamente.",
+                (
+                    f"Se crearon {quantity} resguardos individuales."
+                    if quantity > 1
+                    else f"Resguardo {document.folio} creado correctamente."
+                ),
             )
             return redirect(
                 "inventory:custody_document_detail",
@@ -183,22 +241,115 @@ def custody_document_create_view(request):
     required_fine_permission="can_manage_custody",
 )
 def custody_document_list_view(request):
-    tab = request.GET.get("tab", "current")
+    tab = request.GET.get("tab", "current").strip().lower()
     documents = (
         CustodyDocument.objects.filter(is_deleted=False)
         .select_related("prepared_by", "closed_by")
-        .prefetch_related("items")
+        .prefetch_related("items__custody_assignment")
+        .annotate(asset_count=Count("items", distinct=True))
     )
     historical = {
         CustodyDocumentStatus.CLOSED,
         CustodyDocumentStatus.REPLACED,
         CustodyDocumentStatus.CANCELLED,
     }
+    release_custodies = None
+    bulk_release_form = CustodyDocumentReleaseForm(
+        request.POST or None,
+    ) if tab == "release_bulk" else None
+    department_filter = request.GET.get("department_id", "").strip()
+    search_query = request.GET.get("q", "").strip()
+    if tab in {"release_individual", "release_bulk"}:
+        pending_release = CustodyDocumentItem.objects.filter(
+            custody_assignment_id=OuterRef("pk"),
+            is_deleted=False,
+            document__is_deleted=False,
+            document__document_type=CustodyDocumentType.RELEASE,
+            document__status__in={
+                CustodyDocumentStatus.DRAFT,
+                CustodyDocumentStatus.IN_PROCESS,
+            },
+        ).order_by("-document__prepared_at")
+        release_custodies = CustodyAssignment.objects.filter(
+            is_deleted=False,
+            status__in={CustodyStatus.ACTIVE, CustodyStatus.RETURN_PENDING},
+        ).select_related(
+            "asset", "dependencia", "assigned_to",
+        ).annotate(
+            pending_release_id=Subquery(
+                pending_release.values("document_id")[:1],
+            ),
+        )
+        if department_filter:
+            release_custodies = release_custodies.filter(
+                dependencia_id=department_filter,
+            )
+        if search_query:
+            release_custodies = release_custodies.filter(
+                Q(folio__icontains=search_query)
+                | Q(asset__official_inventory_number__icontains=search_query)
+                | Q(asset__internal_inventory_number__icontains=search_query)
+                | Q(asset__name__icontains=search_query)
+                | Q(assigned_to_name_snapshot__icontains=search_query)
+            )
+        release_custodies = release_custodies.order_by(
+            "dependencia_name_snapshot", "assigned_to_name_snapshot", "folio",
+        )
+
+    if (
+        request.method == "POST"
+        and tab == "release_bulk"
+        and bulk_release_form.is_valid()
+    ):
+        selected_ids = request.POST.getlist("custody_ids")
+        release = run_service(
+            bulk_release_form,
+            lambda: create_custody_releases_from_assignments(
+                custody_ids=selected_ids,
+                reason=bulk_release_form.cleaned_data["reason"],
+                actor_id=request.user.pk,
+                request=request,
+            ),
+        )
+        if release:
+            success(
+                request,
+                f"Se prepararon {len(selected_ids)} constancias individuales.",
+            )
+            return redirect(
+                "inventory:custody_document_detail",
+                document_id=release.id,
+            )
+
     if tab == "history":
         documents = documents.filter(status__in=historical)
+    elif tab == "release_individual":
+        documents = documents.filter(
+            document_type=CustodyDocumentType.ASSIGNMENT,
+            items__custody_assignment__status__in={
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            },
+            asset_count=1,
+        ).exclude(status__in=historical).distinct()
+    elif tab == "release_bulk":
+        documents = documents.filter(
+            document_type=CustodyDocumentType.ASSIGNMENT,
+            items__custody_assignment__status__in={
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            },
+        ).filter(
+            Q(batch_size__gt=1, batch_position=1)
+            | Q(asset_count__gt=1)
+        ).exclude(status__in=historical).distinct()
     else:
         documents = documents.exclude(status__in=historical)
         tab = "current"
+    selecting_release = tab in {"release_individual", "release_bulk"}
+    document_rows = (
+        [] if selecting_release else _group_document_rows(list(documents))
+    )
     return render_inventory(
         request,
         page="inventory/pages/custody_document_list.html",
@@ -206,8 +357,59 @@ def custody_document_list_view(request):
         context={
             "current_inventory_view": "inventory:custody_list",
             "documents": documents,
+            "document_rows": document_rows,
             "tab": tab,
+            "selecting_release": selecting_release,
+            "release_custodies": release_custodies,
+            "department_choices": _department_choices(),
+            "selected_department_id": department_filter,
+            "q": search_query,
+            "bulk_release_form": bulk_release_form,
         },
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+@require_http_methods(["GET", "POST"])
+@axentra_gate_enforcer(
+    AppIdentifier.INVENTORY,
+    required_fine_permission="can_manage_custody",
+)
+def custody_release_individual_view(request, custody_id):
+    custody = selector_or_404(
+        lambda: CustodyAssignment.objects.select_related("asset").get(
+            pk=custody_id,
+            is_deleted=False,
+            status__in={CustodyStatus.ACTIVE, CustodyStatus.RETURN_PENDING},
+        )
+    )
+    form = CustodyDocumentReleaseForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        release = run_service(
+            form,
+            lambda: create_custody_releases_from_assignments(
+                custody_ids=[custody.id],
+                reason=form.cleaned_data["reason"],
+                actor_id=request.user.pk,
+                request=request,
+            ),
+        )
+        if release:
+            success(request, f"Constancia {release.folio} preparada para firma.")
+            return redirect(
+                "inventory:custody_document_detail",
+                document_id=release.id,
+            )
+    return render_inventory(
+        request,
+        page="inventory/pages/custody_assignment_release.html",
+        content="inventory/content/custody_assignment_release_content.html",
+        context={
+            "current_inventory_view": "inventory:custody_list",
+            "custody": custody,
+            "form": form,
+        },
+        status=422 if request.method == "POST" else 200,
     )
 
 
@@ -230,6 +432,14 @@ def custody_document_detail_view(request, document_id):
         if document.document_type == CustodyDocumentType.RELEASE
         else "CUSTODY_RECEIPT"
     )
+    acknowledgement = get_acknowledgement_state(
+        owner_type="CUSTODY_DOCUMENT",
+        owner_id=document.id,
+        generated_type=generated_type,
+    )
+    permissions = set(
+        getattr(request, "axentra_permissions_list", []) or []
+    )
     return render_inventory(
         request,
         page="inventory/pages/custody_document_detail.html",
@@ -248,11 +458,16 @@ def custody_document_detail_view(request, document_id):
                     },
                 ).exists()
             ),
+            "is_individual_document": document.items.count() == 1,
+            "batch_documents": CustodyDocument.objects.filter(
+                batch_id=document.batch_id,
+                is_deleted=False,
+            ).order_by("batch_position", "prepared_at"),
             "generated_type": generated_type,
-            "acknowledgement": get_acknowledgement_state(
-                owner_type="CUSTODY_DOCUMENT",
-                owner_id=document.id,
-                generated_type=generated_type,
+            "acknowledgement": acknowledgement,
+            "can_validate_acknowledgement": (
+                getattr(request, "axentra_is_root", False)
+                or "can_validate_documents" in permissions
             ),
         },
     )
@@ -275,13 +490,30 @@ def custody_document_print_view(request, document_id):
             is_deleted=False,
         )
     )
+    batch_print = request.GET.get("batch") == "1" and document.batch_size > 1
+    batch_documents = (
+        CustodyDocument.objects.filter(
+            batch_id=document.batch_id,
+            document_type=document.document_type,
+            is_deleted=False,
+        )
+        .select_related("prepared_by", "closed_by", "replacement_of")
+        .prefetch_related("items__custody_assignment")
+        .order_by("batch_position", "prepared_at")
+        if batch_print else None
+    )
     return render_inventory(
         request,
         page="inventory/pages/custody_document_print.html",
-        content="inventory/content/custody_document_print_content.html",
+        content=(
+            "inventory/content/custody_document_batch_print_content.html"
+            if batch_print
+            else "inventory/content/custody_document_print_content.html"
+        ),
         context={
             "current_inventory_view": "inventory:custody_list",
             "document": document,
+            "documents": batch_documents,
             "print_view": True,
             "embed_preview": request.GET.get("embed") == "1",
         },
@@ -390,14 +622,24 @@ def custody_document_release_view(request, document_id):
         ).get(pk=document_id, is_deleted=False)
     )
     form = CustodyDocumentReleaseForm(request.POST or None)
+    bulk_release = request.GET.get("bulk") == "1"
     if request.method == "POST" and form.is_valid():
         release = run_service(
             form,
-            lambda: create_custody_release_document(
-                document_id=document.id,
-                reason=form.cleaned_data["reason"],
-                actor_id=request.user.pk,
-                request=request,
+            lambda: (
+                create_custody_release_batch(
+                    source_document_id=document.id,
+                    reason=form.cleaned_data["reason"],
+                    actor_id=request.user.pk,
+                    request=request,
+                )
+                if bulk_release
+                else create_custody_release_document(
+                    document_id=document.id,
+                    reason=form.cleaned_data["reason"],
+                    actor_id=request.user.pk,
+                    request=request,
+                )
             ),
         )
         if release:
@@ -424,6 +666,11 @@ def custody_document_release_view(request, document_id):
                     CustodyStatus.RETURN_PENDING,
                 }
             ],
+            "bulk_release": bulk_release,
+            "batch_size": (
+                max(document.batch_size, document.items.count())
+                if bulk_release else 1
+            ),
         },
         status=422 if request.method == "POST" else 200,
     )

@@ -1,5 +1,7 @@
 """Documentos agrupadores e históricos inmutables de resguardo."""
 
+from uuid import uuid4
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -23,12 +25,28 @@ class CustodyDocumentType(models.TextChoices):
 
 
 class CustodyDocument(InventoryBaseModel):
-    """Cabecera de un documento que agrupa uno o varios resguardos."""
+    """Documento individual e inmutable asociado a un solo activo."""
 
     folio = models.CharField(
         "Folio del documento",
         max_length=80,
         unique=True,
+    )
+    batch_id = models.UUIDField(
+        "Lote operativo",
+        default=uuid4,
+        db_index=True,
+        help_text=(
+            "Agrupa documentos individuales creados en una operación masiva."
+        ),
+    )
+    batch_size = models.PositiveIntegerField(
+        "Documentos en el lote",
+        default=1,
+    )
+    batch_position = models.PositiveIntegerField(
+        "Posición en el lote",
+        default=1,
     )
     document_type = models.CharField(
         "Tipo de documento",
@@ -162,10 +180,6 @@ class CustodyDocument(InventoryBaseModel):
     def clean(self):
         errors = {}
         if self.document_type == CustodyDocumentType.RELEASE:
-            if not self.source_document_id:
-                errors["source_document"] = (
-                    "La constancia debe indicar el resguardo que libera."
-                )
             if not self.received_by_id_snapshot:
                 errors["received_by_id_snapshot"] = (
                     "La constancia debe indicar quién recibe los bienes."

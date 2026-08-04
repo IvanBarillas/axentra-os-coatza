@@ -59,6 +59,7 @@ from apps.inventory.models import (
     AssetMovementRequest,
     AssetMovementRequestStatus,
     AssetPhoto,
+    CustodyAssignment,
     DisposalStageDocumentRequirement,
     DocumentType,
     DocumentValidationStatus,
@@ -410,12 +411,38 @@ def custody_list_view(request):
         f["area_id"] = ""
         f["assigned_to_id"] = ""
     tab = request.GET.get("tab", "current").strip().lower()
-    if tab not in {"current", "history"}:
+    if tab not in {"current", "history", "unassigned"}:
         tab = "current"
     queryset = CustodySelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=department_id)
     historical = {CustodyStatus.RETURNED, CustodyStatus.CANCELLED}
-    queryset = queryset.filter(status__in=historical) if tab == "history" else queryset.exclude(status__in=historical)
-    page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
+    assets_without_custody = None
+    if tab == "unassigned" and has_any_permission(request, "can_manage_custody"):
+        occupied_asset_ids = CustodyAssignment.objects.filter(
+            is_deleted=False,
+            status__in={
+                CustodyStatus.DRAFT,
+                CustodyStatus.PENDING_AUTHORIZATION,
+                CustodyStatus.PENDING_ACCEPTANCE,
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            },
+        ).values_list("asset_id", flat=True)
+        assets_without_custody = AssetSelectors.listar_activos(
+            q=f["q"],
+            site_id=f["site_id"],
+            department_id=f["department_id"],
+            area_id=f["area_id"],
+            capitalizable="",
+            scope="GLOBAL",
+        ).filter(
+            patrimonial_status="ACTIVE",
+        ).exclude(id__in=occupied_asset_ids)
+        page_obj = Paginator(assets_without_custody, 30).get_page(
+            request.GET.get("page")
+        )
+    else:
+        queryset = queryset.filter(status__in=historical) if tab == "history" else queryset.exclude(status__in=historical)
+        page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
     pagination_params = request.GET.copy(); pagination_params.pop("page", None)
     if is_global_scope:
         directory = CoreDirectorySelectors.form_choices(
@@ -444,7 +471,7 @@ def custody_list_view(request):
             "site_choices": [], "department_choices": [],
             "area_choices": [], "user_choices": [],
         }
-    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "is_global_inventory_scope":is_global_scope, "is_department_inventory_scope":is_department_scope, "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **directory, **f})
+    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":([] if tab == "unassigned" else page_obj.object_list), "assets_without_custody":(page_obj.object_list if tab == "unassigned" else []), "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "is_global_inventory_scope":is_global_scope, "is_department_inventory_scope":is_department_scope, "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **directory, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -546,6 +573,8 @@ def custody_create_view(request):
 def _custody_action(request, custody_id, form_class, callback, title):
     custody = _custody(request, custody_id)
     form = form_class(request.POST or None)
+    if "bypass_reason" in form.fields and not is_inventory_root(request):
+        form.fields.pop("bypass_reason", None)
     if request.method == "POST" and form.is_valid():
         result = run_service(form, lambda: callback(custody, form))
         if result:
