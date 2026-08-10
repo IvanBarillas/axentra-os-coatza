@@ -1,6 +1,7 @@
 <section class="mx-auto max-w-4xl space-y-6">
     {% include "inventory/partials/messages.html" %}
     <div><a href="{% url 'inventory:document_list' %}" hx-get="{% url 'inventory:document_list' %}" hx-target="#page-content" hx-push-url="true" class="text-sm font-black text-slate-500">← Volver a documentos</a><p class="mt-5 text-xs font-black uppercase tracking-[.24em] text-slate-400">{{ owner_type_label }}</p><h1 class="mt-2 text-2xl font-black">{{ form_title|default:"Agregar documento" }}</h1><p class="mt-1 text-sm text-slate-500">{{ owner_label }}</p></div>
+    {% if document_review_url %}<a href="{{ document_review_url }}" target="_blank" rel="noopener" class="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-800">Abrir documento antes de confirmar</a>{% endif %}
     <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><span class="font-black">Expediente seguro.</span> Se admite PDF de hasta 25 MB. El sistema calculará su huella SHA-256 y lo enviará a validación.</div>
     {% include "inventory/partials/generic_form.html" with submit_label="Guardar documento" enctype="multipart/form-data" %}
 </section>

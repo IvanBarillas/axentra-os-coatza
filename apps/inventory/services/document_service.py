@@ -216,9 +216,12 @@ def upload_disposal_stage_document(*, approval_id, data, actor_id, request=None)
 
 
 @transaction.atomic
-def upload_inventory_document(*, data, actor_id, authorized_owner, request=None):
+def upload_inventory_document(
+    *, data, actor_id, authorized_owner, request=None,
+    required_permission="can_manage_documents",
+):
     """Carga un PDF a un expediente interno previamente autorizado por scope."""
-    actor = _actor(actor_id, "can_manage_documents")
+    actor = _actor(actor_id, required_permission)
     owner = _document_owner(data.owner_type, data.owner_id)
     if (
         authorized_owner.__class__ is not owner.__class__
@@ -301,8 +304,15 @@ def upload_inventory_document(*, data, actor_id, authorized_owner, request=None)
 
 
 @transaction.atomic
-def resolve_inventory_document(*, document_id, data, actor_id, request=None):
-    actor = _actor(actor_id, "can_validate_documents")
+def resolve_inventory_document(
+    *,
+    document_id,
+    data,
+    actor_id,
+    request=None,
+    required_permission="can_validate_documents",
+):
+    actor = _actor(actor_id, required_permission)
     try:
         document = AssetDocument.objects.select_for_update().get(
             pk=document_id, is_deleted=False, is_current_version=True

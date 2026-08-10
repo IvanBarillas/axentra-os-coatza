@@ -275,6 +275,7 @@ class LoanSelectors:
         if active_only:
             queryset = queryset.exclude(
                 status__in=(
+                    AssetLoanStatus.REJECTED,
                     AssetLoanStatus.RETURNED,
                     AssetLoanStatus.CANCELLED,
                 )
@@ -344,7 +345,16 @@ class LoanSelectors:
                 )
         elif normalized_bucket == "authorize":
             queryset = queryset.filter(
-                status=AssetLoanStatus.DEPARTMENT_APPROVED,
+                status=AssetLoanStatus.REQUESTED,
+                external_borrower=True,
+            )
+        elif normalized_bucket == "history":
+            queryset = queryset.filter(
+                status__in=(
+                    AssetLoanStatus.REJECTED,
+                    AssetLoanStatus.RETURNED,
+                    AssetLoanStatus.CANCELLED,
+                )
             )
         elif normalized_bucket == "expiring":
             now = timezone.now()
@@ -434,7 +444,8 @@ class LoanSelectors:
             ).count(),
             "pending_acceptance": pending.count(),
             "pending_authorization": queryset.filter(
-                status=AssetLoanStatus.DEPARTMENT_APPROVED,
+                status=AssetLoanStatus.REQUESTED,
+                external_borrower=True,
             ).count(),
             "expiring": queryset.filter(
                 status__in=(

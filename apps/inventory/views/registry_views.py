@@ -482,6 +482,20 @@ def custody_detail_view(request, custody_id):
     return render_inventory(request, page="inventory/pages/custody_detail.html", content="inventory/content/custody_detail_content.html", context={"current_inventory_view":"inventory:custody_list", **_custody_context(request, custody)})
 
 
+def _document_generated_type(request):
+    """Conserva el tipo de acuse entre la apertura y el POST del formulario."""
+    generated_type = (
+        request.GET.get("ack_for", "").strip().upper()
+        or request.POST.get("ack_for", "").strip().upper()
+        or request.GET.get("document_type", "").strip().upper()
+        or request.POST.get("document_type", "").strip().upper()
+    )
+    return {
+        DocumentType.SIGNED_LOAN_RECEIPT: DocumentType.LOAN_RECEIPT,
+        DocumentType.SIGNED_RETURN_RECEIPT: DocumentType.RETURN_RECEIPT,
+    }.get(generated_type, generated_type)
+
+
 @require_http_methods(["GET", "POST"])
 @axentra_gate_enforcer(
     AppIdentifier.INVENTORY,
@@ -998,7 +1012,7 @@ def _loan_options(options):
 
 
 def _loan_origin_department_id(request):
-    if has_any_permission(request, "can_manage_loans"):
+    if is_inventory_root(request):
         return None
     return department_id(request)
 
@@ -1104,8 +1118,23 @@ def _loan_context(request, loan):
     own_request = loan.requested_by_id == request.user.pk
     own_receipt = loan.borrower_id == request.user.pk
     destination_matches = department_id(request) == loan.destination_dependencia_id
+    origin_matches = department_id(request) == getattr(
+        loan,
+        "origin_dependencia_id",
+        None,
+    )
+    origin_operator = bool(
+        is_inventory_root(request)
+        or (origin_matches and (manages or requests))
+    )
+    destination_operator = bool(
+        is_inventory_root(request)
+        or (destination_matches and authorizes)
+    )
     receipt = None
     acknowledgement = None
+    return_receipt = None
+    return_acknowledgement = None
     if getattr(loan, "id", None):
         acknowledgement = get_acknowledgement_state(
             owner_type=InventoryDocumentOwnerType.LOAN,
@@ -1113,22 +1142,49 @@ def _loan_context(request, loan):
             generated_type="LOAN_RECEIPT",
         )
         receipt = acknowledgement.document
+        return_acknowledgement = get_acknowledgement_state(
+            owner_type=InventoryDocumentOwnerType.LOAN,
+            owner_id=loan.id,
+            generated_type="RETURN_RECEIPT",
+        )
+        return_receipt = return_acknowledgement.document
+    receipt_ready = bool(
+        acknowledgement
+        and acknowledgement.code == "VALIDATED"
+    )
+    return_receipt_ready = bool(
+        return_acknowledgement
+        and return_acknowledgement.code == "VALIDATED"
+    )
     return {
         "loan": loan,
         "loan_receipt": receipt,
         "loan_acknowledgement": acknowledgement,
+        "loan_return_receipt": return_receipt,
+        "loan_return_acknowledgement": return_acknowledgement,
         "receipt_required": loan.status in {
-            "AUTHORIZED", "DELIVERED", "OVERDUE", "RETURN_PENDING", "RETURNED",
+            "DEPARTMENT_APPROVED", "AUTHORIZED", "DELIVERED", "OVERDUE", "RETURN_PENDING", "RETURNED",
         },
-        "can_upload_loan_receipt": manages and loan.status in {
-            "AUTHORIZED", "DELIVERED", "OVERDUE", "RETURN_PENDING", "RETURNED",
+        "return_receipt_required": loan.status in {
+            "RETURN_PENDING", "RETURNED",
         },
+        "can_upload_loan_receipt": origin_operator and loan.status in {
+            "DEPARTMENT_APPROVED", "AUTHORIZED", "DELIVERED", "OVERDUE", "RETURN_PENDING",
+        },
+        "can_confirm_loan_receipt": destination_operator and bool(
+            acknowledgement and acknowledgement.code in {"UPLOADED", "OBSERVED"}
+        ),
         "can_submit_loan": requests and own_request and loan.status in {"DRAFT", "REJECTED"},
         "can_decide_department_loan": authorizes and destination_matches and loan.status == "REQUESTED" and not loan.external_borrower,
-        "can_authorize_loan": manages and (loan.status == "DEPARTMENT_APPROVED" or (loan.external_borrower and loan.status == "REQUESTED")),
-        "can_deliver_loan": manages and loan.status == "AUTHORIZED",
-        "can_request_loan_return": (manages or own_request or own_receipt) and loan.status in {"DELIVERED", "OVERDUE"},
-        "can_receive_loan_return": manages and loan.status in {"DELIVERED", "OVERDUE", "RETURN_PENDING"},
+        "can_authorize_loan": manages and loan.external_borrower and loan.status == "REQUESTED",
+        "can_deliver_loan": origin_operator and receipt_ready and loan.status in {"DEPARTMENT_APPROVED", "AUTHORIZED"},
+        "can_request_loan_return": (manages or own_request or own_receipt or (authorizes and destination_matches)) and loan.status in {"DELIVERED", "OVERDUE"},
+        "can_upload_return_receipt": destination_operator and loan.status == "RETURN_PENDING",
+        "can_confirm_return_receipt": origin_operator and bool(
+            return_acknowledgement
+            and return_acknowledgement.code in {"UPLOADED", "OBSERVED"}
+        ),
+        "can_receive_loan_return": origin_operator and return_receipt_ready and loan.status == "RETURN_PENDING",
         "can_cancel_loan": (manages or own_request) and loan.status in {"DRAFT", "REQUESTED", "REJECTED"},
     }
 
@@ -1145,7 +1201,7 @@ def loan_list_view(request):
     f["overdue"] = request.GET.get("overdue") == "1"
     scope, scope_department_id = _loan_scope(request)
     filter_context = _registry_filter_context(f, scope, scope_department_id)
-    return render_inventory(request, page="inventory/pages/loan_list.html", content="inventory/content/loan_list_content.html", context={"current_inventory_view":"inventory:loan_list", "loans":LoanSelectors.listar(**f, active_only=True, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "loan_summary":LoanSelectors.dashboard_metrics(scope=scope, actor_id=request.user.pk, department_id=scope_department_id), "can_create_full_loan":has_any_permission(request, "can_manage_loans"), "show_department_tabs":scope == RegistryScope.DEPARTMENT, "show_global_tabs":scope == RegistryScope.GLOBAL, "loan_statuses":LoanSelectors.status_choices(), **filter_context, **f})
+    return render_inventory(request, page="inventory/pages/loan_list.html", content="inventory/content/loan_list_content.html", context={"current_inventory_view":"inventory:loan_list", "loans":LoanSelectors.listar(**f, active_only=f["bucket"] != "history", scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "loan_summary":LoanSelectors.dashboard_metrics(scope=scope, actor_id=request.user.pk, department_id=scope_department_id), "can_create_full_loan":has_any_permission(request, "can_manage_loans"), "show_department_tabs":scope == RegistryScope.DEPARTMENT, "show_global_tabs":scope == RegistryScope.GLOBAL, "loan_statuses":LoanSelectors.status_choices(), **filter_context, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -1288,7 +1344,7 @@ def loan_authorize_view(request, loan_id):
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_loans")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def loan_deliver_view(request, loan_id):
     return _loan_action(request, loan_id, AssetLoanDeliveryForm, lambda loan, form: deliver_asset_loan(loan_id=loan.id, actor_id=request.user.pk, data=form.to_dto(), request=request), "Entrega del préstamo registrada.")
 
@@ -1300,7 +1356,7 @@ def loan_request_return_view(request, loan_id):
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_loans")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def loan_return_view(request, loan_id):
     return _loan_action(request, loan_id, AssetLoanReturnForm, lambda loan, form: return_asset_loan(loan_id=loan.id, actor_id=request.user.pk, data=form.to_dto(), request=request), "Devolución recibida y préstamo cerrado.")
 
@@ -1320,10 +1376,16 @@ def loan_print_view(request, loan_id):
         "can_manage_loans",
         "can_authorize_loans",
     )
+    document_kind = request.GET.get("document", "loan").strip().lower()
+    if document_kind not in {"loan", "return"}:
+        document_kind = "loan"
     return render(
         request,
         "inventory/pages/loan_print.html",
-        {"loan": _loan(request, loan_id)},
+        {
+            "loan": _loan(request, loan_id),
+            "document_kind": document_kind,
+        },
     )
 
 
@@ -1555,6 +1617,14 @@ def document_list_view(request):
     explicit_status = f.pop("validation_status")
     filter_department_id = f.pop("department_id") if scope == RegistryScope.GLOBAL else ""
     queryset = DocumentSelectors.documents(**f, validation_status=explicit_status, validation_statuses=None if explicit_status else bucket, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id, include_restricted=include_restricted, filter_department_id=filter_department_id)
+    if tab != "history":
+        queryset = queryset.exclude(
+            owner_type=InventoryDocumentOwnerType.LOAN,
+            document_type__in={
+                DocumentType.SIGNED_LOAN_RECEIPT,
+                DocumentType.SIGNED_RETURN_RECEIPT,
+            },
+        )
     page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
     pagination_params = request.GET.copy(); pagination_params.pop("page", None)
     return render_inventory(request, page="inventory/pages/document_list.html", content="inventory/content/document_list_content.html", context={"current_inventory_view":"inventory:document_list", "documents":page_obj.object_list, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "validation_statuses":DocumentValidationStatus.choices, "validation_status":explicit_status, "document_types":DocumentType.choices, "owner_types":InventoryDocumentOwnerType.choices, "can_validate_documents":has_any_permission(request,"can_validate_documents"), "department_id":filter_department_id, **filter_context, **f})
@@ -1590,14 +1660,44 @@ def _document_owner_context(request, owner_type, owner_id):
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_documents")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def document_upload_view(request, owner_type, owner_id):
     owner_type = str(owner_type).strip().upper()
     owner, asset_id, owner_label = _document_owner_context(request, owner_type, owner_id)
-    generated_type = (
-        request.GET.get("ack_for", "").strip().upper()
-        or request.GET.get("document_type", "").strip().upper()
-    )
+    generated_type = _document_generated_type(request)
+    upload_permission = "can_manage_documents"
+    manages_documents = has_any_permission(request, "can_manage_documents")
+    loan_acknowledgement_upload = False
+    if owner_type == InventoryDocumentOwnerType.LOAN:
+        current_department = str(department_id(request) or "")
+        if generated_type == DocumentType.LOAN_RECEIPT:
+            loan_acknowledgement_upload = bool(
+                has_any_permission(
+                    request,
+                    "can_request_loans",
+                    "can_manage_loans",
+                )
+                and current_department
+                == str(owner.origin_dependencia_id or "")
+            )
+            if loan_acknowledgement_upload and not manages_documents:
+                upload_permission = (
+                    "can_request_loans"
+                    if has_any_permission(request, "can_request_loans")
+                    else "can_manage_loans"
+                )
+        elif generated_type == DocumentType.RETURN_RECEIPT:
+            loan_acknowledgement_upload = bool(
+                has_any_permission(request, "can_authorize_loans")
+                and current_department
+                == str(owner.destination_dependencia_id or "")
+            )
+            if loan_acknowledgement_upload and not manages_documents:
+                upload_permission = "can_authorize_loans"
+    if not loan_acknowledgement_upload and not manages_documents:
+        raise PermissionDenied(
+            "No cuenta con autorización para agregar documentos a este expediente."
+        )
     acknowledgement_spec = None
     if generated_type:
         try:
@@ -1618,6 +1718,11 @@ def document_upload_view(request, owner_type, owner_id):
         owner_id=owner.id,
     )
     if acknowledgement_spec:
+        form.fields["ack_for"] = forms.CharField(
+            initial=generated_type,
+            required=False,
+            widget=forms.HiddenInput(),
+        )
         form.fields["document_type"].initial = (
             acknowledgement_spec.acknowledgement_type
         )
@@ -1629,7 +1734,7 @@ def document_upload_view(request, owner_type, owner_id):
         form.fields["external_reference"].initial = owner_folio
         form.fields["is_required_evidence"].initial = True
     if request.method == "POST" and form.is_valid():
-        document = run_service(form, lambda: upload_inventory_document(data=form.to_dto(), actor_id=request.user.pk, authorized_owner=owner, request=request))
+        document = run_service(form, lambda: upload_inventory_document(data=form.to_dto(), actor_id=request.user.pk, authorized_owner=owner, request=request, required_permission=upload_permission))
         if document:
             success(request, "Documento agregado y enviado a validación.")
             if owner_type == InventoryDocumentOwnerType.LOAN:
@@ -1643,27 +1748,97 @@ def document_upload_view(request, owner_type, owner_id):
     return render_inventory(request, page="inventory/pages/document_form.html", content="inventory/content/document_form_content.html", context={"current_inventory_view":"inventory:document_list", "form":form, "owner_label":owner_label, "owner_type_label":dict(InventoryDocumentOwnerType.choices).get(owner_type, owner_type)}, status=422 if request.method == "POST" else 200)
 
 
+def _loan_acknowledgement_confirmation(request, document):
+    if (
+        document.owner_type != InventoryDocumentOwnerType.LOAN
+        or document.document_type not in {
+            DocumentType.SIGNED_LOAN_RECEIPT,
+            DocumentType.SIGNED_RETURN_RECEIPT,
+        }
+    ):
+        return None
+    loan = _loan(request, document.owner_id)
+    if is_inventory_root(request):
+        return loan, "can_validate_documents"
+    current_department = str(department_id(request) or "")
+    if loan.external_borrower:
+        if has_any_permission(request, "can_validate_documents"):
+            return loan, "can_validate_documents"
+        return None
+    if (
+        document.document_type == DocumentType.SIGNED_LOAN_RECEIPT
+        and has_any_permission(request, "can_authorize_loans")
+        and current_department == str(loan.destination_dependencia_id or "")
+    ):
+        return loan, "can_authorize_loans"
+    if (
+        document.document_type == DocumentType.SIGNED_RETURN_RECEIPT
+        and current_department == str(loan.origin_dependencia_id or "")
+    ):
+        if has_any_permission(request, "can_request_loans"):
+            return loan, "can_request_loans"
+        if has_any_permission(request, "can_manage_loans"):
+            return loan, "can_manage_loans"
+    return None
+
+
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def document_download_view(request, document_id):
-    scope, dep = asset_scope(request)
-    document = selector_or_404(lambda: DocumentSelectors.obtener_documento(document_id, scope=scope, actor_id=request.user.pk, department_id=dep, include_restricted=has_any_permission(request,"can_view_restricted_documents")))
+    loan_document = AssetDocument.objects.filter(
+        pk=document_id,
+        is_deleted=False,
+        owner_type=InventoryDocumentOwnerType.LOAN,
+    ).first()
+    if loan_document:
+        _loan(request, loan_document.owner_id)
+        document = loan_document
+    else:
+        scope, dep = asset_scope(request)
+        document = selector_or_404(lambda: DocumentSelectors.obtener_documento(document_id, scope=scope, actor_id=request.user.pk, department_id=dep, include_restricted=has_any_permission(request,"can_view_restricted_documents")))
     return FileResponse(document.file.open("rb"), as_attachment=False, filename=document.original_filename)
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_validate_documents")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def document_validate_view(request, document_id):
-    scope, dep = asset_scope(request)
-    document = selector_or_404(lambda: DocumentSelectors.obtener_documento(document_id, scope=scope, actor_id=request.user.pk, department_id=dep, include_restricted=True))
+    document = selector_or_404(
+        lambda: AssetDocument.objects.filter(
+            pk=document_id,
+            is_deleted=False,
+            is_current_version=True,
+        ).first()
+    )
+    loan_confirmation = _loan_acknowledgement_confirmation(request, document)
+    if document.owner_type == InventoryDocumentOwnerType.LOAN:
+        if not loan_confirmation:
+            raise PermissionDenied(
+                "El acuse debe ser confirmado por la dependencia contraparte."
+            )
+        if (
+            document.uploaded_by_id == request.user.pk
+            and not is_inventory_root(request)
+        ):
+            raise PermissionDenied(
+                "Quien integró el acuse no puede confirmar su propia evidencia."
+            )
+        loan, required_permission = loan_confirmation
+    else:
+        require_any_permission(request, "can_validate_documents")
+        scope, dep = asset_scope(request)
+        document = selector_or_404(lambda: DocumentSelectors.obtener_documento(document_id, scope=scope, actor_id=request.user.pk, department_id=dep, include_restricted=True))
+        loan = None
+        required_permission = "can_validate_documents"
     form = DocumentValidationResolveForm(request.POST or None)
     if not getattr(request, "axentra_is_root", False):
         form.fields.pop("bypass_reason", None)
     if request.method == "POST" and form.is_valid():
-        result = run_service(form, lambda: resolve_inventory_document(document_id=document.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
+        result = run_service(form, lambda: resolve_inventory_document(document_id=document.id, data=form.to_dto(), actor_id=request.user.pk, request=request, required_permission=required_permission))
         if result:
-            success(request, "Validación documental registrada.")
+            success(request, "Confirmación documental registrada.")
+            if loan:
+                return redirect(_loan_url(loan.id))
             return redirect("inventory:document_list")
-    return render_inventory(request, page="inventory/pages/document_form.html", content="inventory/content/document_form_content.html", context={"current_inventory_view":"inventory:document_list", "form":form, "form_title":"Validar documento", "owner_label":document.title, "owner_type_label":"Validación documental"}, status=422 if request.method == "POST" else 200)
+    return render_inventory(request, page="inventory/pages/document_form.html", content="inventory/content/document_form_content.html", context={"current_inventory_view":"inventory:loan_list" if loan else "inventory:document_list", "form":form, "form_title":"Confirmar acuse" if loan else "Validar documento", "owner_label":document.title, "owner_type_label":"Confirmación de la contraparte" if loan else "Validación documental", "document_review_url":reverse("inventory:document_download", kwargs={"document_id":document.id})}, status=422 if request.method == "POST" else 200)
 
 
 def _physical_audit(request, session_id):

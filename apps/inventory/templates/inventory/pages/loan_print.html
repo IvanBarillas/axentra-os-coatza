@@ -1,1 +1,1 @@
-{% extends "shell/base.html" %}{% block title %}Vale {{ loan.folio }}{% endblock %}{% block workbench %}{% include "inventory/content/loan_print_content.html" %}{% endblock %}
+{% extends "shell/base.html" %}{% block title %}{% if document_kind == 'return' %}Devolución{% else %}Vale{% endif %} {{ loan.folio }}{% endblock %}{% block workbench %}{% include "inventory/content/loan_print_content.html" %}{% endblock %}

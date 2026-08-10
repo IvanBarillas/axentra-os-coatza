@@ -10,10 +10,14 @@ from apps.inventory.dtos import LoanTransitionResultDTO
 from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     Asset,
+    AssetDocument,
     AssetLoan,
     AssetLoanStatus,
     AssetOperationalStatus,
+    DocumentType,
+    DocumentValidationStatus,
     InventoryAuditAction,
+    InventoryDocumentOwnerType,
     InventoryMovement,
     MovementReferenceType,
     MovementType,
@@ -72,6 +76,39 @@ def _require(actor_id, permission):
     raise InventoryAuthorizationError(
         f"La operación requiere el permiso [{permission}]."
     )
+
+
+def _can_operate_origin(loan, actor, role):
+    if actor.has_global_bypass:
+        return True
+    if not (
+        role
+        and (
+            role.has_permission(REQUEST_PERMISSION)
+            or role.has_permission(MANAGE_PERMISSION)
+        )
+    ):
+        return False
+    try:
+        context = core_directory.get_user_organizational_context(
+            actor.id,
+            require_profile=True,
+        )
+    except core_directory.CoreDirectoryError:
+        return False
+    return context.department_id == loan.origin_dependencia_id
+
+
+def _has_current_acknowledgement(loan_id, document_type):
+    return AssetDocument.objects.filter(
+        owner_type=InventoryDocumentOwnerType.LOAN,
+        owner_id=loan_id,
+        document_type=document_type,
+        is_current_version=True,
+        is_deleted=False,
+    ).exclude(
+        validation_status=DocumentValidationStatus.REJECTED,
+    ).exists()
 
 
 def _lock(loan_id):
@@ -272,7 +309,7 @@ def create_asset_loan(*, data, actor_id, request=None):
         raise InventoryValidationError(
             "El bien debe tener dependencia y sede vigentes antes de prestarse."
         )
-    if not can_manage:
+    if not actor.has_global_bypass:
         actor_context = core_directory.get_user_organizational_context(
             actor.id,
             require_profile=True,
@@ -429,9 +466,11 @@ def authorize_asset_loan(*, loan_id, actor_id, data, request=None):
     actor = _require(actor_id, MANAGE_PERMISSION)
     context = build_audit_request_context(request)
     loan = _lock(loan_id)
-    allowed = {AssetLoanStatus.DEPARTMENT_APPROVED}
-    if loan.external_borrower:
-        allowed.add(AssetLoanStatus.REQUESTED)
+    if not loan.external_borrower:
+        raise InventoryStateError(
+            "Los préstamos internos no requieren autorización de Patrimonio."
+        )
+    allowed = {AssetLoanStatus.REQUESTED}
     if data.approve:
         def mutate(item):
             item.authorized_by_id = actor.id
@@ -452,14 +491,31 @@ def authorize_asset_loan(*, loan_id, actor_id, data, request=None):
 
 @transaction.atomic
 def deliver_asset_loan(*, loan_id, actor_id, data, request=None):
-    actor = _require(actor_id, MANAGE_PERMISSION)
+    actor, role = _actor(actor_id)
     context = build_audit_request_context(request)
+    loan = _lock(loan_id)
+    if not _can_operate_origin(loan, actor, role):
+        raise InventoryAuthorizationError(
+            "Sólo la dependencia propietaria puede registrar la entrega."
+        )
+    expected_status = (
+        AssetLoanStatus.AUTHORIZED
+        if loan.external_borrower
+        else AssetLoanStatus.DEPARTMENT_APPROVED
+    )
+    if not _has_current_acknowledgement(
+        loan.id,
+        DocumentType.SIGNED_LOAN_RECEIPT,
+    ):
+        raise InventoryStateError(
+            "Integre el acuse firmado del vale antes de registrar la entrega."
+        )
     def mutate(item):
         item.delivered_by_id = actor.id
         item.delivered_at = data.delivered_at
         item.delivery_condition = data.delivery_condition
         item.delivery_notes = _text(data.notes)
-    loan, previous = _transition(loan_id, actor, {AssetLoanStatus.AUTHORIZED}, AssetLoanStatus.DELIVERED, context, InventoryAuditAction.LOAN, "Bien entregado en préstamo", mutate)
+    loan, previous = _transition(loan_id, actor, {expected_status}, AssetLoanStatus.DELIVERED, context, InventoryAuditAction.LOAN, "Bien entregado en préstamo", mutate)
     movement = _loan_movement(loan, actor, MovementType.LOAN, loan.delivered_at, loan.purpose)
     loan.asset.operational_status = AssetOperationalStatus.LOANED
     loan.asset.full_clean()
@@ -472,7 +528,19 @@ def request_asset_loan_return(*, loan_id, actor_id, data, request=None):
     actor, role = _actor(actor_id)
     can_manage = role and role.has_permission(MANAGE_PERMISSION)
     loan = _lock(loan_id)
-    if not actor.has_global_bypass and actor.id not in {loan.borrower_id, loan.requested_by_id} and not can_manage:
+    destination_authority = False
+    if role and role.has_permission(DEPARTMENT_PERMISSION):
+        try:
+            actor_context = core_directory.get_user_organizational_context(
+                actor.id,
+                require_profile=True,
+            )
+            destination_authority = (
+                actor_context.department_id == loan.destination_dependencia_id
+            )
+        except core_directory.CoreDirectoryError:
+            destination_authority = False
+    if not actor.has_global_bypass and actor.id not in {loan.borrower_id, loan.requested_by_id} and not can_manage and not destination_authority:
         raise InventoryAuthorizationError("No puede solicitar la devolución de este préstamo.")
     context = build_audit_request_context(request)
     def mutate(item):
@@ -484,15 +552,27 @@ def request_asset_loan_return(*, loan_id, actor_id, data, request=None):
 
 @transaction.atomic
 def return_asset_loan(*, loan_id, actor_id, data, request=None):
-    actor = _require(actor_id, MANAGE_PERMISSION)
+    actor, role = _actor(actor_id)
     context = build_audit_request_context(request)
+    loan = _lock(loan_id)
+    if not _can_operate_origin(loan, actor, role):
+        raise InventoryAuthorizationError(
+            "Sólo la dependencia propietaria puede registrar la devolución."
+        )
+    if not _has_current_acknowledgement(
+        loan.id,
+        DocumentType.SIGNED_RETURN_RECEIPT,
+    ):
+        raise InventoryStateError(
+            "Integre el acuse firmado de devolución antes de cerrar el préstamo."
+        )
     def mutate(item):
         item.returned_by_id = data.returned_by_id
         item.received_return_by_id = actor.id
         item.returned_at = data.returned_at
         item.return_condition = data.return_condition
         item.return_notes = _text(data.notes)
-    loan, previous = _transition(loan_id, actor, {AssetLoanStatus.DELIVERED, AssetLoanStatus.OVERDUE, AssetLoanStatus.RETURN_PENDING}, AssetLoanStatus.RETURNED, context, InventoryAuditAction.RETURN, "Bien recibido de regreso", mutate)
+    loan, previous = _transition(loan_id, actor, {AssetLoanStatus.RETURN_PENDING}, AssetLoanStatus.RETURNED, context, InventoryAuditAction.RETURN, "Bien recibido de regreso", mutate)
     movement = _loan_movement(loan, actor, MovementType.RETURN, loan.returned_at, "Devolución de préstamo", returning=True)
     loan.asset.operational_status = AssetOperationalStatus.ASSIGNED if loan.asset.current_custodian_id else AssetOperationalStatus.AVAILABLE
     loan.asset.physical_condition = loan.return_condition

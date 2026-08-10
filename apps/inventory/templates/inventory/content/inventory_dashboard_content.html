@@ -48,7 +48,7 @@
         {% endif %}
         {% if can_view_loans and not is_global_inventory %}{% include "inventory/partials/stat_card.html" with label="Recibidos por mi dependencia" value=loan_metrics.received_active icon="inbox" %}{% endif %}
         {% if can_view_loans %}{% include "inventory/partials/stat_card.html" with label="Pendientes de aceptación" value=loan_metrics.pending_acceptance icon="circle-help" %}{% endif %}
-        {% if can_view_loans and is_global_inventory %}{% include "inventory/partials/stat_card.html" with label="Pendientes de autorizar" value=loan_metrics.pending_authorization icon="shield-check" %}{% endif %}
+        {% if can_view_loans and is_global_inventory and loan_metrics.pending_authorization %}{% include "inventory/partials/stat_card.html" with label="Préstamos externos por revisar" value=loan_metrics.pending_authorization icon="shield-check" %}{% endif %}
         {% if can_view_loans %}{% include "inventory/partials/stat_card.html" with label="Vencidos" value=loan_metrics.overdue icon="triangle-alert" %}{% endif %}
     </div>
 
