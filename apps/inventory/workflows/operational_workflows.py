@@ -90,26 +90,29 @@ MOVEMENT_WORKFLOW = WorkflowDefinition(
 
 DISPOSAL_WORKFLOW = WorkflowDefinition(
     code="inventory.disposal", name="Baja patrimonial",
-    description="Desincorporación formal sustentada con documentos y autorizaciones.",
-    actors=(actor("department", "Dependencia solicitante"), actor("reviewer", "Revisor técnico o administrativo"), actor("patrimony", "Control Patrimonial")),
+    description="Baja formal sustentada con dictamen técnico y confirmación contable.",
+    actors=(actor("department", "Dependencia responsable"), actor("technical", "Innovación / TI"), actor("accounting", "Contabilidad"), actor("reviewer", "Autoridades revisoras"), actor("patrimony", "Control Patrimonial")),
     steps=(
         WorkflowStep("draft", "DRAFT", "Integrar solicitud", "department"),
-        WorkflowStep("review", "UNDER_REVIEW", "Revisar expediente", "reviewer"),
-        WorkflowStep("evidence", "PENDING_EVIDENCE", "Agregar evidencia requerida", "department"),
-        WorkflowStep("approved", "APPROVED", "Autorizar baja", "patrimony"),
+        WorkflowStep("department", "SUBMITTED", "Confirmar en la dependencia", "department"),
+        WorkflowStep("technical", "TECHNICAL_REVIEW", "Solicitar y emitir dictamen de baja", "technical"),
+        WorkflowStep("patrimony", "ADMINISTRATIVE_REVIEW", "Solicitar baja contable", "patrimony"),
+        WorkflowStep("authorities", "AUTHORITY_REVIEW", "Resolver intervenciones aplicables", "reviewer"),
+        WorkflowStep("approved", "APPROVED", "Confirmar número de baja contable", "accounting"),
         WorkflowStep("executed", "EXECUTED", "Ejecutar desincorporación", "patrimony", terminal=True),
-        WorkflowStep("rejected", "REJECTED", "Rechazar con fundamento", "patrimony", terminal=True),
+        WorkflowStep("rejected", "REJECTED", "Rechazar con fundamento", "reviewer", terminal=True),
     ),
     transitions=(
-        WorkflowTransition("draft", "review", "Enviar", permission="can_request_disposals"),
-        WorkflowTransition("review", "evidence", "Solicitar documento", "warning", permission="can_manage_disposals"),
-        WorkflowTransition("evidence", "review", "Completar expediente", permission="can_manage_documents"),
-        WorkflowTransition("review", "approved", "Autorizar", "success", permission="can_authorize_disposals"),
-        WorkflowTransition("review", "rejected", "Rechazar", "danger", permission="can_authorize_disposals"),
+        WorkflowTransition("draft", "department", "Enviar", permission="can_request_disposals"),
+        WorkflowTransition("department", "technical", "Validar oficio", permission="can_validate_documents"),
+        WorkflowTransition("technical", "patrimony", "Validar dictamen técnico", permission="can_validate_documents"),
+        WorkflowTransition("patrimony", "authorities", "Validar oficio contable", permission="can_validate_documents"),
+        WorkflowTransition("authorities", "approved", "Registrar confirmación contable", "success", permission="can_validate_documents"),
+        WorkflowTransition("authorities", "rejected", "Rechazar", "danger", permission="can_finalize_disposal"),
         WorkflowTransition("approved", "executed", "Ejecutar", "success", permission="can_execute_disposals"),
     ),
-    primary_path=("draft", "review", "approved", "executed"),
-    notes=("El dictamen técnico puede provenir de Helpdesk; Inventory conserva el documento final.", "Nunca se elimina físicamente el expediente del bien."),
+    primary_path=("draft", "department", "technical", "patrimony", "authorities", "approved", "executed"),
+    notes=("La dependencia inicia el expediente mediante oficio.", "Patrimonio solicita mediante oficio el dictamen a Innovación/TI.", "Innovación/TI emite el dictamen; sin Helpdesk, Patrimonio puede integrarlo como custodio.", "Patrimonio solicita por oficio la baja a Contabilidad.", "Contabilidad devuelve número, fecha y constancia firmada de la baja.", "Jurídico, OIC, Cabildo o Congreso sólo intervienen cuando el motivo y la normativa aplicable lo exigen.", "Nunca se elimina físicamente el expediente del bien."),
 )
 
 

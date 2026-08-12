@@ -383,7 +383,11 @@ def custody_release_individual_view(request, custody_id):
             status__in={CustodyStatus.ACTIVE, CustodyStatus.RETURN_PENDING},
         )
     )
-    form = CustodyDocumentReleaseForm(request.POST or None)
+    suggested_reason = request.GET.get("reason", "").strip()
+    form = CustodyDocumentReleaseForm(
+        request.POST or None,
+        initial={"reason": suggested_reason} if suggested_reason else None,
+    )
     if request.method == "POST" and form.is_valid():
         release = run_service(
             form,

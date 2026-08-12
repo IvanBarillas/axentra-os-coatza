@@ -1136,7 +1136,10 @@ class AssetLoan(InventoryBaseModel):
             AssetLoanStatus.RETURNED,
         }
 
-        if self.status in authorization_statuses:
+        # Los préstamos internos quedan autorizados por la aceptación de la
+        # dependencia receptora y la confirmación bilateral del acuse. La
+        # autorización patrimonial se conserva sólo para préstamos externos.
+        if self.external_borrower and self.status in authorization_statuses:
             if not self.authorized_by_id:
                 errors["authorized_by"] = (
                     "El préstamo debe estar autorizado."
@@ -1323,7 +1326,7 @@ class DisposalStatus(models.TextChoices):
     )
     AUTHORIZATION_PENDING = (
         "AUTHORIZATION_PENDING",
-        "Pendiente de autorización",
+        "Pendiente de confirmación contable",
     )
     APPROVED = "APPROVED", "Aprobada"
     REJECTED = "REJECTED", "Rechazada"
@@ -1343,7 +1346,7 @@ class DisposalApprovalStage(models.TextChoices):
     COUNCIL = "COUNCIL", "Cabildo"
     FINAL_AUTHORIZATION = (
         "FINAL_AUTHORIZATION",
-        "Autorización final",
+        "Confirmación de baja contable",
     )
 
 
@@ -1450,6 +1453,17 @@ class DisposalRequest(InventoryBaseModel):
     )
     final_approved_at = models.DateTimeField(
         "Fecha de aprobación final",
+        null=True,
+        blank=True,
+    )
+    accounting_disposal_number = models.CharField(
+        "Número de baja contable",
+        max_length=120,
+        blank=True,
+        db_index=True,
+    )
+    accounting_disposal_date = models.DateField(
+        "Fecha efectiva de baja contable",
         null=True,
         blank=True,
     )

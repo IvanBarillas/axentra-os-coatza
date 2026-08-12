@@ -14,6 +14,8 @@ from apps.inventory.models import (
     AssetLoan,
     AssetLoanStatus,
     AssetOperationalStatus,
+    DisposalRequest,
+    DisposalStatus,
     DocumentType,
     DocumentValidationStatus,
     InventoryAuditAction,
@@ -39,6 +41,14 @@ from apps.inventory.services.folio_service import get_effective_folio_policy
 REQUEST_PERMISSION = "can_request_loans"
 DEPARTMENT_PERMISSION = "can_authorize_loans"
 MANAGE_PERMISSION = "can_manage_loans"
+OPEN_DISPOSAL_STATUSES = {
+    DisposalStatus.SUBMITTED,
+    DisposalStatus.EVIDENCE_PENDING,
+    DisposalStatus.TECHNICAL_REVIEW,
+    DisposalStatus.ADMINISTRATIVE_REVIEW,
+    DisposalStatus.AUTHORIZATION_PENDING,
+    DisposalStatus.APPROVED,
+}
 
 
 def _text(value):
@@ -106,8 +116,7 @@ def _has_current_acknowledgement(loan_id, document_type):
         document_type=document_type,
         is_current_version=True,
         is_deleted=False,
-    ).exclude(
-        validation_status=DocumentValidationStatus.REJECTED,
+        validation_status=DocumentValidationStatus.VALIDATED,
     ).exists()
 
 
@@ -292,6 +301,21 @@ def create_asset_loan(*, data, actor_id, request=None):
         raise InventoryValidationError("El activo no existe.") from exc
     if asset.operational_status not in {AssetOperationalStatus.AVAILABLE, AssetOperationalStatus.ASSIGNED}:
         raise InventoryStateError("El activo no está disponible para préstamo.")
+    blocking_disposal = (
+        DisposalRequest.objects.select_for_update()
+        .filter(
+            asset=asset,
+            status__in=OPEN_DISPOSAL_STATUSES,
+            is_deleted=False,
+        )
+        .order_by("-requested_at")
+        .first()
+    )
+    if blocking_disposal:
+        raise InventoryConflictError(
+            f"El bien forma parte de la baja {blocking_disposal.folio}. "
+            "Debe concluirla o cancelarla antes de crear un préstamo."
+        )
     if AssetLoan.objects.filter(
         asset=asset,
         is_deleted=False,
@@ -399,6 +423,21 @@ def submit_asset_loan(*, loan_id, actor_id, request=None):
     loan = _lock(loan_id)
     if loan.requested_by_id != actor.id and not actor.has_global_bypass:
         raise InventoryAuthorizationError("Sólo el solicitante puede enviar el préstamo.")
+    blocking_disposal = (
+        DisposalRequest.objects.select_for_update()
+        .filter(
+            asset_id=loan.asset_id,
+            status__in=OPEN_DISPOSAL_STATUSES,
+            is_deleted=False,
+        )
+        .order_by("-requested_at")
+        .first()
+    )
+    if blocking_disposal:
+        raise InventoryConflictError(
+            f"El bien forma parte de la baja {blocking_disposal.folio}. "
+            "No puede enviarse el préstamo mientras ese expediente esté activo."
+        )
     loan, previous = _transition(loan_id, actor, {AssetLoanStatus.DRAFT, AssetLoanStatus.REJECTED}, AssetLoanStatus.REQUESTED, context, InventoryAuditAction.SUBMIT, "Préstamo enviado a la dependencia receptora")
     return _result(loan, previous)
 

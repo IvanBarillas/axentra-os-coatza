@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from django import forms
 from apps.inventory.dtos import GeoPointDTO, ReplaceInventoryDocumentDTO, ResolveDocumentValidationDTO, ResolvePhotoValidationDTO, SubmitDocumentValidationDTO, UploadInventoryDocumentDTO, UploadInventoryPhotoDTO
 from apps.inventory.forms.base_forms import InventoryForm
@@ -32,14 +34,93 @@ class ContextDocumentUploadForm(InventoryDocumentUploadForm):
 
 
 class DisposalStageDocumentUploadForm(InventoryDocumentUploadForm):
-    def __init__(self, *args, approval_id, document_choices=(), **kwargs):
+    def __init__(
+        self,
+        *args,
+        approval_id,
+        document_choices=(),
+        custodial_integration=False,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.fields["owner_type"].initial = InventoryDocumentOwnerType.DISPOSAL_APPROVAL
         self.fields["owner_type"].widget = forms.HiddenInput()
         self.fields["owner_id"].initial = approval_id
         self.fields["owner_id"].widget = forms.HiddenInput()
-        if document_choices:
-            self.fields["document_type"].choices = list(document_choices)
+        # Nunca heredar el catálogo completo: una etapa de baja sólo admite
+        # los tipos congelados específicamente para ella.
+        self.fields["document_type"].choices = list(document_choices)
+        self.custodial_integration = bool(custodial_integration)
+        if self.custodial_integration:
+            self.fields["issuing_authority"] = forms.CharField(
+                label="Área que emitió el documento",
+                max_length=180,
+                required=False,
+                help_text="Nombre del área o autoridad que emitió y firmó el documento.",
+                widget=forms.TextInput(attrs={
+                    "placeholder": "Ejemplo: Dirección de Innovación Gubernamental",
+                }),
+            )
+            self.fields["issuing_official_role"] = forms.CharField(
+                label="Cargo de la persona firmante",
+                max_length=180,
+                required=False,
+                help_text="Indique el cargo institucional, no el nombre del integrador.",
+                widget=forms.TextInput(attrs={
+                    "placeholder": "Ejemplo: Director de Innovación Gubernamental",
+                }),
+            )
+            self.fields["document_date"] = forms.DateField(
+                label="Fecha de emisión",
+                required=False,
+                widget=forms.DateInput(attrs={"type": "date"}),
+            )
+            self.fields["external_reference"].label = "Folio del oficio o acuerdo"
+            self.fields["external_reference"].widget.attrs.setdefault(
+                "placeholder", "Ejemplo: DIT-STI-TM001-26"
+            )
+
+        # Los campos de autoría se crean dinámicamente después del __init__
+        # del formulario base; aplicar nuevamente el estilizador garantiza que
+        # tengan la misma presentación institucional que el resto del módulo.
+        self.aplicar_estilos_institucionales()
+
+    def clean(self):
+        data = super().clean()
+        custodial_types = {
+            DocumentType.TECHNICAL_REPORT,
+            DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION,
+        }
+        if self.custodial_integration and data.get("document_type") in custodial_types:
+            required_fields = {
+                "issuing_authority": "Indique el área o autoridad emisora.",
+                "issuing_official_role": "Indique el cargo de quien suscribe.",
+                "document_date": "Indique la fecha de emisión.",
+                "external_reference": "Indique el folio o número del documento.",
+            }
+            for field_name, message in required_fields.items():
+                if not data.get(field_name):
+                    self.add_error(field_name, message)
+        return data
+
+    def to_dto(self):
+        dto = super().to_dto()
+        custodial_types = {
+            DocumentType.TECHNICAL_REPORT,
+            DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION,
+        }
+        data = self.require_cleaned_data()
+        if (
+            not self.custodial_integration
+            or data.get("document_type") not in custodial_types
+        ):
+            return dto
+        return replace(dto, metadata={
+            "document_origin": "CUSTODIAL_INTEGRATION",
+            "issuing_authority": data["issuing_authority"],
+            "issuing_official_role": data["issuing_official_role"],
+            "document_date": data["document_date"].isoformat(),
+        })
 
     def clean_file(self):
         uploaded = self.cleaned_data["file"]

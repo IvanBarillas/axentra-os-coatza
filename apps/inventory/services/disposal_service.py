@@ -10,8 +10,14 @@ from apps.inventory.integrations import core_directory
 from apps.inventory.models import (
     Asset,
     AssetDocument,
+    AssetLoan,
+    AssetLoanStatus,
+    AssetMovementRequest,
+    AssetMovementRequestStatus,
     AssetOperationalStatus,
     AssetPatrimonialStatus,
+    CustodyAssignment,
+    CustodyStatus,
     DisposalApproval,
     DisposalApprovalDecision,
     DisposalApprovalStage,
@@ -19,11 +25,16 @@ from apps.inventory.models import (
     DisposalRequest,
     DisposalStatus,
     DocumentValidationStatus,
+    DocumentRequirementLevel,
+    DocumentType,
+    DisposalStageDocumentRequirement,
     InventoryAuditAction,
     InventoryDocumentOwnerType,
     InventoryMovement,
     MovementReferenceType,
     MovementType,
+    PhysicalAuditItem,
+    PhysicalAuditStatus,
 )
 from apps.inventory.services.audit_service import (
     build_audit_request_context,
@@ -42,6 +53,23 @@ REQUEST_PERMISSION = "can_request_disposals"
 MANAGE_PERMISSION = "can_manage_disposals"
 AUTHORIZE_PERMISSION = "can_authorize_disposals"
 EXECUTE_PERMISSION = "can_execute_disposals"
+OPEN_LOAN_STATUSES = {
+    AssetLoanStatus.REQUESTED,
+    AssetLoanStatus.DEPARTMENT_APPROVED,
+    AssetLoanStatus.AUTHORIZED,
+    AssetLoanStatus.DELIVERED,
+    AssetLoanStatus.OVERDUE,
+    AssetLoanStatus.RETURN_PENDING,
+}
+STAGE_PERMISSIONS = {
+    DisposalApprovalStage.DEPARTMENT: "can_confirm_department_disposal",
+    DisposalApprovalStage.TECHNICAL: "can_review_technical_disposal",
+    DisposalApprovalStage.PATRIMONY: "can_review_patrimony_disposal",
+    DisposalApprovalStage.LEGAL: "can_review_legal_disposal",
+    DisposalApprovalStage.INTERNAL_CONTROL: "can_review_internal_control_disposal",
+    DisposalApprovalStage.COUNCIL: "can_record_council_disposal",
+    DisposalApprovalStage.FINAL_AUTHORIZATION: "can_finalize_disposal",
+}
 
 
 def _text(value):
@@ -152,21 +180,214 @@ def _required_stages(disposal):
     return tuple(dict.fromkeys(stages))
 
 
-def _missing_documents(disposal):
-    required = set(disposal.required_document_types_snapshot or [])
-    if not required:
-        return set()
-    approval_ids = disposal.approvals.filter(is_deleted=False).values("id")
-    available = set(
-        AssetDocument.objects.filter(
+def _snapshot_requirements(disposal):
+    """Congela el catálogo aplicable sin romper expedientes históricos."""
+    rows = DisposalStageDocumentRequirement.objects.filter(
+        is_active=True,
+        is_deleted=False,
+        stage__in=_required_stages(disposal),
+        disposal_reason__in=("", disposal.reason),
+    ).order_by("stage", "document_type")
+    snapshot = [
+        {
+            "stage": row.stage,
+            "document_type": row.document_type,
+            "requirement_level": row.requirement_level,
+            "instructions": row.instructions,
+        }
+        for row in rows
+    ]
+    defaults = (
+        (
+            DisposalApprovalStage.DEPARTMENT,
+            DocumentType.DISPOSAL_REQUEST,
+            "Oficio o solicitud de baja emitida por la dependencia responsable.",
+        ),
+        (
+            DisposalApprovalStage.TECHNICAL,
+            DocumentType.TECHNICAL_REPORT_REQUEST,
+            "Oficio de Control Patrimonial solicitando el dictamen a Innovación/TI.",
+        ),
+        (
+            DisposalApprovalStage.TECHNICAL,
+            DocumentType.TECHNICAL_REPORT,
+            "Dictamen técnico de baja emitido y firmado por Innovación/TI.",
+        ),
+        (
+            DisposalApprovalStage.PATRIMONY,
+            DocumentType.ACCOUNTING_DISPOSAL_REQUEST,
+            "Oficio de Control Patrimonial solicitando la baja contable.",
+        ),
+        (
+            DisposalApprovalStage.FINAL_AUTHORIZATION,
+            DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION,
+            "Constancia u oficio de Contabilidad con número y fecha de baja.",
+        ),
+    )
+    for stage, document_type, instructions in reversed(defaults):
+        if stage not in _required_stages(disposal):
+            continue
+        if not any(
+            item["stage"] == stage and item["document_type"] == document_type
+            for item in snapshot
+        ):
+            snapshot.insert(0, {
+                "stage": stage,
+                "document_type": document_type,
+                "requirement_level": DocumentRequirementLevel.REQUIRED,
+                "instructions": instructions,
+            })
+    return snapshot or list(disposal.required_document_types_snapshot or [])
+
+
+_LEGACY_DOCUMENT_STAGES = {
+    DocumentType.DISPOSAL_REQUEST: DisposalApprovalStage.DEPARTMENT,
+    DocumentType.TECHNICAL_REPORT: DisposalApprovalStage.TECHNICAL,
+    DocumentType.TECHNICAL_REPORT_REQUEST: DisposalApprovalStage.TECHNICAL,
+    DocumentType.POLICE_REPORT: DisposalApprovalStage.LEGAL,
+    DocumentType.COUNCIL_MINUTES: DisposalApprovalStage.COUNCIL,
+    DocumentType.DISINCORPORATION_AUTHORIZATION: DisposalApprovalStage.FINAL_AUTHORIZATION,
+    DocumentType.ACCOUNTING_DISPOSAL_REQUEST: DisposalApprovalStage.PATRIMONY,
+    DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION: DisposalApprovalStage.FINAL_AUTHORIZATION,
+}
+
+_ALWAYS_REQUIRED_STAGE_DOCUMENTS = {
+    DisposalApprovalStage.DEPARTMENT: DocumentType.DISPOSAL_REQUEST,
+}
+
+
+def _snapshot_document_pairs(disposal, *, required_only=False):
+    pairs = set()
+    for item in getattr(disposal, "required_document_types_snapshot", None) or []:
+        if isinstance(item, dict):
+            if required_only and item.get(
+                "requirement_level", DocumentRequirementLevel.REQUIRED
+            ) != DocumentRequirementLevel.REQUIRED:
+                continue
+            item_stage = item.get("stage")
+            document_type = item.get("document_type")
+        else:
+            document_type = item
+            item_stage = _LEGACY_DOCUMENT_STAGES.get(document_type)
+        if item_stage and document_type:
+            pairs.add((item_stage, document_type))
+    # Compatibilidad para solicitudes enviadas antes de que estos documentos
+    # administrativos formaran parte del snapshot por etapa.
+    for stage, document_type in _ALWAYS_REQUIRED_STAGE_DOCUMENTS.items():
+        pairs.add((stage, document_type))
+    # Compatibilidad con expedientes creados cuando el flujo ya incluía la
+    # etapa técnica, pero el snapshot todavía no conservaba su requisito. Si
+    # la etapa existe, el dictamen no puede quedar sin tipo documental ni
+    # acción de carga.
+    technical_stage_required = bool(
+        getattr(disposal, "technical_report_required", False)
+        or getattr(disposal, "reason", None) in {
+            DisposalReason.OBSOLESCENCE,
+            DisposalReason.IRREPARABLE_DAMAGE,
+            DisposalReason.DISASTER,
+            DisposalReason.SCRAP,
+        }
+        or any(stage == DisposalApprovalStage.TECHNICAL for stage, _ in pairs)
+    )
+    if technical_stage_required:
+        pairs.add((
+            DisposalApprovalStage.TECHNICAL,
+            DocumentType.TECHNICAL_REPORT,
+        ))
+        pairs.add((
+            DisposalApprovalStage.TECHNICAL,
+            DocumentType.TECHNICAL_REPORT_REQUEST,
+        ))
+    if not any(stage == DisposalApprovalStage.PATRIMONY for stage, _ in pairs):
+        pairs.add((
+            DisposalApprovalStage.PATRIMONY,
+            DocumentType.ACCOUNTING_DISPOSAL_REQUEST,
+        ))
+    if not any(
+        stage == DisposalApprovalStage.FINAL_AUTHORIZATION for stage, _ in pairs
+    ):
+        pairs.add((
+            DisposalApprovalStage.FINAL_AUTHORIZATION,
+            DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION,
+        ))
+    return pairs
+
+
+def _requirement_pairs(disposal, *, stage=None):
+    pairs = _snapshot_document_pairs(disposal, required_only=True)
+    return {
+        (item_stage, document_type)
+        for item_stage, document_type in pairs
+        if not stage or item_stage == stage
+    }
+
+
+def disposal_stage_document_types(disposal, stage):
+    """Tipos exactos permitidos por el snapshot inmutable de la etapa."""
+    return tuple(sorted(
+        document_type
+        for item_stage, document_type in _snapshot_document_pairs(disposal)
+        if item_stage == stage
+    ))
+
+
+def _missing_documents(disposal, *, stage=None):
+    missing = set()
+    for required_stage, document_type in _requirement_pairs(disposal, stage=stage):
+        approvals = disposal.approvals.filter(is_deleted=False)
+        if required_stage:
+            approvals = approvals.filter(stage=required_stage)
+        exists = AssetDocument.objects.filter(
             owner_type=InventoryDocumentOwnerType.DISPOSAL_APPROVAL,
-            owner_id__in=approval_ids,
+            owner_id__in=approvals.values("id"),
+            document_type=document_type,
             validation_status=DocumentValidationStatus.VALIDATED,
             is_current_version=True,
             is_deleted=False,
-        ).values_list("document_type", flat=True)
-    )
-    return required - available
+        ).exists()
+        if not exists:
+            missing.add((required_stage, document_type))
+    return missing
+
+
+def _current_approval(disposal):
+    approvals = {
+        approval.stage: approval
+        for approval in disposal.approvals.filter(is_deleted=False)
+    }
+    for stage in _required_stages(disposal):
+        approval = approvals.get(stage)
+        if approval and approval.decision in {
+            DisposalApprovalDecision.PENDING,
+            DisposalApprovalDecision.OBSERVED,
+        }:
+            return approval
+    return None
+
+
+def _status_for_current_stage(disposal):
+    current = _current_approval(disposal)
+    if current is None or current.stage == DisposalApprovalStage.FINAL_AUTHORIZATION:
+        return DisposalStatus.AUTHORIZATION_PENDING
+    if current.stage == DisposalApprovalStage.DEPARTMENT:
+        return DisposalStatus.SUBMITTED
+    if _missing_documents(disposal, stage=current.stage):
+        return DisposalStatus.EVIDENCE_PENDING
+    if current.stage == DisposalApprovalStage.TECHNICAL:
+        return DisposalStatus.TECHNICAL_REVIEW
+    return DisposalStatus.ADMINISTRATIVE_REVIEW
+
+
+def _can_resolve_stage(actor, role, disposal, stage):
+    permission = STAGE_PERMISSIONS[stage]
+    if stage == DisposalApprovalStage.DEPARTMENT:
+        authority = core_directory.user_can_approve_department(
+            actor.id, disposal.asset.current_dependencia_id
+        )
+        return actor.has_global_bypass or (
+            authority.allowed and _has(actor, role, permission)
+        )
+    return _has(actor, role, permission)
 
 
 @transaction.atomic
@@ -220,6 +441,21 @@ def submit_disposal_request(*, disposal_id, actor_id, data, request=None):
         raise InventoryAuthorizationError("Sólo el solicitante o Patrimonio puede enviarla.")
     if disposal.status != DisposalStatus.DRAFT:
         raise InventoryStateError("La solicitud no puede enviarse desde su estado actual.")
+    blocking_loan = (
+        AssetLoan.objects.select_for_update()
+        .filter(
+            asset_id=disposal.asset_id,
+            status__in=OPEN_LOAN_STATUSES,
+            is_deleted=False,
+        )
+        .order_by("-requested_at")
+        .first()
+    )
+    if blocking_loan:
+        raise InventoryStateError(
+            f"El bien tiene el préstamo {blocking_loan.folio} vigente o en "
+            "proceso. Registre y confirme su devolución antes de enviar la baja."
+        )
     previous = disposal.status
     old = model_snapshot(disposal)
     for stage in _required_stages(disposal):
@@ -228,13 +464,8 @@ def submit_disposal_request(*, disposal_id, actor_id, data, request=None):
             stage=stage,
             defaults={"decision": DisposalApprovalDecision.PENDING},
         )
-    disposal.status = (
-        DisposalStatus.EVIDENCE_PENDING
-        if _missing_documents(disposal)
-        else DisposalStatus.TECHNICAL_REVIEW
-        if disposal.technical_report_required
-        else DisposalStatus.ADMINISTRATIVE_REVIEW
-    )
+    disposal.required_document_types_snapshot = _snapshot_requirements(disposal)
+    disposal.status = DisposalStatus.SUBMITTED
     disposal.asset.patrimonial_status = AssetPatrimonialStatus.PENDING_DISPOSAL
     disposal.asset.full_clean()
     disposal.asset.save()
@@ -248,15 +479,10 @@ def resolve_disposal_stage(*, disposal_id, actor_id, data, request=None):
     actor, role = _actor(actor_id)
     disposal = _lock(disposal_id)
     if data.stage == DisposalApprovalStage.DEPARTMENT:
-        authority = core_directory.user_can_approve_department(
-            actor.id, disposal.asset.current_dependencia_id
+        raise InventoryStateError(
+            "La etapa de la dependencia se confirma automáticamente cuando Patrimonio valida su oficio."
         )
-        allowed = authority.allowed or _has(actor, role, MANAGE_PERMISSION)
-    elif data.stage in {DisposalApprovalStage.TECHNICAL, DisposalApprovalStage.PATRIMONY}:
-        allowed = _has(actor, role, MANAGE_PERMISSION, AUTHORIZE_PERMISSION)
-    else:
-        allowed = _has(actor, role, AUTHORIZE_PERMISSION)
-    if not allowed:
+    if not _can_resolve_stage(actor, role, disposal, data.stage):
         raise InventoryAuthorizationError("No puede resolver esta etapa de la baja.")
     if disposal.status in {DisposalStatus.APPROVED, DisposalStatus.EXECUTED, DisposalStatus.CANCELLED}:
         raise InventoryStateError("El expediente ya no admite resoluciones.")
@@ -266,8 +492,9 @@ def resolve_disposal_stage(*, disposal_id, actor_id, data, request=None):
         )
     except DisposalApproval.DoesNotExist as exc:
         raise InventoryValidationError("La etapa no corresponde a este expediente.") from exc
-    if approval.decision != DisposalApprovalDecision.PENDING:
-        raise InventoryStateError("La etapa ya fue resuelta.")
+    current = _current_approval(disposal)
+    if current is None or current.id != approval.id:
+        raise InventoryStateError("Debe resolver primero la etapa anterior del expediente.")
     decision = data.decision
     comment = _text(data.comment)
     if decision not in {
@@ -277,16 +504,36 @@ def resolve_disposal_stage(*, disposal_id, actor_id, data, request=None):
         DisposalApprovalDecision.NOT_REQUIRED,
     }:
         raise InventoryValidationError("Seleccione una decisión válida.")
+    bypass_reason = _text(data.bypass_reason)
+    if decision == DisposalApprovalDecision.NOT_REQUIRED and not actor.has_global_bypass:
+        raise InventoryAuthorizationError(
+            "Sólo el operador raíz puede declarar una etapa como no aplicable."
+        )
+    if decision == DisposalApprovalDecision.NOT_REQUIRED and not bypass_reason:
+        raise InventoryValidationError("Indique el motivo de la excepción administrativa.")
+    if decision == DisposalApprovalDecision.APPROVED and _missing_documents(
+        disposal, stage=approval.stage
+    ):
+        raise InventoryStateError("Faltan documentos obligatorios validados en esta etapa.")
     previous = disposal.status
     old = model_snapshot(disposal)
+    history = list((approval.payload or {}).get("decision_history", []))
+    if approval.decision != DisposalApprovalDecision.PENDING:
+        history.append({
+            "decision": approval.decision,
+            "comment": approval.comment,
+            "decided_at": approval.decided_at.isoformat() if approval.decided_at else None,
+            "decided_by_id": str(approval.decided_by_id) if approval.decided_by_id else None,
+        })
+    approval.payload = {**(approval.payload or {}), "decision_history": history}
     approval.decision = decision
     approval.decided_by_id = actor.id
     approval.decided_by_name_snapshot = actor.display_name
     approval.decided_by_email_snapshot = actor.normalized_email
     approval.decided_at = timezone.now()
     approval.comment = comment
-    approval.bypass_used = bool(_text(data.bypass_reason))
-    approval.bypass_reason = _text(data.bypass_reason)
+    approval.bypass_used = bool(bypass_reason)
+    approval.bypass_reason = bypass_reason
     if approval.bypass_used and not actor.has_global_bypass:
         raise InventoryAuthorizationError(
             "Sólo el operador raíz puede utilizar una excepción administrativa."
@@ -304,16 +551,7 @@ def resolve_disposal_stage(*, disposal_id, actor_id, data, request=None):
     elif decision == DisposalApprovalDecision.OBSERVED:
         disposal.status = DisposalStatus.EVIDENCE_PENDING
     else:
-        unresolved = disposal.approvals.filter(
-            decision=DisposalApprovalDecision.PENDING
-        ).exclude(stage=DisposalApprovalStage.FINAL_AUTHORIZATION)
-        disposal.status = (
-            DisposalStatus.EVIDENCE_PENDING
-            if _missing_documents(disposal)
-            else DisposalStatus.AUTHORIZATION_PENDING
-            if not unresolved.exists()
-            else DisposalStatus.ADMINISTRATIVE_REVIEW
-        )
+        disposal.status = _status_for_current_stage(disposal)
     _save(disposal)
     _audit(disposal, actor, InventoryAuditAction.APPROVE, "Etapa de baja resuelta", request, old)
     return _result(disposal, previous, approval=approval)
@@ -321,14 +559,14 @@ def resolve_disposal_stage(*, disposal_id, actor_id, data, request=None):
 
 @transaction.atomic
 def finalize_disposal_approval(*, disposal_id, actor_id, data, request=None):
-    actor, _role = _require(actor_id, AUTHORIZE_PERMISSION)
+    actor, _role = _require(actor_id, "can_finalize_disposal", AUTHORIZE_PERMISSION)
     disposal = _lock(disposal_id)
     if disposal.status != DisposalStatus.AUTHORIZATION_PENDING:
         raise InventoryStateError("La baja todavía no está lista para autorización final.")
     if _missing_documents(disposal):
         raise InventoryStateError("Faltan documentos obligatorios validados.")
     pending = disposal.approvals.filter(
-        decision=DisposalApprovalDecision.PENDING
+        decision__in=(DisposalApprovalDecision.PENDING, DisposalApprovalDecision.OBSERVED)
     ).exclude(stage=DisposalApprovalStage.FINAL_AUTHORIZATION)
     if pending.exists():
         raise InventoryStateError("Existen etapas de revisión pendientes.")
@@ -370,10 +608,71 @@ def execute_disposal(*, disposal_id, actor_id, data, request=None):
     disposal = _lock(disposal_id)
     if disposal.status != DisposalStatus.APPROVED:
         raise InventoryStateError("Sólo puede ejecutarse una baja aprobada.")
+    if (
+        DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION
+        in disposal_stage_document_types(
+            disposal, DisposalApprovalStage.FINAL_AUTHORIZATION
+        )
+        and (
+            not disposal.accounting_disposal_number
+            or not disposal.accounting_disposal_date
+        )
+    ):
+        raise InventoryStateError(
+            "Debe integrar y validar el número, fecha y constancia de baja contable."
+        )
     if data.executed_at > timezone.now():
         raise InventoryValidationError(
             "La fecha efectiva de la baja no puede ser futura."
         )
+    if CustodyAssignment.objects.filter(
+        asset_id=disposal.asset_id,
+        status__in=(
+            CustodyStatus.PENDING_AUTHORIZATION,
+            CustodyStatus.PENDING_ACCEPTANCE,
+            CustodyStatus.ACTIVE,
+            CustodyStatus.RETURN_PENDING,
+        ),
+        is_deleted=False,
+    ).exists():
+        raise InventoryStateError(
+            "La baja está autorizada, pero el bien conserva un resguardo "
+            "vigente. Prepare su constancia de retiro e integre y valide el "
+            "acuse firmado antes de ejecutar la baja."
+        )
+    if AssetLoan.objects.filter(
+        asset_id=disposal.asset_id,
+        status__in=(
+            AssetLoanStatus.REQUESTED,
+            AssetLoanStatus.DEPARTMENT_APPROVED,
+            AssetLoanStatus.AUTHORIZED,
+            AssetLoanStatus.DELIVERED,
+            AssetLoanStatus.OVERDUE,
+            AssetLoanStatus.RETURN_PENDING,
+        ),
+        is_deleted=False,
+    ).exists():
+        raise InventoryStateError("Debe cerrar el préstamo vigente antes de ejecutar la baja.")
+    if AssetMovementRequest.objects.filter(
+        asset_id=disposal.asset_id,
+        status__in=(
+            AssetMovementRequestStatus.PENDING_ORIGIN_APPROVAL,
+            AssetMovementRequestStatus.PENDING_DESTINATION_ACCEPTANCE,
+            AssetMovementRequestStatus.PENDING_PATRIMONY_EXECUTION,
+        ),
+        is_deleted=False,
+    ).exists():
+        raise InventoryStateError("El bien tiene un movimiento pendiente por concluir.")
+    if PhysicalAuditItem.objects.filter(
+        asset_id=disposal.asset_id,
+        session__status__in=(
+            PhysicalAuditStatus.FROZEN,
+            PhysicalAuditStatus.IN_PROGRESS,
+            PhysicalAuditStatus.RECONCILIATION,
+        ),
+        is_deleted=False,
+    ).exists():
+        raise InventoryStateError("El bien forma parte de una auditoría física abierta.")
     previous = disposal.status
     old = model_snapshot(disposal)
     disposal.status = DisposalStatus.EXECUTED
@@ -410,10 +709,23 @@ def execute_disposal(*, disposal_id, actor_id, data, request=None):
 def cancel_disposal(*, disposal_id, actor_id, data, request=None):
     actor, role = _require(actor_id, REQUEST_PERMISSION, MANAGE_PERMISSION)
     disposal = _lock(disposal_id)
-    if disposal.status in {DisposalStatus.APPROVED, DisposalStatus.EXECUTED, DisposalStatus.CANCELLED}:
+    if disposal.status in {
+        DisposalStatus.APPROVED,
+        DisposalStatus.REJECTED,
+        DisposalStatus.EXECUTED,
+        DisposalStatus.CANCELLED,
+    }:
         raise InventoryStateError("El expediente ya no puede cancelarse.")
-    if disposal.requested_by_id != actor.id and not _has(actor, role, MANAGE_PERMISSION):
+    manages = _has(actor, role, MANAGE_PERMISSION)
+    if disposal.requested_by_id != actor.id and not manages:
         raise InventoryAuthorizationError("Sólo el solicitante o Patrimonio puede cancelarlo.")
+    if not manages and disposal.status not in {
+        DisposalStatus.DRAFT,
+        DisposalStatus.SUBMITTED,
+    }:
+        raise InventoryStateError(
+            "La dependencia ya confirmó la solicitud; sólo Patrimonio puede cancelar el expediente."
+        )
     previous = disposal.status
     old = model_snapshot(disposal)
     disposal.status = DisposalStatus.CANCELLED
@@ -435,4 +747,8 @@ __all__ = [
     "finalize_disposal_approval",
     "resolve_disposal_stage",
     "submit_disposal_request",
+    "_current_approval",
+    "_missing_documents",
+    "_status_for_current_stage",
+    "disposal_stage_document_types",
 ]

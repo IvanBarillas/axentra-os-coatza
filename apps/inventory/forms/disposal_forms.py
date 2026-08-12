@@ -18,7 +18,7 @@ class DisposalRequestCreateForm(InventoryForm):
         if technical: documents.append(DocumentType.TECHNICAL_REPORT)
         if reason in {DisposalReason.THEFT, DisposalReason.LOSS}: documents.append(DocumentType.POLICE_REPORT)
         if reason in {DisposalReason.SCRAP, DisposalReason.DONATION, DisposalReason.SALE, DisposalReason.DESTRUCTION, DisposalReason.LEGAL_DISINCORPORATION}:
-            documents.extend([DocumentType.COUNCIL_MINUTES, DocumentType.DISINCORPORATION_AUTHORIZATION])
+            documents.append(DocumentType.COUNCIL_MINUTES)
         d["technical_report_required"]=technical
         d["required_document_types"]=tuple(dict.fromkeys(documents))
         return d

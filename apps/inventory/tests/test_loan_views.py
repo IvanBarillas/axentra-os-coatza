@@ -250,3 +250,29 @@ class LoanButtonVisibilityTests(SimpleTestCase):
         )
         self.assertTrue(context["receipt_required"])
         self.assertIsNone(context["loan_receipt"])
+
+    @patch("apps.inventory.views.registry_views.DisposalRequest.objects")
+    def test_baja_activa_bloquea_envio_del_prestamo(self, disposal_objects):
+        user_id = uuid4()
+        disposal = SimpleNamespace(
+            id=uuid4(),
+            folio="BAJ-2026-TEST",
+        )
+        disposal_objects.filter.return_value.order_by.return_value.first.return_value = disposal
+        loan = self._loan(
+            requested_by_id=user_id,
+            asset_id=uuid4(),
+            status="DRAFT",
+        )
+
+        context = _loan_context(
+            self._request(
+                user_id,
+                loan.origin_dependencia_id,
+                "can_request_loans",
+            ),
+            loan,
+        )
+
+        self.assertIs(context["blocking_disposal"], disposal)
+        self.assertFalse(context["can_submit_loan"])

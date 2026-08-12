@@ -46,7 +46,14 @@ class InventoryPermissions:
         # Bajas
         "can_request_disposals": "Permite solicitar la baja de un activo.",
         "can_manage_disposals": "Permite integrar y revisar expedientes de baja patrimonial.",
-        "can_authorize_disposals": "Permite autorizar o rechazar bajas patrimoniales.",
+        "can_authorize_disposals": "Permiso heredado de autorización final de bajas.",
+        "can_confirm_department_disposal": "Permite confirmar una solicitud de baja de la propia dependencia.",
+        "can_review_technical_disposal": "Permite a Innovación/TI integrar y confirmar el dictamen técnico de baja.",
+        "can_review_patrimony_disposal": "Permite resolver la revisión patrimonial de una baja.",
+        "can_review_legal_disposal": "Permite resolver la revisión jurídica de una baja.",
+        "can_review_internal_control_disposal": "Permite resolver la intervención del Órgano Interno de Control.",
+        "can_record_council_disposal": "Permite registrar la resolución de Cabildo aplicable a una baja.",
+        "can_finalize_disposal": "Permite emitir la autorización final de una baja patrimonial.",
         "can_execute_disposals": "Permite ejecutar una baja previamente autorizada.",
         "can_view_department_intake_inbox": "Permite consultar la bandeja de altas pendientes y el historial de la propia dependencia.",
         "can_view_own_custody_tasks": "Permite consultar exclusivamente tareas personales de resguardo.",
@@ -83,7 +90,14 @@ class InventoryPermissions:
     ROLE_MAPPING = {
         "owner": list(PERMISSIONS.keys()),
         "admin": list(PERMISSIONS.keys()),
-        "admin_patrimonio": list(PERMISSIONS.keys()),
+        "admin_patrimonio": [key for key in PERMISSIONS if key not in {
+            "can_authorize_disposals",
+            "can_review_technical_disposal",
+            "can_review_legal_disposal",
+            "can_review_internal_control_disposal",
+            "can_record_council_disposal",
+            "can_finalize_disposal",
+        }],
         "adquisiciones": _VIEW_PERMISSIONS + _INTAKE_OPERATOR_PERMISSIONS + [
             "can_create_intake_for_any_department",
         ],
@@ -102,6 +116,8 @@ class InventoryPermissions:
             "can_request_loans",
             "can_authorize_loans",
             "can_authorize_movements",
+            "can_request_disposals",
+            "can_confirm_department_disposal",
         ],
         "resguardatario": [
             "has_access_module", "can_view_assets", "can_accept_custody", "can_view_own_custody_tasks", "can_request_loans",

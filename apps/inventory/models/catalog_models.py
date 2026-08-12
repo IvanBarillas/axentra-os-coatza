@@ -330,6 +330,10 @@ class DocumentType(models.TextChoices):
         "TECHNICAL_REPORT",
         "Dictamen técnico",
     )
+    TECHNICAL_REPORT_REQUEST = (
+        "TECHNICAL_REPORT_REQUEST",
+        "Oficio de solicitud de dictamen técnico",
+    )
     SERVICE_ORDER = (
         "SERVICE_ORDER",
         "Orden de servicio",
@@ -362,6 +366,14 @@ class DocumentType(models.TextChoices):
     DISINCORPORATION_AUTHORIZATION = (
         "DISINCORPORATION_AUTHORIZATION",
         "Autorización de desincorporación",
+    )
+    ACCOUNTING_DISPOSAL_REQUEST = (
+        "ACCOUNTING_DISPOSAL_REQUEST",
+        "Oficio de solicitud de baja contable",
+    )
+    ACCOUNTING_DISPOSAL_CONFIRMATION = (
+        "ACCOUNTING_DISPOSAL_CONFIRMATION",
+        "Constancia de baja contable",
     )
 
     PHYSICAL_AUDIT_EVIDENCE = (

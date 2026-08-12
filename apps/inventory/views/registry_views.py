@@ -55,16 +55,22 @@ from apps.inventory.documents import (
 )
 from apps.inventory.models import (
     AssetDocument,
+    AssetLoan,
+    AssetLoanStatus,
     CustodyStatus,
     AssetMovementRequest,
     AssetMovementRequestStatus,
     AssetPhoto,
     CustodyAssignment,
     DisposalStageDocumentRequirement,
+    DisposalRequest,
+    DisposalStatus,
     DocumentType,
     DocumentValidationStatus,
     InventoryDocumentOwnerType,
     CustodyDocument,
+    CustodyDocumentStatus,
+    CustodyDocumentType,
     MovementType,
 )
 
@@ -405,6 +411,14 @@ def custody_list_view(request):
     scope, department_id = custody_scope(request)
     is_global_scope = scope == "GLOBAL"
     is_department_scope = scope == "DEPARTMENT"
+    permissions = set(getattr(request, "axentra_permissions_list", []) or [])
+    is_patrimony_custody_operator = bool(
+        getattr(request, "axentra_is_root", False)
+        or {
+            "can_manage_custody",
+            "can_review_patrimony_disposal",
+        }.issubset(permissions)
+    )
     if not is_global_scope:
         f["site_id"] = ""
         f["department_id"] = ""
@@ -412,12 +426,51 @@ def custody_list_view(request):
         f["area_id"] = ""
         f["assigned_to_id"] = ""
     tab = request.GET.get("tab", "current").strip().lower()
-    if tab not in {"current", "history", "unassigned"}:
+    if tab not in {"current", "history", "unassigned", "releases"}:
+        tab = "current"
+    if tab == "releases" and not is_patrimony_custody_operator:
         tab = "current"
     queryset = CustodySelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=department_id)
     historical = {CustodyStatus.RETURNED, CustodyStatus.CANCELLED}
     assets_without_custody = None
-    if tab == "unassigned" and has_any_permission(request, "can_manage_custody"):
+    pending_release_documents = CustodyDocument.objects.filter(
+        document_type=CustodyDocumentType.RELEASE,
+        status__in={
+            CustodyDocumentStatus.DRAFT,
+            CustodyDocumentStatus.IN_PROCESS,
+        },
+        is_deleted=False,
+    )
+    pending_release_count = (
+        pending_release_documents.count()
+        if is_patrimony_custody_operator else 0
+    )
+    if tab == "releases":
+        if f["q"]:
+            pending_release_documents = pending_release_documents.filter(
+                Q(folio__icontains=f["q"])
+                | Q(department_name_snapshot__icontains=f["q"])
+                | Q(assigned_to_name_snapshot__icontains=f["q"])
+                | Q(items__inventory_number_snapshot__icontains=f["q"])
+                | Q(items__asset_name_snapshot__icontains=f["q"])
+            )
+        if f["department_id"]:
+            pending_release_documents = pending_release_documents.filter(
+                department_id=f["department_id"],
+            )
+        if f["date_from"]:
+            pending_release_documents = pending_release_documents.filter(
+                prepared_at__date__gte=f["date_from"],
+            )
+        if f["date_to"]:
+            pending_release_documents = pending_release_documents.filter(
+                prepared_at__date__lte=f["date_to"],
+            )
+        page_obj = Paginator(
+            pending_release_documents.distinct().order_by("-prepared_at"),
+            30,
+        ).get_page(request.GET.get("page"))
+    elif tab == "unassigned" and has_any_permission(request, "can_manage_custody"):
         occupied_asset_ids = CustodyAssignment.objects.filter(
             is_deleted=False,
             status__in={
@@ -472,7 +525,7 @@ def custody_list_view(request):
             "site_choices": [], "department_choices": [],
             "area_choices": [], "user_choices": [],
         }
-    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":([] if tab == "unassigned" else page_obj.object_list), "assets_without_custody":(page_obj.object_list if tab == "unassigned" else []), "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "is_global_inventory_scope":is_global_scope, "is_department_inventory_scope":is_department_scope, "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **directory, **f})
+    return render_inventory(request, page="inventory/pages/custody_list.html", content="inventory/content/custody_list_content.html", context={"current_inventory_view":"inventory:custody_list", "custodies":(page_obj.object_list if tab in {"current", "history"} else []), "assets_without_custody":(page_obj.object_list if tab == "unassigned" else []), "pending_release_documents":(page_obj.object_list if tab == "releases" else []), "pending_release_count":pending_release_count, "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "tab":tab, "is_global_inventory_scope":is_global_scope, "is_department_inventory_scope":is_department_scope, "is_patrimony_custody_operator":is_patrimony_custody_operator, "can_create_custody":has_any_permission(request, "can_manage_custody"), "custody_statuses":CustodySelectors.status_choices(), **directory, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
@@ -1156,6 +1209,27 @@ def _loan_context(request, loan):
         return_acknowledgement
         and return_acknowledgement.code == "VALIDATED"
     )
+    blocking_disposal = None
+    if (
+        loan.status in {"DRAFT", "REJECTED"}
+        and getattr(loan, "asset_id", None)
+    ):
+        blocking_disposal = (
+            DisposalRequest.objects.filter(
+                asset_id=loan.asset_id,
+                status__in={
+                    DisposalStatus.SUBMITTED,
+                    DisposalStatus.EVIDENCE_PENDING,
+                    DisposalStatus.TECHNICAL_REVIEW,
+                    DisposalStatus.ADMINISTRATIVE_REVIEW,
+                    DisposalStatus.AUTHORIZATION_PENDING,
+                    DisposalStatus.APPROVED,
+                },
+                is_deleted=False,
+            )
+            .order_by("-requested_at")
+            .first()
+        )
     return {
         "loan": loan,
         "loan_receipt": receipt,
@@ -1174,7 +1248,8 @@ def _loan_context(request, loan):
         "can_confirm_loan_receipt": destination_operator and bool(
             acknowledgement and acknowledgement.code in {"UPLOADED", "OBSERVED"}
         ),
-        "can_submit_loan": requests and own_request and loan.status in {"DRAFT", "REJECTED"},
+        "blocking_disposal": blocking_disposal,
+        "can_submit_loan": requests and own_request and loan.status in {"DRAFT", "REJECTED"} and blocking_disposal is None,
         "can_decide_department_loan": authorizes and destination_matches and loan.status == "REQUESTED" and not loan.external_borrower,
         "can_authorize_loan": manages and loan.external_borrower and loan.status == "REQUESTED",
         "can_deliver_loan": origin_operator and receipt_ready and loan.status in {"DEPARTMENT_APPROVED", "AUTHORIZED"},
@@ -1404,33 +1479,138 @@ def _disposal(request, disposal_id):
 
 
 def _disposal_context(request, disposal):
+    from apps.inventory.services.disposal_service import (
+        _missing_documents,
+        disposal_stage_document_types,
+    )
+    from apps.inventory.services.document_service import (
+        disposal_stage_document_upload_permissions,
+        helpdesk_disposal_workflow_available,
+    )
+
     permissions = set(getattr(request, "axentra_permissions_list", []) or [])
     root = bool(getattr(request, "axentra_is_root", False))
     manages = root or "can_manage_disposals" in permissions
-    authorizes = root or "can_authorize_disposals" in permissions
+    finalizes = root or bool({"can_finalize_disposal", "can_authorize_disposals"} & permissions)
     executes = root or "can_execute_disposals" in permissions
+    can_operate_custody_release = bool(
+        root
+        or {
+            "can_manage_custody",
+            "can_review_patrimony_disposal",
+        }.issubset(permissions)
+    )
     owns = disposal.requested_by_id == request.user.pk
-    department_authority = False
-    try:
-        department_authority = core_directory.user_can_approve_department(
-            request.user.pk, disposal.asset.current_dependencia_id
-        ).allowed
-    except core_directory.CoreDirectoryError:
-        pass
+    terminal_statuses = {"REJECTED", "EXECUTED", "CANCELLED"}
+    is_terminal = disposal.status in terminal_statuses
+    blocking_custody = None
+    pending_custody_release = None
+    blocking_loan = None
+    disposal_asset_id = getattr(disposal, "asset_id", None)
+    if disposal_asset_id and disposal.status not in {
+        "REJECTED", "EXECUTED", "CANCELLED",
+    }:
+        blocking_loan = (
+            AssetLoan.objects.filter(
+                asset_id=disposal_asset_id,
+                status__in={
+                    AssetLoanStatus.REQUESTED,
+                    AssetLoanStatus.DEPARTMENT_APPROVED,
+                    AssetLoanStatus.AUTHORIZED,
+                    AssetLoanStatus.DELIVERED,
+                    AssetLoanStatus.OVERDUE,
+                    AssetLoanStatus.RETURN_PENDING,
+                },
+                is_deleted=False,
+            )
+            .order_by("-requested_at")
+            .first()
+        )
+    if disposal.status == "APPROVED" and disposal_asset_id:
+        blocking_custody = (
+            CustodyAssignment.objects.select_related(
+                "asset", "assigned_to", "dependencia",
+            )
+            .filter(
+                asset_id=disposal_asset_id,
+                status__in={
+                    CustodyStatus.PENDING_AUTHORIZATION,
+                    CustodyStatus.PENDING_ACCEPTANCE,
+                    CustodyStatus.ACTIVE,
+                    CustodyStatus.RETURN_PENDING,
+                },
+                is_deleted=False,
+            )
+            .order_by("-assigned_at")
+            .first()
+        )
+        if blocking_custody:
+            pending_custody_release = (
+                CustodyDocument.objects.filter(
+                    document_type=CustodyDocumentType.RELEASE,
+                    status__in={
+                        CustodyDocumentStatus.DRAFT,
+                        CustodyDocumentStatus.IN_PROCESS,
+                    },
+                    items__custody_assignment_id=blocking_custody.id,
+                    is_deleted=False,
+                )
+                .order_by("-prepared_at")
+                .first()
+            )
+    accounting_confirmation_flow = (
+        DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION
+        in disposal_stage_document_types(
+            disposal, "FINAL_AUTHORIZATION"
+        )
+    )
     approvals_manager = disposal.approvals
-    pending_stages = approvals_manager.filter(decision="PENDING")
+    pending_stages = approvals_manager.filter(decision__in=("PENDING", "OBSERVED"))
+    approvals = list(approvals_manager.all()) if hasattr(approvals_manager, "all") else []
     allowed_stages = set()
-    if department_authority or manages:
-        allowed_stages.add("DEPARTMENT")
-    if manages or authorizes:
-        allowed_stages.update({"TECHNICAL", "PATRIMONY"})
-    if authorizes:
-        allowed_stages.update({"LEGAL", "INTERNAL_CONTROL", "COUNCIL"})
-    resolvable_stages = pending_stages.filter(stage__in=allowed_stages)
+    # La dependencia ya confirmó su voluntad al enviar la solicitud y firmar
+    # el oficio. La validación documental de Patrimonio cierra esta etapa sin
+    # exigir un segundo clic al director.
+    permission_stage = {
+        "can_review_technical_disposal": "TECHNICAL",
+        "can_review_patrimony_disposal": "PATRIMONY",
+        "can_review_legal_disposal": "LEGAL",
+        "can_review_internal_control_disposal": "INTERNAL_CONTROL",
+        "can_record_council_disposal": "COUNCIL",
+    }
+    if root:
+        allowed_stages.update(permission_stage.values())
+    else:
+        allowed_stages.update(
+            stage for permission, stage in permission_stage.items()
+            if permission in permissions
+        )
+    ordered = [
+        approval for approval in approvals
+        if approval.decision in {"PENDING", "OBSERVED"}
+    ]
+    current_stage = (
+        ordered[0].stage
+        if ordered
+        else "DEPARTMENT"
+        if not approvals and pending_stages.exists()
+        else None
+    )
+    resolvable_stages = pending_stages.filter(
+        stage=current_stage,
+        stage__in=allowed_stages,
+    )
+    resolve_action_labels = {
+        "DEPARTMENT": "Revisar y confirmar solicitud",
+        "TECHNICAL": "Integrar y confirmar dictamen",
+        "PATRIMONY": "Revisar expediente patrimonial",
+        "LEGAL": "Resolver revisión jurídica",
+        "INTERNAL_CONTROL": "Resolver intervención del OIC",
+        "COUNCIL": "Registrar resolución de Cabildo",
+    }
     # Los selectores entregan normalmente un RelatedManager de Django. Mantener
     # este contexto tolerante a objetos sin ``all()`` facilita su reutilización
     # en pruebas unitarias y evita acoplar la visibilidad de botones al ORM.
-    approvals = list(approvals_manager.all()) if hasattr(approvals_manager, "all") else []
     approval_ids = [approval.id for approval in approvals]
     documents = AssetDocument.objects.filter(
         owner_type=InventoryDocumentOwnerType.DISPOSAL_APPROVAL,
@@ -1439,6 +1619,11 @@ def _disposal_context(request, disposal):
         is_current_version=True,
     ).select_related("uploaded_by", "validated_by")
     stage_cards = []
+    helpdesk_available = (
+        helpdesk_disposal_workflow_available()
+        if any(approval.stage == "TECHNICAL" for approval in approvals)
+        else False
+    )
     for approval in approvals:
         requirements = DisposalStageDocumentRequirement.objects.filter(
             is_active=True,
@@ -1446,37 +1631,181 @@ def _disposal_context(request, disposal):
             stage=approval.stage,
             disposal_reason__in=("", disposal.reason),
         )
+        missing_document_types = {
+            document_type
+            for _stage, document_type in _missing_documents(
+                disposal, stage=approval.stage
+            )
+        }
+        document_type_labels = dict(DocumentType.choices)
+        missing_documents = [
+            {
+                "document_type": document_type,
+                "label": document_type_labels.get(document_type, document_type),
+            }
+            for document_type in sorted(missing_document_types)
+        ]
+        stage_documents = [
+            document for document in documents
+            if document.owner_id == approval.id
+        ]
+        has_rejected_document = any(
+            document.validation_status == DocumentValidationStatus.REJECTED
+            for document in stage_documents
+        )
+        can_upload_missing_type = any(
+            bool(
+                set(disposal_stage_document_upload_permissions(
+                    approval.stage,
+                    document_type=document_type,
+                    helpdesk_available=helpdesk_available,
+                )) & permissions
+            )
+            for document_type in missing_document_types
+        )
+        patrimony_custodian = bool(
+            "can_review_patrimony_disposal" in permissions
+            and approval.stage in {"FINAL_AUTHORIZATION", "TECHNICAL"}
+            and {
+                "TECHNICAL": "can_review_technical_disposal",
+                "FINAL_AUTHORIZATION": "can_finalize_disposal",
+            }.get(approval.stage) not in permissions
+            and (
+                approval.stage == "FINAL_AUTHORIZATION"
+                or not helpdesk_available
+            )
+        )
         stage_cards.append({
             "approval": approval,
             "requirements": requirements,
-            "documents": [document for document in documents if document.owner_id == approval.id],
+            "documents": stage_documents,
+            "missing_documents": missing_documents,
+            "has_rejected_document": has_rejected_document,
+            "patrimony_custodian": patrimony_custodian,
+            "custodial_note": (
+                "Control Patrimonial puede integrar el documento firmado como custodio; la autoría permanece en el área o autoridad emisora."
+                if patrimony_custodian
+                else ""
+            ),
+            "upload_label": (
+                "Sustituir documento observado"
+                if has_rejected_document
+                else "Agregar documento"
+            ),
+            "can_upload": not is_terminal and bool(missing_document_types) and (
+                root
+                or can_upload_missing_type
+            ),
         })
     return {
         "disposal": disposal,
-        "can_submit_disposal": (owns or manages) and disposal.status == "DRAFT",
-        "can_resolve_disposal": resolvable_stages.exists(),
-        "can_finalize_disposal": authorizes and disposal.status == "AUTHORIZATION_PENDING",
-        "can_execute_disposal": executes and disposal.status == "APPROVED",
-        "can_cancel_disposal": (owns or manages) and disposal.status not in {"APPROVED", "EXECUTED", "CANCELLED"},
+        "blocking_loan": blocking_loan,
+        "can_submit_disposal": (
+            (owns or manages)
+            and disposal.status == "DRAFT"
+            and blocking_loan is None
+        ),
+        "can_resolve_disposal": (
+            not is_terminal
+            and current_stage != "DEPARTMENT"
+            and resolvable_stages.exists()
+        ),
+        "can_finalize_disposal": (
+            finalizes
+            and not accounting_confirmation_flow
+            and disposal.status == "AUTHORIZATION_PENDING"
+        ),
+        "can_execute_disposal": (
+            executes
+            and disposal.status == "APPROVED"
+            and blocking_custody is None
+            and blocking_loan is None
+        ),
+        "blocking_custody": blocking_custody,
+        "pending_custody_release": pending_custody_release,
+        "can_prepare_custody_release": (
+            blocking_custody is not None
+            and blocking_custody.status in {
+                CustodyStatus.ACTIVE,
+                CustodyStatus.RETURN_PENDING,
+            }
+            and can_operate_custody_release
+        ),
+        "can_operate_custody_release": can_operate_custody_release,
+        "can_cancel_disposal": (
+            manages
+            and disposal.status not in {"APPROVED", "REJECTED", "EXECUTED", "CANCELLED"}
+        ) or (
+            owns and disposal.status in {"DRAFT", "SUBMITTED"}
+        ),
+        "resolve_disposal_action_label": resolve_action_labels.get(
+            current_stage, "Resolver etapa"
+        ),
         "pending_stages": resolvable_stages,
         "stage_cards": stage_cards,
         "can_upload_disposal_document": root or "can_manage_documents" in permissions,
-        "can_validate_disposal_document": root or "can_validate_documents" in permissions,
+        "can_validate_disposal_document": not is_terminal and (
+            root or "can_validate_documents" in permissions
+        ),
     }
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_list_view(request):
-    require_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals", "can_execute_disposals")
+    require_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals", "can_finalize_disposal", "can_confirm_department_disposal", "can_review_technical_disposal", "can_review_patrimony_disposal", "can_review_legal_disposal", "can_review_internal_control_disposal", "can_record_council_disposal", "can_execute_disposals")
     f = _filters(request, "q", "status", "asset_id", "reason", "site_id", "department_id", "area_id", "requested_by_id", "date_from", "date_to")
+    tab = request.GET.get("tab", "active").strip().lower()
+    if tab not in {"active", "history"}:
+        tab = "active"
     scope, scope_department_id = disposal_scope(request)
     filter_context = _registry_filter_context(f, scope, scope_department_id)
-    return render_inventory(request, page="inventory/pages/disposal_list.html", content="inventory/content/disposal_list_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposals":DisposalSelectors.listar(**f, scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id), "can_create_disposal":has_any_permission(request, "can_request_disposals", "can_manage_disposals"), "disposal_statuses":DisposalSelectors.status_choices(), **filter_context, **f})
+    historical_statuses = {
+        "REJECTED",
+        "EXECUTED",
+        "CANCELLED",
+    }
+    queryset = DisposalSelectors.listar(
+        **f,
+        scope=scope,
+        actor_id=request.user.pk,
+        scope_department_id=scope_department_id,
+    )
+    queryset = (
+        queryset.filter(status__in=historical_statuses)
+        if tab == "history"
+        else queryset.exclude(status__in=historical_statuses)
+    )
+    page_obj = Paginator(queryset, 30).get_page(request.GET.get("page"))
+    pagination_params = request.GET.copy()
+    pagination_params.pop("page", None)
+    available_statuses = [
+        (value, label)
+        for value, label in DisposalSelectors.status_choices()
+        if (value in historical_statuses) == (tab == "history")
+    ]
+    return render_inventory(
+        request,
+        page="inventory/pages/disposal_list.html",
+        content="inventory/content/disposal_list_content.html",
+        context={
+            "current_inventory_view": "inventory:disposal_list",
+            "disposals": page_obj.object_list,
+            "page_obj": page_obj,
+            "pagination_query": pagination_params.urlencode(),
+            "tab": tab,
+            "can_create_disposal": has_any_permission(
+                request, "can_request_disposals", "can_manage_disposals"
+            ),
+            "disposal_statuses": available_statuses,
+            **filter_context,
+            **f,
+        },
+    )
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_detail_view(request, disposal_id):
-    require_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals", "can_execute_disposals")
+    require_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals", "can_finalize_disposal", "can_confirm_department_disposal", "can_review_technical_disposal", "can_review_patrimony_disposal", "can_review_legal_disposal", "can_review_internal_control_disposal", "can_record_council_disposal", "can_execute_disposals")
     disposal = _disposal(request, disposal_id)
     context = _disposal_context(request, disposal)
     context.update({"current_inventory_view":"inventory:disposal_list", "documents":DocumentSelectors.documents(owner_type="DISPOSAL_REQUEST", owner_id=disposal.id)})
@@ -1487,7 +1816,11 @@ def disposal_detail_view(request, disposal_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_create_view(request):
     require_any_permission(request, "can_request_disposals", "can_manage_disposals")
-    form = DisposalRequestCreateForm(request.POST or None)
+    requested_asset_id = request.GET.get("asset_id", "").strip()
+    form = DisposalRequestCreateForm(
+        request.POST or None,
+        initial={"asset_id": requested_asset_id} if requested_asset_id else None,
+    )
     scope, scope_department_id = disposal_scope(request)
     assets = AssetSelectors.listar_activos(scope=scope, actor_id=request.user.pk, scope_department_id=scope_department_id).filter(patrimonial_status="ACTIVE")
     form.fields["asset_id"].choices = [("", "--- Seleccione un bien ---"), *((str(a.id), f"{a.display_inventory_number} · {a.name}") for a in assets)]
@@ -1502,6 +1835,8 @@ def disposal_create_view(request):
 def _disposal_action(request, disposal_id, form_class, callback, title):
     disposal = _disposal(request, disposal_id)
     form = form_class(request.POST or None)
+    if not is_inventory_root(request):
+        form.fields.pop("bypass_reason", None)
     if request.method == "POST" and form.is_valid():
         result = run_service(form, lambda: callback(disposal, form))
         if result:
@@ -1524,6 +1859,12 @@ def disposal_resolve_stage_view(request, disposal_id):
     if not context["can_resolve_disposal"]:
         raise PermissionDenied("No tiene etapas de baja pendientes por resolver.")
     form = DisposalStageResolutionForm(request.POST or None)
+    if not is_inventory_root(request):
+        form.fields.pop("bypass_reason", None)
+        form.fields["decision"].choices = [
+            choice for choice in form.fields["decision"].choices
+            if choice[0] not in {"PENDING", "NOT_REQUIRED"}
+        ]
     form.fields["stage"].choices = [
         (approval.stage, approval.get_stage_display())
         for approval in context["pending_stages"]
@@ -1537,8 +1878,9 @@ def disposal_resolve_stage_view(request, disposal_id):
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_authorize_disposals")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_finalize_view(request, disposal_id):
+    require_any_permission(request, "can_finalize_disposal", "can_authorize_disposals")
     return _disposal_action(request, disposal_id, DisposalFinalApprovalForm, lambda d, f: finalize_disposal_approval(disposal_id=d.id, actor_id=request.user.pk, data=f.to_dto(), request=request), "Decisión final registrada.")
 
 
@@ -1555,27 +1897,74 @@ def disposal_cancel_view(request, disposal_id):
 
 
 @require_http_methods(["GET", "POST"])
-@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_manage_documents")
+@axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")
 def disposal_stage_document_upload_view(request, disposal_id, approval_id):
+    from apps.inventory.services.disposal_service import (
+        _missing_documents,
+        disposal_stage_document_types,
+    )
+    from apps.inventory.services.document_service import (
+        disposal_stage_document_upload_permissions,
+        helpdesk_disposal_workflow_available,
+    )
+
     disposal = _disposal(request, disposal_id)
     approval = selector_or_404(lambda: disposal.approvals.get(pk=approval_id))
-    requirements = DisposalStageDocumentRequirement.objects.filter(
-        is_active=True, is_deleted=False, stage=approval.stage,
-        disposal_reason__in=("", disposal.reason),
+    helpdesk_available = helpdesk_disposal_workflow_available()
+    permissions = set(getattr(request, "axentra_permissions_list", []) or [])
+    allowed_types = disposal_stage_document_types(disposal, approval.stage)
+    missing_types = {
+        document_type
+        for _stage, document_type in _missing_documents(
+            disposal, stage=approval.stage
+        )
+    }
+    root = bool(getattr(request, "axentra_is_root", False))
+    allowed_types = tuple(
+        document_type
+        for document_type in allowed_types
+        if document_type in missing_types
+        and (
+            root
+            or bool(
+                set(disposal_stage_document_upload_permissions(
+                    approval.stage,
+                    document_type=document_type,
+                    helpdesk_available=helpdesk_available,
+                )) & permissions
+            )
+        )
     )
-    choices = [(item.document_type, item.get_document_type_display()) for item in requirements]
+    if not allowed_types:
+        raise PermissionDenied(
+            "No cuenta con documentos pendientes que pueda integrar en esta etapa."
+        )
+    custodial_types = {
+        DocumentType.TECHNICAL_REPORT,
+        DocumentType.ACCOUNTING_DISPOSAL_CONFIRMATION,
+    }
+    custodial_integration = bool(
+        "can_review_patrimony_disposal" in permissions
+        and any(document_type in custodial_types for document_type in allowed_types)
+    )
+    document_labels = dict(DocumentType.choices)
+    choices = [
+        (document_type, document_labels.get(document_type, document_type))
+        for document_type in allowed_types
+    ]
     form = DisposalStageDocumentUploadForm(
         request.POST or None,
         request.FILES or None,
         approval_id=approval.id,
         document_choices=choices,
+        custodial_integration=custodial_integration,
     )
     if request.method == "POST" and form.is_valid():
         document = run_service(form, lambda: upload_disposal_stage_document(approval_id=approval.id, data=form.to_dto(), actor_id=request.user.pk, request=request))
         if document:
             success(request, "Documento cargado y enviado a validación.")
             return redirect(_disposal_url(disposal.id))
-    return render_inventory(request, page="inventory/pages/disposal_action_form.html", content="inventory/content/disposal_action_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "form":form, "form_title":f"Agregar documento · {approval.get_stage_display()}"}, status=422 if request.method == "POST" else 200)
+    return render_inventory(request, page="inventory/pages/disposal_action_form.html", content="inventory/content/disposal_action_form_content.html", context={"current_inventory_view":"inventory:disposal_list", "disposal":disposal, "form":form, "form_title":f"Agregar documento · {approval.get_stage_display()}", "custodial_integration":custodial_integration, "pending_document_labels": [label for _value, label in choices]}, status=422 if request.method == "POST" else 200)
 
 
 @require_http_methods(["GET", "POST"])

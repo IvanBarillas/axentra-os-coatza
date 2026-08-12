@@ -122,10 +122,16 @@ def disposal_scope(request):
         request,
         "can_manage_disposals",
         "can_authorize_disposals",
+        "can_finalize_disposal",
+        "can_review_technical_disposal",
+        "can_review_patrimony_disposal",
+        "can_review_legal_disposal",
+        "can_review_internal_control_disposal",
+        "can_record_council_disposal",
         "can_execute_disposals",
     ):
         return "GLOBAL", None
-    if has_any_permission(request, "can_approve_department_intake"):
+    if has_any_permission(request, "can_confirm_department_disposal"):
         return "DEPARTMENT", department_id(request)
     return "OWN", None
 
