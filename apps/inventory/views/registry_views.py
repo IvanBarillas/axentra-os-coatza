@@ -715,6 +715,9 @@ def movement_list_view(request):
     tab = request.GET.get("tab", "pending").strip().lower()
     if tab not in {"pending", "history"}:
         tab = "pending"
+    history_kind = request.GET.get("history_kind", "requests").strip().lower()
+    if history_kind not in {"requests", "executed"}:
+        history_kind = "requests"
     f = _filters(request, "q", "asset_id", "movement_type", "site_id", "department_id", "area_id", "user_id", "date_from", "date_to")
     scope, scope_department_id = movement_scope(request)
     filter_context = _registry_filter_context(f, scope, scope_department_id)
@@ -730,7 +733,7 @@ def movement_list_view(request):
     }
     if tab == "pending":
         requests_qs = requests_qs.filter(status__in=pending_statuses)
-        movements = ()
+        selected_queryset = requests_qs.order_by("-requested_at")
     else:
         requests_qs = requests_qs.exclude(status__in=pending_statuses)
         movements = MovementSelectors.listar(
@@ -739,7 +742,15 @@ def movement_list_view(request):
             actor_id=request.user.pk,
             scope_department_id=scope_department_id,
         )
-    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "tab":tab, "movement_requests":requests_qs.order_by("-requested_at"), "movements":movements, "movement_types":MovementType.choices, "can_create_movement":scope in {RegistryScope.GLOBAL, RegistryScope.DEPARTMENT}, **filter_context, **f})
+        selected_queryset = (
+            requests_qs.order_by("-requested_at")
+            if history_kind == "requests"
+            else movements
+        )
+    page_obj = Paginator(selected_queryset, 30).get_page(request.GET.get("page"))
+    pagination_params = request.GET.copy()
+    pagination_params.pop("page", None)
+    return render_inventory(request, page="inventory/pages/movement_list.html", content="inventory/content/movement_list_content.html", context={"current_inventory_view":"inventory:movement_list", "tab":tab, "history_kind":history_kind, "movement_requests":page_obj.object_list if tab == "pending" or history_kind == "requests" else (), "movements":page_obj.object_list if tab == "history" and history_kind == "executed" else (), "page_obj":page_obj, "pagination_query":pagination_params.urlencode(), "movement_types":MovementType.choices, "can_create_movement":scope in {RegistryScope.GLOBAL, RegistryScope.DEPARTMENT}, **filter_context, **f})
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="has_access_module")

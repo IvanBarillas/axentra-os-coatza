@@ -92,7 +92,9 @@ def asset_list_view(request):
     scope, scope_department_id = asset_scope(request)
     filters = {
         "q": request.GET.get("q", "").strip(),
-        "status": request.GET.get("status", "").strip(),
+        # El padrón abre en bienes activos. Un parámetro vacío explícito
+        # conserva la opción institucional de consultar todos los estados.
+        "status": request.GET.get("status", "ACTIVE").strip(),
         "operational_status": request.GET.get("operational_status", "").strip(),
         "category_id": request.GET.get("category", "").strip(),
         "site_id": request.GET.get("site", "").strip(),
@@ -330,9 +332,33 @@ def asset_audits_view(request, asset_id):
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_assets")
 def asset_disposals_view(request, asset_id):
     asset = _visible_asset(request, asset_id)
-    if not has_any_permission(request, "can_request_disposals", "can_manage_disposals", "can_authorize_disposals"):
+    if not has_any_permission(
+        request,
+        "can_request_disposals",
+        "can_manage_disposals",
+        "can_authorize_disposals",
+        "can_confirm_department_disposal",
+        "can_review_technical_disposal",
+        "can_review_patrimony_disposal",
+        "can_review_legal_disposal",
+        "can_review_internal_control_disposal",
+        "can_record_council_disposal",
+        "can_finalize_disposal",
+        "can_execute_disposals",
+    ):
         raise PermissionDenied
-    return _render_asset_section(request, asset, current_view="inventory:asset_disposals", section="disposals", extra={"records": asset.disposal_requests.all()})
+    return _render_asset_section(
+        request,
+        asset,
+        current_view="inventory:asset_disposals",
+        section="disposals",
+        extra={
+            "records": asset.disposal_requests.all(),
+            "can_request_asset_disposal": has_any_permission(
+                request, "can_request_disposals", "can_manage_disposals"
+            ),
+        },
+    )
 
 
 @axentra_gate_enforcer(AppIdentifier.INVENTORY, required_fine_permission="can_view_audit")

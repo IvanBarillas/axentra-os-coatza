@@ -22,13 +22,15 @@
             <label><span class="mb-1.5 block text-xs font-black text-slate-600">Desde</span><input type="date" name="date_from" value="{{ date_from }}" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"></label><label><span class="mb-1.5 block text-xs font-black text-slate-600">Hasta</span><input type="date" name="date_to" value="{{ date_to }}" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"></label>
         </div></details>
     </form>
-    <div class="max-h-[62vh] space-y-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
+    <div class="max-h-[62vh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white [scrollbar-gutter:stable]">
         {% for disposal in disposals %}
-        <a href="{% url 'inventory:disposal_detail' disposal.id %}" hx-get="{% url 'inventory:disposal_detail' disposal.id %}" hx-target="#page-content" hx-push-url="true" class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-400 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0"><p class="font-mono text-xs font-black">{{ disposal.folio }}</p><p class="mt-1 truncate font-black">{{ disposal.asset.display_inventory_number }} · {{ disposal.asset.name }}</p><p class="mt-1 text-xs text-slate-500">{{ disposal.get_reason_display }} · {{ disposal.requested_at|date:"d/m/Y H:i" }}</p></div>
-            <span class="h-fit rounded-full px-3 py-1 text-xs font-black {% if disposal.status == 'EXECUTED' %}bg-slate-900 text-white{% elif disposal.status == 'APPROVED' %}bg-emerald-100 text-emerald-800{% elif disposal.status == 'REJECTED' or disposal.status == 'CANCELLED' %}bg-rose-100 text-rose-800{% elif disposal.status == 'EVIDENCE_PENDING' %}bg-amber-100 text-amber-800{% else %}bg-blue-100 text-blue-800{% endif %}">{{ disposal.get_status_display }}</span>
+        <a href="{% url 'inventory:disposal_detail' disposal.id %}" hx-get="{% url 'inventory:disposal_detail' disposal.id %}" hx-target="#page-content" hx-push-url="true" class="grid gap-2 border-b border-slate-100 px-4 py-3 transition last:border-b-0 hover:bg-slate-50 sm:grid-cols-[150px_minmax(0,1fr)_150px_auto] sm:items-center">
+            <p class="font-mono text-[11px] font-black text-slate-600">{{ disposal.folio }}</p>
+            <div class="min-w-0"><p class="truncate text-sm font-black">{{ disposal.asset.display_inventory_number }} · {{ disposal.asset.name }}</p><p class="truncate text-xs text-slate-500">{{ disposal.get_reason_display }}</p></div>
+            <p class="whitespace-nowrap text-xs text-slate-500">{{ disposal.requested_at|date:"d/m/Y H:i" }}</p>
+            <span class="w-fit whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-black {% if disposal.status == 'EXECUTED' %}bg-slate-900 text-white{% elif disposal.status == 'APPROVED' %}bg-emerald-100 text-emerald-800{% elif disposal.status == 'REJECTED' or disposal.status == 'CANCELLED' %}bg-rose-100 text-rose-800{% elif disposal.status == 'EVIDENCE_PENDING' %}bg-amber-100 text-amber-800{% else %}bg-blue-100 text-blue-800{% endif %}">{{ disposal.get_status_display }}</span>
         </a>
-        {% empty %}{% include "inventory/partials/empty_state.html" %}{% endfor %}
+        {% empty %}<div class="p-8">{% include "inventory/partials/empty_state.html" %}</div>{% endfor %}
     </div>
     {% include "inventory/partials/pagination.html" %}
 </section>

@@ -681,6 +681,9 @@ def execute_disposal(*, disposal_id, actor_id, data, request=None):
     disposal.execution_notes = _text(data.execution_notes)
     disposal.asset.patrimonial_status = AssetPatrimonialStatus.DISPOSED
     disposal.asset.operational_status = AssetOperationalStatus.OUT_OF_SERVICE
+    # La baja patrimonial no elimina el expediente: lo desactiva para impedir
+    # nuevas operaciones y lo conserva disponible en consultas históricas.
+    disposal.asset.is_active = False
     disposal.asset.full_clean()
     disposal.asset.save()
     movement = InventoryMovement(
