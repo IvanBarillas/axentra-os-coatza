@@ -68,35 +68,21 @@ class ModuleRegistry:
                 manifest = getattr(module, "MODULE_MANIFEST", None)
                 if manifest:
                     self.register(manifest, replace=True)
-            # Compatibilidad temporal: manifiestos antiguos basados únicamente
-            # en permissions.py siguen visibles hasta adoptar module_manifest.py.
+
+            # Compatibilidad temporal para satélites antiguos que solamente
+            # publican permissions.py. No contiene rutas ni códigos de dominio.
             from apps.shared.apps_config import AppIdentifier
             from apps.shared.manifest_registry import AxentraOSRegistry
+
             labels = dict(AppIdentifier.get_choices())
-            legacy_entries = {
-                "security": "security:control_panel",
-                "configuration": "security:tenant_config",
-                "accounts": "accounts:funcionario_list",
-                "organigrama": "organigrama:estructura_list",
-                "inventory": "inventory:dashboard",
-            }
-            legacy_urls = {
-                "inventory": (
-                    "apps.inventory.urls.inventory_urls",
-                    "app/inventory/",
-                ),
-            }
             for code in AxentraOSRegistry.get_all_manifests():
                 if code in self._items:
                     continue
-                urlconf, url_prefix = legacy_urls.get(code, ("", ""))
                 self.register(ModuleManifest(
                     code=code,
                     name=labels.get(code, code.replace("_", " ").title()),
                     description=f"Módulo operativo {labels.get(code, code)}.",
-                    entry_url=legacy_entries.get(code, f"{code}:dashboard"),
-                    urlconf=urlconf,
-                    url_prefix=url_prefix,
+                    entry_url=f"{code}:dashboard",
                     icon="blocks",
                     default_enabled=True,
                 ))

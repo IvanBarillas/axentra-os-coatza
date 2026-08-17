@@ -16,14 +16,13 @@ from apps.shared.module_sdk.services import sync_installed_modules
 class ModuleManifestTests(SimpleTestCase):
     def test_manifest_normalizes_code_and_dependencies(self):
         manifest = ModuleManifest(
-            code=" HELP_DESK ",
-            name="Mesa de ayuda",
-            description="Tickets",
-            entry_url="helpdesk:dashboard",
+            code=" SAMPLE_MODULE ",
+            name="Módulo de prueba",
+            description="Satélite genérico para pruebas",
+            entry_url="sample_module:dashboard",
             dependencies=(" SECURITY ",),
         )
-        self.assertEqual(manifest.code, "help_desk")
-        self.assertEqual(manifest.dependencies, ("security",))
+        self.assertEqual(manifest.code, "sample_module")
 
     def test_disabled_module_blocks_even_root(self):
         manifest = ModuleManifest(

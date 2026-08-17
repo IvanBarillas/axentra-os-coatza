@@ -7,7 +7,7 @@ from .contracts import ModuleKind
 
 @dataclass(frozen=True, slots=True)
 class ModuleCatalogEntry:
-    """Producto conocido por el Core, esté o no instalado en este proyecto."""
+    """Producto configurable conocido por una distribución, esté o no instalado."""
 
     code: str
     name: str
@@ -31,46 +31,9 @@ class ModuleCatalogEntry:
         object.__setattr__(self, "install_steps", tuple(self.install_steps))
 
 
-DEFAULT_MODULE_CATALOG = (
-    ModuleCatalogEntry(
-        code="inventory",
-        name="Inventario Patrimonial",
-        description=(
-            "Bienes, resguardos, movimientos, préstamos, bajas, auditoría "
-            "física y conciliación contable."
-        ),
-        distribution="axentra-inventory",
-        icon="package-search",
-        dependencies=("security", "accounts", "organigrama"),
-        install_steps=(
-            "Obtenga la distribución institucional autorizada de Inventory.",
-            "Añada su AppConfig a INSTALLED_APPS.",
-            "Ejecute python manage.py migrate.",
-            "Ejecute python manage.py check_axentra_modules --persist.",
-            "Ejecute python manage.py bootstrap_axentra_owner.",
-            "Active el módulo desde esta Estación Central.",
-        ),
-    ),
-    ModuleCatalogEntry(
-        code="helpdesk",
-        name="Mesa de Ayuda",
-        description=(
-            "Tickets, atención técnica, acuerdos de servicio e integraciones "
-            "opcionales con activos."
-        ),
-        distribution="axentra-helpdesk",
-        icon="headset",
-        dependencies=("security", "accounts", "organigrama"),
-        install_steps=(
-            "Obtenga la distribución institucional autorizada de Helpdesk.",
-            "Añada su AppConfig a INSTALLED_APPS.",
-            "Ejecute python manage.py migrate.",
-            "Ejecute python manage.py check_axentra_modules --persist.",
-            "Ejecute python manage.py bootstrap_axentra_owner.",
-            "Active el módulo desde esta Estación Central.",
-        ),
-    ),
-)
+# El Core no conoce productos de dominio. Cada distribución puede declarar
+# su catálogo mediante AXENTRA_MODULE_CATALOG sin modificar el SDK.
+DEFAULT_MODULE_CATALOG = ()
 
 
 def _entry_from_mapping(data):
@@ -90,12 +53,7 @@ def _entry_from_mapping(data):
 
 
 def available_module_catalog():
-    """
-    Devuelve el catálogo extensible de productos.
-
-    AXENTRA_MODULE_CATALOG puede añadir o reemplazar entradas sin modificar
-    este archivo. Se acepta una secuencia de diccionarios o de entradas.
-    """
+    """Devuelve exclusivamente los productos declarados por la distribución."""
 
     entries = {entry.code: entry for entry in DEFAULT_MODULE_CATALOG}
     configured = getattr(settings, "AXENTRA_MODULE_CATALOG", ())
