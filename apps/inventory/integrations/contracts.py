@@ -12,6 +12,7 @@ Core en estas estructuras.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from types import MappingProxyType
 from typing import Any, Mapping
 from uuid import UUID
@@ -294,11 +295,49 @@ class DepartmentApprovalAuthority:
     source: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class ExternalAssetActivity:
+    """Actividad de otro módulo vinculada a un activo mediante UUID."""
+
+    source_app: str
+    reference_id: UUID
+    activity_type: str
+    activity_label: str
+    folio: str
+    title: str
+    status: str
+    status_label: str
+    occurred_at: datetime | None = None
+    due_at: datetime | None = None
+    detail_url: str = ""
+    summary: str = ""
+    blocks_asset_operations: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalAssetActivityCollection:
+    """Resultado seguro de una integración opcional del expediente patrimonial."""
+
+    integration_available: bool = False
+    items: tuple[ExternalAssetActivity, ...] = field(default_factory=tuple)
+    message: str = ""
+
+    @property
+    def blocking_items(self) -> tuple[ExternalAssetActivity, ...]:
+        return tuple(item for item in self.items if item.blocks_asset_operations)
+
+    @property
+    def has_blocking_activity(self) -> bool:
+        return bool(self.blocking_items)
+
+
 __all__ = [
     "AreaContext",
     "DepartmentApprovalAuthority",
     "DepartmentCapabilityIdentity",
     "DepartmentIdentity",
+    "ExternalAssetActivity",
+    "ExternalAssetActivityCollection",
     "ModuleRoleIdentity",
     "MunicipalityIdentity",
     "SiteIdentity",
@@ -306,5 +345,3 @@ __all__ = [
     "UserIdentity",
     "UserOrganizationalContext",
 ]
-
-

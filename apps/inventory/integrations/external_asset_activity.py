@@ -7,7 +7,7 @@ Helpdesk se registrará como ``helpdesk.asset_activity`` en el SDK modular.
 import logging
 from uuid import UUID
 
-from apps.shared.module_sdk.contracts import ExternalAssetActivityCollection
+from apps.inventory.integrations.contracts import ExternalAssetActivityCollection
 from apps.shared.module_sdk.integrations import integration_registry
 
 

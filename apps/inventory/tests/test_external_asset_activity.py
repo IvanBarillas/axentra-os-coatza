@@ -5,10 +5,10 @@ from uuid import uuid4
 
 from django.test import SimpleTestCase
 
+from apps.inventory.integrations.contracts import ExternalAssetActivity
 from apps.inventory.integrations.external_asset_activity import (
     get_external_asset_activity,
 )
-from apps.shared.module_sdk.contracts import ExternalAssetActivity
 
 
 class _Provider:
