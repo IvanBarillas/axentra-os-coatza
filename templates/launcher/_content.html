@@ -1,0 +1,82 @@
+<div id="launcher-content" class="space-y-6">
+    <header class="flex flex-col gap-4 rounded-3xl bg-slate-950 p-6 text-white shadow-xl md:flex-row md:items-end md:justify-between md:p-8">
+        <div>
+            <p class="text-xs font-black uppercase tracking-[.24em] text-indigo-300">Axentra OS</p>
+            <h1 class="mt-2 text-3xl font-black tracking-tight">Aplicaciones</h1>
+            <p class="mt-2 max-w-2xl text-base leading-7 text-slate-200">Acceda a las herramientas autorizadas para su trabajo.</p>
+        </div>
+        {% if is_root %}
+        <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="rounded-xl bg-white/5 px-4 py-3"><p class="text-xs uppercase text-slate-400">Instaladas</p><p class="text-xl font-black">{{ module_summary.installed }}</p></div>
+            <div class="rounded-xl bg-white/5 px-4 py-3"><p class="text-xs uppercase text-slate-400">Activas</p><p class="text-xl font-black text-emerald-300">{{ module_summary.active }}</p></div>
+            <div class="rounded-xl bg-white/5 px-4 py-3"><p class="text-xs uppercase text-slate-400">Atención</p><p class="text-xl font-black text-amber-300">{{ module_summary.attention }}</p></div>
+        </div>
+        {% endif %}
+    </header>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <form method="get" action="{% url 'index_hub' %}" class="flex flex-col gap-3 lg:flex-row"
+              hx-get="{% url 'index_hub' %}" hx-target="#launcher-content" hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, change from:select">
+            <label class="relative flex-1">
+                <span class="sr-only">Buscar aplicaciones</span>
+                <i data-lucide="search" class="absolute left-3 top-3 h-5 w-5 text-slate-400"></i>
+                <input name="q" value="{{ launcher_query }}" placeholder="Buscar por nombre, descripción o código"
+                       class="w-full rounded-xl border border-slate-200 min-h-11 py-2.5 pl-10 pr-3 text-base focus:border-indigo-400 focus:outline-none">
+            </label>
+            <select name="state" class="rounded-xl border border-slate-200 min-h-11 px-3 py-2.5 text-base focus:border-indigo-400 focus:outline-none">
+                {% for value, label in launcher_filters %}
+                    <option value="{{ value }}" {% if launcher_state == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button class="rounded-xl bg-indigo-600 min-h-11 px-5 py-2.5 text-base font-black text-white hover:bg-indigo-700">Buscar</button>
+        </form>
+    </section>
+
+    <section class="space-y-3">
+        <div class="flex items-end justify-between gap-4">
+            <div><p class="text-xs font-black uppercase tracking-[.18em] text-slate-400">Herramientas de trabajo</p><h2 class="mt-1 text-2xl font-black">Aplicaciones disponibles</h2></div>
+            <p class="text-sm font-bold text-slate-600">{{ launcher_result_count }} resultado{{ launcher_result_count|pluralize }}</p>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {% for card in application_page %}
+            <article class="flex flex-col gap-4 border-b border-slate-100 p-5 last:border-0 md:flex-row md:items-center">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700"><i data-lucide="{{ card.icon }}" class="h-5 w-5"></i></span>
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2"><h3 class="font-black text-slate-950">{{ card.name }}</h3>{% if card.version %}<span class="font-mono text-xs text-slate-400">v{{ card.version }}</span>{% endif %}</div>
+                    <p class="mt-1 line-clamp-2 text-base leading-6 text-slate-600">{{ card.description }}</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 md:justify-end">
+                    {% if not card.installed %}<span class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black uppercase text-indigo-700">No instalada</span>
+                    {% elif not card.enabled %}<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black uppercase text-slate-500">Desactivada</span>
+                    {% elif card.health != 'HEALTHY' %}<span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-black uppercase text-amber-700">Atención</span>
+                    {% endif %}
+                    {% if card.can_open %}<a href="{{ card.url }}" class="rounded-xl bg-slate-950 min-h-11 px-4 py-2.5 text-sm font-black text-white hover:bg-indigo-700">Abrir</a>{% endif %}
+                    {% if card.can_toggle %}<form method="post" action="{% url 'module_toggle' card.code %}">{% csrf_token %}<input type="hidden" name="enabled" value="{% if card.enabled %}0{% else %}1{% endif %}"><button class="rounded-xl border border-slate-200 min-h-11 px-3 py-2.5 text-sm font-black text-slate-600">{% if card.enabled %}Desactivar{% else %}Activar{% endif %}</button></form>{% endif %}
+                </div>
+            </article>
+            {% empty %}
+            <div class="p-10 text-center"><i data-lucide="search-x" class="mx-auto h-8 w-8 text-slate-300"></i><p class="mt-3 font-black text-slate-700">No encontramos aplicaciones</p><p class="mt-1 text-sm text-slate-500">Cambie la búsqueda o el filtro seleccionado.</p></div>
+            {% endfor %}
+        </div>
+
+        {% if application_page.paginator.num_pages > 1 %}
+        <nav class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-sm" aria-label="Paginación">
+            <span class="text-slate-500">Página {{ application_page.number }} de {{ application_page.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if application_page.has_previous %}<a hx-get="?q={{ launcher_query|urlencode }}&state={{ launcher_state }}&page={{ application_page.previous_page_number }}" hx-target="#launcher-content" hx-swap="outerHTML" hx-push-url="true" href="?q={{ launcher_query|urlencode }}&state={{ launcher_state }}&page={{ application_page.previous_page_number }}" class="rounded-lg border px-3 py-2 font-bold">Anterior</a>{% endif %}
+                {% if application_page.has_next %}<a hx-get="?q={{ launcher_query|urlencode }}&state={{ launcher_state }}&page={{ application_page.next_page_number }}" hx-target="#launcher-content" hx-swap="outerHTML" hx-push-url="true" href="?q={{ launcher_query|urlencode }}&state={{ launcher_state }}&page={{ application_page.next_page_number }}" class="rounded-lg border px-3 py-2 font-bold">Siguiente</a>{% endif %}
+            </div>
+        </nav>
+        {% endif %}
+    </section>
+
+    {% if is_root and core_cards %}
+    <details class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <summary class="flex cursor-pointer list-none items-center justify-between p-5"><div><p class="text-xs font-black uppercase tracking-[.18em] text-slate-400">Administración</p><h2 class="mt-1 font-black">Componentes protegidos del Core</h2></div><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{{ core_cards|length }}</span></summary>
+        <div class="grid gap-3 border-t border-slate-100 p-5 md:grid-cols-2">
+            {% for card in core_cards %}<a href="{{ card.url }}" class="flex items-center gap-3 rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:bg-indigo-50"><i data-lucide="{{ card.icon }}" class="h-5 w-5 text-slate-600"></i><div><p class="font-black">{{ card.name }}</p><p class="text-sm text-slate-600">Núcleo protegido</p></div></a>{% endfor %}
+        </div>
+    </details>
+    {% endif %}
+</div>

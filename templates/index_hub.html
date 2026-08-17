@@ -1,92 +1,10 @@
 {% extends "shell/workbench.html" %}
 
-{% block title %}Estación Central | {{ tenant.app_name|default:"Axentra OS" }}{% endblock %}
+{% block title %}Aplicaciones | {{ tenant.app_name|default:"Axentra OS" }}{% endblock %}
 
 {% block page_content %}
-<div class="mx-auto w-full max-w-[1600px] space-y-6 text-left">
+<div class="mx-auto w-full max-w-[1440px] text-left">
     {% include "partials/messages.html" %}
-
-    <section class="overflow-hidden rounded-3xl bg-slate-950 p-7 text-white shadow-xl md:p-9">
-        <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[.26em] text-indigo-300">Axentra Module SDK</p>
-                <h1 class="mt-3 text-3xl font-black tracking-tight">Centro de módulos</h1>
-                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                    Active o desactive los módulos operativos disponibles para {{ tenant.entidad_nombre|default:"la institución" }}. Los componentes del núcleo permanecen protegidos.
-                </p>
-            </div>
-            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"><p class="text-[10px] font-black uppercase text-slate-400">Instalados</p><p class="mt-1 text-xl font-black">{{ module_summary.installed }}</p></div>
-                <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"><p class="text-[10px] font-black uppercase text-slate-400">Activos</p><p class="mt-1 text-xl font-black text-emerald-300">{{ module_summary.active }}</p></div>
-                <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"><p class="text-[10px] font-black uppercase text-slate-400">No incluidos</p><p class="mt-1 text-xl font-black text-indigo-300">{{ module_summary.available }}</p></div>
-                <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"><p class="text-[10px] font-black uppercase text-slate-400">Atención</p><p class="mt-1 text-xl font-black text-amber-300">{{ module_summary.attention }}</p></div>
-            </div>
-        </div>
-    </section>
-
-    <section class="space-y-4">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[.2em] text-slate-400">Ecosistema institucional</p>
-                <h2 class="mt-1 text-2xl font-black">Aplicaciones de la plataforma</h2>
-            </div>
-            <p class="text-xs font-bold text-slate-500">{{ module_summary.known }} productos conocidos</p>
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {% for card in module_cards %}
-                <article class="flex min-h-[270px] flex-col rounded-3xl border bg-white p-6 shadow-sm {% if not card.installed %}border-dashed border-indigo-200{% elif not card.enabled %}border-slate-200{% elif card.health == 'HEALTHY' %}border-emerald-200{% else %}border-amber-200{% endif %}">
-                    <div class="flex items-start justify-between gap-4">
-                        <span class="flex h-12 w-12 items-center justify-center rounded-2xl {% if card.installed %}bg-slate-100 text-slate-700{% else %}bg-indigo-50 text-indigo-700{% endif %}"><i data-lucide="{{ card.icon }}" class="h-6 w-6"></i></span>
-                        <span class="rounded-full px-3 py-1 text-[10px] font-black uppercase {% if not card.installed %}bg-indigo-50 text-indigo-700{% elif not card.enabled %}bg-slate-100 text-slate-500{% elif card.health == 'HEALTHY' %}bg-emerald-50 text-emerald-700{% else %}bg-amber-50 text-amber-700{% endif %}">
-                            {% if not card.installed %}No instalado{% elif not card.enabled %}Instalado · desactivado{% elif card.health == 'HEALTHY' %}Instalado · activo{% else %}Requiere atención{% endif %}
-                        </span>
-                    </div>
-
-                    <div class="mt-5 flex-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h3 class="text-lg font-black">{{ card.name }}</h3>
-                            {% if card.version %}<span class="font-mono text-[10px] text-slate-400">v{{ card.version }}</span>{% endif %}
-                            {% if card.kind == 'CORE' %}<span class="rounded bg-slate-100 px-2 py-0.5 text-[9px] font-black uppercase text-slate-500">Núcleo</span>{% endif %}
-                        </div>
-                        <p class="mt-2 text-sm leading-6 text-slate-500">{{ card.description }}</p>
-                        <p class="mt-3 text-xs font-bold {% if card.health == 'HEALTHY' %}text-emerald-700{% elif not card.installed %}text-indigo-700{% else %}text-slate-500{% endif %}">{{ card.message }}</p>
-                        {% if card.dependencies %}<p class="mt-2 text-[11px] text-slate-400"><span class="font-black">Dependencias:</span> {{ card.dependencies|join:", " }}</p>{% endif %}
-                    </div>
-
-                    <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                        <div>
-                            {% if not card.installed %}
-                                <span class="text-xs font-bold text-slate-400">No incluido en esta instalación</span>
-                            {% elif card.enabled %}
-                                <span class="inline-flex items-center gap-2 text-xs font-black text-emerald-700"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>Disponible para usuarios autorizados</span>
-                            {% else %}
-                                <span class="inline-flex items-center gap-2 text-xs font-black text-slate-500"><span class="h-2 w-2 rounded-full bg-slate-400"></span>Fuera de operación</span>
-                            {% endif %}
-                        </div>
-
-                        {% if card.can_toggle %}
-                            <form method="post" action="{% url 'module_toggle' card.code %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="enabled" value="{% if card.enabled %}0{% else %}1{% endif %}">
-                                <button class="rounded-xl border px-4 py-2.5 text-xs font-black {% if card.enabled %}border-red-200 text-red-700 hover:bg-red-50{% else %}border-emerald-200 text-emerald-700 hover:bg-emerald-50{% endif %}">{% if card.enabled %}Desactivar{% else %}Activar{% endif %}</button>
-                            </form>
-                        {% elif card.kind == 'CORE' %}
-                            <span class="text-[10px] font-black uppercase text-slate-400">Núcleo protegido</span>
-                        {% endif %}
-                    </div>
-
-                </article>
-            {% empty %}
-                <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">No se detectaron manifiestos ni productos en el catálogo.</div>
-            {% endfor %}
-        </div>
-    </section>
-
-    {% if is_root %}
-        <section class="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-            <div class="flex gap-3"><i data-lucide="shield-check" class="mt-0.5 h-5 w-5 text-blue-700"></i><div><h2 class="font-black text-blue-950">Control institucional</h2><p class="mt-2 text-sm leading-6 text-blue-900">El interruptor sólo cambia la disponibilidad institucional. Desactivar un módulo no elimina datos, usuarios, permisos ni migraciones. Los componentes del núcleo no pueden desactivarse.</p></div></div>
-        </section>
-    {% endif %}
+    {% include "launcher/_content.html" %}
 </div>
 {% endblock %}
