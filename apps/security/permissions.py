@@ -30,7 +30,7 @@ class SecurityPermissions:
         ["activity", "Auditoría Forense", "security:global_matrix_forensic", 3, "can_view_matrix"],
         ["bar-chart-3", "Dashboard Analítico", "security:dashboard", 4, "can_view_analytics"],
     ]
-    
+
     CAPABILITIES = {
         "can_operate": {
             "label": "Puede Operar",
@@ -120,7 +120,7 @@ class ConfigurationPermissions:
             "help_text": "Permite autorizar cambios críticos de configuración institucional.",
         },
     }
-    
+
 
 # =========================================================================
 # 👥 CLASE 2: DOMINIO DE CAPITAL HUMANO (ACCOUNTS)
@@ -155,11 +155,10 @@ class AccountsPermissions:
     ]
 
     FUNCIONARIO_DETAIL_MENU = [
-        {"icon": "fingerprint", "title": "Ficha de Identidad", "url_name": "accounts:funcionario_sub_identidad", "order": 1, "permission": "can_view_list", "provider": "accounts", "stub": False},
-        {"icon": "laptop-2", "title": "Hardware Asignado", "url_name": "accounts:funcionario_sub_hardware", "order": 2, "permission": "can_edit_user", "provider": "assets", "stub": True},
-        {"icon": "smartphone", "title": "Línea y Telefonía", "url_name": "accounts:funcionario_sub_telefonia", "order": 3, "permission": "can_edit_user", "provider": "telefonia", "stub": True},
+        {"icon": "fingerprint", "title": "Ficha de Identidad", "url_name": "accounts:funcionario_sub_identidad", "order": 1, "permission": "can_view_list", "provider": "accounts"},
+
     ]
-    
+
     CAPABILITIES = {
         "can_operate": {
             "label": "Puede Operar",
@@ -205,34 +204,26 @@ class OrganigramaPermissions:
         ["map-pin", "Sedes e Inmuebles", "organigrama:sede_list", 2, "can_manage_infrastructure"],
         ["bar-chart-3", "Dashboard Analítico", "organigrama:dashboard", 4, "can_view_analytics"],
     ]
-    
+
     SEDE_DETAIL_MENU = [
         {
             "icon": "fingerprint", "title": "Ficha de Sede", "url_name": "organigrama:sede_sub_identidad",
-            "order": 1, "permission": "can_manage_infrastructure", "provider": "organigrama", "stub": False,
+            "order": 1, "permission": "can_manage_infrastructure", "provider": "organigrama",
         },
         {
             "icon": "building-2", "title": "Dependencias Presentes", "url_name": "organigrama:sede_sub_dependencias",
-            "order": 2, "permission": "can_manage_infrastructure", "provider": "organigrama", "stub": False,
+            "order": 2, "permission": "can_manage_infrastructure", "provider": "organigrama",
         },
         {
             "icon": "layout-grid", "title": "Áreas Operativas", "url_name": "organigrama:sede_sub_areas",
-            "order": 3, "permission": "can_manage_infrastructure", "provider": "organigrama", "stub": False,
+            "order": 3, "permission": "can_manage_infrastructure", "provider": "organigrama",
         },
         {
             "icon": "users", "title": "Funcionarios en Sede", "url_name": "organigrama:sede_sub_funcionarios",
-            "order": 4, "permission": "can_manage_infrastructure", "provider": "accounts", "stub": False,
+            "order": 4, "permission": "can_manage_infrastructure", "provider": "accounts",
         },
-        {
-            "icon": "package", "title": "Activos Instalados", "url_name": "#",
-            "order": 5, "permission": "can_manage_infrastructure", "provider": "assets", "stub": True,
-        },
-        {
-            "icon": "ticket", "title": "Tickets de Sede", "url_name": "#",
-            "order": 6, "permission": "can_manage_infrastructure", "provider": "helpdesk", "stub": True,
-        },   
     ]
-    
+
     DEPENDENCIA_DETAIL_MENU = [
             {
                 "icon": "fingerprint",
@@ -241,7 +232,6 @@ class OrganigramaPermissions:
                 "permission": "can_manage_infrastructure",
                 "order": 10,
                 "provider": "organigrama",
-                "stub": False,
             },
             {
                 "icon": "layout-grid",
@@ -250,7 +240,6 @@ class OrganigramaPermissions:
                 "permission": "can_manage_infrastructure",
                 "order": 20,
                 "provider": "organigrama",
-                "stub": False,
             },
             {
                 "icon": "map-pin",
@@ -259,7 +248,6 @@ class OrganigramaPermissions:
                 "permission": "can_manage_infrastructure",
                 "order": 30,
                 "provider": "organigrama",
-                "stub": False,
             },
             {
                 "icon": "users",
@@ -268,28 +256,9 @@ class OrganigramaPermissions:
                 "permission": "can_manage_infrastructure",
                 "order": 40,
                 "provider": "organigrama",
-                "stub": False,
-            },
-            {
-                "icon": "package",
-                "title": "Activos Asignados",
-                "url_name": "#",
-                "permission": "can_manage_infrastructure",
-                "order": 80,
-                "provider": "assets",
-                "stub": True,
-            },
-            {
-                "icon": "ticket",
-                "title": "Tickets de Dependencia",
-                "url_name": "#",
-                "permission": "can_manage_infrastructure",
-                "order": 90,
-                "provider": "helpdesk",
-                "stub": True,
             },
         ]
-    
+
     AREA_DETAIL_MENU = [
         {
             "icon": "fingerprint",
@@ -298,7 +267,6 @@ class OrganigramaPermissions:
             "permission": "can_manage_infrastructure",
             "order": 10,
             "provider": "organigrama",
-            "stub": False,
         },
         {
             "icon": "users",
@@ -307,28 +275,9 @@ class OrganigramaPermissions:
             "permission": "can_manage_infrastructure",
             "order": 20,
             "provider": "organigrama",
-            "stub": False,
-        },
-        {
-            "icon": "package",
-            "title": "Activos del Área",
-            "url_name": "#",
-            "permission": "can_manage_infrastructure",
-            "order": 80,
-            "provider": "assets",
-            "stub": True,
-        },
-        {
-            "icon": "ticket",
-            "title": "Tickets del Área",
-            "url_name": "#",
-            "permission": "can_manage_infrastructure",
-            "order": 90,
-            "provider": "helpdesk",
-            "stub": True,
         },
     ]
-    
+
     CAPABILITIES = {
         "can_operate": {
             "label": "Puede Operar",
@@ -343,5 +292,3 @@ class OrganigramaPermissions:
             "help_text": "Permite que esta dependencia autorice decisiones críticas o cierres dentro del módulo.",
         },
     }
-    
-   

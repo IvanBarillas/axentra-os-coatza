@@ -437,7 +437,6 @@ def sede_soft_delete_view(request, pk: uuid.UUID):
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -653,7 +652,6 @@ def sede_detail_view(request, pk: uuid.UUID):
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -765,7 +763,6 @@ def render_sede_contextual_subview(
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -1277,7 +1274,6 @@ def dependencia_soft_delete_view(request, pk: uuid.UUID):
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -1526,7 +1522,6 @@ def render_dependencia_contextual_subview(
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -1654,7 +1649,6 @@ def dependencia_detail_view(request, pk: uuid.UUID):
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -2254,7 +2248,6 @@ def area_soft_delete_view(request, pk: uuid.UUID):
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -2495,7 +2488,6 @@ def render_area_contextual_subview(
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
@@ -2595,7 +2587,6 @@ def area_detail_view(request, pk: uuid.UUID):
             "href": href,
             "order": item.get("order", 99),
             "provider": item.get("provider", "organigrama"),
-            "stub": item.get("stub", False),
             "active": url_name == current_sub_view,
         })
 
