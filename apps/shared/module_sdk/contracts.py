@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import StrEnum
-from uuid import UUID
 
 
 class ModuleKind(StrEnum):
@@ -14,42 +12,6 @@ class ModuleHealth(StrEnum):
     WARNING = "WARNING"
     UNAVAILABLE = "UNAVAILABLE"
     DISABLED = "DISABLED"
-
-
-@dataclass(frozen=True, slots=True)
-class ExternalAssetActivity:
-    """Evento de otro módulo vinculado a un activo mediante UUID."""
-
-    source_app: str
-    reference_id: UUID
-    activity_type: str
-    activity_label: str
-    folio: str
-    title: str
-    status: str
-    status_label: str
-    occurred_at: datetime | None = None
-    due_at: datetime | None = None
-    detail_url: str = ""
-    summary: str = ""
-    blocks_asset_operations: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class ExternalAssetActivityCollection:
-    """Resultado seguro de una integración opcional de expediente."""
-
-    integration_available: bool = False
-    items: tuple[ExternalAssetActivity, ...] = field(default_factory=tuple)
-    message: str = ""
-
-    @property
-    def blocking_items(self) -> tuple[ExternalAssetActivity, ...]:
-        return tuple(item for item in self.items if item.blocks_asset_operations)
-
-    @property
-    def has_blocking_activity(self) -> bool:
-        return bool(self.blocking_items)
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,8 +64,6 @@ class ModuleRuntimeStatus:
 
 
 __all__ = [
-    "ExternalAssetActivity",
-    "ExternalAssetActivityCollection",
     "ModuleHealth",
     "ModuleKind",
     "ModuleManifest",

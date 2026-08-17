@@ -1,19 +1,15 @@
-"""API pública del SDK modular de Axentra OS."""
+"""API pública y neutral del SDK modular de Axentra OS."""
 
+from .catalog import ModuleCatalogEntry, available_module_catalog
 from .contracts import (
-    ExternalAssetActivity,
-    ExternalAssetActivityCollection,
     ModuleHealth,
     ModuleKind,
     ModuleManifest,
     ModuleRuntimeStatus,
 )
 from .registry import module_registry, register_module
-from .catalog import ModuleCatalogEntry, available_module_catalog
 
 __all__ = [
-    "ExternalAssetActivity",
-    "ExternalAssetActivityCollection",
     "ModuleHealth",
     "ModuleKind",
     "ModuleManifest",
