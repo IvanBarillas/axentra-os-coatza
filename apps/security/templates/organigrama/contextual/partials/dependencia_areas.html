@@ -6,7 +6,7 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 
                 <div class="min-w-0">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 font-mono">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-black uppercase tracking-widest text-indigo-700 font-mono">
                         <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
                         Áreas Operativas
                     </div>
@@ -21,7 +21,7 @@
                 </div>
 
                 <div class="rounded-2xl border border-gray-100 bg-gray-50/70 px-5 py-4 min-w-[150px]">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    <p class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                         Total
                     </p>
 
@@ -29,7 +29,7 @@
                         {{ total_areas|default:0 }}
                     </p>
 
-                    <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide">
+                    <p class="mt-1 text-xs text-gray-400 font-mono uppercase tracking-wide">
                         Áreas
                     </p>
                 </div>
@@ -39,7 +39,7 @@
 
         <div class="px-5 sm:px-6 lg:px-7 py-4 border-b border-gray-100 bg-white">
 
-            <div class="relative w-full font-mono text-[11px]">
+            <div class="relative w-full font-mono text-xs">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
                     <i data-lucide="search" class="w-3.5 h-3.5"></i>
                 </span>
@@ -95,23 +95,23 @@
                                     {{ area.nombre }}
                                 </a>
 
-                                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
+                                <p class="mt-1 text-xs text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
                                     {{ area.sede_fisica.nombre|default:"Sede no asignada" }}
                                 </p>
 
                                 <div class="mt-2 flex flex-wrap items-center gap-2">
 
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 font-mono">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-black uppercase tracking-widest text-gray-500 font-mono">
                                         <i data-lucide="map-pin" class="w-3 h-3 text-gray-400"></i>
                                         {{ area.sede_fisica.nombre|default:"Sin sede" }}
                                     </span>
 
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 font-mono">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-black uppercase tracking-widest text-gray-500 font-mono">
                                         <i data-lucide="building-2" class="w-3 h-3 text-gray-400"></i>
                                         {{ dependencia.nombre }}
                                     </span>
 
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border {% if area.is_active %}border-emerald-200 bg-emerald-50 text-emerald-700{% else %}border-rose-200 bg-rose-50 text-rose-700{% endif %} px-2.5 py-1 text-[10px] font-black uppercase tracking-widest font-mono">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border {% if area.is_active %}border-emerald-200 bg-emerald-50 text-emerald-700{% else %}border-rose-200 bg-rose-50 text-rose-700{% endif %} px-2.5 py-1 text-xs font-black uppercase tracking-widest font-mono">
                                         {% if area.is_active %}
                                             <i data-lucide="circle-check" class="w-3 h-3"></i>
                                             Activa
@@ -133,7 +133,7 @@
                                 hx-target="#workbench"
                                 hx-swap="innerHTML"
                                 hx-push-url="true"
-                                class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-indigo-700 hover:border-indigo-200 transition font-mono"
+                                class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-indigo-700 hover:border-indigo-200 transition font-mono"
                             >
                                 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                                 Abrir Expediente
@@ -153,7 +153,7 @@
                         Sin áreas operativas
                     </span>
 
-                    <p class="text-[11px] text-gray-400 font-medium mt-1 uppercase leading-relaxed">
+                    <p class="text-xs text-gray-400 font-medium mt-1 uppercase leading-relaxed">
                         Esta dependencia todavía no tiene áreas operativas vinculadas.
                     </p>
                 </div>

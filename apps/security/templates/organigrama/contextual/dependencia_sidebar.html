@@ -9,7 +9,7 @@
             </div>
 
             <div class="min-w-0">
-                <p class="text-[9px] font-black uppercase tracking-[0.18em] text-gray-400 font-mono">
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-gray-400 font-mono">
                     Expediente de Dependencia
                 </p>
 
@@ -17,7 +17,7 @@
                     {{ dependencia.nombre }}
                 </h2>
 
-                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
+                <p class="mt-1 text-xs text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
                     {{ dependencia.slug|default:"sin-slug" }}
                 </p>
             </div>
@@ -27,21 +27,21 @@
         <div class="mt-5 grid grid-cols-2 gap-2">
 
             <div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-3">
-                <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                <p class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                     Estado
                 </p>
 
-                <p class="mt-1 text-[11px] font-black uppercase font-mono {% if dependencia.is_active %}text-emerald-700{% else %}text-rose-700{% endif %}">
+                <p class="mt-1 text-xs font-black uppercase font-mono {% if dependencia.is_active %}text-emerald-700{% else %}text-rose-700{% endif %}">
                     {% if dependencia.is_active %}Activa{% else %}Inactiva{% endif %}
                 </p>
             </div>
 
             <div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-3">
-                <p class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                <p class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                     Áreas
                 </p>
 
-                <p class="mt-1 text-[11px] font-black uppercase font-mono text-gray-950">
+                <p class="mt-1 text-xs font-black uppercase font-mono text-gray-950">
                     {{ total_areas|default:0 }}
                 </p>
             </div>
@@ -57,7 +57,7 @@
             {% if item.stub %}
 
                 <div class="pt-3">
-                    <p class="px-4 mb-1 text-[8px] font-black uppercase tracking-[0.18em] text-gray-300 font-mono">
+                    <p class="px-4 mb-1 text-xs font-black uppercase tracking-[0.18em] text-gray-300 font-mono">
                         Integración futura
                     </p>
 
@@ -65,12 +65,12 @@
                         <div class="flex items-center gap-3 min-w-0">
                             <i data-lucide="{{ item.icon }}" class="w-4 h-4 shrink-0"></i>
 
-                            <span class="text-[10px] font-black uppercase tracking-widest font-mono truncate">
+                            <span class="text-xs font-black uppercase tracking-widest font-mono truncate">
                                 {{ item.title }}
                             </span>
                         </div>
 
-                        <span class="rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                        <span class="rounded-md border border-gray-200 bg-white px-2 py-0.5 text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                             Próximamente
                         </span>
                     </div>
@@ -88,7 +88,7 @@
                 >
                     <i data-lucide="{{ item.icon }}" class="w-4 h-4 shrink-0 {% if item.active %}text-white{% else %}text-gray-400 group-hover:text-gray-700{% endif %}"></i>
 
-                    <span class="text-[10px] font-black uppercase tracking-widest font-mono truncate">
+                    <span class="text-xs font-black uppercase tracking-widest font-mono truncate">
                         {{ item.title }}
                     </span>
                 </a>
@@ -107,7 +107,7 @@
             hx-target="#workbench"
             hx-swap="innerHTML"
             hx-push-url="true"
-            class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition font-mono"
+            class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition font-mono"
         >
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
             Volver a Dependencias

@@ -75,7 +75,7 @@
 
     <div x-show="confirmOpen"
          x-cloak
-         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs font-mono text-[11px]"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs font-mono text-xs"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -91,7 +91,7 @@
 
                 <div class="space-y-1 min-w-0">
                     <h3 class="text-sm font-black text-gray-950 uppercase tracking-tight" x-text="confirmTitle"></h3>
-                    <p class="text-gray-400 font-bold uppercase text-[10px] tracking-wide mt-1 leading-relaxed" x-text="confirmText"></p>
+                    <p class="text-gray-400 font-bold uppercase text-xs tracking-wide mt-1 leading-relaxed" x-text="confirmText"></p>
                 </div>
             </div>
 

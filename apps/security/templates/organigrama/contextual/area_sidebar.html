@@ -1,6 +1,6 @@
 <div class="w-full h-full flex flex-col bg-white font-mono select-none">
     <div class="p-5 border-b border-gray-100">
-        <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+        <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-black uppercase tracking-widest text-indigo-700">
             <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
             Expediente de Área
         </div>
@@ -9,20 +9,20 @@
             {{ area.nombre }}
         </h2>
 
-        <p class="mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
+        <p class="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
             {{ dependencia.nombre|default:"Sin dependencia" }}
         </p>
 
         <div class="mt-4 grid grid-cols-2 gap-2">
             <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
-                <p class="text-[9px] font-black uppercase tracking-widest text-gray-400">Estado</p>
-                <p class="mt-1 text-[10px] font-black uppercase {% if area.is_active %}text-emerald-700{% else %}text-rose-700{% endif %}">
+                <p class="text-xs font-black uppercase tracking-widest text-gray-400">Estado</p>
+                <p class="mt-1 text-xs font-black uppercase {% if area.is_active %}text-emerald-700{% else %}text-rose-700{% endif %}">
                     {% if area.is_active %}Activa{% else %}Inactiva{% endif %}
                 </p>
             </div>
 
             <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
-                <p class="text-[9px] font-black uppercase tracking-widest text-gray-400">Personal</p>
+                <p class="text-xs font-black uppercase tracking-widest text-gray-400">Personal</p>
                 <p class="mt-1 text-sm font-black text-gray-950">{{ total_funcionarios|default:0 }}</p>
             </div>
         </div>
@@ -31,12 +31,12 @@
     <nav class="flex-1 overflow-y-auto p-3 space-y-1">
         {% for item in detail_menu %}
             {% if item.stub %}
-                <div class="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-300 cursor-not-allowed">
+                <div class="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-xs font-black uppercase tracking-widest text-gray-300 cursor-not-allowed">
                     <span class="inline-flex items-center gap-2">
                         <i data-lucide="{{ item.icon }}" class="w-4 h-4"></i>
                         {{ item.title }}
                     </span>
-                    <span class="text-[8px] border border-gray-200 rounded-full px-2 py-0.5">
+                    <span class="text-xs border border-gray-200 rounded-full px-2 py-0.5">
                         Próximamente
                     </span>
                 </div>
@@ -47,7 +47,7 @@
                     hx-target="#page-content"
                     hx-swap="innerHTML"
                     hx-push-url="true"
-                    class="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest transition {% if item.active %}bg-gray-950 text-white{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-950{% endif %}"
+                    class="flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black uppercase tracking-widest transition {% if item.active %}bg-gray-950 text-white{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-950{% endif %}"
                 >
                     <i data-lucide="{{ item.icon }}" class="w-4 h-4 {% if not item.active %}text-gray-400{% endif %}"></i>
                     {{ item.title }}
@@ -64,7 +64,7 @@
             hx-target="#workbench"
             hx-swap="innerHTML"
             hx-push-url="true"
-            class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition"
+            class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-950 hover:border-gray-300 transition"
         >
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
             Volver a Áreas

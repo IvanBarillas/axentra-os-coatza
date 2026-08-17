@@ -13,11 +13,11 @@
             </div>
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700">Accounts</span>
-                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">Ficha de Identidad</span>
+                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-indigo-700">Accounts</span>
+                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-slate-600">Ficha de Identidad</span>
                 </div>
                 <h1 class="mt-2 text-xl font-black text-gray-950 uppercase tracking-tight leading-none">{{ funcionario.full_name|default:funcionario.email|upper }}</h1>
-                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">Expediente maestro, identidad institucional y adscripción laboral</p>
+                <p class="mt-2 text-xs font-bold uppercase tracking-wider text-gray-400 leading-relaxed">Expediente maestro, identidad institucional y adscripción laboral</p>
             </div>
         </div>
 
@@ -44,21 +44,21 @@
             <div class="flex flex-col items-center text-center">
                 <div class="h-20 w-20 rounded-2xl bg-slate-950 text-white flex items-center justify-center text-2xl font-black uppercase shadow-sm">{{ funcionario.email|slice:":1"|upper }}</div>
                 <h2 class="mt-4 text-base font-black uppercase tracking-tight text-gray-950">{{ funcionario.full_name|default:funcionario.email }}</h2>
-                <p class="mt-1 text-[11px] font-bold lowercase tracking-wide text-gray-400">{{ funcionario.email }}</p>
+                <p class="mt-1 text-xs font-bold lowercase tracking-wide text-gray-400">{{ funcionario.email }}</p>
                 
                 <div class="mt-4 flex flex-wrap justify-center gap-2">
                     {% if funcionario.is_active %}
-                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">Cuenta Activa</span>
+                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-700">Cuenta Activa</span>
                     {% else %}
-                        <span class="rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700">Cuenta Inactiva</span>
+                        <span class="rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-rose-700">Cuenta Inactiva</span>
                     {% endif %}
 
                     {% if funcionario.is_superuser %}
-                        <span class="rounded-md border border-red-100 bg-red-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-700">Root</span>
+                        <span class="rounded-md border border-red-100 bg-red-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-red-700">Root</span>
                     {% elif funcionario.is_manager %}
-                        <span class="rounded-md border border-purple-100 bg-purple-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-purple-700">Administrador</span>
+                        <span class="rounded-md border border-purple-100 bg-purple-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-purple-700">Administrador</span>
                     {% else %}
-                        <span class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-600">Usuario</span>
+                        <span class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-slate-600">Usuario</span>
                     {% endif %}
                 </div>
 
@@ -66,12 +66,12 @@
                     <form method="POST" action="{{ toggle_status_url }}" hx-post="{{ toggle_status_url }}" hx-target="#page-content" hx-swap="innerHTML" hx-confirm="{% if funcionario.is_active %}¿Deseas desactivar esta cuenta institucional?{% else %}¿Deseas activar esta cuenta institucional?{% endif %}" class="mt-5 w-full">
                         {% csrf_token %}
                         {% if funcionario.is_active %}
-                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-rose-700 transition hover:bg-rose-100 active:scale-95">
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-rose-700 transition hover:bg-rose-100 active:scale-95">
                                 <i data-lucide="user-x" class="h-4 w-4"></i>
                                 <span>Desactivar Cuenta</span>
                             </button>
                         {% else %}
-                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
                                 <i data-lucide="user-check" class="h-4 w-4"></i>
                                 <span>Activar Cuenta</span>
                             </button>
@@ -85,23 +85,23 @@
         <article class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm xl:col-span-2">
             <div class="border-b border-gray-100 pb-3">
                 <h3 class="text-sm font-black uppercase tracking-tight text-gray-950">Datos Generales</h3>
-                <p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Información base del usuario institucional</p>
+                <p class="mt-0.5 text-xs font-bold uppercase tracking-wider text-gray-400">Información base del usuario institucional</p>
             </div>
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Nombre</div>
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">Nombre</div>
                     <div class="mt-1 text-sm font-black text-gray-950">{{ funcionario.first_name|default:"Sin nombre registrado" }}</div>
                 </div>
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Apellidos</div>
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">Apellidos</div>
                     <div class="mt-1 text-sm font-black text-gray-950">{{ funcionario.last_name|default:"Sin apellidos registrados" }}</div>
                 </div>
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Correo Institucional</div>
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">Correo Institucional</div>
                     <div class="mt-1 text-sm font-bold lowercase text-gray-950">{{ funcionario.email }}</div>
                 </div>
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Teléfono</div>
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">Teléfono</div>
                     <div class="mt-1 text-sm font-bold text-gray-950">{{ funcionario.phone|default:"Sin teléfono registrado" }}</div>
                 </div>
             </div>
@@ -112,19 +112,19 @@
     <section class="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm">
         <div class="border-b border-gray-100 pb-3">
             <h3 class="text-sm font-black uppercase tracking-tight text-gray-950">Adscripción Estructural</h3>
-            <p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Ubicación orgánica dentro de la institución</p>
+            <p class="mt-0.5 text-xs font-bold uppercase tracking-wider text-gray-400">Ubicación orgánica dentro de la institución</p>
         </div>
         <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Puesto</div>
+                <div class="text-xs font-black uppercase tracking-widest text-gray-400">Puesto</div>
                 <div class="mt-1 text-sm font-black uppercase text-gray-950">{{ perfil.puesto|default:"Sin puesto registrado" }}</div>
             </div>
             <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Área</div>
+                <div class="text-xs font-black uppercase tracking-widest text-gray-400">Área</div>
                 <div class="mt-1 text-sm font-black uppercase text-gray-950">{{ perfil.area|default:"Sin área asignada" }}</div>
             </div>
             <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">Extensión Oficina</div>
+                <div class="text-xs font-black uppercase tracking-widest text-gray-400">Extensión Oficina</div>
                 <div class="mt-1 text-sm font-black uppercase text-gray-950">{{ perfil.telefono_oficina|default:"Sin extensión" }}</div>
             </div>
         </div>
@@ -139,11 +139,11 @@
                         <i data-lucide="shield-alert" class="h-4 w-4"></i>
                         <h3 class="text-sm font-black uppercase tracking-tight">Administración de la cuenta</h3>
                     </div>
-                    <p class="mt-1 text-[10px] font-bold uppercase tracking-wider text-rose-700/70">Las acciones de esta sección alteran el ciclo de vida institucional del funcionario.</p>
+                    <p class="mt-1 text-xs font-bold uppercase tracking-wider text-rose-700/70">Las acciones de esta sección alteran el ciclo de vida institucional del funcionario.</p>
                 </div>
                 <form method="POST" action="{{ delete_url }}" hx-post="{{ delete_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-confirm="¿Confirma la baja del funcionario? Se revocarán todos sus accesos.">
                     {% csrf_token %}
-                    <button type="submit" class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95">
+                    <button type="submit" class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95">
                         <i data-lucide="trash-2" class="h-4 w-4 text-rose-100"></i>
                         <span>Dar de baja</span>
                     </button>

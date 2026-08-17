@@ -4,9 +4,9 @@
             <div class="flex items-start gap-3">
                 <div class="h-10 w-10 shrink-0 rounded-xl bg-slate-950 text-white flex items-center justify-center font-black text-xs uppercase">{{ funcionario.email|slice:":1"|upper }}</div>
                 <div class="min-w-0">
-                    <div class="text-[9px] font-black uppercase tracking-[0.18em] text-gray-400">Expediente Activo</div>
+                    <div class="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Expediente Activo</div>
                     <h2 class="mt-1 truncate text-sm font-black uppercase tracking-tight text-gray-950">{{ funcionario.full_name|default:funcionario.email }}</h2>
-                    <p class="mt-0.5 truncate text-[10px] font-bold lowercase tracking-wide text-gray-400">{{ funcionario.email }}</p>
+                    <p class="mt-0.5 truncate text-xs font-bold lowercase tracking-wide text-gray-400">{{ funcionario.email }}</p>
                 </div>
             </div>
         </div>
@@ -16,21 +16,21 @@
                     <i data-lucide="{{ item.icon|default:'circle' }}" class="w-4 h-4 shrink-0"></i>
                     <span class="truncate flex-1">{{ item.title }}</span>
                     {% if item.stub %}
-                        <span class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-700">Próximamente</span>
+                        <span class="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-black uppercase tracking-wider text-amber-700">Próximamente</span>
                     {% endif %}
                 </a>
             {% empty %}
                 <div class="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-center">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-gray-400">Sin accesos contextuales</div>
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">Sin accesos contextuales</div>
                 </div>
             {% endfor %}
         </nav>
     </div>
     <div class="space-y-2 border-t border-gray-100 pt-4">
         {% url 'accounts:funcionario_list' as list_url %}
-        <a href="{{ list_url }}" hx-get="{{ list_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-push-url="true" class="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[11px] font-black uppercase tracking-wider text-gray-500 transition hover:bg-gray-50 hover:text-gray-950">
+        <a href="{{ list_url }}" hx-get="{{ list_url }}" hx-target="#workbench" hx-swap="innerHTML" hx-push-url="true" class="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-black uppercase tracking-wider text-gray-500 transition hover:bg-gray-50 hover:text-gray-950">
             <i data-lucide="arrow-left" class="h-4 w-4 text-gray-400"></i><span>Volver al listado</span>
         </a>
-        <div class="text-center text-[9px] font-black uppercase tracking-widest text-gray-300">Accounts // Expediente</div>
+        <div class="text-center text-xs font-black uppercase tracking-widest text-gray-300">Accounts // Expediente</div>
     </div>
 </div>

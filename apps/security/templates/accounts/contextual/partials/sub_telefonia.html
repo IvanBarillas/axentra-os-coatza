@@ -6,13 +6,13 @@
             <h3 class="text-sm font-black text-gray-900 uppercase tracking-tight">
                 Línea y Telefonía
             </h3>
-            <p class="text-[10px] font-bold text-gray-400 uppercase mt-0.5">
+            <p class="text-xs font-bold text-gray-400 uppercase mt-0.5">
                 Extensiones, dispositivos IP y perfiles de marcado vinculados al funcionario.
             </p>
         </div>
 
         <div class="mt-4 overflow-x-auto border border-gray-100 rounded-xl">
-            <table class="w-full text-left border-collapse text-[11px]">
+            <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="bg-slate-50 text-gray-500 uppercase tracking-wider border-b border-gray-100 font-black">
                         <th class="py-3 px-4">Extensión</th>
@@ -36,17 +36,17 @@
                                 {{ extension.modelo_aparato }}
                             </td>
                             <td class="py-3 px-4">
-                                <span class="px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600 uppercase">
+                                <span class="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-600 uppercase">
                                     {{ extension.perfil_marcado }}
                                 </span>
                             </td>
-                            <td class="py-3 px-4 text-emerald-600 uppercase text-[10px]">
+                            <td class="py-3 px-4 text-emerald-600 uppercase text-xs">
                                 {{ extension.estatus }}
                             </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="5" class="py-8 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest bg-slate-50/30">
+                            <td colspan="5" class="py-8 text-center text-gray-400 uppercase text-xs font-black tracking-widest bg-slate-50/30">
                                 No hay líneas o extensiones asignadas a este funcionario.
                             </td>
                         </tr>

@@ -3,7 +3,7 @@
         <div class="px-5 sm:px-6 lg:px-7 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50/40 via-white to-white">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 font-mono">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-black uppercase tracking-widest text-indigo-700 font-mono">
                         <i data-lucide="users" class="w-3.5 h-3.5"></i>
                         Funcionarios del Área
                     </div>
@@ -18,15 +18,15 @@
                 </div>
 
                 <div class="rounded-2xl border border-gray-100 bg-gray-50/70 px-5 py-4 min-w-[150px]">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 font-mono">Total</p>
+                    <p class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">Total</p>
                     <p class="mt-1 text-2xl font-black text-gray-950 font-mono">{{ total_funcionarios|default:0 }}</p>
-                    <p class="mt-1 text-[10px] text-gray-400 font-mono uppercase tracking-wide">Funcionarios</p>
+                    <p class="mt-1 text-xs text-gray-400 font-mono uppercase tracking-wide">Funcionarios</p>
                 </div>
             </div>
         </div>
 
         <div class="px-5 sm:px-6 lg:px-7 py-4 border-b border-gray-100 bg-white">
-            <div class="relative w-full font-mono text-[11px]">
+            <div class="relative w-full font-mono text-xs">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
                     <i data-lucide="search" class="w-3.5 h-3.5"></i>
                 </span>
@@ -78,7 +78,7 @@
                                     {{ funcionario.user.get_full_name|default:funcionario.user.email }}
                                 </a>
 
-                                <p class="mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
+                                <p class="mt-1 text-xs text-gray-400 font-bold uppercase tracking-widest font-mono truncate">
                                     {{ funcionario.user.email|default:"sin correo institucional" }}
                                 </p>
                             </div>
@@ -91,7 +91,7 @@
                                 hx-target="#workbench"
                                 hx-swap="innerHTML"
                                 hx-push-url="true"
-                                class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-indigo-700 hover:border-indigo-200 transition font-mono"
+                                class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-indigo-700 hover:border-indigo-200 transition font-mono"
                             >
                                 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                                 Abrir Expediente
@@ -109,7 +109,7 @@
                         Sin funcionarios adscritos
                     </span>
 
-                    <p class="text-[11px] text-gray-400 font-medium mt-1 uppercase leading-relaxed">
+                    <p class="text-xs text-gray-400 font-medium mt-1 uppercase leading-relaxed">
                         Esta área todavía no tiene funcionarios adscritos.
                     </p>
                 </div>

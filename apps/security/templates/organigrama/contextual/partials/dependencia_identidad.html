@@ -16,10 +16,10 @@
 
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700">
+                    <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-indigo-700">
                         Organigrama
                     </span>
-                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">
+                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-slate-600">
                         Ficha de Dependencia
                     </span>
                 </div>
@@ -28,7 +28,7 @@
                     {{ dependencia.nombre }}
                 </h1>
 
-                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
+                <p class="mt-2 text-xs font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
                     Autoridad administrativa, operación vinculada y presencia institucional
                 </p>
             </div>
@@ -62,27 +62,27 @@
                     {{ dependencia.nombre }}
                 </h2>
 
-                <p class="mt-1 text-[11px] font-bold uppercase tracking-wide text-gray-400 leading-relaxed">
+                <p class="mt-1 text-xs font-bold uppercase tracking-wide text-gray-400 leading-relaxed">
                     {{ dependencia.slug|default:"sin-slug" }}
                 </p>
 
                 <div class="mt-4 flex flex-wrap justify-center gap-2">
                     {% if dependencia.is_active %}
-                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-700">
                             Dependencia Activa
                         </span>
                     {% else %}
-                        <span class="rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700">
+                        <span class="rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-rose-700">
                             Dependencia Inactiva
                         </span>
                     {% endif %}
 
                     {% if dependencia.codigo_presupuestal %}
-                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-700">
                             DEP {{ dependencia.codigo_presupuestal }}
                         </span>
                     {% else %}
-                        <span class="rounded-md border border-amber-100 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
+                        <span class="rounded-md border border-amber-100 bg-amber-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-amber-700">
                             Sin DEP
                         </span>
                     {% endif %}
@@ -101,12 +101,12 @@
                         {% csrf_token %}
 
                         {% if dependencia.is_active %}
-                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-rose-700 transition hover:bg-rose-100 active:scale-95">
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-rose-700 transition hover:bg-rose-100 active:scale-95">
                                 <i data-lucide="ban" class="h-4 w-4"></i>
                                 <span>Desactivar Dependencia</span>
                             </button>
                         {% else %}
-                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
                                 <i data-lucide="circle-check" class="h-4 w-4"></i>
                                 <span>Activar Dependencia</span>
                             </button>
@@ -121,14 +121,14 @@
                 <h3 class="text-sm font-black uppercase tracking-tight text-gray-950">
                     Datos Generales
                 </h3>
-                <p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <p class="mt-0.5 text-xs font-bold uppercase tracking-wider text-gray-400">
                     Información base de la autoridad administrativa
                 </p>
             </div>
 
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Nombre Oficial
                     </div>
                     <div class="mt-1 text-sm font-black text-gray-950">
@@ -137,7 +137,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Código Presupuestal / DEP
                     </div>
 
@@ -151,13 +151,13 @@
                         </div>
                     {% endif %}
 
-                    <p class="mt-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
+                    <p class="mt-2 text-xs font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
                         Segmento [DEP] para folios patrimoniales ORFIS/SIGMAVER.
                     </p>
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Estado Operativo
                     </div>
                     <div class="mt-1 text-sm font-black uppercase {% if dependencia.is_active %}text-emerald-700{% else %}text-rose-700{% endif %}">
@@ -166,7 +166,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Dependencia Padre
                     </div>
 
@@ -176,7 +176,7 @@
                         </div>
 
                         {% if dependencia.parent.codigo_presupuestal %}
-                            <div class="mt-1 text-[10px] font-black uppercase tracking-wider text-gray-400">
+                            <div class="mt-1 text-xs font-black uppercase tracking-wider text-gray-400">
                                 Código DEP Padre: {{ dependencia.parent.codigo_presupuestal }}
                             </div>
                         {% endif %}
@@ -188,7 +188,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Slug Institucional
                     </div>
                     <div class="mt-1 text-sm font-bold text-gray-950">
@@ -197,7 +197,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Tipo de Nodo
                     </div>
                     <div class="mt-1 text-sm font-black uppercase text-gray-950">
@@ -206,7 +206,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Áreas Operativas
                     </div>
                     <div class="mt-1 text-2xl font-black text-gray-950">
@@ -215,7 +215,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Sedes donde Opera
                     </div>
                     <div class="mt-1 text-2xl font-black text-gray-950">
@@ -224,7 +224,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Funcionarios
                     </div>
                     <div class="mt-1 text-2xl font-black text-gray-950">
@@ -233,7 +233,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Adscripción
                     </div>
                     <div class="mt-1 text-sm font-black uppercase text-gray-950">
@@ -248,11 +248,11 @@
                         </div>
 
                         <div class="min-w-0">
-                            <div class="text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                            <div class="text-xs font-black uppercase tracking-widest text-emerald-700">
                                 Folio Patrimonial
                             </div>
 
-                            <p class="mt-1 text-[10px] font-bold uppercase tracking-wider text-emerald-900/80 leading-relaxed">
+                            <p class="mt-1 text-xs font-bold uppercase tracking-wider text-emerald-900/80 leading-relaxed">
                                 Esta dependencia aporta el segmento
                                 <strong class="text-emerald-950">[DEP]</strong>
                                 del folio oficial.
@@ -270,7 +270,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4 md:col-span-2">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Nodo Institucional
                     </div>
                     <div class="mt-1 text-xs font-black text-gray-950 break-all">
@@ -294,7 +294,7 @@
                         Dependencia inactiva con operación vinculada
                     </h3>
 
-                    <p class="mt-1 text-[11px] font-bold uppercase tracking-wider text-amber-800/80 leading-relaxed">
+                    <p class="mt-1 text-xs font-bold uppercase tracking-wider text-amber-800/80 leading-relaxed">
                         Esta dependencia está inactiva, pero conserva {{ total_areas|default:0 }} área(s) operativa(s)
                         en {{ total_sedes|default:0 }} sede(s). Las áreas no fueron apagadas automáticamente.
                     </p>
@@ -315,7 +315,7 @@
                         </h3>
                     </div>
 
-                    <p class="mt-1 text-[10px] font-bold uppercase tracking-wider text-rose-700/70 leading-relaxed">
+                    <p class="mt-1 text-xs font-bold uppercase tracking-wider text-rose-700/70 leading-relaxed">
                         La baja lógica sólo procede si no existen áreas operativas vivas vinculadas a esta dependencia.
                     </p>
                 </div>
@@ -330,7 +330,7 @@
                 >
                     {% csrf_token %}
 
-                    <button type="submit" class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95">
+                    <button type="submit" class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95">
                         <i data-lucide="trash-2" class="h-4 w-4 text-rose-100"></i>
                         <span>Dar de baja</span>
                     </button>

@@ -4,7 +4,7 @@
     <div class="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar">
         <table class="w-full text-left border-collapse min-w-max">
             <thead>
-                <tr class="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase text-gray-400 tracking-wider font-mono sticky top-0 z-10">
+                <tr class="border-b border-gray-200 bg-gray-50 text-xs font-black uppercase text-gray-400 tracking-wider font-mono sticky top-0 z-10">
                     <th class="py-4 px-6 bg-gray-100 sticky left-0 z-30 border-r border-gray-200 shadow-3xs">
                         Servidor Público
                     </th>
@@ -19,7 +19,7 @@
                                 {{ nombre_legible|upper }}
                             </div>
 
-                            <div class="text-[8px] text-gray-400 font-bold lowercase tracking-normal mt-0.5">
+                            <div class="text-xs text-gray-400 font-bold lowercase tracking-normal mt-0.5">
                                 slug: {{ slug_app }}
                             </div>
                         </th>
@@ -36,17 +36,17 @@
                                 {{ funcionario.full_name }}
                             </div>
 
-                            <div class="text-[10px] text-gray-400 font-mono mt-0.5">
+                            <div class="text-xs text-gray-400 font-mono mt-0.5">
                                 {{ funcionario.email }}
                             </div>
 
-                            <div class="text-[9px] mt-1 font-mono tracking-tight flex items-center gap-1 uppercase">
+                            <div class="text-xs mt-1 font-mono tracking-tight flex items-center gap-1 uppercase">
                                 {% if not funcionario.profile_id %}
-                                    <span class="text-red-600 font-black px-1.5 py-0.5 rounded bg-red-100/80 text-[8px] tracking-wide animate-pulse">
+                                    <span class="text-red-600 font-black px-1.5 py-0.5 rounded bg-red-100/80 text-xs tracking-wide animate-pulse">
                                         ALERTA: SIN PERFIL ORGÁNICO
                                     </span>
                                 {% else %}
-                                    <span class="text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px] font-mono">
+                                    <span class="text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded text-xs font-mono">
                                         {{ funcionario.sede_nombre }}
                                     </span>
 
@@ -67,11 +67,11 @@
 
                         <td class="py-4 px-6 whitespace-nowrap text-center">
                             {% if funcionario.is_email_verified %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-emerald-600 text-white font-mono tracking-wider shadow-3xs">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-black bg-emerald-600 text-white font-mono tracking-wider shadow-3xs">
                                     VERIFICADO
                                 </span>
                             {% else %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black bg-amber-500 text-white font-mono tracking-wider animate-pulse">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-black bg-amber-500 text-white font-mono tracking-wider animate-pulse">
                                     PENDIENTE
                                 </span>
                             {% endif %}
@@ -81,18 +81,18 @@
                             <td class="py-4 px-6 whitespace-nowrap text-center border-l border-gray-100">
                                 <div class="flex items-center justify-center gap-1.5">
                                     {% if funcionario.is_manager %}
-                                        <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-700 font-black px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest shadow-3xs">
+                                        <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-700 font-black px-2.5 py-1 rounded-lg text-xs font-mono tracking-widest shadow-3xs">
                                             MASTER BYPASS
                                         </div>
                                     {% else %}
                                         {% with tiene_acceso=funcionario.accesos_modulos|get_item:slug_app %}
                                             {% with rol_actual=funcionario.roles_por_modulo|get_item:slug_app %}
                                                 {% if tiene_acceso %}
-                                                    <div class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-black px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest shadow-3xs">
+                                                    <div class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-black px-2.5 py-1 rounded-lg text-xs font-mono tracking-widest shadow-3xs">
                                                         {{ rol_actual|default:"GRANTED"|upper }}
                                                     </div>
                                                 {% else %}
-                                                    <div class="inline-flex items-center gap-1 bg-slate-50 border border-transparent text-gray-300 font-bold px-2.5 py-1 rounded-lg text-[8px] font-mono tracking-widest opacity-40">
+                                                    <div class="inline-flex items-center gap-1 bg-slate-50 border border-transparent text-gray-300 font-bold px-2.5 py-1 rounded-lg text-xs font-mono tracking-widest opacity-40">
                                                         ✕ DENIED
                                                     </div>
                                                 {% endif %}
@@ -106,7 +106,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="15" class="text-center py-16 bg-gray-50/10 font-mono uppercase text-gray-400 font-bold text-[10px] tracking-widest">
+                        <td colspan="15" class="text-center py-16 bg-gray-50/10 font-mono uppercase text-gray-400 font-bold text-xs tracking-widest">
                             No se encontraron funcionarios con los filtros seleccionados.
                         </td>
                     </tr>
@@ -118,7 +118,7 @@
 
 <div class="block md:hidden space-y-3 w-full">
     {% for funcionario in funcionarios %}
-        <div class="bg-white rounded-2xl border {% if not funcionario.profile_id %} border-red-200 bg-red-50/10 {% else %} border-gray-200/80 {% endif %} shadow-3xs overflow-hidden font-mono text-[11px] transition-all duration-200">
+        <div class="bg-white rounded-2xl border {% if not funcionario.profile_id %} border-red-200 bg-red-50/10 {% else %} border-gray-200/80 {% endif %} shadow-3xs overflow-hidden font-mono text-xs transition-all duration-200">
 
             <button
                 type="button"
@@ -130,11 +130,11 @@
                         {{ funcionario.full_name }}
                     </h4>
 
-                    <p class="text-[10px] text-gray-400 font-bold lowercase truncate mt-0.5">
+                    <p class="text-xs text-gray-400 font-bold lowercase truncate mt-0.5">
                         {{ funcionario.email }}
                     </p>
 
-                    <div class="text-[8px] mt-2 font-mono tracking-tight flex items-center gap-1 uppercase">
+                    <div class="text-xs mt-2 font-mono tracking-tight flex items-center gap-1 uppercase">
                         {% if not funcionario.profile_id %}
                             <span class="text-red-600 font-black px-1 rounded bg-red-100 text-[7px] animate-pulse">
                                 ALERTA: SIN PERFIL
@@ -160,30 +160,30 @@
             </button>
 
             <div id="forensic-panel-{{ funcionario.id }}" class="hidden border-t border-gray-100 p-4 bg-gray-50/30 space-y-2 animate-fade-in">
-                <div class="text-[8px] font-black text-gray-400 uppercase tracking-widest text-left block mb-1">
+                <div class="text-xs font-black text-gray-400 uppercase tracking-widest text-left block mb-1">
                     Tokens por Aplicativo:
                 </div>
 
                 {% for slug_app, nombre_legible in aplicaciones_sistema %}
                     <div class="flex items-center justify-between p-2 bg-white border border-gray-150 rounded-xl shadow-3xs">
-                        <span class="text-[9px] font-black text-gray-700 tracking-tight text-left">
+                        <span class="text-xs font-black text-gray-700 tracking-tight text-left">
                             {{ nombre_legible|upper }}
                         </span>
 
                         <div>
                             {% if funcionario.is_manager %}
-                                <span class="bg-blue-50 border border-blue-100 text-blue-700 font-black px-2 py-0.5 rounded text-[8px] tracking-wider">
+                                <span class="bg-blue-50 border border-blue-100 text-blue-700 font-black px-2 py-0.5 rounded text-xs tracking-wider">
                                     MASTER BYPASS
                                 </span>
                             {% else %}
                                 {% with tiene_acceso=funcionario.accesos_modulos|get_item:slug_app %}
                                     {% with rol_actual=funcionario.roles_por_modulo|get_item:slug_app %}
                                         {% if tiene_acceso %}
-                                            <span class="bg-emerald-50 border border-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded text-[8px] tracking-wider">
+                                            <span class="bg-emerald-50 border border-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded text-xs tracking-wider">
                                                 {{ rol_actual|default:"GRANTED"|upper }}
                                             </span>
                                         {% else %}
-                                            <span class="bg-white border border-gray-100 text-gray-300 font-bold px-2 py-0.5 rounded text-[8px] tracking-wider opacity-60">
+                                            <span class="bg-white border border-gray-100 text-gray-300 font-bold px-2 py-0.5 rounded text-xs tracking-wider opacity-60">
                                                 ✕ DENIED
                                             </span>
                                         {% endif %}
@@ -196,7 +196,7 @@
             </div>
         </div>
     {% empty %}
-        <div class="text-center py-10 bg-white border border-dashed border-gray-200 rounded-2xl font-mono text-[10px] text-gray-400 p-4 w-full uppercase tracking-wider">
+        <div class="text-center py-10 bg-white border border-dashed border-gray-200 rounded-2xl font-mono text-xs text-gray-400 p-4 w-full uppercase tracking-wider">
             No se encontraron accesos con los filtros seleccionados.
         </div>
     {% endfor %}
