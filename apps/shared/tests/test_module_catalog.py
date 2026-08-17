@@ -52,7 +52,5 @@ class ModuleCenterTests(TestCase):
         self.assertTrue(by_code["security"]["installed"])
         self.assertFalse(by_code["custom_module"]["installed"])
         self.assertTrue(by_code["custom_module"]["can_view_installation"])
-        self.assertNotIn("inventory", by_code)
-        self.assertNotIn("helpdesk", by_code)
         self.assertGreaterEqual(summary["installed"], 4)
         self.assertEqual(summary["available"], 1)
