@@ -1,7 +1,7 @@
 <div class="bg-white p-4 md:p-5 rounded-2xl border border-gray-200/80 shadow-3xs transition-all duration-300 hover:border-{{ hover_color|default:'blue-600' }}/30 hover:shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-5 group relative overflow-hidden">
     
     <div class="space-y-0.5 md:space-y-1 text-left order-2 sm:order-1 min-w-0 flex-1">
-        <span class="text-[9px] md:text-xs font-black text-gray-400 uppercase tracking-widest font-mono block truncate">
+        <span class="text-xs md:text-xs font-black text-gray-400 uppercase tracking-widest font-mono block truncate">
             {{ label }}
         </span>
         
@@ -10,7 +10,7 @@
         </h3>
         
         {% if subtext %}
-            <p class="text-[10px] md:text-[11px] font-bold font-mono uppercase tracking-wide truncate pt-1
+            <p class="text-xs md:text-xs font-bold font-mono uppercase tracking-wide truncate pt-1
                 {% if subtext_highlight %}text-emerald-500
                 {% else %}text-gray-400{% endif %}">
                 // {{ subtext }}

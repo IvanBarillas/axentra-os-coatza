@@ -14,10 +14,10 @@
 <div class="flex h-full w-full flex-col">
     <div class="border-b border-slate-200 px-5 py-5">
         <a href="{{ assets_url }}" hx-get="{{ assets_url }}" hx-target="#page-content" hx-push-url="true" class="text-xs font-black text-slate-500">← Volver a bienes</a>
-        <p class="mt-4 text-[10px] font-black uppercase tracking-[.24em] text-slate-400">Expediente del activo</p>
+        <p class="mt-4 text-xs font-black uppercase tracking-[.24em] text-slate-400">Expediente del activo</p>
         <p class="mt-2 break-all font-mono text-xs font-black text-slate-900">{{ asset.display_inventory_number }}</p>
         <h2 class="mt-1 line-clamp-2 text-sm font-black text-slate-900">{{ asset.name }}</h2>
-        <span class="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">{{ asset.get_patrimonial_status_display }}</span>
+        <span class="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">{{ asset.get_patrimonial_status_display }}</span>
     </div>
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {% include "inventory/partials/sidebar_link.html" with url=summary_url route="inventory:asset_detail" icon="layout-dashboard" label="Resumen" %}

@@ -23,11 +23,11 @@
             <div class="min-w-0">
 
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-md border border-amber-100 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-amber-700">
+                    <span class="inline-flex items-center rounded-md border border-amber-100 bg-amber-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-amber-700">
                         Organigrama
                     </span>
 
-                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">
+                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-slate-600">
                         Ficha de Sede
                     </span>
                 </div>
@@ -36,7 +36,7 @@
                     {{ sede.nombre }}
                 </h1>
 
-                <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
+                <p class="mt-2 text-xs font-bold uppercase tracking-wider text-gray-400 leading-relaxed">
                     Inmueble institucional, operación física y presencia territorial
                 </p>
 
@@ -83,23 +83,23 @@
                     {{ sede.nombre }}
                 </h2>
 
-                <p class="mt-1 text-[11px] font-bold uppercase tracking-wide text-gray-400 leading-relaxed">
+                <p class="mt-1 text-xs font-bold uppercase tracking-wide text-gray-400 leading-relaxed">
                     {{ sede.direccion|default:"Sin dirección física registrada" }}
                 </p>
 
                 <div class="mt-4 flex flex-wrap justify-center gap-2">
 
                     {% if sede.is_active %}
-                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                        <span class="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-700">
                             Sede Activa
                         </span>
                     {% else %}
-                        <span class="rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700">
+                        <span class="rounded-md border border-rose-100 bg-rose-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-rose-700">
                             Sede Inactiva
                         </span>
                     {% endif %}
 
-                    <span class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-600">
+                    <span class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-slate-600">
                         Inmueble Institucional
                     </span>
 
@@ -120,7 +120,7 @@
                         {% if sede.is_active %}
                             <button
                                 type="submit"
-                                class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-rose-700 transition hover:bg-rose-100 active:scale-95"
+                                class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-rose-700 transition hover:bg-rose-100 active:scale-95"
                             >
                                 <i data-lucide="ban" class="h-4 w-4"></i>
                                 <span>Desactivar Sede</span>
@@ -128,7 +128,7 @@
                         {% else %}
                             <button
                                 type="submit"
-                                class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
+                                class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
                             >
                                 <i data-lucide="building-2" class="h-4 w-4"></i>
                                 <span>Activar Sede</span>
@@ -149,7 +149,7 @@
                     Datos Generales
                 </h3>
 
-                <p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <p class="mt-0.5 text-xs font-bold uppercase tracking-wider text-gray-400">
                     Información base del inmueble institucional
                 </p>
             </div>
@@ -157,7 +157,7 @@
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4 xl:col-span-2">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Nombre Oficial
                     </div>
 
@@ -167,7 +167,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Estado Operativo
                     </div>
 
@@ -181,7 +181,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4 md:col-span-2 xl:col-span-3">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Dirección Física
                     </div>
 
@@ -191,7 +191,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Áreas Operativas
                     </div>
 
@@ -201,7 +201,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Dependencias Presentes
                     </div>
 
@@ -211,7 +211,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Funcionarios Presentes
                     </div>
 
@@ -221,7 +221,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50/60 p-4 md:col-span-2 xl:col-span-3">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400">
                         Nodo Institucional
                     </div>
 
@@ -254,7 +254,7 @@
                         Sede inactiva con operación vinculada
                     </h3>
 
-                    <p class="mt-1 text-[11px] font-bold uppercase tracking-wider text-amber-800/80 leading-relaxed">
+                    <p class="mt-1 text-xs font-bold uppercase tracking-wider text-amber-800/80 leading-relaxed">
                         Esta sede está inactiva, pero conserva {{ total_areas|default:0 }} área(s) operativa(s)
                         y {{ total_dependencias|default:0 }} dependencia(s) relacionada(s). Las áreas no fueron apagadas automáticamente.
                     </p>
@@ -284,7 +284,7 @@
                         </h3>
                     </div>
 
-                    <p class="mt-1 text-[10px] font-bold uppercase tracking-wider text-rose-700/70 leading-relaxed">
+                    <p class="mt-1 text-xs font-bold uppercase tracking-wider text-rose-700/70 leading-relaxed">
                         La baja lógica sólo procede si no existen áreas operativas vivas vinculadas a esta sede.
                     </p>
 
@@ -302,7 +302,7 @@
 
     <button
         type="submit"
-        class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95"
+        class="inline-flex w-full lg:w-auto items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-rose-700 active:scale-95"
     >
         <i data-lucide="trash-2" class="h-4 w-4 text-rose-100"></i>
         <span>Dar de baja</span>

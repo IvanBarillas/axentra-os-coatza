@@ -36,8 +36,8 @@
                 <div class="min-w-0"><p class="truncate text-sm font-black text-slate-900">{{ intake.name }}</p><p class="truncate text-xs text-slate-500">{{ intake.serial_number|default:"Sin número de serie" }}</p></div>
                 <p class="truncate text-xs font-bold text-slate-500">{{ intake.requested_dependencia }}</p>
                 <div class="flex items-center gap-3 md:justify-end">
-                    <span class="whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-black {% if intake.status == 'REGISTERED' or intake.status == 'APPROVED' or intake.status == 'DEPARTMENT_APPROVED' %}bg-emerald-100 text-emerald-700{% elif intake.status == 'DEPARTMENT_REJECTED' or intake.status == 'CANCELLED' %}bg-red-100 text-red-700{% elif intake.status == 'OBSERVED' %}bg-orange-100 text-orange-700{% elif intake.status == 'SUBMITTED' or intake.status == 'UNDER_PATRIMONY_REVIEW' %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-600{% endif %}">{{ intake.get_status_display }}</span>
-                    <time class="hidden whitespace-nowrap text-[11px] text-slate-400 xl:block">{{ intake.created_at|date:"d/m/Y" }}</time>
+                    <span class="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black {% if intake.status == 'REGISTERED' or intake.status == 'APPROVED' or intake.status == 'DEPARTMENT_APPROVED' %}bg-emerald-100 text-emerald-700{% elif intake.status == 'DEPARTMENT_REJECTED' or intake.status == 'CANCELLED' %}bg-red-100 text-red-700{% elif intake.status == 'OBSERVED' %}bg-orange-100 text-orange-700{% elif intake.status == 'SUBMITTED' or intake.status == 'UNDER_PATRIMONY_REVIEW' %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-600{% endif %}">{{ intake.get_status_display }}</span>
+                    <time class="hidden whitespace-nowrap text-xs text-slate-400 xl:block">{{ intake.created_at|date:"d/m/Y" }}</time>
                 </div>
             </a>
         {% empty %}<div class="p-6">{% include "inventory/partials/empty_state.html" %}</div>{% endfor %}

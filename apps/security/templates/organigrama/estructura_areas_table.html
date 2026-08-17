@@ -4,16 +4,16 @@
     
     <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-2 text-left">
         <div class="font-mono">
-            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">// Nodos de Oficinas adscritos a:</span>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">// Nodos de Oficinas adscritos a:</span>
             <h4 class="text-sm font-black text-slate-900 uppercase tracking-tight mt-0.5 leading-tight">{{ dependencia.nombre }}</h4>
         </div>
-        <span class="bg-gray-950 text-white text-[10px] font-mono font-bold px-3 py-1 rounded-xl uppercase tracking-wide shadow-2xs self-start sm:self-center">
+        <span class="bg-gray-950 text-white text-xs font-mono font-bold px-3 py-1 rounded-xl uppercase tracking-wide shadow-2xs self-start sm:self-center">
             {{ areas|length }} Áreas
         </span>
     </div>
 
     {% if areas %}
-    <div class="relative w-full font-mono text-[11px]">
+    <div class="relative w-full font-mono text-xs">
         <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
             <i data-lucide="filter" class="w-3.5 h-3.5"></i>
         </span>
@@ -26,9 +26,9 @@
 
     <div class="flex-grow max-h-[440px] overflow-y-auto pr-1 custom-scrollbar space-y-2">
         
-        <table class="hidden md:table w-full text-left border-separate border-spacing-y-2 font-mono text-[11px]">
+        <table class="hidden md:table w-full text-left border-separate border-spacing-y-2 font-mono text-xs">
             <thead>
-                <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px]">
+                <tr class="text-gray-400 font-bold uppercase tracking-wider text-xs">
                     <th class="pb-1 pl-4 w-1/2">Nombre de la Oficina o Celda</th>
                     <th class="pb-1 w-1/3">Inmueble / Ubicación Sede</th>
                     <th class="pb-1 pr-4 text-end">Acciones</th>
@@ -88,7 +88,7 @@
             </tbody>
         </table>
 
-        <div class="block md:hidden space-y-2 w-full font-mono text-[11px]">
+        <div class="block md:hidden space-y-2 w-full font-mono text-xs">
             {% for area in areas %}
                 <div class="fila-area bg-white p-4 rounded-xl border border-gray-100 shadow-3xs flex flex-col gap-3 transition-all duration-200"
                     x-show="buscarArea === '' || '{{ area.nombre }}'.toUpperCase().includes(buscarArea.toUpperCase())"
@@ -102,7 +102,7 @@
                                 <span class="w-1.5 h-1.5 bg-gray-950 rounded-full shrink-0"></span>
                                 <span class="break-words leading-tight">{{ area.nombre }}</span>
                             </div>
-                            <div class="flex items-center gap-1.5 text-slate-400 uppercase tracking-wide text-[10px] mt-1.5">
+                            <div class="flex items-center gap-1.5 text-slate-400 uppercase tracking-wide text-xs mt-1.5">
                                 <i data-lucide="map-pin" class="w-3 h-3 text-slate-400 shrink-0"></i>
                                 <span class="truncate">{{ area.sede_fisica.nombre|default:"Sede Central" }}</span>
                             </div>
@@ -143,7 +143,7 @@
         </div>
 
         {% if not areas %}
-        <div class="w-full text-center py-10 bg-gray-50/50 border border-dashed border-gray-200 rounded-2xl font-mono text-[10px]">
+        <div class="w-full text-center py-10 bg-gray-50/50 border border-dashed border-gray-200 rounded-2xl font-mono text-xs">
             <div class="flex flex-col items-center justify-center gap-2 py-6">
                 <i data-lucide="git-commit" class="w-6 h-6 text-slate-300 stroke-1"></i>
                 <span class="text-slate-400 font-bold uppercase tracking-widest">// Este ramo no contiene sub-oficinas fragmentadas aún</span>

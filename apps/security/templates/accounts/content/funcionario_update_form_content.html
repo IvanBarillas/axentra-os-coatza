@@ -20,26 +20,26 @@
         {% csrf_token %}
 
         {% if form_user.non_field_errors %}
-            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-[11px] font-bold text-red-700 normal-case">
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700 normal-case">
                 {{ form_user.non_field_errors.0 }}
             </div>
         {% endif %}
 
         {% if form_profile.non_field_errors %}
-            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-[11px] font-bold text-red-700 normal-case">
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700 normal-case">
                 {{ form_profile.non_field_errors.0 }}
             </div>
         {% endif %}
 
         <section class="space-y-4">
-            <header class="flex items-center gap-2 border-b border-gray-100 pb-2 text-[10px] font-black tracking-widest text-slate-400">
+            <header class="flex items-center gap-2 border-b border-gray-100 pb-2 text-xs font-black tracking-widest text-slate-400">
                 <i data-lucide="user" class="h-4 w-4 text-slate-400"></i>
                 <span>1. Datos del Usuario Central</span>
             </header>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="space-y-1.5">
-                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">
+                    <label class="block px-0.5 text-xs font-black tracking-wider text-gray-400">
                         Correo Electrónico Institucional
                     </label>
 
@@ -48,14 +48,14 @@
                     </div>
 
                     {% if form_user.email.errors %}
-                        <span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">
+                        <span class="block px-0.5 text-xs font-bold normal-case text-rose-600">
                             {{ form_user.email.errors.0 }}
                         </span>
                     {% endif %}
                 </div>
 
                 <div class="space-y-1.5">
-                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">
+                    <label class="block px-0.5 text-xs font-black tracking-wider text-gray-400">
                         Teléfono Celular
                     </label>
 
@@ -64,14 +64,14 @@
                     </div>
 
                     {% if form_user.phone.errors %}
-                        <span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">
+                        <span class="block px-0.5 text-xs font-bold normal-case text-rose-600">
                             {{ form_user.phone.errors.0 }}
                         </span>
                     {% endif %}
                 </div>
 
                 <div class="space-y-1.5">
-                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">
+                    <label class="block px-0.5 text-xs font-black tracking-wider text-gray-400">
                         Nombre(s)
                     </label>
 
@@ -80,14 +80,14 @@
                     </div>
 
                     {% if form_user.first_name.errors %}
-                        <span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">
+                        <span class="block px-0.5 text-xs font-bold normal-case text-rose-600">
                             {{ form_user.first_name.errors.0 }}
                         </span>
                     {% endif %}
                 </div>
 
                 <div class="space-y-1.5">
-                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">
+                    <label class="block px-0.5 text-xs font-black tracking-wider text-gray-400">
                         Apellidos
                     </label>
 
@@ -96,7 +96,7 @@
                     </div>
 
                     {% if form_user.last_name.errors %}
-                        <span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">
+                        <span class="block px-0.5 text-xs font-bold normal-case text-rose-600">
                             {{ form_user.last_name.errors.0 }}
                         </span>
                     {% endif %}
@@ -105,14 +105,14 @@
         </section>
 
         <section class="space-y-4">
-            <header class="flex items-center gap-2 border-b border-gray-100 pb-2 text-[10px] font-black tracking-widest text-slate-400">
+            <header class="flex items-center gap-2 border-b border-gray-100 pb-2 text-xs font-black tracking-widest text-slate-400">
                 <i data-lucide="git-branch" class="h-4 w-4 text-slate-400"></i>
                 <span>2. Adscripción Estructural</span>
             </header>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="space-y-1.5">
-                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">
+                    <label class="block px-0.5 text-xs font-black tracking-wider text-gray-400">
                         Puesto Nominal / Cargo
                     </label>
 
@@ -121,14 +121,14 @@
                     </div>
 
                     {% if form_profile.puesto.errors %}
-                        <span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">
+                        <span class="block px-0.5 text-xs font-bold normal-case text-rose-600">
                             {{ form_profile.puesto.errors.0 }}
                         </span>
                     {% endif %}
                 </div>
 
                 <div class="space-y-1.5">
-                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">
+                    <label class="block px-0.5 text-xs font-black tracking-wider text-gray-400">
                         Celda de Adscripción Orgánica
                     </label>
 
@@ -137,18 +137,18 @@
                     </div>
 
                     {% if form_profile.area.errors %}
-                        <span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">
+                        <span class="block px-0.5 text-xs font-bold normal-case text-rose-600">
                             {{ form_profile.area.errors.0 }}
                         </span>
                     {% else %}
-                        <p class="text-[9px] font-bold text-gray-400 normal-case tracking-normal leading-relaxed">
+                        <p class="text-xs font-bold text-gray-400 normal-case tracking-normal leading-relaxed">
                             El área determina automáticamente la dependencia administrativa y la sede física del funcionario.
                         </p>
                     {% endif %}
                 </div>
 
                 <div class="space-y-1.5 md:col-span-2">
-                    <label class="block px-0.5 text-[10px] font-black tracking-wider text-gray-400">
+                    <label class="block px-0.5 text-xs font-black tracking-wider text-gray-400">
                         Extensión de Oficina
                     </label>
 
@@ -157,7 +157,7 @@
                     </div>
 
                     {% if form_profile.telefono_oficina.errors %}
-                        <span class="block px-0.5 text-[10px] font-bold normal-case text-rose-600">
+                        <span class="block px-0.5 text-xs font-bold normal-case text-rose-600">
                             {{ form_profile.telefono_oficina.errors.0 }}
                         </span>
                     {% endif %}
@@ -169,11 +169,11 @@
             <i data-lucide="key-round" class="h-4 w-4 text-amber-600 mt-0.5 shrink-0"></i>
 
             <div class="text-left">
-                <div class="text-[10px] font-black uppercase tracking-widest text-amber-900">
+                <div class="text-xs font-black uppercase tracking-widest text-amber-900">
                     Contraseña fuera de este formulario
                 </div>
 
-                <p class="mt-1 text-[11px] font-bold normal-case tracking-normal leading-relaxed text-amber-800/80">
+                <p class="mt-1 text-xs font-bold normal-case tracking-normal leading-relaxed text-amber-800/80">
                     La edición de identidad no modifica credenciales. El cambio o reinicio de contraseña debe ejecutarse desde la acción específica de seguridad del expediente.
                 </p>
             </div>
@@ -186,7 +186,7 @@
                 hx-target="#workbench"
                 hx-swap="innerHTML"
                 hx-push-url="true"
-                class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-50 hover:text-gray-950"
+                class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-50 hover:text-gray-950"
             >
                 <i data-lucide="x" class="h-4 w-4 text-gray-400"></i>
                 <span>Cancelar Edición</span>
@@ -194,7 +194,7 @@
 
             <button
                 type="submit"
-                class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-slate-900 active:scale-95 cursor-pointer"
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-slate-900 active:scale-95 cursor-pointer"
             >
                 <i data-lucide="save" class="h-4 w-4 text-slate-400"></i>
                 <span>Actualizar Funcionario</span>

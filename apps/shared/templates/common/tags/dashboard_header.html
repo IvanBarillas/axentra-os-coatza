@@ -12,7 +12,7 @@
         {% endif %}
         
         <div class="space-y-1.5 md:space-y-2 min-w-0 flex-1 w-full">
-            <span class="inline-block px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-widest font-mono bg-gray-50 text-gray-700 border border-gray-200 {% if badge_class %}{{ badge_class }}{% endif %}">
+            <span class="inline-block px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-xs font-black uppercase tracking-[0.15em] md:tracking-widest font-mono bg-gray-50 text-gray-700 border border-gray-200 {% if badge_class %}{{ badge_class }}{% endif %}">
                 {{ badge_text }}
             </span>
             
@@ -30,7 +30,7 @@
         
         {% if mostrar_permisos %}
             <a href="{% url 'security:dynamic_matrix' %}?app_slug={{ modulo_actual }}" 
-               class="inline-flex items-center justify-center gap-2 bg-{{ accent_color }} hover:brightness-95 text-white font-black px-3 py-2 md:px-4 md:py-2.5 rounded-xl text-[9px] md:text-[10px] uppercase tracking-wider transition-all duration-150 transform active:scale-95 shadow-3xs cursor-pointer whitespace-nowrap"
+               class="inline-flex items-center justify-center gap-2 bg-{{ accent_color }} hover:brightness-95 text-white font-black px-3 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-xs uppercase tracking-wider transition-all duration-150 transform active:scale-95 shadow-3xs cursor-pointer whitespace-nowrap"
                title="Gestionar matriz de privilegios JSON para el satélite: {{ modulo_actual }}">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5 shrink-0"></i>
                 <span>Matriz Permisos</span>
@@ -44,7 +44,7 @@
                 {% endif %}
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-{{ status_color }}"></span>
             </span>
-            <span class="text-[9px] md:text-[10px] font-black text-gray-600 uppercase tracking-widest font-mono leading-none">
+            <span class="text-xs md:text-xs font-black text-gray-600 uppercase tracking-widest font-mono leading-none">
                 {{ status_text }}
             </span>
         </div>

@@ -32,7 +32,7 @@
                     <span>Flujo de Operaciones Recientes</span>
                 </h4>
 
-                <p class="text-[9px] md:text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-tight">
+                <p class="text-xs md:text-xs text-slate-500 font-mono mt-1 uppercase tracking-tight">
                     // Volumen de paquetes de auditoría indexados por aplicación.
                 </p>
             </div>
@@ -49,7 +49,7 @@
                     <span>Distribución por Criticidad</span>
                 </h4>
 
-                <p class="text-[9px] md:text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-tight">
+                <p class="text-xs md:text-xs text-slate-500 font-mono mt-1 uppercase tracking-tight">
                     // Balance operativo por severidad real.
                 </p>
             </div>
@@ -72,13 +72,13 @@
     >
 
         <div class="flex flex-col gap-1 w-full sm:w-auto">
-            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
+            <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
                 Ecosistema/App
             </span>
 
             <select
                 name="app_namespace"
-                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition shadow-sm appearance-none"
+                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-xs px-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition shadow-sm appearance-none"
             >
                 <option value="">-- TODAS --</option>
                 {% for app in apps_sistema %}
@@ -90,13 +90,13 @@
         </div>
 
         <div class="flex flex-col gap-1 w-full sm:w-auto">
-            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
+            <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
                 Verbo
             </span>
 
             <select
                 name="action_type"
-                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition shadow-sm appearance-none"
+                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-xs px-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition shadow-sm appearance-none"
             >
                 <option value="">-- TODOS --</option>
                 {% for val, label in tipos_accion %}
@@ -108,7 +108,7 @@
         </div>
 
         <div class="flex flex-col gap-1 w-full sm:w-auto">
-            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
+            <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
                 Desde
             </span>
 
@@ -116,12 +116,12 @@
                 type="date"
                 name="fecha_inicio"
                 value="{{ filtros_actuales.fecha_inicio|default:'' }}"
-                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-2 py-1 focus:outline-none focus:border-amber-500 transition uppercase shadow-sm"
+                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-xs px-2 py-1 focus:outline-none focus:border-amber-500 transition uppercase shadow-sm"
             >
         </div>
 
         <div class="flex flex-col gap-1 w-full sm:w-auto">
-            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
+            <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
                 Hasta
             </span>
 
@@ -129,12 +129,12 @@
                 type="date"
                 name="fecha_fin"
                 value="{{ filtros_actuales.fecha_fin|default:'' }}"
-                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-[11px] px-2 py-1 focus:outline-none focus:border-amber-500 transition uppercase shadow-sm"
+                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-300 font-mono text-xs px-2 py-1 focus:outline-none focus:border-amber-500 transition uppercase shadow-sm"
             >
         </div>
 
         <div class="flex flex-col gap-1 col-span-2 sm:flex-1 sm:min-w-[140px]">
-            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
+            <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
                 Operador
             </span>
 
@@ -143,12 +143,12 @@
                 name="operador"
                 value="{{ filtros_actuales.operador|default:'' }}"
                 placeholder="Correo..."
-                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-200 font-mono text-[11px] px-3 py-1.5 focus:outline-none focus:border-amber-500 transition placeholder:text-slate-700 shadow-sm normal-case"
+                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-200 font-mono text-xs px-3 py-1.5 focus:outline-none focus:border-amber-500 transition placeholder:text-slate-700 shadow-sm normal-case"
             >
         </div>
 
         <div class="flex flex-col gap-1 col-span-2 sm:flex-1 sm:min-w-[140px]">
-            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
+            <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider pl-0.5">
                 Criterio Objeto
             </span>
 
@@ -157,11 +157,11 @@
                 name="search_target"
                 value="{{ filtros_actuales.search_target|default:'' }}"
                 placeholder="UUID, Serie..."
-                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-200 font-mono text-[11px] px-3 py-1.5 focus:outline-none focus:border-amber-500 transition placeholder:text-slate-700 shadow-sm normal-case"
+                class="w-full bg-[#111827] border border-slate-800 rounded-lg text-slate-200 font-mono text-xs px-3 py-1.5 focus:outline-none focus:border-amber-500 transition placeholder:text-slate-700 shadow-sm normal-case"
             >
         </div>
 
-        <div class="flex flex-col sm:flex-row items-stretch gap-2 pt-2 col-span-2 w-full sm:w-auto font-mono text-[10px] uppercase tracking-widest">
+        <div class="flex flex-col sm:flex-row items-stretch gap-2 pt-2 col-span-2 w-full sm:w-auto font-mono text-xs uppercase tracking-widest">
             <button
                 type="submit"
                 class="bg-slate-900 border border-slate-700 hover:border-amber-500 text-slate-200 font-bold px-4 py-2.5 rounded-lg transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transform active:scale-95"
@@ -202,17 +202,17 @@
                     <span class="w-2.5 h-3 rounded-full bg-emerald-500 inline-block"></span>
                 </div>
 
-                <span class="text-[9px] md:text-[10px] font-black text-slate-400 font-mono uppercase tracking-widest pl-1">
+                <span class="text-xs md:text-xs font-black text-slate-400 font-mono uppercase tracking-widest pl-1">
                     Axentra Security Audit Stream
                 </span>
             </div>
 
-            <span class="text-[8px] md:text-[9px] font-bold font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800 tracking-wider">
+            <span class="text-xs md:text-xs font-bold font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800 tracking-wider">
                 AES-256 LOGGER BUFFER
             </span>
         </div>
 
-        <div class="flex-1 mt-4 font-mono text-[10px] md:text-[11px] leading-relaxed space-y-3 overflow-y-auto pr-1 custom-scrollbar">
+        <div class="flex-1 mt-4 font-mono text-xs md:text-xs leading-relaxed space-y-3 overflow-y-auto pr-1 custom-scrollbar">
             {% for log in recents_audits %}
                 <div class="flex flex-col sm:flex-row items-start gap-2 sm:gap-4 p-2.5 rounded-xl hover:bg-slate-900/60 transition duration-150 border border-transparent hover:border-slate-800/40 text-left w-full break-all">
 
@@ -221,17 +221,17 @@
                             [{{ log.timestamp|date:"H:i:s" }}]
                         </span>
 
-                        <span class="bg-slate-900 text-slate-400 text-[8px] px-1.5 py-0.5 rounded border border-slate-800 font-black tracking-wider font-mono uppercase">
+                        <span class="bg-slate-900 text-slate-400 text-xs px-1.5 py-0.5 rounded border border-slate-800 font-black tracking-wider font-mono uppercase">
                             {{ log.app }}
                         </span>
 
-                        <span class="{% if log.tipo == 'CRITICAL' %} text-red-500 font-black {% elif log.tipo == 'SUCCESS' %} text-emerald-400 {% else %} text-blue-400 {% endif %} flex items-center gap-1 uppercase text-[9px] tracking-wider min-w-[70px]">
+                        <span class="{% if log.tipo == 'CRITICAL' %} text-red-500 font-black {% elif log.tipo == 'SUCCESS' %} text-emerald-400 {% else %} text-blue-400 {% endif %} flex items-center gap-1 uppercase text-xs tracking-wider min-w-[70px]">
                             <span class="w-1 h-1 rounded-full {% if log.tipo == 'CRITICAL' %} bg-red-500 {% elif log.tipo == 'SUCCESS' %} bg-emerald-400 {% else %} bg-blue-400 {% endif %}"></span>
                             {{ log.tipo }}
                         </span>
                     </div>
 
-                    <div class="text-slate-300 text-[11px] font-medium leading-normal w-full sm:flex-1">
+                    <div class="text-slate-300 text-xs font-medium leading-normal w-full sm:flex-1">
                         [<span class="text-indigo-400 font-bold">{{ log.verbo }}</span>]
                         Op:
                         <span class="text-slate-400 font-bold">{{ log.operador }}</span>

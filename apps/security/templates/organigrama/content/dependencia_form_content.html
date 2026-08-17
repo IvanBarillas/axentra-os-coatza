@@ -11,7 +11,7 @@
 <div class="w-full max-w-2xl mx-auto pb-24 md:pb-16 animate-fade-in select-none space-y-6">
     <div class="bg-white p-5 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div class="min-w-0 flex-1 w-full text-left">
-            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 leading-none">
+            <div class="text-xs font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 leading-none">
                 Administración Central // Estructura // {% if action == "create" %}Alta{% else %}Edición{% endif %}
             </div>
 
@@ -30,7 +30,7 @@
             hx-target="{% if action == 'update' and dependencia %}#page-content{% else %}#workbench{% endif %}"
             hx-swap="innerHTML"
             hx-push-url="true"
-            class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
+            class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-xs font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
         >
             <i data-lucide="arrow-left" class="w-4 h-4 text-gray-400"></i>
 
@@ -57,7 +57,7 @@
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-            <div class="p-4 bg-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 text-red-950 font-mono text-[11px] uppercase tracking-wide animate-pulse">
+            <div class="p-4 bg-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 text-red-950 font-mono text-xs uppercase tracking-wide animate-pulse">
                 <i data-lucide="shield-alert" class="w-4 h-4 text-red-600 mt-0.5 shrink-0"></i>
 
                 <div class="space-y-1 text-left">
@@ -77,7 +77,7 @@
             <div class="space-y-2">
                 <label
                     for="{{ form.nombre.id_for_label }}"
-                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                    class="font-black text-gray-400 text-xs uppercase tracking-wider block px-1 text-left font-mono"
                 >
                     Nombre Oficial del Ente Público / Dependencia
                 </label>
@@ -88,13 +88,13 @@
 
                 {% if form.nombre.errors %}
                     {% for error in form.nombre.errors %}
-                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                        <p class="text-xs font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
                             <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
                             <span>{{ error }}</span>
                         </p>
                     {% endfor %}
                 {% else %}
-                    <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                    <p class="hidden sm:block text-xs text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
                         // Ejemplo: Tesorería Municipal, Dirección de Catastro, Oficialía Mayor, Obras Públicas.
                     </p>
                 {% endif %}
@@ -103,7 +103,7 @@
             <div class="space-y-2">
                 <label
                     for="{{ form.codigo_presupuestal.id_for_label }}"
-                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                    class="font-black text-gray-400 text-xs uppercase tracking-wider block px-1 text-left font-mono"
                 >
                     Código Presupuestal / Clave DEP
                 </label>
@@ -114,13 +114,13 @@
 
                 {% if form.codigo_presupuestal.errors %}
                     {% for error in form.codigo_presupuestal.errors %}
-                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                        <p class="text-xs font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
                             <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
                             <span>{{ error }}</span>
                         </p>
                     {% endfor %}
                 {% else %}
-                    <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                    <p class="hidden sm:block text-xs text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
                         // Clave de 3 dígitos usada en folios patrimoniales ORFIS/SIGMAVER. Ejemplo: 012.
                     </p>
                 {% endif %}
@@ -133,7 +133,7 @@
                     </div>
 
                     <div class="min-w-0">
-                        <p class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 font-mono">
+                        <p class="text-xs font-black uppercase tracking-[0.22em] text-slate-500 font-mono">
                             Segmento ORFIS / SIGMAVER
                         </p>
 
@@ -151,7 +151,7 @@
             <div class="space-y-2">
                 <label
                     for="{{ form.parent.id_for_label }}"
-                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                    class="font-black text-gray-400 text-xs uppercase tracking-wider block px-1 text-left font-mono"
                 >
                     Dependencia Padre / Nodo Superior
                 </label>
@@ -162,13 +162,13 @@
 
                 {% if form.parent.errors %}
                     {% for error in form.parent.errors %}
-                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                        <p class="text-xs font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
                             <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
                             <span>{{ error }}</span>
                         </p>
                     {% endfor %}
                 {% else %}
-                    <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                    <p class="hidden sm:block text-xs text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
                         // Campo opcional. Déjalo vacío si esta dependencia es un nodo raíz del organigrama.
                     </p>
                 {% endif %}
@@ -177,7 +177,7 @@
             <div class="space-y-2">
                 <label
                     for="{{ form.encargado_departamento.id_for_label }}"
-                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                    class="font-black text-gray-400 text-xs uppercase tracking-wider block px-1 text-left font-mono"
                 >
                     Titular Responsable / Director General
                 </label>
@@ -188,13 +188,13 @@
 
                 {% if form.encargado_departamento.errors %}
                     {% for error in form.encargado_departamento.errors %}
-                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                        <p class="text-xs font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
                             <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
                             <span>{{ error }}</span>
                         </p>
                     {% endfor %}
                 {% else %}
-                    <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                    <p class="hidden sm:block text-xs text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
                         // Servidor público asignado como cabeza del ramo estructural. Campo opcional.
                     </p>
                 {% endif %}
@@ -204,7 +204,7 @@
         <div class="p-4 md:p-5 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3.5 items-start text-left shadow-3xs">
             <i data-lucide="shield-check" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"></i>
 
-            <p class="text-[10px] text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
+            <p class="text-xs text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
                 <strong class="text-gray-950 block mb-0.5 tracking-tight">// INTEGRIDAD ORGÁNICA ACTIVA:</strong>
                 La dependencia padre define jerarquía administrativa. La relación física con sedes se crea posteriormente mediante áreas operativas.
             </p>
@@ -213,7 +213,7 @@
         <div class="p-4 md:p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex gap-3.5 items-start text-left shadow-3xs">
             <i data-lucide="git-branch" class="w-4 h-4 text-indigo-500 mt-0.5 shrink-0"></i>
 
-            <p class="text-[10px] text-indigo-800/80 font-mono uppercase tracking-wide leading-relaxed">
+            <p class="text-xs text-indigo-800/80 font-mono uppercase tracking-wide leading-relaxed">
                 <strong class="text-indigo-950 block mb-0.5 tracking-tight">// JERARQUÍA ADMINISTRATIVA:</strong>
                 Ejemplo: Obras Públicas puede ser dependencia padre de Topografía, Licencias o Desarrollo Urbano. Esta jerarquía servirá para reportes, alcance operativo y permisos por rama institucional.
             </p>
@@ -222,14 +222,14 @@
         <div class="p-4 md:p-5 bg-emerald-50/60 border border-emerald-100 rounded-2xl flex gap-3.5 items-start text-left shadow-3xs">
             <i data-lucide="landmark" class="w-4 h-4 text-emerald-600 mt-0.5 shrink-0"></i>
 
-            <p class="text-[10px] text-emerald-900/80 font-mono uppercase tracking-wide leading-relaxed">
+            <p class="text-xs text-emerald-900/80 font-mono uppercase tracking-wide leading-relaxed">
                 <strong class="text-emerald-950 block mb-0.5 tracking-tight">// FOLIOS PATRIMONIALES:</strong>
                 El código presupuestal de la dependencia se usará para construir folios como
                 <span class="font-black text-emerald-950">039-26-5151-012-BM-0005</span>.
             </p>
         </div>
 
-        <div class="flex flex-col sm:flex-row items-center justify-end gap-3 font-mono text-[10px] w-full">
+        <div class="flex flex-col sm:flex-row items-center justify-end gap-3 font-mono text-xs w-full">
             <a
                 href="{{ back_url }}"
                 hx-get="{{ back_url }}"

@@ -1,38 +1,30 @@
-# core/views.py (O apps/security/views/dashboard_views.py según tu estructura)
+# core/views.py
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import render, redirect
-from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
-from apps.security.models import UserAppRole
-from apps.shared.apps_config import AppIdentifier
-from apps.shared.manifest_registry import AxentraOSRegistry
-from apps.shared.utils.telemetry import AxentraRadar
+from apps.shared.module_sdk.launcher import build_launcher_context
 from apps.shared.module_sdk.services import (
     module_center_cards,
     module_center_summary,
     set_module_enabled,
 )
+from apps.shared.utils.telemetry import AxentraRadar
 
 User = get_user_model()
 
+
 def index_hub_view(request):
-    """
-    AXENTRA OS - NODO CENTRAL DE BIENVENIDA (INDEX HUB)
-
-    Punto de aterrizaje perimetral post-autenticación.
-    No pertenece a un módulo operativo específico.
-    No usa sidebar secundario.
-    """
+    """Launcher administrativo dinámico y desacoplado de los satélites."""
     if not request.user.is_authenticated:
-        return redirect('accounts:login')
+        return redirect("accounts:login")
 
-    is_manager = getattr(request.user, 'is_manager', False)
-    profile = getattr(request.user, 'axentra_profile', None)
-
-    is_root = (
-        getattr(profile, 'is_root_admin', False)
+    is_manager = getattr(request.user, "is_manager", False)
+    profile = getattr(request.user, "axentra_profile", None)
+    is_root = bool(
+        getattr(profile, "is_root_admin", False)
         or is_manager
         or request.user.is_superuser
     )
@@ -40,7 +32,7 @@ def index_hub_view(request):
     AxentraRadar.imprimir_auditoria(
         componente="index_hub_view",
         request=request,
-        titulo="Acceso a Nodo Central de Bienvenida",
+        titulo="Acceso al launcher de aplicaciones",
         icono="🏛️",
         extra_data={
             "Jurisdicción": "MASTER_BYPASS" if is_root else "OPERADOR_ESTÁNDAR",
@@ -49,17 +41,26 @@ def index_hub_view(request):
     )
 
     cards = module_center_cards(request.user)
-    return render(
-        request,
-        "index_hub.html",
-        {
-            "is_root": is_root,
-            "show_module_sidebar": False,
-            "modulo_actual": "launcher",
-            "module_cards": cards,
-            "module_summary": module_center_summary(cards),
-        },
+    launcher_context = build_launcher_context(
+        cards,
+        is_root=is_root,
+        query=request.GET.get("q", ""),
+        state=request.GET.get("state", "all"),
+        page=request.GET.get("page", 1),
     )
+    context = {
+        "is_root": is_root,
+        "show_module_sidebar": False,
+        "modulo_actual": "launcher",
+        "module_summary": module_center_summary(cards),
+        **launcher_context,
+    }
+    template = (
+        "launcher/_content.html"
+        if request.headers.get("HX-Request") == "true"
+        else "index_hub.html"
+    )
+    return render(request, template, context)
 
 
 @require_POST
@@ -83,18 +84,9 @@ def module_toggle_view(request, module_code):
         messages.success(request, f"El módulo {module.name} fue {action}.")
     return redirect("index_hub")
 
-def intro_portal_view(request):
-    """
-    Renderiza la compuerta externa de bienvenida de Axentra OS.
 
-    Tipo de pantalla:
-    - Es pública.
-    - No pertenece a una app interna.
-    - No usa shell interno.
-    - No usa workbench.
-    - Si el usuario ya está autenticado, lo envía al hub interno.
-    """
+def intro_portal_view(request):
+    """Renderiza la compuerta pública genérica de Axentra OS."""
     if request.user.is_authenticated:
         return redirect("index_hub")
-
     return render(request, "public/index.html")

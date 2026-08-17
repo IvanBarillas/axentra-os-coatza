@@ -1,7 +1,7 @@
 
 # core/settings/base.py
 from pathlib import Path
-from decouple import Config, RepositoryEnv
+from decouple import Config, RepositoryEmpty, RepositoryEnv
 import os  
 
 # =========================================================
@@ -11,7 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 ENV = os.getenv("DJANGO_ENV", "dev")
 ENV_FILE = BASE_DIR / f".env.{ENV}"
-config = Config(RepositoryEnv(ENV_FILE))
+repository = RepositoryEnv(str(ENV_FILE)) if ENV_FILE.exists() else RepositoryEmpty()
+config = Config(repository)
 
 # =========================================================
 # APPLICATIONS (Estructura fija)
@@ -33,7 +34,6 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'apps.shared.apps.SharedConfig',
     'apps.security.apps.SecurityConfig',
-    'apps.inventory.apps.InventoryConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

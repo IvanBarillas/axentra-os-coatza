@@ -1,41 +1,43 @@
 services:
-  db_dev:
-    image: postgres:15-alpine
-    container_name: axentra_postgres_wsl_dev
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: pass_dev_wsl
-      POSTGRES_DB: axentra_core_docker
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.docker
     volumes:
-      - postgres_wsl_dev_data:/var/lib/postgresql/data/
+      - postgres_dev_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432" # Expuesto por si quieres auditar la BD con DBeaver o TablePlus
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
-      - axentra-wsl-network
+      - axentra_dev
 
-  web_dev:
-    build: .
-    container_name: axentra_app_wsl_dev
-    # Usamos runserver nativo para capturar cambios de código al vuelo sin recompilar
+  web:
+    build:
+      context: .
     command: uv run python manage.py runserver 0.0.0.0:8000
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      DJANGO_ENV: docker
     volumes:
       - .:/app
       - /app/.venv
     ports:
       - "8000:8000"
-    environment:
-      - DJANGO_ENV=docker
-      - DJANGO_SETTINGS_MODULE=core.settings.development
-    env_file:
-      - .env.docker
     depends_on:
-      - db_dev
+      db:
+        condition: service_healthy
     networks:
-      - axentra-wsl-network
+      - axentra_dev
 
 volumes:
-  postgres_wsl_dev_data:
+  postgres_dev_data:
 
 networks:
-  axentra-wsl-network:
-    driver: bridge
+  axentra_dev:

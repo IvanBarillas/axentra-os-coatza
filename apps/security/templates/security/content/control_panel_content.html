@@ -12,16 +12,16 @@
 
                 <div class="min-w-0">
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">
+                        <span class="inline-flex items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-indigo-700 font-mono">
                             Security Core
                         </span>
 
                         {% if es_platform_manager %}
-                            <span class="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700 font-mono">
+                            <span class="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-emerald-700 font-mono">
                                 Platform Manager
                             </span>
                         {% else %}
-                            <span class="inline-flex items-center rounded-md border border-amber-100 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-amber-700 font-mono">
+                            <span class="inline-flex items-center rounded-md border border-amber-100 bg-amber-50 px-2 py-0.5 text-xs font-black uppercase tracking-[0.18em] text-amber-700 font-mono">
                                 App Owner Delegado
                             </span>
                         {% endif %}
@@ -31,7 +31,7 @@
                         Cockpit de Gobierno de Seguridad
                     </h1>
 
-                    <p class="mt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono max-w-5xl">
+                    <p class="mt-2 text-xs font-bold uppercase tracking-wider text-gray-400 leading-relaxed font-mono max-w-5xl">
                         {% if es_platform_manager %}
                             Vista global de plataforma: apps instaladas, owners, accesos activos, roles suspendidos y riesgos operativos.
                         {% else %}
@@ -43,7 +43,7 @@
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full xl:w-auto">
                 <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-2.5">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                         Apps
                     </div>
                     <div class="mt-1 text-xl font-black text-gray-950 font-mono">
@@ -52,7 +52,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-2.5">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                         Usuarios
                     </div>
                     <div class="mt-1 text-xl font-black text-gray-950 font-mono">
@@ -61,7 +61,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-2.5">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                         Owners
                     </div>
                     <div class="mt-1 text-xl font-black text-gray-950 font-mono">
@@ -70,7 +70,7 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-2.5">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-gray-400 font-mono">
+                    <div class="text-xs font-black uppercase tracking-widest text-gray-400 font-mono">
                         Suspendidos
                     </div>
                     <div class="mt-1 text-xl font-black text-gray-950 font-mono">
@@ -87,7 +87,7 @@
         <div class="xl:col-span-2 rounded-2xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
             <header class="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <div class="text-[9px] font-black uppercase tracking-[0.22em] text-indigo-600 font-mono">
+                    <div class="text-xs font-black uppercase tracking-[0.22em] text-indigo-600 font-mono">
                         Alcance de Gobierno
                     </div>
                     <h2 class="mt-1 text-sm font-black uppercase tracking-tight text-gray-950 font-mono">
@@ -95,7 +95,7 @@
                     </h2>
                 </div>
 
-                <div class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 font-mono">
+                <div class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-black uppercase tracking-widest text-gray-500 font-mono">
                     <i data-lucide="shield" class="w-3.5 h-3.5"></i>
                     {{ total_apps_gobernadas|default:0 }} apps
                 </div>
@@ -117,20 +117,20 @@
                                             {{ item.app.name|default:item.app.slug }}
                                         </div>
 
-                                        <div class="mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono">
+                                        <div class="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400 font-mono">
                                             {{ item.app.slug }}
                                         </div>
 
                                         <div class="mt-3 flex flex-wrap gap-2">
-                                            <span class="inline-flex items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500 font-mono">
+                                            <span class="inline-flex items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-widest text-gray-500 font-mono">
                                                 {{ item.total_usuarios }} usuarios
                                             </span>
 
-                                            <span class="inline-flex items-center rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 font-mono">
+                                            <span class="inline-flex items-center rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-black uppercase tracking-widest text-emerald-700 font-mono">
                                                 {{ item.total_owners }} owners
                                             </span>
 
-                                            <span class="inline-flex items-center rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700 font-mono">
+                                            <span class="inline-flex items-center rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-black uppercase tracking-widest text-blue-700 font-mono">
                                                 {{ item.total_operadores }} operadores
                                             </span>
                                         </div>
@@ -143,7 +143,7 @@
                                     hx-target="#page-content"
                                     hx-swap="innerHTML"
                                     hx-push-url="true"
-                                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-slate-900 active:scale-95 font-mono"
+                                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-slate-900 active:scale-95 font-mono"
                                 >
                                     <i data-lucide="lock-keyhole" class="w-3.5 h-3.5 text-slate-400"></i>
                                     Administrar Permisos
@@ -162,7 +162,7 @@
                             Sin aplicaciones bajo gobierno
                         </h3>
 
-                        <p class="mt-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide leading-relaxed font-mono max-w-md mx-auto">
+                        <p class="mt-2 text-xs font-bold text-gray-400 uppercase tracking-wide leading-relaxed font-mono max-w-md mx-auto">
                             Tu usuario tiene acceso al módulo Security, pero no tiene apps asignadas como owner activo.
                         </p>
                     </div>
@@ -174,7 +174,7 @@
 
             <section class="rounded-2xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
                 <header class="px-5 py-4 border-b border-gray-100">
-                    <div class="text-[9px] font-black uppercase tracking-[0.22em] text-amber-600 font-mono">
+                    <div class="text-xs font-black uppercase tracking-[0.22em] text-amber-600 font-mono">
                         Riesgo Operativo
                     </div>
                     <h2 class="mt-1 text-sm font-black uppercase tracking-tight text-gray-950 font-mono">
@@ -189,10 +189,10 @@
                             <div class="flex items-start gap-3">
                                 <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600 mt-0.5 shrink-0"></i>
                                 <div>
-                                    <div class="text-[10px] font-black uppercase tracking-widest text-rose-800 font-mono">
+                                    <div class="text-xs font-black uppercase tracking-widest text-rose-800 font-mono">
                                         Apps sin owner
                                     </div>
-                                    <p class="mt-1 text-[11px] font-bold text-rose-700/80 leading-relaxed">
+                                    <p class="mt-1 text-xs font-bold text-rose-700/80 leading-relaxed">
                                         Hay {{ total_apps_sin_owner }} app(s) activa(s) sin owner asignado.
                                     </p>
                                 </div>
@@ -203,10 +203,10 @@
                             <div class="flex items-start gap-3">
                                 <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 mt-0.5 shrink-0"></i>
                                 <div>
-                                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-800 font-mono">
+                                    <div class="text-xs font-black uppercase tracking-widest text-emerald-800 font-mono">
                                         Gobierno consistente
                                     </div>
-                                    <p class="mt-1 text-[11px] font-bold text-emerald-700/80 leading-relaxed">
+                                    <p class="mt-1 text-xs font-bold text-emerald-700/80 leading-relaxed">
                                         No se detectan alertas críticas en tu alcance inmediato.
                                     </p>
                                 </div>
@@ -219,10 +219,10 @@
                             <div class="flex items-start gap-3">
                                 <i data-lucide="pause-circle" class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"></i>
                                 <div>
-                                    <div class="text-[10px] font-black uppercase tracking-widest text-amber-800 font-mono">
+                                    <div class="text-xs font-black uppercase tracking-widest text-amber-800 font-mono">
                                         Roles suspendidos
                                     </div>
-                                    <p class="mt-1 text-[11px] font-bold text-amber-700/80 leading-relaxed">
+                                    <p class="mt-1 text-xs font-bold text-amber-700/80 leading-relaxed">
                                         Existen {{ total_roles_suspendidos }} asignación(es) de app suspendidas.
                                     </p>
                                 </div>
@@ -234,10 +234,10 @@
                         <div class="flex items-start gap-3">
                             <i data-lucide="info" class="w-4 h-4 text-slate-500 mt-0.5 shrink-0"></i>
                             <div>
-                                <div class="text-[10px] font-black uppercase tracking-widest text-slate-700 font-mono">
+                                <div class="text-xs font-black uppercase tracking-widest text-slate-700 font-mono">
                                     Regla de autoridad
                                 </div>
-                                <p class="mt-1 text-[11px] font-bold text-slate-600/80 leading-relaxed">
+                                <p class="mt-1 text-xs font-bold text-slate-600/80 leading-relaxed">
                                     {% if es_platform_manager %}
                                         Puedes gobernar todas las apps instaladas y asignar owners.
                                     {% else %}
@@ -253,7 +253,7 @@
 
             <section class="rounded-2xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
                 <header class="px-5 py-4 border-b border-gray-100">
-                    <div class="text-[9px] font-black uppercase tracking-[0.22em] text-purple-600 font-mono">
+                    <div class="text-xs font-black uppercase tracking-[0.22em] text-purple-600 font-mono">
                         Acciones Contextuales
                     </div>
                     <h2 class="mt-1 text-sm font-black uppercase tracking-tight text-gray-950 font-mono">
@@ -271,7 +271,7 @@
                         hx-target="#page-content"
                         hx-swap="innerHTML"
                         hx-push-url="true"
-                        class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-600 font-mono transition hover:bg-gray-50 hover:text-gray-950"
+                        class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-600 font-mono transition hover:bg-gray-50 hover:text-gray-950"
                     >
                         <span class="flex items-center gap-2">
                             <i data-lucide="scan-search" class="w-3.5 h-3.5 text-gray-400"></i>
@@ -286,7 +286,7 @@
                         hx-target="#page-content"
                         hx-swap="innerHTML"
                         hx-push-url="true"
-                        class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-600 font-mono transition hover:bg-gray-50 hover:text-gray-950"
+                        class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-600 font-mono transition hover:bg-gray-50 hover:text-gray-950"
                     >
                         <span class="flex items-center gap-2">
                             <i data-lucide="radio" class="w-3.5 h-3.5 text-gray-400"></i>

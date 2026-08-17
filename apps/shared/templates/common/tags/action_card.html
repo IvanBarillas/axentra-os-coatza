@@ -7,7 +7,7 @@
         </div>
         
         <div class="min-w-0 md:mt-4 text-left">
-            <span class="hidden md:inline-block text-[8px] font-black font-mono bg-gray-50 border border-gray-200/60 text-gray-500 px-2 py-0.5 rounded-md uppercase tracking-widest">
+            <span class="hidden md:inline-block text-xs font-black font-mono bg-gray-50 border border-gray-200/60 text-gray-500 px-2 py-0.5 rounded-md uppercase tracking-widest">
                 Módulo Operativo
             </span>
             
@@ -15,14 +15,14 @@
                 {{ title }}
             </h4>
             
-            <p class="hidden md:block text-gray-400 text-[11px] font-medium leading-relaxed mt-2 font-mono uppercase line-clamp-3">
+            <p class="hidden md:block text-gray-400 text-xs font-medium leading-relaxed mt-2 font-mono uppercase line-clamp-3">
                 {{ description }}
             </p>
         </div>
     </div>
     
     <div class="pt-0 md:pt-4 md:border-t md:border-gray-100/80 md:mt-4 shrink-0">
-        <a href="{{ url_destination }}" class="inline-flex items-center justify-center gap-2 bg-gray-950 hover:bg-{{ hover_color|default:'blue-600' }} text-white font-black py-2.5 md:py-3 px-3 md:px-4 rounded-xl text-[9px] md:text-[10px] font-mono uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-sm transform active:scale-95 group/btn">
+        <a href="{{ url_destination }}" class="inline-flex items-center justify-center gap-2 bg-gray-950 hover:bg-{{ hover_color|default:'blue-600' }} text-white font-black py-2.5 md:py-3 px-3 md:px-4 rounded-xl text-xs md:text-xs font-mono uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-sm transform active:scale-95 group/btn">
             <span class="hidden md:inline">{{ button_text|default:"Desplegar" }}</span>
             <span class="inline md:hidden">Abrir</span>
             <svg class="w-3.5 h-3.5 text-{{ hover_color|default:'blue-600' }} group-hover/btn:text-white transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>

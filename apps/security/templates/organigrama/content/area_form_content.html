@@ -12,7 +12,7 @@
 
     <div class="bg-white p-5 md:p-8 rounded-2xl md:rounded-[32px] border border-gray-200/80 shadow-3xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div class="min-w-0 flex-1 w-full text-left">
-            <div class="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 leading-none">
+            <div class="text-xs font-bold text-gray-400 font-mono uppercase tracking-[0.2em] mb-1 leading-none">
                 Administración Central // Estructura // {% if action == "create" %}Alta{% else %}Edición{% endif %}
             </div>
 
@@ -31,7 +31,7 @@
             hx-target="{% if action == 'update' and area %}#page-content{% else %}#workbench{% endif %}"
             hx-swap="innerHTML"
             hx-push-url="true"
-            class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-[10px] font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
+            class="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 text-gray-700 font-black py-2.5 px-4 border border-gray-200 rounded-xl text-xs font-mono uppercase tracking-widest transition-all duration-150 shadow-3xs flex items-center justify-center gap-2 transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
         >
             <i data-lucide="arrow-left" class="w-4 h-4 text-gray-400"></i>
             <span>
@@ -57,7 +57,7 @@
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-            <div class="p-4 bg-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 text-red-950 font-mono text-[11px] uppercase tracking-wide animate-pulse">
+            <div class="p-4 bg-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 text-red-950 font-mono text-xs uppercase tracking-wide animate-pulse">
                 <i data-lucide="shield-alert" class="w-4 h-4 text-red-600 mt-0.5 shrink-0"></i>
 
                 <div class="space-y-1 text-left">
@@ -79,7 +79,7 @@
                 <div class="space-y-2">
                     <label
                         for="{{ form.dependencia.id_for_label }}"
-                        class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                        class="font-black text-gray-400 text-xs uppercase tracking-wider block px-1 text-left font-mono"
                     >
                         {{ form.dependencia.label }}
                     </label>
@@ -90,13 +90,13 @@
 
                     {% if form.dependencia.errors %}
                         {% for error in form.dependencia.errors %}
-                            <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                            <p class="text-xs font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
                                 <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
                                 <span>{{ error }}</span>
                             </p>
                         {% endfor %}
                     {% else %}
-                        <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                        <p class="hidden sm:block text-xs text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
                             // Autoridad administrativa responsable del área.
                         </p>
                     {% endif %}
@@ -105,7 +105,7 @@
                 <div class="space-y-2">
                     <label
                         for="{{ form.sede_fisica.id_for_label }}"
-                        class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                        class="font-black text-gray-400 text-xs uppercase tracking-wider block px-1 text-left font-mono"
                     >
                         {{ form.sede_fisica.label }}
                     </label>
@@ -116,13 +116,13 @@
 
                     {% if form.sede_fisica.errors %}
                         {% for error in form.sede_fisica.errors %}
-                            <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                            <p class="text-xs font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
                                 <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
                                 <span>{{ error }}</span>
                             </p>
                         {% endfor %}
                     {% else %}
-                        <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                        <p class="hidden sm:block text-xs text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
                             // Inmueble físico donde opera el área.
                         </p>
                     {% endif %}
@@ -133,7 +133,7 @@
             <div class="space-y-2">
                 <label
                     for="{{ form.nombre.id_for_label }}"
-                    class="font-black text-gray-400 text-[10px] uppercase tracking-wider block px-1 text-left font-mono"
+                    class="font-black text-gray-400 text-xs uppercase tracking-wider block px-1 text-left font-mono"
                 >
                     {{ form.nombre.label }}
                 </label>
@@ -144,13 +144,13 @@
 
                 {% if form.nombre.errors %}
                     {% for error in form.nombre.errors %}
-                        <p class="text-[10px] font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
+                        <p class="text-xs font-mono font-bold text-red-600 uppercase px-1 flex items-center gap-1 mt-1 text-left animate-fade-in">
                             <i data-lucide="alert-circle" class="w-3 h-3 text-red-500"></i>
                             <span>{{ error }}</span>
                         </p>
                     {% endfor %}
                 {% else %}
-                    <p class="hidden sm:block text-[9px] text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
+                    <p class="hidden sm:block text-xs text-gray-400 font-bold mt-1.5 leading-relaxed font-mono tracking-wide uppercase px-1">
                         // Ejemplo: Ventanilla Predial, Caja General, Oficina de Catastro, Módulo de Atención.
                     </p>
                 {% endif %}
@@ -161,13 +161,13 @@
         <div class="p-4 md:p-5 bg-gray-50 border border-gray-200 rounded-2xl flex gap-3.5 items-start text-left shadow-3xs">
             <i data-lucide="shield-check" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"></i>
 
-            <p class="text-[10px] text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
+            <p class="text-xs text-gray-500 font-mono uppercase tracking-wide leading-relaxed">
                 <strong class="text-gray-950 block mb-0.5 tracking-tight">// INTEGRIDAD ORGÁNICA ACTIVA:</strong>
                 Esta área operativa crea la relación formal entre una dependencia administrativa y una sede física.
             </p>
         </div>
 
-        <div class="flex flex-col sm:flex-row items-center justify-end gap-3 font-mono text-[10px] w-full">
+        <div class="flex flex-col sm:flex-row items-center justify-end gap-3 font-mono text-xs w-full">
 
             <a
                 href="{{ back_url }}"

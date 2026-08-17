@@ -20,8 +20,8 @@ from apps.security.models.organigrama import Dependencia, AreaOperativa, Sede
 from apps.security.selectors.accounts_selectors import AccountsDashboardSelectors, FuncionarioSelectors
 from apps.security.services.accounts_services import FuncionarioService
 from apps.security.forms import (
-    StaffUserCreationForm, StaffUserProfileForm, 
-    StaffUserChangeForm, StaffUserProfileChangeForm, 
+    StaffUserCreationForm, StaffUserProfileForm,
+    StaffUserChangeForm, StaffUserProfileChangeForm,
     AdminPasswordChangeForm
 )
 
@@ -42,7 +42,7 @@ def accounts_analytics_view(request):
     context["cronologia_altas"] = AccountsDashboardSelectors.obtener_cronologia_altas()
     context.update({
         "modulo_actual": AppIdentifier.ACCOUNTS,
-        "show_module_sidebar": False,  
+        "show_module_sidebar": False,
     })
 
     # 📊 Registro Forense y Telemetría en el Radar
@@ -173,8 +173,8 @@ def build_funcionario_list_context(request):
         "modulo_actual": AppIdentifier.ACCOUNTS,
         "show_module_sidebar": False,
     }
-    
-    
+
+
 @login_required
 @axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_view_list")
 def funcionario_detail_view(request, pk: uuid.UUID):
@@ -211,7 +211,6 @@ def funcionario_detail_view(request, pk: uuid.UUID):
                 "href": reverse(url_name, args=[funcionario.id]),
                 "order": item.get("order", 99),
                 "provider": item.get("provider", AppIdentifier.ACCOUNTS),
-                "stub": item.get("stub", False),
                 # 🟢 Dinámico: Evalúa cuál está activa en la petición real
                 "active": url_name == current_sub_view,
             })
@@ -248,8 +247,8 @@ def funcionario_detail_view(request, pk: uuid.UUID):
         return render(request, "accounts/workbench/funcionario_detail_workbench.html", context)
 
     return render(request, "accounts/pages/funcionario_detail.html", context)
-    
-    
+
+
 
 @login_required
 @axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_create_user")
@@ -520,7 +519,6 @@ def funcionario_editar_view(request, pk: uuid.UUID):
             ),
             "order": item.get("order", 99),
             "provider": item.get("provider", AppIdentifier.ACCOUNTS),
-            "stub": item.get("stub", False),
             "active": url_name == "accounts:funcionario_sub_identidad",
         })
 
@@ -675,7 +673,6 @@ def funcionario_cambiar_password_view(request, pk: uuid.UUID):
             ),
             "order": item.get("order", 99),
             "provider": item.get("provider", AppIdentifier.ACCOUNTS),
-            "stub": item.get("stub", False),
             "active": url_name == "accounts:funcionario_sub_identidad",
         })
 
@@ -986,67 +983,6 @@ def funcionario_sub_identidad_view(request, pk: uuid.UUID):
         {
             "funcionario": funcionario,
             "perfil": perfil,
-            "modulo_actual": AppIdentifier.ACCOUNTS,
-            "show_module_sidebar": True,
-        },
-    )
-
-
-@login_required
-@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
-def funcionario_sub_hardware_view(request, pk: uuid.UUID):
-    funcionario = get_object_or_404(User, id=pk)
-
-    activos_simulados = [
-        {
-            "codigo_inventario": "AXN-HW-2026-0891",
-            "nombre": "Laptop ThinkPad L14 Gen 4",
-            "categoria": "Cómputo Portátil",
-            "estado": "Asignado / Excelente",
-            "fecha_resguardo": "15 Ene 2026",
-        },
-        {
-            "codigo_inventario": 'AXN-HW-2026-1044',
-            "nombre": 'Monitor Dell 24" P2422H',
-            "categoria": "Periféricos de Video",
-            "estado": "Asignado / Operativo",
-            "fecha_resguardo": "20 Ene 2026",
-        },
-    ]
-
-    return render(
-        request,
-        "accounts/contextual/partials/sub_hardware.html",
-        {
-            "funcionario": funcionario,
-            "activos": activos_simulados,
-            "modulo_actual": AppIdentifier.ACCOUNTS,
-            "show_module_sidebar": True,
-        },
-    )
-
-
-@login_required
-@axentra_module_gate(AppIdentifier.ACCOUNTS, required_fine_permission="can_edit_user")
-def funcionario_sub_telefonia_view(request, pk: uuid.UUID):
-    funcionario = get_object_or_404(User, id=pk)
-
-    extensiones_simuladas = [
-        {
-            "numero_extension": "4502",
-            "tipo_linea": "IP / Conmutador Central",
-            "modelo_aparato": "Cisco IP Phone 7821",
-            "estatus": "Activa",
-            "perfil_marcado": "Nacional / Celular",
-        }
-    ]
-
-    return render(
-        request,
-        "accounts/contextual/partials/sub_telefonia.html",
-        {
-            "funcionario": funcionario,
-            "extensiones": extensiones_simuladas,
             "modulo_actual": AppIdentifier.ACCOUNTS,
             "show_module_sidebar": True,
         },

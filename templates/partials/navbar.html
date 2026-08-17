@@ -26,7 +26,7 @@
                 {% if request.user.is_staff or request.user.is_superuser %}
                     <a href="/axentra-core-secret-portal-manager-wsl/" 
                        target="_blank" 
-                       class="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 font-mono border border-amber-200 bg-amber-50/50 px-3 py-1.5 rounded-xl hover:bg-amber-100/80 hover:text-amber-900 transition duration-150">
+                       class="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-800 font-mono border border-amber-200 bg-amber-50/50 px-3 py-1.5 rounded-xl hover:bg-amber-100/80 hover:text-amber-900 transition duration-150">
                         <i data-lucide="wrench" class="w-3.5 h-3.5 text-amber-600"></i> Panel Admin
                     </a>
                 {% endif %}
@@ -34,14 +34,14 @@
                 <!-- Identidad y contexto del operador en turno -->
                 <details class="group relative">
                     <summary class="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-1.5 shadow-4xs transition hover:border-gray-300 hover:bg-white [&::-webkit-details-marker]:hidden">
-                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-950 text-[10px] font-black uppercase text-white">
+                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-950 text-xs font-black uppercase text-white">
                             {{ operator_identity.name|default:request.user.email|slice:":1" }}
                         </span>
                         <span class="hidden min-w-0 text-left sm:block">
-                            <span class="block max-w-[170px] truncate text-[11px] font-black text-gray-800">
+                            <span class="block max-w-[170px] truncate text-sm font-black text-gray-800">
                                 {{ operator_identity.name|default:request.user.email }}
                             </span>
-                            <span class="block max-w-[170px] truncate text-[9px] font-bold uppercase tracking-wide text-indigo-600">
+                            <span class="block max-w-[170px] truncate text-xs font-bold uppercase tracking-wide text-indigo-600">
                                 {{ operator_identity.role|default:"Sesión activa" }}
                             </span>
                         </span>
@@ -53,7 +53,7 @@
                             <p class="truncate text-sm font-black">
                                 {{ operator_identity.name|default:request.user.email }}
                             </p>
-                            <p class="mt-1 truncate text-[11px] text-gray-300">
+                            <p class="mt-1 truncate text-sm text-gray-200">
                                 {{ operator_identity.email|default:request.user.email }}
                             </p>
                         </div>
@@ -80,9 +80,9 @@
                         </dl>
 
                         <a href="{% url 'index_hub' %}"
-                           class="flex items-center gap-2 border-t border-gray-100 px-5 py-3 text-xs font-black text-gray-700 transition hover:bg-gray-50 hover:text-indigo-700">
-                            <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
-                            Ir a la Estación Central
+                           class="flex items-center gap-2 border-t border-gray-100 px-5 py-3 min-h-11 text-sm font-black text-gray-700 transition hover:bg-gray-50 hover:text-indigo-700">
+                            <i data-lucide="grid-2x2" class="h-4 w-4"></i>
+                            Aplicaciones
                         </a>
                     </div>
                 </details>
